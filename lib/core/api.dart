@@ -294,10 +294,16 @@ class ApiClient {
       final putUrl = (m['url'] ?? '') as String;
       if (putUrl.isNotEmpty) {
         final bytes = await file.readAsBytes();
+
+        // Utiliser les headers requis retournés par le backend
+        final requiredHeaders = (m['requiredHeaders'] as Map<String, dynamic>?)
+            ?.map((k, v) => MapEntry(k.toString(), v.toString()))
+            ?? {'Content-Type': mime};
+
         await Dio().put(
           putUrl,
           data: bytes,
-          options: Options(headers: {'Content-Type': mime}),
+          options: Options(headers: requiredHeaders),
         );
 
         final publicUrl = (m['publicUrl'] ?? m['public_url'] ?? '') as String;

@@ -83,6 +83,14 @@ export class UploadsController {
       publicUrl = `${process.env.S3_ENDPOINT.replace(/\/+$/,'')}/${bucket}/${key}`;
     }
 
-    return { url, key, bucket, publicUrl };
+    // Headers requis pour l'upload (le client doit les envoyer)
+    const requiredHeaders: Record<string, string> = {
+      'Content-Type': body.mimeType,
+    };
+    if (putInput.ACL) {
+      requiredHeaders['x-amz-acl'] = putInput.ACL;
+    }
+
+    return { url, key, bucket, publicUrl, requiredHeaders };
   }
 }
