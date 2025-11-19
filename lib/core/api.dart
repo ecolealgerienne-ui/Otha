@@ -996,6 +996,110 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     }
   }
 
+  // --------------- Medical Records ---------------
+
+  Future<List<dynamic>> getMedicalRecords(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/medical-records');
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  Future<Map<String, dynamic>> createMedicalRecord(
+    String petId, {
+    required String type,
+    required String title,
+    required String dateIso,
+    String? description,
+    String? vetName,
+    String? notes,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'type': type,
+      'title': title,
+      'date': dateIso,
+      if (description != null) 'description': description,
+      if (vetName != null) 'vetName': vetName,
+      if (notes != null) 'notes': notes,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/$petId/medical-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> updateMedicalRecord(
+    String petId,
+    String recordId, {
+    String? type,
+    String? title,
+    String? dateIso,
+    String? description,
+    String? vetName,
+    String? notes,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      if (type != null) 'type': type,
+      if (title != null) 'title': title,
+      if (dateIso != null) 'date': dateIso,
+      if (description != null) 'description': description,
+      if (vetName != null) 'vetName': vetName,
+      if (notes != null) 'notes': notes,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.patch('/pets/$petId/medical-records/$recordId', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<bool> deleteMedicalRecord(String petId, String recordId) async {
+    await ensureAuth();
+    try {
+      await _dio.delete('/pets/$petId/medical-records/$recordId');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // --------------- Pet Access Token (QR Code) ---------------
+
+  Future<Map<String, dynamic>> generatePetAccessToken(String petId) async {
+    await ensureAuth();
+    final res = await _dio.post('/pets/$petId/access-token');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> getPetByToken(String token) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/by-token/$token');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> createMedicalRecordByToken(
+    String token, {
+    required String type,
+    required String title,
+    required String dateIso,
+    required String vetName,
+    String? description,
+    String? notes,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'type': type,
+      'title': title,
+      'date': dateIso,
+      'vetName': vetName,
+      if (description != null) 'description': description,
+      if (notes != null) 'notes': notes,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/by-token/$token/medical-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
 
   // --------------- Adoption (Tinder-like) ---------------
 

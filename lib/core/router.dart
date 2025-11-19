@@ -73,6 +73,13 @@ import '../features/pro/pro_application_rejected_screen.dart';
 // Profile
 import '../features/profile/user_settings_screen.dart';
 
+// Pets (carnet de santé)
+import '../features/pets/pets_management_screen.dart';
+import '../features/pets/pet_medical_history_screen.dart';
+import '../features/pets/add_medical_record_screen.dart';
+import '../features/pets/pet_qr_code_screen.dart';
+import '../features/pets/vet_scan_pet_screen.dart';
+
 // Guards
 import 'role_guard.dart';
 
@@ -180,6 +187,45 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
       GoRoute(
         path: '/settings',
         builder: (_, __) => const UserSettingsScreen(),
+      ),
+
+      // -------- Pets (carnet de santé) --------
+      GoRoute(
+        path: '/pets',
+        builder: (_, __) => const PetsManagementScreen(),
+      ),
+      GoRoute(
+        path: '/pets/:id/medical',
+        builder: (ctx, st) => PetMedicalHistoryScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/medical/add',
+        builder: (ctx, st) => AddMedicalRecordScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/qr',
+        builder: (ctx, st) => PetQrCodeScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      // Vet scanner
+      GoRoute(
+        path: '/vet/scan',
+        builder: (_, __) => const VetScanPetScreen(),
+      ),
+      GoRoute(
+        path: '/vet/add-record/:petId',
+        builder: (ctx, st) {
+          final token = st.uri.queryParameters['token'];
+          return AddMedicalRecordScreen(
+            petId: st.pathParameters['petId']!,
+            token: token,
+          );
+        },
       ),
 
       // -------- Hérités (provider & booking) --------
