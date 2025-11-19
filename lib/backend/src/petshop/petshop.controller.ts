@@ -190,6 +190,15 @@ export class CustomerOrderController {
   ) {
     return this.petshop.listClientOrders(user.id, status);
   }
+
+  @Patch(':id/status')
+  async updateMyOrderStatus(
+    @ReqUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    return this.petshop.updateClientOrderStatus(user.id, id, dto.status);
+  }
 }
 
 // Alternative route for petshop/orders

@@ -82,7 +82,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (mounted) {
         // Navigate to confirmation
         context.go('/petshop/order-confirmation', extra: {
-          'orderIds': orderIds,
+          'orderId': orderIds.isNotEmpty ? orderIds.first : null,
           'totalDa': cart.totalDa,
         });
       }
