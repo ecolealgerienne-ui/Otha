@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import 'cart_provider.dart' show kPetshopCommissionDa;
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -314,12 +315,19 @@ class _OrderCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final id = (order['id'] ?? '').toString();
     final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-    final total = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+    final baseTotal = _asInt(order['totalDa'] ?? order['total'] ?? 0);
     final createdAt = order['createdAt'] ?? order['created_at'];
     final items = order['items'] as List? ?? [];
     final deliveryAddress = (order['deliveryAddress'] ?? '').toString();
     final notes = (order['notes'] ?? '').toString();
     final phone = (order['phone'] ?? '').toString();
+
+    // Calculate commission based on item quantities
+    int totalItemQty = 0;
+    for (final item in items) {
+      totalItemQty += _asInt(item['quantity'] ?? 1);
+    }
+    final commissionDa = totalItemQty * kPetshopCommissionDa;
 
     DateTime? date;
     if (createdAt != null) {
@@ -392,13 +400,24 @@ class _OrderCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            _da(total),
+                            _da(baseTotal),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                               color: _coral,
                             ),
                           ),
+                          if (commissionDa > 0) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '+${_da(commissionDa)} com.',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 2),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

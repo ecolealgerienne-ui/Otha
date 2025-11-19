@@ -53,11 +53,19 @@ class UserOrderDetailScreen extends ConsumerWidget {
           }
 
           final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-          // Backend totalDa is product prices only, add commission for display
-          final baseTotalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
-          final totalDa = baseTotalDa + kPetshopCommissionDa;
           final createdAt = order['createdAt'] ?? order['created_at'];
           final items = (order['items'] as List?) ?? [];
+
+          // Calculate total item count for commission
+          int totalItemCount = 0;
+          for (final item in items) {
+            totalItemCount += _asInt(item['quantity'] ?? 1);
+          }
+
+          // Backend totalDa is product prices only, add commission per item for display
+          final baseTotalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+          final commissionDa = totalItemCount * kPetshopCommissionDa;
+          final totalDa = baseTotalDa + commissionDa;
           final provider = order['provider'] as Map<String, dynamic>?;
           final shopName = provider?['displayName'] ?? 'Animalerie';
           final phone = (order['phone'] ?? '').toString();
@@ -98,8 +106,8 @@ class UserOrderDetailScreen extends ConsumerWidget {
                 if (phone.isNotEmpty || address.isNotEmpty || notes.isNotEmpty)
                   const SizedBox(height: 16),
 
-                // Total
-                _buildTotalCard(totalDa),
+                // Total with breakdown
+                _buildTotalCard(baseTotalDa, commissionDa, totalDa),
                 const SizedBox(height: 24),
 
                 // Action buttons based on status
@@ -226,6 +234,8 @@ class UserOrderDetailScreen extends ConsumerWidget {
             final title = product?['title'] ?? 'Produit';
             final quantity = _asInt(item['quantity'] ?? 1);
             final priceDa = _asInt(item['priceDa'] ?? 0);
+            // Add commission per item for user display
+            final priceWithCommission = (priceDa + kPetshopCommissionDa) * quantity;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -250,7 +260,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Text(_da(priceDa * quantity), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_da(priceWithCommission), style: const TextStyle(fontWeight: FontWeight.w700)),
                 ],
               ),
             );
@@ -315,7 +325,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTotalCard(int totalDa) {
+  Widget _buildTotalCard(int baseTotalDa, int commissionDa, int totalDa) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

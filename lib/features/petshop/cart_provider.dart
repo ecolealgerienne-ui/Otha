@@ -1,7 +1,7 @@
 // lib/features/petshop/cart_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Commission par boutique (en DA)
+/// Commission par article (en DA) - modifiable pour ajustements futurs
 const int kPetshopCommissionDa = 100;
 
 /// Item dans le panier
@@ -59,8 +59,8 @@ class CartState {
     return providers.length;
   }
 
-  /// Commission totale (par boutique)
-  int get commissionDa => providerCount * kPetshopCommissionDa;
+  /// Commission totale (par article)
+  int get commissionDa => itemCount * kPetshopCommissionDa;
 
   /// Total final (produits + commission)
   int get totalDa => subtotalDa + commissionDa;

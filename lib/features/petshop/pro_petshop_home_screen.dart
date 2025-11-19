@@ -7,9 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
-
-/// Commission par commande (en DA)
-const int kPetshopCommissionDa = 100;
+import 'cart_provider.dart' show kPetshopCommissionDa;
 
 /// ========================= THEME PETSHOP (vert) =========================
 class _PetshopColors {
@@ -128,6 +126,7 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
 
   int ordersThisMonth = 0;
   int revenueThisMonth = 0;
+  int itemsThisMonth = 0;
 
   for (final order in orders) {
     final status = (order['status'] ?? '').toString().toUpperCase();
@@ -143,10 +142,17 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
     if (orderYm == ymNow) {
       ordersThisMonth++;
       revenueThisMonth += _asInt(order['totalDa'] ?? order['total'] ?? 0);
+
+      // Count items for commission calculation
+      final items = order['items'] as List? ?? [];
+      for (final item in items) {
+        itemsThisMonth += _asInt(item['quantity'] ?? 1);
+      }
     }
   }
 
-  final commissionDue = ordersThisMonth * kPetshopCommissionDa;
+  // Commission is per item, not per order
+  final commissionDue = itemsThisMonth * kPetshopCommissionDa;
 
   return _PetshopLedger(
     ym: ymNow,
@@ -887,10 +893,18 @@ class _RecentOrders extends StatelessWidget {
           const SizedBox(height: 8),
           ...recent.map((order) {
             final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-            final total = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+            final baseTotal = _asInt(order['totalDa'] ?? order['total'] ?? 0);
             final createdAt = order['createdAt'] ?? order['created_at'];
             final user = order['user'] as Map<String, dynamic>?;
             final userName = user?['firstName'] ?? user?['displayName'] ?? 'Client';
+
+            // Calculate commission based on items
+            final items = order['items'] as List? ?? [];
+            int totalItemQty = 0;
+            for (final item in items) {
+              totalItemQty += _asInt(item['quantity'] ?? 1);
+            }
+            final commissionDa = totalItemQty * kPetshopCommissionDa;
 
             DateTime? date;
             if (createdAt != null) {
@@ -931,9 +945,18 @@ class _RecentOrders extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _da(total),
+                        _da(baseTotal),
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
+                      if (commissionDa > 0)
+                        Text(
+                          '+${_da(commissionDa)} com.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       _buildStatusChip(status),
                     ],
                   ),
