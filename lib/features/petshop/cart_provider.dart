@@ -154,13 +154,13 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   /// Convertir les items pour l'API (pour un provider donné)
+  /// Note: Backend DTO only accepts productId and quantity
   List<Map<String, dynamic>> toApiItems(String providerId) {
     return state.items
         .where((i) => i.providerId == providerId)
         .map((i) => {
               'productId': i.productId,
               'quantity': i.quantity,
-              'priceDa': i.priceDa,
             })
         .toList();
   }

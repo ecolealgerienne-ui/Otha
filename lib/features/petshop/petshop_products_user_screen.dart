@@ -487,72 +487,87 @@ class _CartSummaryBar extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder: (ctx) => Consumer(
+        builder: (context, ref, child) {
+          final cart = ref.watch(cartProvider);
+
+          // Close modal if cart becomes empty
+          if (cart.isEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              }
+            });
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Text(
-                    'Mon panier',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      ref.read(cartProvider.notifier).clear();
-                      Navigator.pop(ctx);
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Mon panier',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          ref.read(cartProvider.notifier).clear();
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Vider', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: cart.items.length,
+                    itemBuilder: (_, i) {
+                      final item = cart.items[i];
+                      return _CartItemTile(item: item);
                     },
-                    child: const Text('Vider', style: TextStyle(color: Colors.red)),
                   ),
-                ],
-              ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text(_da(cart.subtotalDa),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(16),
-                itemCount: cart.items.length,
-                itemBuilder: (_, i) {
-                  final item = cart.items[i];
-                  return _CartItemTile(item: item);
-                },
-              ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
-                  Text(_da(cart.subtotalDa),
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
