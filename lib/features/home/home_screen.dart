@@ -410,6 +410,10 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: _MapPreview()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
+                  // ▼ Mes animaux (carnet de santé)
+                  const SliverToBoxAdapter(child: _MyPetsButton()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
                   const SliverToBoxAdapter(child: _SectionTitle('Top spécialistes')),
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
                   const SliverToBoxAdapter(child: _TopSpecialistsList()),
@@ -1194,6 +1198,77 @@ class _ExploreCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// -------------------- Mes animaux (carnet de santé) --------------------
+class _MyPetsButton extends StatelessWidget {
+  const _MyPetsButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const coral = Color(0xFFF36C6C);
+    const coralSoft = Color(0xFFFFEEF0);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => context.push('/pets'),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFFD6DA)),
+              boxShadow: const [
+                BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6)),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: coralSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.pets, color: coral, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Mes animaux',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF222222),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Carnet de sante & QR code veterinaire',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
               ],
             ),
           ),
