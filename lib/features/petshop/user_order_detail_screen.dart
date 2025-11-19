@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import 'cart_provider.dart'; // For kPetshopCommissionDa
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -52,7 +53,9 @@ class UserOrderDetailScreen extends ConsumerWidget {
           }
 
           final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-          final totalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+          // Backend totalDa is product prices only, add commission for display
+          final baseTotalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+          final totalDa = baseTotalDa + kPetshopCommissionDa;
           final createdAt = order['createdAt'] ?? order['created_at'];
           final items = (order['items'] as List?) ?? [];
           final provider = order['provider'] as Map<String, dynamic>?;

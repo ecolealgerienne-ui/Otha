@@ -81,9 +81,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (mounted) {
         // Navigate to confirmation
+        // Use subtotalDa since item prices already include commission
         context.go('/petshop/order-confirmation', extra: {
           'orderId': orderIds.isNotEmpty ? orderIds.first : null,
-          'totalDa': cart.totalDa,
+          'totalDa': cart.subtotalDa,
         });
       }
     } catch (e) {

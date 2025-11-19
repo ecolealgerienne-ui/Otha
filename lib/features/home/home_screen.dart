@@ -969,74 +969,77 @@ class _ActiveOrdersBanner extends ConsumerWidget {
       data: (orders) {
         if (orders.isEmpty) return const SizedBox.shrink();
 
-        // Show the first active order
-        final order = orders.first;
-        final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-        final totalDa = _asInt(order['totalDa'] ?? 0);
-        final orderId = (order['id'] ?? '').toString();
-        final provider = order['provider'] as Map<String, dynamic>?;
-        final shopName = provider?['displayName'] ?? 'Animalerie';
-        final itemCount = (order['items'] as List?)?.length ?? 0;
+        // Show all active orders stacked
+        return Column(
+          children: orders.map((order) {
+            final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
+            final totalDa = _asInt(order['totalDa'] ?? 0);
+            final orderId = (order['id'] ?? '').toString();
+            final provider = order['provider'] as Map<String, dynamic>?;
+            final shopName = provider?['displayName'] ?? 'Animalerie';
+            final itemCount = (order['items'] as List?)?.length ?? 0;
 
-        final isPending = status == 'PENDING';
-        final statusText = isPending ? 'En attente' : 'Confirmee';
-        final statusColor = isPending ? const Color(0xFFFFA000) : const Color(0xFF22C55E);
-        final statusIcon = isPending ? Icons.hourglass_empty : Icons.thumb_up;
+            final isPending = status == 'PENDING';
+            final statusText = isPending ? 'En attente' : 'Confirmee';
+            final statusColor = isPending ? const Color(0xFFFFA000) : const Color(0xFF22C55E);
+            final statusIcon = isPending ? Icons.hourglass_empty : Icons.thumb_up;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => context.push('/petshop/order/$orderId'),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF36C6C), // rose saumon
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.shopping_bag, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Commande $shopName',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => context.push('/petshop/order/$orderId'),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF36C6C), // rose saumon
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(height: 2),
-                        Row(
+                        child: const Icon(Icons.shopping_bag, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(statusIcon, size: 14, color: statusColor),
-                            const SizedBox(width: 4),
                             Text(
-                              '$statusText • $itemCount article${itemCount > 1 ? 's' : ''} • $totalDa DA',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              'Commande $shopName',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(statusIcon, size: 14, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$statusText • $itemCount article${itemCount > 1 ? 's' : ''} • $totalDa DA',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios, size: 16),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          }).toList(),
         );
       },
     );
