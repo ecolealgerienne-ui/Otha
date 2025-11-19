@@ -197,25 +197,122 @@ model Review {
 }
 
 model Pet {
-  id         String    @id @default(cuid())
-  ownerId    String
-  name       String
-  gender     Gender    @default(UNKNOWN)
-  weightKg   Decimal?  @db.Decimal(5, 2)
-  color      String?
-  country    String?
-  idNumber   String?
-  breed      String?
-  neuteredAt DateTime?
-  photoUrl   String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  ownerId         String
+  name            String
+  species         String?   // dog, cat, bird, rodent, reptile, other
+  gender          Gender    @default(UNKNOWN)
+  birthDate       DateTime? // Date de naissance pour calcul d'âge
+  weightKg        Decimal?  @db.Decimal(5, 2)
+  color           String?
+  country         String?
+  idNumber        String?   // Puce/tatouage
+  microchipNumber String?   // Numéro de puce électronique
+  breed           String?
+  bloodType       String?   // Groupe sanguin
+  isNeutered      Boolean   @default(false)
+  neuteredAt      DateTime?
+  photoUrl        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   owner          User              @relation(fields: [ownerId], references: [id])
   medicalRecords MedicalRecord[]
   accessTokens   PetAccessToken[]
+  weightRecords  WeightRecord[]
+  vaccinations   Vaccination[]
+  treatments     Treatment[]
+  allergies      Allergy[]
+  preventiveCare PreventiveCare[]
 
   @@index([ownerId])
+}
+
+// Suivi du poids avec historique
+model WeightRecord {
+  id        String   @id @default(cuid())
+  petId     String
+  weightKg  Decimal  @db.Decimal(5, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, date])
+}
+
+// Vaccinations avec rappels
+model Vaccination {
+  id          String    @id @default(cuid())
+  petId       String
+  name        String    // Rage, CHPL, Typhus, Coryza, etc.
+  date        DateTime
+  nextDueDate DateTime? // Date du prochain rappel
+  batchNumber String?   // Numéro de lot
+  vetId       String?
+  vetName     String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, date])
+  @@index([petId, nextDueDate])
+}
+
+// Traitements et médicaments
+model Treatment {
+  id          String    @id @default(cuid())
+  petId       String
+  name        String    // Nom du médicament
+  dosage      String?   // Ex: "1 comprimé"
+  frequency   String?   // Ex: "2x/jour"
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, isActive])
+  @@index([petId, startDate])
+}
+
+// Allergies (critique pour les pros)
+model Allergy {
+  id        String   @id @default(cuid())
+  petId     String
+  type      String   // drug, food, environment
+  allergen  String   // Ex: "Pénicilline", "Poulet"
+  severity  String?  // mild, moderate, severe
+  notes     String?
+  createdAt DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+// Soins préventifs (vermifugation, antiparasitaires, dentaire)
+model PreventiveCare {
+  id          String    @id @default(cuid())
+  petId       String
+  type        String    // deworming, flea_tick, dental, other
+  lastDate    DateTime
+  nextDueDate DateTime?
+  product     String?   // Produit utilisé
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, type])
+  @@index([petId, nextDueDate])
 }
 
 model MedicalRecord {

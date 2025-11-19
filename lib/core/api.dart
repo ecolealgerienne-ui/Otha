@@ -1101,6 +1101,219 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  // --------------- Weight Records ---------------
+
+  Future<List<dynamic>> getWeightRecords(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/weight-records');
+    return _unwrapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> createWeightRecord(
+    String petId, {
+    required double weightKg,
+    required String dateIso,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'weightKg': weightKg,
+      'date': dateIso,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/weight-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteWeightRecord(String petId, String recordId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/weight-records/$recordId');
+  }
+
+  // --------------- Vaccinations ---------------
+
+  Future<List<dynamic>> getVaccinations(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/vaccinations');
+    return _unwrapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> createVaccination(
+    String petId, {
+    required String name,
+    required String dateIso,
+    String? nextDueDateIso,
+    String? batchNumber,
+    String? vetId,
+    String? vetName,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'date': dateIso,
+      if (nextDueDateIso != null) 'nextDueDate': nextDueDateIso,
+      if (batchNumber != null) 'batchNumber': batchNumber,
+      if (vetId != null) 'vetId': vetId,
+      if (vetName != null) 'vetName': vetName,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/vaccinations', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteVaccination(String petId, String vaccinationId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/vaccinations/$vaccinationId');
+  }
+
+  // --------------- Treatments ---------------
+
+  Future<List<dynamic>> getTreatments(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/treatments');
+    return _unwrapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> createTreatment(
+    String petId, {
+    required String name,
+    required String startDateIso,
+    String? dosage,
+    String? frequency,
+    String? endDateIso,
+    bool isActive = true,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'startDate': startDateIso,
+      'isActive': isActive,
+      if (dosage != null) 'dosage': dosage,
+      if (frequency != null) 'frequency': frequency,
+      if (endDateIso != null) 'endDate': endDateIso,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/treatments', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> updateTreatment(
+    String petId,
+    String treatmentId, {
+    String? name,
+    String? dosage,
+    String? frequency,
+    String? startDateIso,
+    String? endDateIso,
+    bool? isActive,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (dosage != null) 'dosage': dosage,
+      if (frequency != null) 'frequency': frequency,
+      if (startDateIso != null) 'startDate': startDateIso,
+      if (endDateIso != null) 'endDate': endDateIso,
+      if (isActive != null) 'isActive': isActive,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.patch('/pets/$petId/treatments/$treatmentId', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteTreatment(String petId, String treatmentId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/treatments/$treatmentId');
+  }
+
+  // --------------- Allergies ---------------
+
+  Future<List<dynamic>> getAllergies(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/allergies');
+    return _unwrapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> createAllergy(
+    String petId, {
+    required String type,
+    required String allergen,
+    String? severity,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'type': type,
+      'allergen': allergen,
+      if (severity != null) 'severity': severity,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/allergies', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteAllergy(String petId, String allergyId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/allergies/$allergyId');
+  }
+
+  // --------------- Preventive Care ---------------
+
+  Future<List<dynamic>> getPreventiveCare(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/preventive-care');
+    return _unwrapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> createPreventiveCare(
+    String petId, {
+    required String type,
+    required String lastDateIso,
+    String? nextDueDateIso,
+    String? product,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'type': type,
+      'lastDate': lastDateIso,
+      if (nextDueDateIso != null) 'nextDueDate': nextDueDateIso,
+      if (product != null) 'product': product,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/preventive-care', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> updatePreventiveCare(
+    String petId,
+    String careId, {
+    String? type,
+    String? lastDateIso,
+    String? nextDueDateIso,
+    String? product,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      if (type != null) 'type': type,
+      if (lastDateIso != null) 'lastDate': lastDateIso,
+      if (nextDueDateIso != null) 'nextDueDate': nextDueDateIso,
+      if (product != null) 'product': product,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.patch('/pets/$petId/preventive-care/$careId', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deletePreventiveCare(String petId, String careId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/preventive-care/$careId');
+  }
+
   // --------------- Adoption (Tinder-like) ---------------
 
 // PUBLIC feed (auth facultative)
