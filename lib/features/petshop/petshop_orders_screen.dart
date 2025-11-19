@@ -337,7 +337,8 @@ class _OrderCard extends ConsumerWidget {
     }
 
     final user = order['user'] as Map? ?? {};
-    final userName = (user['displayName'] ?? user['firstName'] ?? 'Client').toString();
+    // Show only firstName for clients
+    final userName = (user['firstName'] ?? 'Client').toString();
     final userPhone = phone.isNotEmpty ? phone : (user['phone'] ?? '').toString();
 
     final statusInfo = _getStatusInfo(status);
@@ -487,7 +488,9 @@ class _OrderCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   ...items.map((item) {
-                    final itemTitle = (item['title'] ?? item['productTitle'] ?? 'Produit').toString();
+                    // Check for nested product object first (backend structure)
+                    final product = item['product'] as Map<String, dynamic>?;
+                    final itemTitle = (product?['title'] ?? item['title'] ?? item['productTitle'] ?? 'Produit').toString();
                     final qty = _asInt(item['quantity'] ?? 1);
                     final price = _asInt(item['priceDa'] ?? item['price'] ?? 0);
                     return Padding(

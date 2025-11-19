@@ -896,7 +896,8 @@ class _RecentOrders extends StatelessWidget {
             final baseTotal = _asInt(order['totalDa'] ?? order['total'] ?? 0);
             final createdAt = order['createdAt'] ?? order['created_at'];
             final user = order['user'] as Map<String, dynamic>?;
-            final userName = user?['firstName'] ?? user?['displayName'] ?? 'Client';
+            // Show only firstName for clients
+            final userName = (user?['firstName'] ?? 'Client').toString();
 
             // Calculate commission based on items
             final items = order['items'] as List? ?? [];
