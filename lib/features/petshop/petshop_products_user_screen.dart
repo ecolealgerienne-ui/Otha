@@ -342,7 +342,7 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                 ),
 
                 // Cart summary bottom bar
-                if (cart.isNotEmpty)
+                if (!cart.isEmpty)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -371,7 +371,7 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
 }
 
 class _CartSummaryBar extends StatelessWidget {
-  final Cart cart;
+  final CartState cart;
   const _CartSummaryBar({required this.cart});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
