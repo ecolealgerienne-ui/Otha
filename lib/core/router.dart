@@ -48,6 +48,8 @@ import '../features/petshop/cart_screen.dart';
 import '../features/petshop/checkout_screen.dart';
 import '../features/petshop/user_orders_screen.dart';
 import '../features/petshop/order_confirmation_screen.dart';
+import '../features/petshop/petshop_settings_screen.dart';
+import '../features/petshop/petshop_availability_screen.dart';
 import '../features/pro/pro_daycare_home_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
@@ -286,6 +288,14 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
             totalDa: (extra?['totalDa'] as int?) ?? 0,
           );
         },
+      ),
+      GoRoute(
+        path: '/petshop/settings',
+        builder: (ctx, st) => const PetshopSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/availability',
+        builder: (ctx, st) => const PetshopAvailabilityScreen(),
       ),
 
       GoRoute(
