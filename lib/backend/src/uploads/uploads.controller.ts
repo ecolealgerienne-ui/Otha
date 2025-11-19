@@ -16,10 +16,13 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 @UseGuards(JwtAuthGuard)
 export class UploadsController {
   private s3 = new S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'rbx',
     endpoint: process.env.S3_ENDPOINT || undefined,
-    forcePathStyle: String(process.env.S3_FORCE_PATH_STYLE || '').toLowerCase() === 'true',
-    // credentials: pris via AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (env)
+    forcePathStyle: String(process.env.S3_FORCE_PATH_STYLE || 'true').toLowerCase() === 'true',
+    credentials: process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY ? {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+    } : undefined,
   });
 
   @Post('local')
@@ -67,11 +70,18 @@ export class UploadsController {
     const put = new PutObjectCommand(putInput);
     const url = await getSignedUrl(this.s3, put, { expiresIn: 900 });
 
-    // URL publique finale (lecture) — path-style pour être universel
-    const publicBase = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || '';
-    const publicUrl = publicBase
-      ? `${publicBase.replace(/\/+$/,'')}/${bucket}/${key}`
-      : undefined;
+    // URL publique finale (lecture)
+    // Pour OVH: utiliser le virtual host style (bucket.endpoint)
+    const publicBase = process.env.S3_PUBLIC_ENDPOINT || '';
+    let publicUrl: string | undefined;
+
+    if (publicBase) {
+      // Virtual host style: https://bucket.s3.rbx.io.cloud.ovh.net/key
+      publicUrl = `${publicBase.replace(/\/+$/,'')}/${key}`;
+    } else if (process.env.S3_ENDPOINT) {
+      // Path style: https://s3.rbx.io.cloud.ovh.net/bucket/key
+      publicUrl = `${process.env.S3_ENDPOINT.replace(/\/+$/,'')}/${bucket}/${key}`;
+    }
 
     return { url, key, bucket, publicUrl };
   }
