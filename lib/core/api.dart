@@ -278,7 +278,46 @@ class ApiClient {
     await ensureAuth();
 
     final filename = file.path.split(Platform.pathSeparator).last;
+    final ext = _extensionOf(filename);
+    final mime = _mimeFromExtension(ext);
 
+    // Priorité 1: Upload S3 via presign (production)
+    try {
+      final presign = await _authRetry(
+        () async => await _dio.post('/uploads/presign', data: {
+          'mimeType': mime,
+          'folder': 'uploads',
+          'ext': ext,
+        }),
+      );
+      final m = _unwrap<Map<String, dynamic>>(presign.data);
+      final putUrl = (m['url'] ?? '') as String;
+      if (putUrl.isNotEmpty) {
+        final bytes = await file.readAsBytes();
+        await Dio().put(
+          putUrl,
+          data: bytes,
+          options: Options(headers: {'Content-Type': mime}),
+        );
+
+        final publicUrl = (m['publicUrl'] ?? m['public_url'] ?? '') as String;
+        if (publicUrl.isNotEmpty) return publicUrl;
+
+        final bucket = (m['bucket'] ?? '') as String;
+        final key = (m['key'] ?? '') as String;
+        final publicBase = const String.fromEnvironment('S3_PUBLIC_ENDPOINT', defaultValue: '');
+        if (publicBase.isNotEmpty && bucket.isNotEmpty && key.isNotEmpty) {
+          return '${publicBase.replaceAll(RegExp(r'/+$'), '')}/$bucket/$key';
+        }
+      }
+    } on DioException catch (e) {
+      // Si presign échoue (404 ou autre), on tente le local
+      if (e.response?.statusCode != 404 && e.response?.statusCode != 500) {
+        rethrow;
+      }
+    }
+
+    // Priorité 2: Upload local (fallback dev)
     final candidates = <String>['/uploads/local', '/upload/local', '/uploads', '/upload'];
 
     DioException? last;
@@ -308,44 +347,10 @@ class ApiClient {
       }
     }
 
-    try {
-      final ext = _extensionOf(filename);
-      final mime = _mimeFromExtension(ext);
-      final presign = await _authRetry(
-        () async => await _dio.post('/uploads/presign', data: {
-          'mimeType': mime,
-          'folder': 'uploads',
-          'ext': ext,
-        }),
-      );
-      final m = _unwrap<Map<String, dynamic>>(presign.data);
-      final putUrl = (m['url'] ?? '') as String;
-      if (putUrl.isEmpty) throw Exception('Presign: url manquante');
-
-      final bytes = await file.readAsBytes();
-      await Dio().put(
-        putUrl,
-        data: bytes,
-        options: Options(headers: {'Content-Type': mime}),
-      );
-
-      final publicUrl = (m['publicUrl'] ?? m['public_url'] ?? '') as String;
-      if (publicUrl.isNotEmpty) return publicUrl;
-
-      final bucket = (m['bucket'] ?? '') as String;
-      final key = (m['key'] ?? '') as String;
-      final publicBase = const String.fromEnvironment('S3_PUBLIC_ENDPOINT', defaultValue: '');
-      if (publicBase.isNotEmpty && bucket.isNotEmpty && key.isNotEmpty) {
-        return '${publicBase.replaceAll(RegExp(r'/+$'), '')}/$bucket/$key';
-      }
-
-      throw Exception('Impossible de déduire l’URL publique');
-    } catch (e) {
-      throw last ??
-          (e is DioException
-              ? e
-              : DioException(requestOptions: RequestOptions(path: '/uploads/local'), error: e));
-    }
+    throw last ?? DioException(
+      requestOptions: RequestOptions(path: '/uploads'),
+      error: 'Aucun endpoint d\'upload disponible',
+    );
   }
 
   String _extensionOf(String filename) {
