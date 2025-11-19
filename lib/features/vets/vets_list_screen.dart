@@ -99,8 +99,15 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 
   final rows = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
-  // On prépare l’output minimum: id, displayName, bio, distanceKm
-  final mapped = rows.map((m) {
+  // Filter to only show vets (exclude petshops and daycares)
+  final vetsOnly = rows.where((m) {
+    final specialties = m['specialties'] as Map<String, dynamic>?;
+    final kind = (specialties?['kind'] ?? '').toString().toLowerCase();
+    return kind == 'vet' || kind.isEmpty; // Include if vet or no kind specified
+  }).toList();
+
+  // On prépare l'output minimum: id, displayName, bio, distanceKm
+  final mapped = vetsOnly.map((m) {
     final id = (m['id'] ?? m['providerId'] ?? '').toString();
     final name = (m['displayName'] ?? m['name'] ?? 'Vétérinaire').toString();
     final bio = (m['bio'] ?? '').toString();
