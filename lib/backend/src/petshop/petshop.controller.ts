@@ -176,7 +176,11 @@ export class CustomerOrderController {
     @ReqUser() user: { id: string },
     @Body() dto: CreateOrderDto,
   ) {
-    return this.petshop.createOrder(user.id, dto.providerId, dto.items);
+    return this.petshop.createOrder(user.id, dto.providerId, dto.items, {
+      phone: dto.phone,
+      deliveryAddress: dto.deliveryAddress,
+      notes: dto.notes,
+    });
   }
 
   @Get('me')
@@ -201,6 +205,10 @@ export class PetshopOrderController {
     @ReqUser() user: { id: string },
     @Body() dto: CreateOrderDto,
   ) {
-    return this.petshop.createOrder(user.id, dto.providerId, dto.items);
+    return this.petshop.createOrder(user.id, dto.providerId, dto.items, {
+      phone: dto.phone,
+      deliveryAddress: dto.deliveryAddress,
+      notes: dto.notes,
+    });
   }
 }

@@ -204,7 +204,12 @@ export class PetshopService {
 
   // ========= Customer Order Creation =========
 
-  async createOrder(userId: string, providerId: string, items: { productId: string; quantity: number }[]) {
+  async createOrder(
+    userId: string,
+    providerId: string,
+    items: { productId: string; quantity: number }[],
+    options?: { phone?: string; deliveryAddress?: string; notes?: string }
+  ) {
     if (!items || items.length === 0) {
       throw new BadRequestException('Order must contain at least one item');
     }
@@ -276,6 +281,9 @@ export class PetshopService {
           providerId,
           totalDa,
           status: 'PENDING',
+          phone: options?.phone,
+          deliveryAddress: options?.deliveryAddress,
+          notes: options?.notes,
           items: {
             create: orderItems,
           },
