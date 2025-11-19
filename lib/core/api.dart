@@ -2050,6 +2050,7 @@ final hay = [
     required List<Map<String, dynamic>> items, // [{productId: String, quantity: int}]
     String? deliveryAddress,
     String? notes,
+    String? phone,
   }) async {
     await ensureAuth();
     final body = {
@@ -2057,6 +2058,7 @@ final hay = [
       'items': items,
       if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
     };
     final paths = <String>[
       '/petshop/orders',

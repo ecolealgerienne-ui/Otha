@@ -21,9 +21,9 @@ class PetshopAvailabilityScreen extends ConsumerStatefulWidget {
 
 class _PetshopAvailabilityScreenState extends ConsumerState<PetshopAvailabilityScreen>
     with SingleTickerProviderStateMixin {
-  // Theme petshop (vert)
-  static const Color _primary = Color(0xFF2E7D32);
-  static const Color _primarySoft = Color(0xFFE8F5E9);
+  // Theme petshop (salmon)
+  static const Color _primary = Color(0xFFF36C6C);
+  static const Color _primarySoft = Color(0xFFFFEEF0);
 
   late final TabController _tabs;
   int _selectedDay = 0; // 0..6 (Lun..Dim)
@@ -714,7 +714,7 @@ class _PetshopAvailabilityScreenState extends ConsumerState<PetshopAvailabilityS
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: _primary,
         unselectedLabelColor: Colors.black54,
         indicatorColor: _primary,

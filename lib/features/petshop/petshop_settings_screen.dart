@@ -17,9 +17,9 @@ class PetshopSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
-  // Palette verte (petshop)
-  static const Color _primary = Color(0xFF2E7D32);
-  static const Color _primarySoft = Color(0xFFE8F5E9);
+  // Palette salmon (petshop)
+  static const Color _primary = Color(0xFFF36C6C);
+  static const Color _primarySoft = Color(0xFFFFEEF0);
   static const Color _ink = Color(0xFF222222);
   static const Color _muted = Color(0xFF6B6B6B);
 
