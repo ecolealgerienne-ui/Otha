@@ -11,7 +11,7 @@ const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 
 /// Provider pour les détails d'une commande client
-final _orderDetailProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, orderId) async {
+final _orderDetailProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, orderId) async {
   final api = ref.read(apiProvider);
   final orders = await api.myClientOrders();
   return orders.firstWhere((o) => o['id'] == orderId, orElse: () => <String, dynamic>{});
