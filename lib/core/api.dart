@@ -2049,12 +2049,14 @@ final hay = [
     required String providerId,
     required List<Map<String, dynamic>> items, // [{productId: String, quantity: int}]
     String? deliveryAddress,
+    String? notes,
   }) async {
     await ensureAuth();
     final body = {
       'providerId': providerId,
       'items': items,
       if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
     final paths = <String>[
       '/petshop/orders',

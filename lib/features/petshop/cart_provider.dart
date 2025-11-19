@@ -8,6 +8,7 @@ const int kPetshopCommissionDa = 100;
 class CartItem {
   final String productId;
   final String providerId;
+  final String providerName; // Nom de la boutique
   final String title;
   final int priceDa; // Prix unitaire avec commission incluse
   final int quantity;
@@ -17,6 +18,7 @@ class CartItem {
   CartItem({
     required this.productId,
     required this.providerId,
+    this.providerName = '',
     required this.title,
     required this.priceDa,
     required this.quantity,
@@ -27,10 +29,11 @@ class CartItem {
   /// Total pour cet item (prix * quantité)
   int get totalDa => priceDa * quantity;
 
-  CartItem copyWith({int? quantity, int? stock}) {
+  CartItem copyWith({int? quantity, int? stock, String? providerName}) {
     return CartItem(
       productId: productId,
       providerId: providerId,
+      providerName: providerName ?? this.providerName,
       title: title,
       priceDa: priceDa,
       quantity: quantity ?? this.quantity,
