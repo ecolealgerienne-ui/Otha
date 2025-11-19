@@ -710,8 +710,8 @@ class _QuickStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final products = productsAsync.valueOrNull ?? [];
-    final orders = ordersAsync.valueOrNull ?? [];
+    final products = productsAsync.value ?? [];
+    final orders = ordersAsync.value ?? [];
 
     final activeProducts = products.where((p) => p['active'] != false).length;
     final lowStock = products.where((p) {

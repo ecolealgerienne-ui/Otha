@@ -89,8 +89,9 @@ class CartState {
 }
 
 /// Notifier pour gérer le panier
-class CartNotifier extends StateNotifier<CartState> {
-  CartNotifier() : super(const CartState());
+class CartNotifier extends Notifier<CartState> {
+  @override
+  CartState build() => const CartState();
 
   void addItem(CartItem item) {
     // Si le panier contient des items d'un autre provider, on le vide d'abord
@@ -178,7 +179,7 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 /// Provider global du panier
-final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
+final cartProvider = NotifierProvider<CartNotifier, CartState>(() {
   return CartNotifier();
 });
 
