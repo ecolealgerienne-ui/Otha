@@ -44,6 +44,10 @@ import '../features/petshop/petshop_orders_screen.dart';
 import '../features/petshop/petshop_list_screen.dart';
 import '../features/petshop/petshop_products_user_screen.dart';
 import '../features/petshop/petshop_checkout_screen.dart';
+import '../features/petshop/cart_screen.dart';
+import '../features/petshop/checkout_screen.dart';
+import '../features/petshop/user_orders_screen.dart';
+import '../features/petshop/order_confirmation_screen.dart';
 import '../features/pro/pro_daycare_home_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
@@ -260,6 +264,28 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
       GoRoute(
         path: '/petshop/checkout',
         builder: (ctx, st) => const PetshopCheckoutScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/cart',
+        builder: (ctx, st) => const CartScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/confirm-order',
+        builder: (ctx, st) => const CheckoutScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/my-orders',
+        builder: (ctx, st) => const UserOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/order-confirmation',
+        builder: (ctx, st) {
+          final extra = st.extra as Map<String, dynamic>?;
+          return OrderConfirmationScreen(
+            orderIds: (extra?['orderIds'] as List<String>?) ?? [],
+            totalDa: (extra?['totalDa'] as int?) ?? 0,
+          );
+        },
       ),
 
       GoRoute(
