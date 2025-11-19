@@ -202,6 +202,153 @@ export class PetshopService {
     });
   }
 
+  // ========= Customer Order Creation =========
+
+  async createOrder(userId: string, providerId: string, items: { productId: string; quantity: number }[]) {
+    if (!items || items.length === 0) {
+      throw new BadRequestException('Order must contain at least one item');
+    }
+
+    // Verify provider exists and is a petshop
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { id: true, specialties: true, isApproved: true },
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    if (!provider.isApproved) {
+      throw new BadRequestException('Provider is not approved');
+    }
+
+    const kind = (provider.specialties as any)?.kind;
+    if (kind !== 'petshop') {
+      throw new BadRequestException('Provider is not a petshop');
+    }
+
+    // Fetch all products and verify they belong to this provider
+    const productIds = items.map(i => i.productId);
+    const products = await this.prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        providerId,
+        active: true,
+      },
+    });
+
+    if (products.length !== productIds.length) {
+      throw new BadRequestException('One or more products not found or not available');
+    }
+
+    // Build order items and calculate total
+    const orderItems: { productId: string; quantity: number; priceDa: number }[] = [];
+    let totalDa = 0;
+
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) {
+        throw new BadRequestException(`Product ${item.productId} not found`);
+      }
+
+      // Check stock if applicable
+      if (product.stock !== null && product.stock < item.quantity) {
+        throw new BadRequestException(`Insufficient stock for product: ${product.title}`);
+      }
+
+      const itemTotal = product.priceDa * item.quantity;
+      totalDa += itemTotal;
+
+      orderItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        priceDa: product.priceDa,
+      });
+    }
+
+    // Create order with items in a transaction
+    const order = await this.prisma.$transaction(async (tx) => {
+      // Create order
+      const newOrder = await tx.order.create({
+        data: {
+          userId,
+          providerId,
+          totalDa,
+          status: 'PENDING',
+          items: {
+            create: orderItems,
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  imageUrls: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Update stock for each product
+      for (const item of items) {
+        const product = products.find(p => p.id === item.productId);
+        if (product && product.stock !== null) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
+      }
+
+      return newOrder;
+    });
+
+    return order;
+  }
+
+  // ========= Client Orders =========
+
+  async listClientOrders(userId: string, status?: string) {
+    const where: any = {
+      userId,
+      ...(status && status !== 'ALL' ? { status: status as any } : {}),
+    };
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        provider: {
+          select: {
+            id: true,
+            displayName: true,
+            address: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                title: true,
+                imageUrls: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return orders;
+  }
+
   // ========= Public endpoints =========
 
   async listPublicProducts(providerId: string) {

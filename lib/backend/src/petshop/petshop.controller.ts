@@ -16,6 +16,7 @@ import { PetshopService } from './petshop.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 @ApiTags('petshop')
 @ApiBearerAuth()
@@ -158,5 +159,48 @@ export class PublicPetshopController {
   @Get('products')
   async listPublicProducts(@Param('id') providerId: string) {
     return this.petshop.listPublicProducts(providerId);
+  }
+}
+
+// ========= Customer Order Creation (auth requise) =========
+
+@ApiTags('orders')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller({ path: 'orders', version: '1' })
+export class CustomerOrderController {
+  constructor(private readonly petshop: PetshopService) {}
+
+  @Post()
+  async createOrder(
+    @ReqUser() user: { id: string },
+    @Body() dto: CreateOrderDto,
+  ) {
+    return this.petshop.createOrder(user.id, dto.providerId, dto.items);
+  }
+
+  @Get('me')
+  async myOrders(
+    @ReqUser() user: { id: string },
+    @Query('status') status?: string,
+  ) {
+    return this.petshop.listClientOrders(user.id, status);
+  }
+}
+
+// Alternative route for petshop/orders
+@ApiTags('petshop')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller({ path: 'petshop/orders', version: '1' })
+export class PetshopOrderController {
+  constructor(private readonly petshop: PetshopService) {}
+
+  @Post()
+  async createOrder(
+    @ReqUser() user: { id: string },
+    @Body() dto: CreateOrderDto,
+  ) {
+    return this.petshop.createOrder(user.id, dto.providerId, dto.items);
   }
 }

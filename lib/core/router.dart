@@ -43,6 +43,7 @@ import '../features/petshop/petshop_product_edit_screen.dart';
 import '../features/petshop/petshop_orders_screen.dart';
 import '../features/petshop/petshop_list_screen.dart';
 import '../features/petshop/petshop_products_user_screen.dart';
+import '../features/petshop/petshop_checkout_screen.dart';
 import '../features/pro/pro_daycare_home_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
@@ -255,6 +256,10 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
       GoRoute(
         path: '/petshop/orders/:id',
         builder: (ctx, st) => const PetshopOrdersScreen(), // TODO: Create order details screen
+      ),
+      GoRoute(
+        path: '/petshop/checkout',
+        builder: (ctx, st) => const PetshopCheckoutScreen(),
       ),
 
       GoRoute(

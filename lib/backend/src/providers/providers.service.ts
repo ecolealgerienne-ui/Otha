@@ -147,10 +147,9 @@ export class ProvidersService {
       },
     });
 
-    const includeAllKinds = status === 'all';
-    const allowed = includeAllKinds
-      ? new Set(['vet', 'daycare', 'petshop'])
-      : new Set(['vet']);
+    // Toujours inclure tous les types (vet, daycare, petshop) - le filtrage par type
+    // doit être fait côté client, pas basé sur le status d'approbation
+    const allowed = new Set(['vet', 'daycare', 'petshop']);
 
     const filtered = rows.filter((p) => {
       const sp: any = p.specialties ?? {};

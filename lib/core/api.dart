@@ -2043,4 +2043,64 @@ final hay = [
     }
     throw Exception(_extractMessage(last?.response?.data));
   }
+
+  /// Créer une commande (client)
+  Future<Map<String, dynamic>> createPetshopOrder({
+    required String providerId,
+    required List<Map<String, dynamic>> items, // [{productId: String, quantity: int}]
+    String? deliveryAddress,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = {
+      'providerId': providerId,
+      'items': items,
+      if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+    final paths = <String>[
+      '/petshop/orders',
+      '/orders',
+    ];
+    DioException? last;
+    for (final path in paths) {
+      try {
+        final res = await _authRetry(() async => await _dio.post(path, data: body));
+        return _unwrap<Map<String, dynamic>>(res.data);
+      } on DioException catch (e) {
+        last = e;
+        final code = e.response?.statusCode ?? 0;
+        if (code == 404) continue;
+        rethrow;
+      }
+    }
+    throw Exception(_extractMessage(last?.response?.data));
+  }
+
+  /// Liste des commandes du client (côté utilisateur)
+  Future<List<Map<String, dynamic>>> myClientOrders({String? status}) async {
+    await ensureAuth();
+    final paths = <String>[
+      '/orders/me',
+      '/petshop/orders/me',
+    ];
+    DioException? last;
+    final params = <String, dynamic>{if (status != null && status.isNotEmpty) 'status': status};
+    for (final path in paths) {
+      try {
+        final res = await _authRetry(() async => await _dio.get(path, queryParameters: params));
+        final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+        if (data is List) {
+          return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+        return [];
+      } on DioException catch (e) {
+        last = e;
+        final code = e.response?.statusCode ?? 0;
+        if (code == 404) continue;
+        rethrow;
+      }
+    }
+    throw Exception(_extractMessage(last?.response?.data));
+  }
 }
