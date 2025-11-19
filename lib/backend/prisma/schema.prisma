@@ -211,9 +211,44 @@ model Pet {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id])
+  owner          User              @relation(fields: [ownerId], references: [id])
+  medicalRecords MedicalRecord[]
+  accessTokens   PetAccessToken[]
 
   @@index([ownerId])
+}
+
+model MedicalRecord {
+  id          String   @id @default(cuid())
+  petId       String
+  type        String   // VACCINATION, SURGERY, CHECKUP, TREATMENT, MEDICATION, OTHER
+  title       String
+  description String?
+  date        DateTime
+  vetId       String?  // Provider ID du vétérinaire (optionnel)
+  vetName     String?  // Nom du vétérinaire
+  notes       String?
+  images      String[] // URLs des images (radios, ordonnances, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, date])
+  @@index([petId, type])
+}
+
+model PetAccessToken {
+  id        String   @id @default(cuid())
+  petId     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([petId, expiresAt])
 }
 
 model RefreshToken {
