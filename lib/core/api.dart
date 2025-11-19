@@ -909,6 +909,10 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? idNumber,
     String? breed,
     String? neuteredAtIso,
+    String? birthDateIso,
+    String? microchipNumber,
+    String? allergies,
+    String? description,
     String? photoUrl,
   }) async {
     await ensureAuth();
@@ -922,6 +926,10 @@ Future<List<Map<String, dynamic>>> providerAgenda({
           if (idNumber != null) 'idNumber': idNumber,
           if (breed != null) 'breed': breed,
           if (neuteredAtIso != null) 'neuteredAt': _isoDateOrUtcMidnight(neuteredAtIso),
+          if (birthDateIso != null) 'birthDate': _isoDateOrUtcMidnight(birthDateIso),
+          if (microchipNumber != null) 'microchipNumber': microchipNumber,
+          if (allergies != null) 'allergies': allergies,
+          if (description != null) 'description': description,
           if (withPhoto && photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
         };
 
@@ -959,8 +967,8 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     }
   }
 
-  Future<Map<String, dynamic>> updatePet(
-    String petId, {
+  Future<Map<String, dynamic>> updatePet({
+    required String petId,
     String? name,
     String? breed,
     String? color,
@@ -968,6 +976,12 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     double? weightKg,
     String? gender,
     String? neuteredAtIso,
+    String? birthDateIso,
+    String? microchipNumber,
+    String? allergies,
+    String? description,
+    String? country,
+    String? idNumber,
   }) async {
     await ensureAuth();
     final body = <String, dynamic>{
@@ -978,6 +992,12 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (weightKg != null) 'weightKg': weightKg,
       if (gender != null) 'gender': gender,
       if (neuteredAtIso != null) 'neuteredAt': _isoDateOrUtcMidnight(neuteredAtIso),
+      if (birthDateIso != null) 'birthDate': _isoDateOrUtcMidnight(birthDateIso),
+      if (microchipNumber != null) 'microchipNumber': microchipNumber,
+      if (allergies != null) 'allergies': allergies,
+      if (description != null) 'description': description,
+      if (country != null) 'country': country,
+      if (idNumber != null) 'idNumber': idNumber,
     };
     final res = await _dio.patch('/pets/$petId', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
