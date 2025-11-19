@@ -202,6 +202,31 @@ export class PetshopService {
     });
   }
 
+  // Client updates their own order status (confirm delivery or cancel)
+  async updateClientOrderStatus(userId: string, orderId: string, status: string) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        userId, // Verify order belongs to this customer
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Clients can only set DELIVERED or CANCELLED
+    const allowedStatuses = ['DELIVERED', 'CANCELLED'];
+    if (!allowedStatuses.includes(status)) {
+      throw new BadRequestException(`Invalid status. Allowed: ${allowedStatuses.join(', ')}`);
+    }
+
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: status as any },
+    });
+  }
+
   // ========= Customer Order Creation =========
 
   async createOrder(

@@ -260,6 +260,22 @@ final nextPendingBookingProvider =
   return best;
 });
 
+/// -------------------- Commandes petshop en cours (client) --------------------
+final activeOrdersProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiProvider);
+  try {
+    final orders = await api.myClientOrders();
+    // Filter for active orders (PENDING or CONFIRMED)
+    return orders.where((o) {
+      final status = (o['status'] ?? '').toString().toUpperCase();
+      return status == 'PENDING' || status == 'CONFIRMED';
+    }).toList();
+  } catch (_) {
+    return [];
+  }
+});
+
 /// -------------------- Bootstrapping Home (charge vraies notifs) --------------------
 class _HomeBootstrap extends ConsumerStatefulWidget {
   const _HomeBootstrap();
@@ -326,6 +342,7 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(topVetsProvider);
     ref.invalidate(nextConfirmedBookingProvider);
     ref.invalidate(nextPendingBookingProvider);
+    ref.invalidate(activeOrdersProvider);
     ref.invalidate(homeUserPositionStreamProvider);
     ref.invalidate(avatarUrlProvider);
     await Future.delayed(const Duration(milliseconds: 120));
@@ -380,6 +397,9 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   // ▼ Prochain RDV pending (orange) — sous le confirmé
                   const SliverToBoxAdapter(child: _NextPendingBanner()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                  // ▼ Commandes en cours (rose saumon)
+                  const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
                   const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
                   const SliverToBoxAdapter(child: _ExploreGrid()),
@@ -920,6 +940,101 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                     ],
                   ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// -------------------- Bandeau Commandes en cours (rose saumon) --------------------
+class _ActiveOrdersBanner extends ConsumerWidget {
+  const _ActiveOrdersBanner({super.key});
+
+  int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(activeOrdersProvider);
+
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (orders) {
+        if (orders.isEmpty) return const SizedBox.shrink();
+
+        // Show the first active order
+        final order = orders.first;
+        final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
+        final totalDa = _asInt(order['totalDa'] ?? 0);
+        final orderId = (order['id'] ?? '').toString();
+        final provider = order['provider'] as Map<String, dynamic>?;
+        final shopName = provider?['displayName'] ?? 'Animalerie';
+        final itemCount = (order['items'] as List?)?.length ?? 0;
+
+        final isPending = status == 'PENDING';
+        final statusText = isPending ? 'En attente' : 'Confirmee';
+        final statusColor = isPending ? const Color(0xFFFFA000) : const Color(0xFF22C55E);
+        final statusIcon = isPending ? Icons.hourglass_empty : Icons.thumb_up;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.push('/petshop/order/$orderId'),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF36C6C), // rose saumon
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.shopping_bag, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Commande $shopName',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(statusIcon, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$statusText • $itemCount article${itemCount > 1 ? 's' : ''} • $totalDa DA',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_ios, size: 16),
+                ],
+              ),
             ),
           ),
         );
