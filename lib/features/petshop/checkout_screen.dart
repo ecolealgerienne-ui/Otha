@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/api.dart';
@@ -10,6 +11,11 @@ import 'cart_provider.dart';
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+
+// Storage keys for checkout info
+const _kCheckoutPhone = 'checkout_phone';
+const _kCheckoutAddress = 'checkout_address';
+const _kCheckoutNotes = 'checkout_notes';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -23,7 +29,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedInfo();
+  }
 
   @override
   void dispose() {
@@ -31,6 +44,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _notesController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  /// Load previously saved checkout info
+  Future<void> _loadSavedInfo() async {
+    final phone = await _storage.read(key: _kCheckoutPhone);
+    final address = await _storage.read(key: _kCheckoutAddress);
+    final notes = await _storage.read(key: _kCheckoutNotes);
+
+    if (mounted) {
+      setState(() {
+        if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
+        if (address != null && address.isNotEmpty) _addressController.text = address;
+        if (notes != null && notes.isNotEmpty) _notesController.text = notes;
+      });
+    }
+  }
+
+  /// Save checkout info for future orders
+  Future<void> _saveCheckoutInfo() async {
+    await _storage.write(key: _kCheckoutPhone, value: _phoneController.text.trim());
+    await _storage.write(key: _kCheckoutAddress, value: _addressController.text.trim());
+    await _storage.write(key: _kCheckoutNotes, value: _notesController.text.trim());
   }
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
@@ -75,6 +110,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           orderIds.add(orderId);
         }
       }
+
+      // Save checkout info for future orders
+      await _saveCheckoutInfo();
 
       // Clear cart after successful order
       notifier.clear();
