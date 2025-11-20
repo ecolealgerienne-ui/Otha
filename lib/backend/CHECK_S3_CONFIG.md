@@ -1,4 +1,6 @@
-# Vérification configuration S3
+# Vérification configuration S3 ✅
+
+**Dernière mise à jour** : 20/11/2025
 
 ## Problème : Erreur 400 lors de l'upload S3
 
