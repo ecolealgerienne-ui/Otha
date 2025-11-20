@@ -45,6 +45,12 @@ enum AdoptAction {
   PASS
 }
 
+enum AdoptRequestStatus {
+  PENDING   // En attente de réponse du propriétaire
+  ACCEPTED  // Accepté → conversation ouverte
+  REJECTED  // Refusé par le propriétaire
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
@@ -71,8 +77,17 @@ model User {
   orders          Order[]
 
   // Adoption (nouvelle implémentation)
-  adoptPosts  AdoptPost[]
-  adoptSwipes AdoptSwipe[]
+  adoptPosts         AdoptPost[]
+  adoptSwipes        AdoptSwipe[]
+  adoptRequests      AdoptRequest[]
+  adoptConversations AdoptConversation[]
+  adoptMessages      AdoptMessage[]
+
+  // Quotas adoption (réinitialisation quotidienne)
+  dailySwipeCount Int      @default(0)
+  dailyPostCount  Int      @default(0)
+  lastSwipeDate   DateTime?
+  lastPostDate    DateTime?
 
   @@index([email])
   @@index([city])
@@ -371,10 +386,11 @@ model AdoptPost {
   updatedAt DateTime    @updatedAt
   status    AdoptStatus @default(PENDING)
 
-  title       String
+  animalName  String   // Nom de l'animal (affiché publiquement)
+  title       String   // Titre annonce (legacy, peut être = animalName)
   description String?
   species     String
-  sex         Sex     @default(U)
+  sex         Sex      @default(U)
   ageMonths   Int?
   size        String?
   color       String?
@@ -391,9 +407,11 @@ model AdoptPost {
   approvedAt     DateTime?
   rejectedAt     DateTime?
   archivedAt     DateTime?
+  adoptedAt      DateTime? // Quand l'animal a été adopté
 
-  images AdoptImage[]
-  swipes AdoptSwipe[]
+  images   AdoptImage[]
+  swipes   AdoptSwipe[]
+  requests AdoptRequest[]
 
   @@index([status, createdAt])
   @@index([lat, lng])
@@ -426,6 +444,80 @@ model AdoptSwipe {
 
   @@unique([userId, postId])
   @@index([action, createdAt])
+}
+
+// Demande d'adoption (créée quand user swipe droite)
+model AdoptRequest {
+  id        String             @id @default(cuid())
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  status    AdoptRequestStatus @default(PENDING)
+
+  // User qui veut adopter (celui qui a swipé droite)
+  requesterId String
+  requester   User   @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  // Annonce concernée
+  postId String
+  post   AdoptPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Conversation créée si accepté
+  conversationId String?           @unique
+  conversation   AdoptConversation? @relation(fields: [conversationId], references: [id])
+
+  @@unique([requesterId, postId]) // Une seule demande par user par post
+  @@index([postId, status])
+  @@index([requesterId, status])
+}
+
+// Conversation entre propriétaire et adoptant (après acceptation)
+model AdoptConversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Annonce concernée
+  postId String
+  post   AdoptPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Propriétaire de l'annonce
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Adoptant (user qui a fait la demande)
+  adopterId String
+  adopter   User   @relation(fields: [adopterId], references: [id], onDelete: Cascade)
+
+  // Noms anonymes générés
+  ownerAnonymousName   String // Ex: "Ami des Animaux"
+  adopterAnonymousName String // Ex: "Cœur Tendre"
+
+  messages      AdoptMessage[]
+  adoptRequests AdoptRequest[]
+
+  @@unique([postId, ownerId, adopterId]) // Une conversation unique par trio
+  @@index([ownerId])
+  @@index([adopterId])
+}
+
+// Messages dans une conversation
+model AdoptMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversationId String
+  conversation   AdoptConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Auteur du message
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content String @db.Text
+  readAt  DateTime? // Quand le destinataire l'a lu
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }
 
 model ProviderEarning {
