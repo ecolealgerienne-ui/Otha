@@ -495,6 +495,139 @@ export class AdoptService {
       }));
   }
 
+  // ---------- Adoption Requests ----------
+
+  /**
+   * Liste des demandes d'adoption reçues sur mes annonces
+   */
+  async myIncomingRequests(user: any) {
+    const userId = this.requireUserId(user);
+
+    const requests = await this.prisma.adoptRequest.findMany({
+      where: {
+        post: { createdById: userId },
+        status: AdoptRequestStatus.PENDING,
+      },
+      include: {
+        requester: {
+          select: { id: true, firstName: true, lastName: true, photoUrl: true },
+        },
+        post: {
+          include: { images: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      status: r.status,
+      requester: {
+        id: r.requester.id,
+        // Ne pas exposer le vrai nom - sera anonymisé dans la conversation
+        anonymousName: generateAnonymousName(r.requester.id),
+      },
+      post: this.pickPublic(r.post),
+    }));
+  }
+
+  /**
+   * Mes demandes envoyées
+   */
+  async myOutgoingRequests(user: any) {
+    const userId = this.requireUserId(user);
+
+    const requests = await this.prisma.adoptRequest.findMany({
+      where: { requesterId: userId },
+      include: {
+        post: {
+          include: { images: true, createdBy: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      status: r.status,
+      post: this.pickPublic(r.post),
+    }));
+  }
+
+  /**
+   * Accepter une demande d'adoption → crée la conversation
+   */
+  async acceptRequest(user: any, requestId: string) {
+    const userId = this.requireUserId(user);
+
+    const request = await this.prisma.adoptRequest.findUnique({
+      where: { id: requestId },
+      include: { post: true },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+    if (request.status !== AdoptRequestStatus.PENDING) {
+      throw new BadRequestException('Request already processed');
+    }
+
+    // Créer la conversation
+    const conversation = await this.prisma.adoptConversation.create({
+      data: {
+        postId: request.postId,
+        ownerId: userId,
+        adopterId: request.requesterId,
+        ownerAnonymousName: generateAnonymousName(userId),
+        adopterAnonymousName: generateAnonymousName(request.requesterId),
+      },
+    });
+
+    // Mettre à jour la demande
+    await this.prisma.adoptRequest.update({
+      where: { id: requestId },
+      data: {
+        status: AdoptRequestStatus.ACCEPTED,
+        conversationId: conversation.id,
+      },
+    });
+
+    return {
+      ok: true,
+      conversationId: conversation.id,
+    };
+  }
+
+  /**
+   * Refuser une demande d'adoption
+   */
+  async rejectRequest(user: any, requestId: string) {
+    const userId = this.requireUserId(user);
+
+    const request = await this.prisma.adoptRequest.findUnique({
+      where: { id: requestId },
+      include: { post: true },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+    if (request.status !== AdoptRequestStatus.PENDING) {
+      throw new BadRequestException('Request already processed');
+    }
+
+    await this.prisma.adoptRequest.update({
+      where: { id: requestId },
+      data: { status: AdoptRequestStatus.REJECTED },
+    });
+
+    return { ok: true };
+  }
+
   // ---------- Admin ----------
   async adminList(status?: AdoptStatus, limit = 30, cursor?: string) {
     const where: any = {};
