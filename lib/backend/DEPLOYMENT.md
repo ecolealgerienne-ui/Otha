@@ -1,4 +1,6 @@
-# Guide de déploiement VetHome API
+# Guide de déploiement VetHome API 🚀
+
+> ⚠️ **IMPORTANT** : Ce guide contient des informations critiques pour le déploiement S3 sur OVH.
 
 ## Structure des fichiers S3
 
