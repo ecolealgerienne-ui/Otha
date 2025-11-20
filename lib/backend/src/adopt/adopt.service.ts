@@ -279,7 +279,7 @@ export class AdoptService {
     let imagesOut = existing.images;
     if (dto.images) {
       await this.prisma.adoptImage.deleteMany({ where: { postId: id } });
-      const imgs = dto.images.slice(0, 6).map((i: any, idx: number) => ({
+      const imgs = dto.images.slice(0, MAX_IMAGES_PER_POST).map((i: any, idx: number) => ({
         url: i.url,
         width: i.width ?? null,
         height: i.height ?? null,
