@@ -60,7 +60,6 @@ export class AdoptService {
   private toPublicImages(images: unknown): { id: string; url: string; width: number | null; height: number | null; order: number }[] {
     const arr = (Array.isArray(images) ? (images as ImgLike[]) : []) as ImgLike[];
     return arr
-@@ -59,86 +70,114 @@ export class AdoptService {
       id: post.id,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
@@ -175,7 +174,6 @@ export class AdoptService {
     // Si l’owner modifie un champ "substantiel" et que le post était APPROVED → repasse en PENDING
     const substantial =
       dto.title ?? dto.description ?? dto.species ?? dto.sex ?? dto.ageMonths ??
-@@ -153,165 +192,252 @@ export class AdoptService {
     // Images (remplacement complet si fourni)
     let imagesOut = existing.images;
     if (dto.images) {
