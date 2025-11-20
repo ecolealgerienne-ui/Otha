@@ -63,6 +63,7 @@ export class AdoptService {
       where: { id: userId },
       select: { dailySwipeCount: true, lastSwipeDate: true },
     });
+
     if (!user) throw new ForbiddenException('User not found');
 
     const now = new Date();
@@ -93,6 +94,7 @@ export class AdoptService {
       where: { id: userId },
       select: { dailyPostCount: true, lastPostDate: true },
     });
+
     if (!user) throw new ForbiddenException('User not found');
 
     const now = new Date();
@@ -121,9 +123,10 @@ export class AdoptService {
   async getQuotas(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { dailySwipeCount: true, dailyPostCount: true, lastSwipeDate: true, lastPostDate: true },
+      select: { dailySwipeCount: true, lastSwipeDate: true, dailyPostCount: true, lastPostDate: true },
     });
-    if (!user) return { swipesRemaining: MAX_SWIPES_PER_DAY, postsRemaining: MAX_POSTS_PER_DAY };
+
+    if (!user) throw new ForbiddenException('User not found');
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -143,11 +146,22 @@ export class AdoptService {
 
   private toPublicImages(images: unknown): { id: string; url: string; width: number | null; height: number | null; order: number }[] {
     const arr = (Array.isArray(images) ? (images as ImgLike[]) : []) as ImgLike[];
-    return arr
+    return arr.map((img) => ({
+      id: img.id ?? '',
+      url: img.url ?? '',
+      width: img.width ?? null,
+      height: img.height ?? null,
+      order: img.order ?? 0,
+    }));
+  }
+
+  private pickPublic(post: any, center?: { lat: number; lng: number }) {
+    const out: any = {
       id: post.id,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       status: post.status,
+      animalName: post.animalName || post.title,
       title: post.title,
       description: post.description,
       species: post.species,
@@ -160,6 +174,7 @@ export class AdoptService {
       mapsUrl: post.mapsUrl,
       lat: post.lat,
       lng: post.lng,
+      adoptedAt: post.adoptedAt,
       createdById: post.createdById,
       images: this.toPublicImages(post.images),
     };
