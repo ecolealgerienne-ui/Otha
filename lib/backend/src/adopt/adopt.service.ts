@@ -214,7 +214,8 @@ export class AdoptService {
   async create(user: any, dto: CreateAdoptPostDto) {
     const { lat, lng } = this.normalizeGeo(dto);
     const userId = this.requireUserId(user);
-    const images = (dto.images ?? []).slice(0, 6).map((i: any, idx: number) => ({
+    await this.checkAndUpdatePostQuota(userId);
+    const images = (dto.images ?? []).slice(0, MAX_IMAGES_PER_POST).map((i: any, idx: number) => ({
       url: i.url,
       width: i.width ?? null,
       height: i.height ?? null,
@@ -224,6 +225,7 @@ export class AdoptService {
     const post = await this.prisma.adoptPost.create({
       data: {
         title: dto.title,
+        animalName: dto.title,
         description: dto.description ?? null,
         species: dto.species,
         sex: this.asSex(dto.sex), // <-- enum Prisma
