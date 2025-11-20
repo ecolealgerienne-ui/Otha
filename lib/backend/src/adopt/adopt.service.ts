@@ -57,6 +57,90 @@ export class AdoptService {
     return undefined;
   }
 
+  // ---------- Quota Helpers ----------
+  private async checkAndUpdateSwipeQuota(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailySwipeCount: true, lastSwipeDate: true },
+    });
+    if (!user) throw new ForbiddenException('User not found');
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastSwipe = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipe ? new Date(lastSwipe.getFullYear(), lastSwipe.getMonth(), lastSwipe.getDate()) : null;
+
+    if (!lastSwipeDay || lastSwipeDay < today) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { dailySwipeCount: 1, lastSwipeDate: now },
+      });
+      return;
+    }
+
+    if (user.dailySwipeCount >= MAX_SWIPES_PER_DAY) {
+      throw new BadRequestException(`Quota quotidien atteint (${MAX_SWIPES_PER_DAY} swipes droits/jour)`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { dailySwipeCount: { increment: 1 }, lastSwipeDate: now },
+    });
+  }
+
+  private async checkAndUpdatePostQuota(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyPostCount: true, lastPostDate: true },
+    });
+    if (!user) throw new ForbiddenException('User not found');
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastPost = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPost ? new Date(lastPost.getFullYear(), lastPost.getMonth(), lastPost.getDate()) : null;
+
+    if (!lastPostDay || lastPostDay < today) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { dailyPostCount: 1, lastPostDate: now },
+      });
+      return;
+    }
+
+    if (user.dailyPostCount >= MAX_POSTS_PER_DAY) {
+      throw new BadRequestException(`Quota quotidien atteint (${MAX_POSTS_PER_DAY} annonce/jour)`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { dailyPostCount: { increment: 1 }, lastPostDate: now },
+    });
+  }
+
+  async getQuotas(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailySwipeCount: true, dailyPostCount: true, lastSwipeDate: true, lastPostDate: true },
+    });
+    if (!user) return { swipesRemaining: MAX_SWIPES_PER_DAY, postsRemaining: MAX_POSTS_PER_DAY };
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const lastSwipe = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipe ? new Date(lastSwipe.getFullYear(), lastSwipe.getMonth(), lastSwipe.getDate()) : null;
+    const swipesUsed = (!lastSwipeDay || lastSwipeDay < today) ? 0 : user.dailySwipeCount;
+    const swipesRemaining = Math.max(0, MAX_SWIPES_PER_DAY - swipesUsed);
+
+    const lastPost = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPost ? new Date(lastPost.getFullYear(), lastPost.getMonth(), lastPost.getDate()) : null;
+    const postsUsed = (!lastPostDay || lastPostDay < today) ? 0 : user.dailyPostCount;
+    const postsRemaining = Math.max(0, MAX_POSTS_PER_DAY - postsUsed);
+
+    return { swipesRemaining, postsRemaining };
+  }
+
   private toPublicImages(images: unknown): { id: string; url: string; width: number | null; height: number | null; order: number }[] {
     const arr = (Array.isArray(images) ? (images as ImgLike[]) : []) as ImgLike[];
     return arr
