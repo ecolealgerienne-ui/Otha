@@ -402,16 +402,51 @@ export class AdoptService {
   async swipe(user: any, postId: string, dto: SwipeDto) {
     const userId = this.requireUserId(user);
     const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
-    if (!post || post.status !== AdoptStatus.APPROVED) throw new NotFoundException('Post not found');
-    if (post.createdById === userId) throw new ForbiddenException('Cannot swipe own post');
 
+    if (!post || post.status !== AdoptStatus.APPROVED) {
+      throw new NotFoundException('Post not found');
+    }
+    if (post.createdById === userId) {
+      throw new ForbiddenException('Cannot swipe own post');
+    }
+
+    // Vérifier si déjà adopté
+    if (post.adoptedAt) {
+      return {
+        ok: false,
+        action: dto.action,
+        message: 'Cet animal a déjà été adopté',
+        alreadyAdopted: true,
+      };
+    }
+
+    // Vérifier quota uniquement pour LIKE
+    if (dto.action === SwipeAction.LIKE) {
+      await this.checkAndUpdateSwipeQuota(userId);
+    }
+
+    // Upsert swipe
     const rec = await this.prisma.adoptSwipe.upsert({
       where: { userId_postId: { userId, postId } },
       create: { userId, postId, action: dto.action },
       update: { action: dto.action },
     });
 
-    // TODO: notify post.owner on LIKE (queue)
+    // Si LIKE, créer une demande d'adoption
+    if (dto.action === SwipeAction.LIKE) {
+      await this.prisma.adoptRequest.upsert({
+        where: { requesterId_postId: { requesterId: userId, postId } },
+        create: {
+          requesterId: userId,
+          postId,
+          status: AdoptRequestStatus.PENDING,
+        },
+        update: {
+          status: AdoptRequestStatus.PENDING, // Réactiver si refusée avant
+        },
+      });
+    }
+
     return { ok: true, action: rec.action };
   }
 
