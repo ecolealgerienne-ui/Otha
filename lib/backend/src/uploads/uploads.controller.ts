@@ -59,6 +59,16 @@ export class UploadsController {
     // Ex: clxxxx/avatar/uuid.jpg ou clxxxx/pets/uuid.jpg
     const key = `${req.user.sub}/${folder}/${randomUUID()}${cleanExt ? '.' + cleanExt : ''}`;
 
+    console.log('[S3] Generating presigned URL:', {
+      bucket,
+      key,
+      mimeType: body.mimeType,
+      region: process.env.AWS_REGION || 'rbx',
+      endpoint: process.env.S3_ENDPOINT,
+      forcePathStyle: String(process.env.S3_FORCE_PATH_STYLE || 'true').toLowerCase() === 'true',
+      hasCredentials: !!(process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY),
+    });
+
     // Presigned URL sans ACL (OVH ne supporte pas bien les ACL dans presigned URLs)
     const putInput: any = {
       Bucket: bucket,
@@ -68,6 +78,8 @@ export class UploadsController {
 
     const put = new PutObjectCommand(putInput);
     const url = await getSignedUrl(this.s3, put, { expiresIn: 900 });
+
+    console.log('[S3] Presigned URL generated:', url.substring(0, 150) + '...');
 
     // URL publique finale (lecture)
     // Pour OVH: utiliser le virtual host style (bucket.endpoint)
