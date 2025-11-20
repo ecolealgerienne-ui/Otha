@@ -1,11 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
 import { FeedQueryDto } from './dto/feed.dto';
 import { SwipeDto, SwipeAction } from './dto/swipe.dto';
-import { AdoptStatus, Prisma, Sex } from '@prisma/client';
+import { AdoptStatus, AdoptRequestStatus, Prisma, Sex } from '@prisma/client';
 import { bboxFromCenter, clampLat, clampLng, haversineKm, parseLatLngFromGoogleUrl } from './geo.util';
+import { generateAnonymousName } from './anonymous-names.util';
+
+// Constantes de quotas et limites
+const MAX_SWIPES_PER_DAY = 5;
+const MAX_POSTS_PER_DAY = 1;
+const MAX_IMAGES_PER_POST = 3;
 
 type ImgLike = { id?: string; url?: string; width?: number | null; height?: number | null; order?: number };
 
