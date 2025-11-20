@@ -102,6 +102,13 @@ export class UploadsController {
     // Indiquer au client s'il doit confirmer l'upload pour ACL
     const needsConfirm = String(process.env.S3_USE_OBJECT_ACL || '').toLowerCase() === 'true';
 
+    console.log('[S3] Response to client:', {
+      needsConfirm,
+      S3_USE_OBJECT_ACL: process.env.S3_USE_OBJECT_ACL,
+      key,
+      publicUrl,
+    });
+
     return { url, key, bucket, publicUrl, requiredHeaders, needsConfirm };
   }
 
