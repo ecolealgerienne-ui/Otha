@@ -302,11 +302,31 @@ class ApiClient {
             ?.map((k, v) => MapEntry(k.toString(), v.toString()))
             ?? {'Content-Type': mime};
 
-        await Dio().put(
-          putUrl,
-          data: bytes,
-          options: Options(headers: requiredHeaders),
-        );
+        // IMPORTANT: Utiliser une instance Dio propre sans interceptors
+        // et désactiver TOUS les headers automatiques pour ne pas casser la signature S3
+        try {
+          await Dio(BaseOptions(
+            connectTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 60),
+            receiveTimeout: const Duration(seconds: 30),
+          )).put(
+            putUrl,
+            data: bytes,
+            options: Options(
+              headers: requiredHeaders,
+              contentType: mime,
+              // Désactiver les headers automatiques de Dio
+              followRedirects: false,
+              validateStatus: (status) => status! < 400,
+            ),
+          );
+          debugPrint('S3 upload SUCCESS for key: ${m['key']}');
+        } catch (e) {
+          debugPrint('S3 upload FAILED: $e');
+          debugPrint('PUT URL: $putUrl');
+          debugPrint('Headers: $requiredHeaders');
+          rethrow;
+        }
 
         // Confirmer l'upload pour définir l'ACL public-read (OVH)
         final needsConfirm = (m['needsConfirm'] ?? false) as bool;
