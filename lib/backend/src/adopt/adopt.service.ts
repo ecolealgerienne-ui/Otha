@@ -628,6 +628,163 @@ export class AdoptService {
     return { ok: true };
   }
 
+  // ---------- Conversations & Messages ----------
+
+  /**
+   * Liste de mes conversations
+   */
+  async myConversations(user: any) {
+    const userId = this.requireUserId(user);
+
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { adopterId: userId },
+        ],
+      },
+      include: {
+        post: { include: { images: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1, // Dernier message pour preview
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((c) => {
+      const isOwner = c.ownerId === userId;
+      const lastMessage = c.messages[0];
+
+      return {
+        id: c.id,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        post: this.pickPublic(c.post),
+        myRole: isOwner ? 'owner' : 'adopter',
+        otherPersonName: isOwner ? c.adopterAnonymousName : c.ownerAnonymousName,
+        lastMessage: lastMessage ? {
+          content: lastMessage.content,
+          sentAt: lastMessage.createdAt,
+          sentByMe: lastMessage.senderId === userId,
+        } : null,
+      };
+    });
+  }
+
+  /**
+   * Messages d'une conversation
+   */
+  async getConversationMessages(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        post: { include: { images: true } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    // Vérifier accès
+    if (conversation.ownerId !== userId && conversation.adopterId !== userId) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    const isOwner = conversation.ownerId === userId;
+
+    // Marquer messages comme lus
+    await this.prisma.adoptMessage.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    });
+
+    return {
+      id: conversation.id,
+      post: this.pickPublic(conversation.post),
+      myRole: isOwner ? 'owner' : 'adopter',
+      myAnonymousName: isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName,
+      otherPersonName: isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName,
+      messages: conversation.messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        sentAt: m.createdAt,
+        sentByMe: m.senderId === userId,
+        senderName: m.senderId === userId
+          ? (isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName)
+          : (isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName),
+        read: !!m.readAt,
+      })),
+    };
+  }
+
+  /**
+   * Envoyer un message dans une conversation
+   */
+  async sendMessage(user: any, conversationId: string, content: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    // Vérifier accès
+    if (conversation.ownerId !== userId && conversation.adopterId !== userId) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    const message = await this.prisma.adoptMessage.create({
+      data: {
+        conversationId,
+        senderId: userId,
+        content,
+      },
+    });
+
+    // Mettre à jour conversation.updatedAt
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+
+    return {
+      id: message.id,
+      content: message.content,
+      sentAt: message.createdAt,
+    };
+  }
+
+  /**
+   * Marquer une annonce comme adoptée
+   */
+  async markAsAdopted(user: any, postId: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+
+    await this.prisma.adoptPost.update({
+      where: { id: postId },
+      data: { adoptedAt: new Date() },
+    });
+
+    return { ok: true };
+  }
+
   // ---------- Admin ----------
   async adminList(status?: AdoptStatus, limit = 30, cursor?: string) {
     const where: any = {};
