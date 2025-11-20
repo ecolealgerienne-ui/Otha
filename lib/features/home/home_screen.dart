@@ -386,12 +386,7 @@ class HomeScreen extends ConsumerWidget {
                 slivers: [
                   const SliverToBoxAdapter(child: _HomeBootstrap()),
                   SliverToBoxAdapter(child: _Header(isPro: isPro, name: greetingName, avatarUrl: avatarUrl)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  // const SliverToBoxAdapter(child: _SearchBar()),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                  // const SliverToBoxAdapter(child: _OscillatingCategories()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
                   // ▼ Prochain RDV confirmé (vert)
                   const SliverToBoxAdapter(child: _NextConfirmedBanner()),

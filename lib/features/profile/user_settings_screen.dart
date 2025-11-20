@@ -198,6 +198,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
       final api = ref.read(apiProvider);
       final url = await api.uploadLocalFile(file, folder: 'avatar');
       await api.meUpdate(photoUrl: url);
+
+      // Invalider le sessionProvider pour rafraîchir l'avatar partout (home_screen, etc.)
+      ref.invalidate(sessionProvider);
+
       if (!mounted) return;
       setState(() => _avatarUrl = url);
       ScaffoldMessenger.of(
