@@ -337,7 +337,7 @@ export class AdoptService {
 
   // ---------- Feed ----------
   async feed(user: any | null, q: FeedQueryDto) {
-    const limit = q.limit ?? 20;
+    const limit = q.limit ?? 10;
 
     const where: any = { status: AdoptStatus.APPROVED };
     const and: any[] = [];
