@@ -159,7 +159,7 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       final api = ref.read(apiProvider);
       await api.ensureAuth();
 
-      String url = await api.uploadLocalFile(_avatarFile!, folder: 'avatars');
+      String url = await api.uploadLocalFile(_avatarFile!, folder: 'avatar');
       await api.meUpdate(photoUrl: url);
       if (!mounted) return;
       context.go('/onboard/pet');

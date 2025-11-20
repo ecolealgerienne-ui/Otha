@@ -54,7 +54,10 @@ export class UploadsController {
     const bucket = process.env.S3_BUCKET!;
     const folder = (body.folder ?? 'uploads').replace(/^\/+|\/+$/g, '');
     const cleanExt = (body.ext ?? '').replace(/^\./, '');
-    const key = `${folder}/${req.user.sub}/${randomUUID()}${cleanExt ? '.' + cleanExt : ''}`;
+
+    // Structure: userId/folder/uuid.ext
+    // Ex: clxxxx/avatar/uuid.jpg ou clxxxx/pets/uuid.jpg
+    const key = `${req.user.sub}/${folder}/${randomUUID()}${cleanExt ? '.' + cleanExt : ''}`;
 
     // Presigned URL sans ACL (OVH ne supporte pas bien les ACL dans presigned URLs)
     const putInput: any = {
@@ -97,18 +100,36 @@ export class UploadsController {
     const bucket = process.env.S3_BUCKET!;
     const key = body.key;
 
-    // Définir l'ACL public-read sur l'objet uploadé
+    // Définir l'ACL public-read sur l'objet uploadé (nécessaire pour OVH)
     try {
+      console.log(`[S3] Setting ACL public-read for: ${bucket}/${key}`);
+
       await this.s3.send(new PutObjectAclCommand({
         Bucket: bucket,
         Key: key,
         ACL: 'public-read',
       }));
+
+      console.log(`[S3] ACL set successfully for: ${key}`);
       return { success: true, key };
-    } catch (error) {
-      console.error('Error setting ACL:', error);
-      // On ne fait pas échouer l'upload même si l'ACL échoue
-      return { success: false, key, error: 'Failed to set public ACL' };
+    } catch (error: any) {
+      console.error('[S3] Error setting ACL:', {
+        message: error.message,
+        code: error.Code || error.code,
+        statusCode: error.$metadata?.httpStatusCode,
+        key,
+      });
+
+      // Retourner l'erreur au client pour qu'il sache que l'ACL a échoué
+      return {
+        success: false,
+        key,
+        error: error.message || 'Failed to set public ACL',
+        details: {
+          code: error.Code || error.code,
+          statusCode: error.$metadata?.httpStatusCode,
+        }
+      };
     }
   }
 }

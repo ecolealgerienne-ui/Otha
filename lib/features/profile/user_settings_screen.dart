@@ -196,7 +196,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
       setState(() => _avatarFile = file); // preview immédiat
 
       final api = ref.read(apiProvider);
-      final url = await api.uploadLocalFile(file, folder: 'avatars');
+      final url = await api.uploadLocalFile(file, folder: 'avatar');
       await api.meUpdate(photoUrl: url);
       if (!mounted) return;
       setState(() => _avatarUrl = url);
