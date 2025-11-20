@@ -1,0 +1,38 @@
+# Development Dockerfile with hot-reload support
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Install system dependencies (including Playwright dependencies)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Playwright browsers path
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+
+# Copy package files
+COPY package*.json ./
+
+# Configure npm and install dependencies (including devDependencies for development)
+RUN npm config set legacy-peer-deps true
+RUN npm ci
+
+# Copy Prisma schema and generate client
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Install Playwright with dependencies (for PDF generation)
+RUN npx --yes playwright@1.48.0 install --with-deps chromium
+
+# Copy NestJS CLI config
+COPY nest-cli.json tsconfig*.json ./
+
+# The source code will be mounted as a volume, not copied
+# This allows hot-reload to work
+
+EXPOSE 3000
+
+# Start in development mode with watch
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
