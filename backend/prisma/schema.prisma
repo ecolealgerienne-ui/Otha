@@ -194,19 +194,23 @@ model Review {
 }
 
 model Pet {
-  id         String    @id @default(cuid())
-  ownerId    String
-  name       String
-  gender     Gender    @default(UNKNOWN)
-  weightKg   Decimal?  @db.Decimal(5, 2)
-  color      String?
-  country    String?
-  idNumber   String?
-  breed      String?
-  neuteredAt DateTime?
-  photoUrl   String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  ownerId         String
+  name            String
+  gender          Gender    @default(UNKNOWN)
+  weightKg        Decimal?  @db.Decimal(5, 2)
+  color           String?
+  country         String?
+  idNumber        String?
+  breed           String?
+  neuteredAt      DateTime?
+  photoUrl        String?
+  birthDate       DateTime?
+  microchipNumber String?
+  allergiesNotes  String?
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   owner          User              @relation(fields: [ownerId], references: [id])
   medicalRecords MedicalRecord[]

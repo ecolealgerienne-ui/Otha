@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17
+    container_name: vethome_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vethome_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vethome_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: vethome_redis_dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # NestJS API with Hot-Reload
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vethome_api_dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/vethome_dev?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: development
+      PORT: 3000
+      JWT_ACCESS_SECRET: dev-access-secret-change-me-in-production
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-me-in-production
+      JWT_ACCESS_TTL: 900s
+      JWT_REFRESH_TTL: 7d
+      CORS_ORIGINS: http://localhost:3001,http://localhost:8080
+      # S3 OVH Object Storage
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET:-vethome}
+      S3_ENDPOINT: ${S3_ENDPOINT:-https://s3.rbx.io.cloud.ovh.net}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-https://vethome.s3.rbx.io.cloud.ovh.net}
+      AWS_REGION: ${AWS_REGION:-rbx}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_USE_OBJECT_ACL: ${S3_USE_OBJECT_ACL:-true}
+      # SMTP (MailDev for development)
+      SMTP_HOST: maildev
+      SMTP_PORT: 1025
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      SMTP_SECURE: "false"
+      SMTP_FROM: "VetHome Dev <no-reply@vethome.local>"
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot-reload
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      # Node modules should be in container, not synced
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && npm run start:dev"
+
+  # MailDev (Email testing)
+  maildev:
+    image: maildev/maildev
+    container_name: vethome_maildev_dev
+    restart: unless-stopped
+    ports:
+      - "1080:1080"  # Web UI
+      - "1025:1025"  # SMTP
+
+volumes:
+  postgres_data:
+  redis_data:

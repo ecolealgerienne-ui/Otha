@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../uploads/s3.service';
 import { Prisma } from '@prisma/client';
 import { UpdateMeDto } from './dto/update-me.dto';
 
@@ -20,7 +21,10 @@ const userSelect = {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private s3: S3Service,
+  ) {}
 
   findMe(id: string) {
     return this.prisma.user.findUnique({
@@ -30,6 +34,12 @@ export class UsersService {
   }
 
   async updateMe(id: string, dto: UpdateMeDto) {
+    // Récupérer l'utilisateur actuel pour vérifier l'ancienne photo
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id },
+      select: { photoUrl: true },
+    });
+
     const data: Prisma.UserUpdateInput = {};
 
     if (dto.firstName !== undefined) data.firstName = dto.firstName?.trim() || null;
@@ -43,6 +53,11 @@ export class UsersService {
     if (dto.lng       !== undefined) data.lng       = dto.lng;
     if (dto.photoUrl  !== undefined) data.photoUrl  = dto.photoUrl?.trim()  || null;
 
+    // Supprimer l'ancienne photo si une nouvelle est fournie
+    if (dto.photoUrl && currentUser?.photoUrl && dto.photoUrl !== currentUser.photoUrl) {
+      this.s3.deleteByUrl(currentUser.photoUrl).catch(() => {});
+    }
+
     try {
       const user = await this.prisma.user.update({
         where: { id },
@@ -51,7 +66,7 @@ export class UsersService {
       });
       return user;
     } catch (e: any) {
-      // Mappe l’unicité Prisma (P2002) → 409
+      // Mappe l'unicité Prisma (P2002) → 409
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         const target = (e.meta as any)?.target;
         const arr = Array.isArray(target) ? target : [target];

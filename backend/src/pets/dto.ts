@@ -17,11 +17,11 @@ export class CreatePetDto {
   @ApiPropertyOptional() @IsOptional() @IsString()
   color?: string;
 
-  // <- tu utilises "country" pour la ville dans l’app
+  // <- tu utilises "country" pour la ville dans l'app
   @ApiPropertyOptional() @IsOptional() @IsString()
   country?: string;
 
-  // <- type d’animal
+  // <- type d'animal
   @ApiPropertyOptional() @IsOptional() @IsString()
   idNumber?: string;
 
@@ -33,6 +33,18 @@ export class CreatePetDto {
 
   @ApiPropertyOptional() @IsOptional() @IsUrl()
   photoUrl?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsISO8601()
+  birthDate?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  microchipNumber?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  allergiesNotes?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  description?: string;
 }
 
 export class UpdatePetDto extends CreatePetDto {}

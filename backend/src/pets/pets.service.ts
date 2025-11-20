@@ -1,11 +1,15 @@
 // src/pets/pets.service.ts
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { S3Service } from '../uploads/s3.service';
 import { randomBytes } from 'crypto';
 
 @Injectable()
 export class PetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private s3: S3Service,
+  ) {}
 
   listMine(ownerId: string) {
     return this.prisma.pet.findMany({
@@ -26,6 +30,10 @@ export class PetsService {
       breed: dto.breed ?? null,
       neuteredAt: dto.neuteredAt ? new Date(dto.neuteredAt) : null,
       photoUrl: dto.photoUrl ?? null,
+      birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
+      microchipNumber: dto.microchipNumber ?? null,
+      allergiesNotes: dto.allergiesNotes ?? null,
+      description: dto.description ?? null,
       ownerId, // <- ici on force
     };
     return this.prisma.pet.create({ data });
@@ -36,6 +44,11 @@ export class PetsService {
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.ownerId !== ownerId) throw new ForbiddenException();
 
+    // Supprimer l'ancienne photo si une nouvelle est fournie
+    if (dto.photoUrl && dto.photoUrl !== pet.photoUrl && pet.photoUrl) {
+      this.s3.deleteByUrl(pet.photoUrl).catch(() => {});
+    }
+
     const data: any = {
       name: dto.name ?? pet.name,
       gender: dto.gender ?? pet.gender,
@@ -45,9 +58,15 @@ export class PetsService {
       idNumber: dto.idNumber ?? pet.idNumber,
       breed: dto.breed ?? pet.breed,
       photoUrl: dto.photoUrl ?? pet.photoUrl,
+      microchipNumber: dto.microchipNumber ?? pet.microchipNumber,
+      allergiesNotes: dto.allergiesNotes ?? pet.allergiesNotes,
+      description: dto.description ?? pet.description,
     };
     if (dto.neuteredAt !== undefined) {
       data.neuteredAt = dto.neuteredAt ? new Date(dto.neuteredAt) : null;
+    }
+    if (dto.birthDate !== undefined) {
+      data.birthDate = dto.birthDate ? new Date(dto.birthDate) : null;
     }
     return this.prisma.pet.update({ where: { id }, data });
   }
@@ -67,6 +86,12 @@ export class PetsService {
     const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    // Supprimer la photo S3 si elle existe
+    if (pet.photoUrl) {
+      this.s3.deleteByUrl(pet.photoUrl).catch(() => {});
+    }
+
     return this.prisma.pet.delete({ where: { id: petId } });
   }
 

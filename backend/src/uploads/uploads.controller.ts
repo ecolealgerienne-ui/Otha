@@ -9,7 +9,7 @@ import { diskStorage, type StorageEngine } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, PutObjectAclCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Controller({ path: 'uploads', version: '1' })
@@ -67,12 +67,32 @@ export class UploadsController {
     const put = new PutObjectCommand(putInput);
     const url = await getSignedUrl(this.s3, put, { expiresIn: 900 });
 
-    // URL publique finale (lecture) — path-style pour être universel
+    // URL publique finale (lecture) — virtual-hosted-style
     const publicBase = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || '';
     const publicUrl = publicBase
-      ? `${publicBase.replace(/\/+$/,'')}/${bucket}/${key}`
+      ? `${publicBase.replace(/\/+$/,'')}/${key}`
       : undefined;
 
-    return { url, key, bucket, publicUrl };
+    // Indiquer si un appel /confirm est nécessaire (OVH ne supporte pas ACL dans presigned URL)
+    const needsConfirm = String(process.env.S3_USE_OBJECT_ACL || '').toLowerCase() === 'true';
+
+    return { url, key, bucket, publicUrl, needsConfirm };
+  }
+
+  @Post('confirm')
+  async confirm(@Body() body: { key: string }) {
+    const bucket = process.env.S3_BUCKET!;
+
+    // Définit l'ACL public-read après l'upload (OVH compatibility)
+    if (String(process.env.S3_USE_OBJECT_ACL || '').toLowerCase() === 'true') {
+      const aclCommand = new PutObjectAclCommand({
+        Bucket: bucket,
+        Key: body.key,
+        ACL: 'public-read',
+      });
+      await this.s3.send(aclCommand);
+    }
+
+    return { success: true };
   }
 }
