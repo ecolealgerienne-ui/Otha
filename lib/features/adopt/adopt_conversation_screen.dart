@@ -39,7 +39,7 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   Future<void> _loadMyId() async {
     try {
       final api = ref.read(apiProvider);
-      final me = await api.getMe();
+      final me = await api.me();
       if (mounted) {
         setState(() {
           _myId = me['id']?.toString();
