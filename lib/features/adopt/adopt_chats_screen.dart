@@ -7,12 +7,13 @@ import '../../core/api.dart';
 const _roseSoft = Color(0xFFFFEEF0);
 const _roseAccent = Color(0xFFFF8A8A);
 
-final _requestsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+// AutoDispose pour rafraîchir automatiquement quand on revient sur l'écran
+final _requestsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
   return await api.adoptMyIncomingRequests();
 });
 
-final _chatsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final _chatsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
   return await api.adoptMyConversations();
 });
@@ -69,17 +70,34 @@ class _RequestsTab extends ConsumerWidget {
       error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(_requestsProvider)),
       data: (list) {
         if (list.isEmpty) {
-          return const _Empty(
-            icon: Icons.inbox_outlined,
-            text: 'Aucune demande pour le moment',
-            subtitle: 'Les demandes d\'adoption apparaîtront ici',
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(_requestsProvider);
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: ListView(
+              children: const [
+                SizedBox(height: 200),
+                _Empty(
+                  icon: Icons.inbox_outlined,
+                  text: 'Aucune demande pour le moment',
+                  subtitle: 'Les demandes d\'adoption apparaîtront ici',
+                ),
+              ],
+            ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: list.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, i) => _RequestTile(item: list[i]),
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(_requestsProvider);
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, i) => _RequestTile(item: list[i]),
+          ),
         );
       },
     );
@@ -279,17 +297,33 @@ class _ChatsTab extends ConsumerWidget {
       error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(_chatsProvider)),
       data: (list) {
         if (list.isEmpty) {
-          return const _Empty(
-            icon: Icons.chat_bubble_outline,
-            text: 'Aucune conversation',
-            subtitle: 'Acceptez des demandes pour démarrer un chat',
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(_chatsProvider);
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: ListView(
+              children: const [
+                SizedBox(height: 200),
+                _Empty(
+                  icon: Icons.chat_bubble_outline,
+                  text: 'Aucune conversation',
+                  subtitle: 'Acceptez des demandes pour démarrer un chat',
+                ),
+              ],
+            ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: list.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, i) {
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(_chatsProvider);
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, i) {
             final conv = list[i];
             final post = conv['post'] as Map<String, dynamic>? ?? {};
             final conversationId = conv['id']?.toString() ?? '';
@@ -399,6 +433,7 @@ class _ChatsTab extends ConsumerWidget {
               ),
             );
           },
+          ),
         );
       },
     );
