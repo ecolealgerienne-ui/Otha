@@ -272,9 +272,6 @@ export class AdoptService {
       lng: lng ?? existing.lng,
     };
 
-    // Si l’owner modifie un champ "substantiel" et que le post était APPROVED → repasse en PENDING
-    const substantial =
-      dto.title ?? dto.description ?? dto.species ?? dto.sex ?? dto.ageMonths ??
     // Images (remplacement complet si fourni)
     let imagesOut = existing.images;
     if (dto.images) {
