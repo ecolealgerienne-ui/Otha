@@ -36,6 +36,10 @@ build/
 *.jar
 *.keystore
 
+# Backend build outputs
+lib/backend/dist/
+lib/backend/node_modules/
+
 # iOS derived data
 ios/Pods/
 ios/.symlinks/
