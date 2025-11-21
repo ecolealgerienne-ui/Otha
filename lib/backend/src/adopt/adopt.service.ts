@@ -329,7 +329,10 @@ export class AdoptService {
   async listMine(user: any) {
     const userId = this.requireUserId(user);
     const rows = await this.prisma.adoptPost.findMany({
-      where: { createdById: userId },
+      where: {
+        createdById: userId,
+        status: { not: AdoptStatus.ARCHIVED }, // Exclure les posts archivés (supprimés)
+      },
       orderBy: { updatedAt: 'desc' },
       include: { images: true },
     });
