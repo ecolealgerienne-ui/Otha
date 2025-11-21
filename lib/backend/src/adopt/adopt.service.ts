@@ -214,7 +214,7 @@ export class AdoptService {
   async create(user: any, dto: CreateAdoptPostDto) {
     const { lat, lng } = this.normalizeGeo(dto);
     const userId = this.requireUserId(user);
-    // await this.checkAndUpdatePostQuota(userId); // QUOTA DISABLED
+    await this.checkAndUpdatePostQuota(userId);
     const images = (dto.images ?? []).slice(0, MAX_IMAGES_PER_POST).map((i: any, idx: number) => ({
       url: i.url,
       width: i.width ?? null,
@@ -238,7 +238,7 @@ export class AdoptService {
         lat: lat ?? null,
         lng: lng ?? null,
         createdById: userId,
-        status: AdoptStatus.APPROVED, // AUTO-APPROVED for testing (was PENDING)
+        status: AdoptStatus.PENDING,
         images: { create: images },
       },
       include: { images: true },
@@ -361,8 +361,7 @@ export class AdoptService {
     if (user) {
       const userId = this.getUserId(user);
       if (userId) {
-        // DISABLED FOR TESTING: Don't filter own posts
-        // and.push({ createdById: { not: userId } });
+        and.push({ createdById: { not: userId } });
 
         const seen = await this.prisma.adoptSwipe.findMany({
           where: { userId },
@@ -420,10 +419,9 @@ export class AdoptService {
     }
 
     // Vérifier quota uniquement pour LIKE
-    // if (dto.action === SwipeAction.LIKE) {
-    //   await this.checkAndUpdateSwipeQuota(userId);
-    // }
-    // QUOTA DISABLED
+    if (dto.action === SwipeAction.LIKE) {
+      await this.checkAndUpdateSwipeQuota(userId);
+    }
 
     // Upsert swipe
     const rec = await this.prisma.adoptSwipe.upsert({
