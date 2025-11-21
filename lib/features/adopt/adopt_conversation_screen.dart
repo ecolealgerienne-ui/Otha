@@ -46,12 +46,11 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
       final messages = (result['messages'] as List<dynamic>?)
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList() ?? [];
-      final conversation = result['conversation'] as Map<String, dynamic>?;
 
       if (mounted) {
         setState(() {
           _messages = messages;
-          _conversation = conversation;
+          _conversation = result; // Le backend renvoie directement l'objet, pas {conversation: {...}}
           _loading = false;
         });
         _scrollToBottom();
