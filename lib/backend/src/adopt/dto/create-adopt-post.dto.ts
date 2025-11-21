@@ -20,6 +20,9 @@ export class CreateAdoptPostDto {
   @ApiProperty() @IsString() @MaxLength(140)
   title!: string;
 
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100)
+  animalName?: string;
+
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000)
   description?: string;
 
@@ -53,7 +56,7 @@ export class CreateAdoptPostDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber()
   lng?: number;
 
-  @ApiProperty({ type: [AdoptImageInput] })
-  @IsArray() @ArrayMaxSize(6) @ValidateNested({ each: true }) @Type(() => AdoptImageInput)
+  @ApiProperty({ type: [AdoptImageInput], maxItems: 3 })
+  @IsArray() @ArrayMaxSize(3) @ValidateNested({ each: true }) @Type(() => AdoptImageInput)
   images!: AdoptImageInput[];
 }
