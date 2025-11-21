@@ -77,11 +77,12 @@ model User {
   orders          Order[]
 
   // Adoption (nouvelle implémentation)
-  adoptPosts         AdoptPost[]
-  adoptSwipes        AdoptSwipe[]
-  adoptRequests      AdoptRequest[]
-  adoptConversations AdoptConversation[]
-  adoptMessages      AdoptMessage[]
+  adoptPosts             AdoptPost[]
+  adoptSwipes            AdoptSwipe[]
+  adoptRequests          AdoptRequest[]
+  conversationsAsOwner   AdoptConversation[] @relation("ConversationOwner")
+  conversationsAsAdopter AdoptConversation[] @relation("ConversationAdopter")
+  adoptMessages          AdoptMessage[]
 
   // Quotas adoption (réinitialisation quotidienne)
   dailySwipeCount Int      @default(0)
@@ -482,11 +483,11 @@ model AdoptConversation {
 
   // Propriétaire de l'annonce
   ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner   User   @relation("ConversationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Adoptant (user qui a fait la demande)
   adopterId String
-  adopter   User   @relation(fields: [adopterId], references: [id], onDelete: Cascade)
+  adopter   User   @relation("ConversationAdopter", fields: [adopterId], references: [id], onDelete: Cascade)
 
   // Noms anonymes générés
   ownerAnonymousName   String // Ex: "Ami des Animaux"
