@@ -30,34 +30,7 @@ final pendingAdoptionConfirmationsProvider =
 
 /// Fonction pour afficher le popup d'adoption pendante
 Future<void> checkAndShowAdoptionDialog(BuildContext context, WidgetRef ref) async {
-  // 1. D'ABORD vérifier s'il y a des confirmations d'adoption à traiter
-  final confirmationsAsync = ref.read(pendingAdoptionConfirmationsProvider);
-
-  await confirmationsAsync.when(
-    data: (confirmations) async {
-      if (confirmations.isNotEmpty) {
-        // Afficher le popup de confirmation pour la première conversation
-        final conversation = confirmations.first;
-
-        if (!context.mounted) return;
-
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => _AdoptionConfirmationDialog(conversation: conversation),
-        );
-
-        // Après la confirmation/refus, invalider les providers
-        ref.invalidate(pendingAdoptionConfirmationsProvider);
-        ref.invalidate(pendingAdoptionsProvider);
-        return;
-      }
-    },
-    loading: () async {},
-    error: (_, __) async {},
-  );
-
-  // 2. ENSUITE vérifier s'il y a des adoptions en attente de création de profil
+  // Vérifier s'il y a des adoptions en attente de création de profil
   final adoptionsAsync = ref.read(pendingAdoptionsProvider);
 
   adoptionsAsync.when(

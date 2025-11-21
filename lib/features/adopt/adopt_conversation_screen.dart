@@ -187,12 +187,20 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
                                 final isCongratulationsMessage = content.contains('🎉 Félicitations') ||
                                     content.contains('changé une vie');
 
+                                // Détecter le message de confirmation d'adoption
+                                final isConfirmationMessage = content.contains('🐾 Voulez-vous adopter') &&
+                                    (_conversation?['pendingAdoptionConfirmation'] == true) &&
+                                    !isMe;
+
                                 return _MessageBubble(
                                   content: content,
                                   isMe: isMe,
                                   timestamp: timestamp,
                                   isCongratulationsMessage: isCongratulationsMessage,
                                   adoptionPost: isCongratulationsMessage ? post : null,
+                                  isConfirmationMessage: isConfirmationMessage,
+                                  conversationId: widget.conversationId,
+                                  onConfirmationChanged: () => _loadMessages(),
                                 );
                               },
                             ),
@@ -265,12 +273,15 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   }
 }
 
-class _MessageBubble extends ConsumerWidget {
+class _MessageBubble extends ConsumerStatefulWidget {
   final String content;
   final bool isMe;
   final String? timestamp;
   final bool isCongratulationsMessage;
   final Map<String, dynamic>? adoptionPost;
+  final bool isConfirmationMessage;
+  final String conversationId;
+  final VoidCallback? onConfirmationChanged;
 
   const _MessageBubble({
     required this.content,
@@ -278,7 +289,74 @@ class _MessageBubble extends ConsumerWidget {
     this.timestamp,
     this.isCongratulationsMessage = false,
     this.adoptionPost,
+    this.isConfirmationMessage = false,
+    required this.conversationId,
+    this.onConfirmationChanged,
   });
+
+  @override
+  ConsumerState<_MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends ConsumerState<_MessageBubble> {
+  bool _loading = false;
+
+  Future<void> _handleAccept() async {
+    setState(() => _loading = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptConfirmAdoption(widget.conversationId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Félicitations ! L\'adoption est confirmée !'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        widget.onConfirmationChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDecline() async {
+    setState(() => _loading = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptDeclineAdoption(widget.conversationId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Adoption refusée. L\'annonce reste disponible.'),
+          ),
+        );
+        widget.onConfirmationChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   String _formatTime(String? isoString) {
     if (isoString == null) return '';
@@ -293,7 +371,7 @@ class _MessageBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -301,12 +379,12 @@ class _MessageBubble extends ConsumerWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFFF8A8A) : Colors.white,
+          color: widget.isMe ? const Color(0xFFFF8A8A) : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isMe ? 20 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 20),
+            bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
+            bottomRight: Radius.circular(widget.isMe ? 4 : 20),
           ),
           boxShadow: [
             BoxShadow(
@@ -320,31 +398,77 @@ class _MessageBubble extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              content,
+              widget.content,
               style: TextStyle(
-                color: isMe ? Colors.white : Colors.black87,
+                color: widget.isMe ? Colors.white : Colors.black87,
                 fontSize: 15,
               ),
             ),
-            if (timestamp != null) ...[
+            if (widget.timestamp != null) ...[
               const SizedBox(height: 4),
               Text(
-                _formatTime(timestamp),
+                _formatTime(widget.timestamp),
                 style: TextStyle(
                   fontSize: 11,
-                  color: isMe ? Colors.white70 : Colors.grey[500],
+                  color: widget.isMe ? Colors.white70 : Colors.grey[500],
+                ),
+              ),
+            ],
+            // Boutons "Accepter" / "Refuser" pour le message de confirmation d'adoption
+            if (widget.isConfirmationMessage && !_loading) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _handleDecline,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        side: const BorderSide(color: Colors.grey),
+                        foregroundColor: Colors.grey[700],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Refuser', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _handleAccept,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Accepter', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (widget.isConfirmationMessage && _loading) ...[
+              const SizedBox(height: 12),
+              const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             ],
             // Bouton "Créer le profil" pour le message de félicitations
-            if (isCongratulationsMessage && adoptionPost != null) ...[
+            if (widget.isCongratulationsMessage && widget.adoptionPost != null) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () async {
                     // Marquer le profil pet comme en cours de création
-                    final postId = adoptionPost!['id']?.toString();
+                    final postId = widget.adoptionPost!['id']?.toString();
                     if (postId != null) {
                       try {
                         await ref.read(apiProvider).markAdoptPetProfileCreated(postId);
@@ -355,7 +479,7 @@ class _MessageBubble extends ConsumerWidget {
 
                     // Naviguer vers le pet onboarding avec les données d'adoption
                     if (context.mounted) {
-                      context.push('/pets/add', extra: adoptionPost);
+                      context.push('/pets/add', extra: widget.adoptionPost);
                     }
                   },
                   style: FilledButton.styleFrom(

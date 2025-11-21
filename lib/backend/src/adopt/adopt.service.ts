@@ -842,7 +842,7 @@ export class AdoptService {
     // NOUVEAU : Au lieu de marquer direct comme adopté, demander confirmation
     if (conversation && adoptedById) {
       const animalName = post.animalName || 'cet animal';
-      const confirmationMessage = `🐾 Le propriétaire souhaite finaliser l'adoption de ${animalName} avec vous ! Vous recevrez bientôt une demande de confirmation.`;
+      const confirmationMessage = `🐾 Voulez-vous adopter ${animalName} ?`;
 
       await this.prisma.adoptMessage.create({
         data: {
