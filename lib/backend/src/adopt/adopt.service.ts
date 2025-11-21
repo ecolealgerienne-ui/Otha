@@ -439,7 +439,8 @@ export class AdoptService {
 
     // Si LIKE, créer une demande d'adoption
     if (dto.action === SwipeAction.LIKE) {
-      await this.prisma.adoptRequest.upsert({
+      console.log(`[DEBUG] Création demande adoption - User: ${userId}, Post: ${postId}`);
+      const request = await this.prisma.adoptRequest.upsert({
         where: { requesterId_postId: { requesterId: userId, postId } },
         create: {
           requesterId: userId,
@@ -450,6 +451,7 @@ export class AdoptService {
           status: AdoptRequestStatus.PENDING, // Réactiver si refusée avant
         },
       });
+      console.log(`[DEBUG] Demande adoption créée - ID: ${request.id}, Status: ${request.status}`);
     }
 
     return { ok: true, action: rec.action };
@@ -508,6 +510,15 @@ export class AdoptService {
   async myIncomingRequests(user: any) {
     const userId = this.requireUserId(user);
 
+    console.log(`[DEBUG] Récupération demandes entrantes pour user: ${userId}`);
+
+    // Vérifier toutes les demandes pour cet utilisateur (debug)
+    const allRequests = await this.prisma.adoptRequest.findMany({
+      where: { post: { createdById: userId } },
+      select: { id: true, status: true, createdAt: true, requesterId: true, postId: true },
+    });
+    console.log(`[DEBUG] Toutes les demandes pour cet user: ${JSON.stringify(allRequests)}`);
+
     const requests = await this.prisma.adoptRequest.findMany({
       where: {
         post: { createdById: userId },
@@ -523,6 +534,7 @@ export class AdoptService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    console.log(`[DEBUG] Nombre de demandes PENDING trouvées: ${requests.length}`);
 
     return requests.map((r) => ({
       id: r.id,
