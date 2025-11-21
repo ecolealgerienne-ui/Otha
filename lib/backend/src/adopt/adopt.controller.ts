@@ -170,4 +170,19 @@ export class AdoptController {
   async sendMessage(@Req() req: any, @Param('id') id: string, @Body() dto: SendMessageDto) {
     return this.service.sendMessage(req.user, id, dto.content);
   }
+
+  // ====== Adoption Confirmation ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/confirm-adoption')
+  async confirmAdoption(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.confirmAdoption(req.user, conversationId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/decline-adoption')
+  async declineAdoption(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.declineAdoption(req.user, conversationId);
+  }
 }

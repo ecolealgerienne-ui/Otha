@@ -498,12 +498,17 @@ model AdoptConversation {
   ownerAnonymousName   String // Ex: "Ami des Animaux"
   adopterAnonymousName String // Ex: "Cœur Tendre"
 
+  // Confirmation d'adoption en attente
+  pendingAdoptionConfirmation Boolean   @default(false)
+  pendingAdoptionRequestedAt  DateTime?
+
   messages      AdoptMessage[]
   adoptRequests AdoptRequest[]
 
   @@unique([postId, ownerId, adopterId]) // Une conversation unique par trio
   @@index([ownerId])
   @@index([adopterId])
+  @@index([adopterId, pendingAdoptionConfirmation]) // Pour trouver les confirmations pendantes
 }
 
 // Messages dans une conversation

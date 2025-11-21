@@ -197,7 +197,9 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
       ),
       GoRoute(
         path: '/pets/add',
-        builder: (_, __) => const PetOnboardingScreen(),
+        builder: (_, state) => PetOnboardingScreen(
+          existingPet: (state.extra as Map<String, dynamic>?),
+        ),
       ),
       GoRoute(
         path: '/pets/edit',
