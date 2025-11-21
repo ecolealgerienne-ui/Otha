@@ -83,6 +83,20 @@ export class AdoptController {
     return this.service.markAsAdopted(req.user, id, body.adoptedById);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/pending-pet-creation')
+  async myPendingPetCreation(@Req() req: any) {
+    return this.service.myPendingPetCreation(req.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('posts/:id/mark-pet-created')
+  async markPetProfileCreated(@Req() req: any, @Param('id') id: string) {
+    return this.service.markPetProfileCreated(req.user, id);
+  }
+
   // ====== Swipe ======
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
