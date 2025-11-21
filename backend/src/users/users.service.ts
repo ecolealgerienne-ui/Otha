@@ -1,8 +1,8 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../uploads/s3.service';
 import { Prisma } from '@prisma/client';
 import { UpdateMeDto } from './dto/update-me.dto';
+import { S3Service } from '../uploads/s3.service';
 
 const userSelect = {
   id: true,
@@ -34,12 +34,6 @@ export class UsersService {
   }
 
   async updateMe(id: string, dto: UpdateMeDto) {
-    // Récupérer l'utilisateur actuel pour vérifier l'ancienne photo
-    const currentUser = await this.prisma.user.findUnique({
-      where: { id },
-      select: { photoUrl: true },
-    });
-
     const data: Prisma.UserUpdateInput = {};
 
     if (dto.firstName !== undefined) data.firstName = dto.firstName?.trim() || null;
@@ -51,11 +45,24 @@ export class UsersService {
     if (dto.city      !== undefined) data.city      = dto.city?.trim()      || null;
     if (dto.lat       !== undefined) data.lat       = dto.lat;
     if (dto.lng       !== undefined) data.lng       = dto.lng;
-    if (dto.photoUrl  !== undefined) data.photoUrl  = dto.photoUrl?.trim()  || null;
 
-    // Supprimer l'ancienne photo si une nouvelle est fournie
-    if (dto.photoUrl && currentUser?.photoUrl && dto.photoUrl !== currentUser.photoUrl) {
-      this.s3.deleteByUrl(currentUser.photoUrl).catch(() => {});
+    // Gestion de la photo avec suppression de l'ancienne
+    if (dto.photoUrl !== undefined) {
+      const newPhotoUrl = dto.photoUrl?.trim() || null;
+
+      // Récupère l'ancienne photo pour la supprimer
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id },
+        select: { photoUrl: true },
+      });
+
+      // Si une nouvelle photo est uploadée et différente de l'ancienne
+      if (currentUser?.photoUrl && currentUser.photoUrl !== newPhotoUrl) {
+        // Supprime l'ancienne photo du S3 (async, non-bloquant)
+        this.s3.deleteByUrl(currentUser.photoUrl).catch(() => {});
+      }
+
+      data.photoUrl = newPhotoUrl;
     }
 
     try {
@@ -73,6 +80,84 @@ export class UsersService {
         const isPhone = arr?.some((t: any) => String(t).toLowerCase().includes('phone'));
         if (isPhone) {
           throw new ConflictException('Phone already in use');
+        }
+      }
+      throw e;
+    }
+  }
+
+  // Admin: list all users
+  async listUsers(query?: { role?: string; q?: string; limit?: number; offset?: number }) {
+    const where: Prisma.UserWhereInput = {};
+
+    if (query?.role) {
+      where.role = query.role as any;
+    }
+
+    if (query?.q && query.q.trim()) {
+      const search = query.q.trim();
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: userSelect,
+      orderBy: { createdAt: 'desc' },
+      take: query?.limit ?? 100,
+      skip: query?.offset ?? 0,
+    });
+
+    return users;
+  }
+
+  // Admin: reset quotas adoption d'un utilisateur
+  async resetUserAdoptQuotas(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        dailySwipeCount: 0,
+        dailyPostCount: 0,
+        lastSwipeDate: null,
+        lastPostDate: null,
+      },
+    });
+    return { ok: true };
+  }
+
+  // Admin: update user info
+  async adminUpdateUser(userId: string, dto: any) {
+    const data: Prisma.UserUpdateInput = {};
+
+    if (dto.firstName !== undefined) data.firstName = dto.firstName?.trim() || null;
+    if (dto.lastName !== undefined) data.lastName = dto.lastName?.trim() || null;
+    if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null;
+    if (dto.email !== undefined) data.email = dto.email?.trim();
+    if (dto.city !== undefined) data.city = dto.city?.trim() || null;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+    if (dto.role !== undefined) data.role = dto.role;
+
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data,
+        select: userSelect,
+      });
+      return user;
+    } catch (e: any) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const target = (e.meta as any)?.target;
+        const arr = Array.isArray(target) ? target : [target];
+        if (arr?.some((t: any) => String(t).toLowerCase().includes('phone'))) {
+          throw new ConflictException('Phone already in use');
+        }
+        if (arr?.some((t: any) => String(t).toLowerCase().includes('email'))) {
+          throw new ConflictException('Email already in use');
         }
       }
       throw e;
