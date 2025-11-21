@@ -1668,18 +1668,37 @@ Future<Map<String, dynamic>> createAdoptListing({
   double? lng,
   String? desc,
   required List<String> photos,
-}) =>
-    createAdoptPost(
-      petName: petName,
-      species: species,
-      sex: sex,
-      age: age,
-      city: city,
-      lat: lat,
-      lng: lng,
-      desc: desc,
-      photos: photos,
-    );
+}) {
+  // Parse age string to months for new API
+  int? ageMonths;
+  if (age != null && age.isNotEmpty) {
+    final ageText = age.toLowerCase();
+    final monthsMatch = RegExp(r'(\d+)\s*mois').firstMatch(ageText);
+    final yearsMatch = RegExp(r'(\d+)\s*an').firstMatch(ageText);
+    if (monthsMatch != null) {
+      ageMonths = int.tryParse(monthsMatch.group(1)!);
+    } else if (yearsMatch != null) {
+      final years = int.tryParse(yearsMatch.group(1)!);
+      if (years != null) ageMonths = years * 12;
+    }
+  }
+
+  // Convert old sex format to new
+  String newSex = sex == 'M' ? 'male' : (sex == 'F' ? 'female' : 'unknown');
+
+  return createAdoptPost(
+    title: petName, // Use petName as title for legacy calls
+    animalName: petName,
+    species: species,
+    sex: newSex,
+    ageMonths: ageMonths,
+    city: city,
+    lat: lat,
+    lng: lng,
+    description: desc,
+    photos: photos,
+  );
+}
 
 @deprecated
 Future<List<Map<String, dynamic>>> myAdoptListings() => myAdoptPosts();
