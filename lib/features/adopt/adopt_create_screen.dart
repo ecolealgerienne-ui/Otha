@@ -343,8 +343,10 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     _name = TextEditingController(text: p?['animalName']?.toString() ?? '');
     _city = TextEditingController(text: p?['city']?.toString() ?? '');
     _desc = TextEditingController(text: p?['description']?.toString() ?? '');
-    _species = p?['species']?.toString() ?? 'dog';
-    _sex = p?['sex']?.toString() ?? 'unknown';
+
+    // Normaliser species et sex en lowercase pour matcher les dropdowns
+    _species = (p?['species']?.toString() ?? 'dog').toLowerCase();
+    _sex = (p?['sex']?.toString() ?? 'unknown').toLowerCase();
 
     final ageMonths = p?['ageMonths'] as int?;
     if (ageMonths != null) {

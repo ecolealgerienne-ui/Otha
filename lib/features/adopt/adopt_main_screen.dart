@@ -32,6 +32,7 @@ class _AdoptMainScreenState extends State<AdoptMainScreen> {
     return Scaffold(
       body: PageView(
         controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(), // Désactive le swipe latéral
         onPageChanged: (index) {
           setState(() => _currentPage = index);
         },
