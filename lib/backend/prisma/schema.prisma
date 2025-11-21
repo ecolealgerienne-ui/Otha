@@ -410,9 +410,10 @@ model AdoptPost {
   archivedAt     DateTime?
   adoptedAt      DateTime? // Quand l'animal a été adopté
 
-  images   AdoptImage[]
-  swipes   AdoptSwipe[]
-  requests AdoptRequest[]
+  images        AdoptImage[]
+  swipes        AdoptSwipe[]
+  requests      AdoptRequest[]
+  conversations AdoptConversation[]
 
   @@index([status, createdAt])
   @@index([lat, lng])
