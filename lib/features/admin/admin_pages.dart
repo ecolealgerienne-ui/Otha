@@ -1427,15 +1427,16 @@ class _AdminAdoptPostsPageState extends ConsumerState<AdminAdoptPostsPage> {
       final api = ref.read(apiProvider);
       final result = await api.adminAdoptList(status: 'PENDING', limit: 10, cursor: _cursor);
 
-      final posts = result['posts'] as List? ?? [];
+      final posts = result['data'] as List? ?? [];
+      final counts = result['counts'] as Map<String, dynamic>? ?? {};
       setState(() {
         if (_cursor == null) {
           _posts = posts.cast<Map<String, dynamic>>();
-          _totalPending = result['total'] as int? ?? posts.length;
+          _totalPending = counts['PENDING'] as int? ?? 0;
         } else {
           _posts.addAll(posts.cast<Map<String, dynamic>>());
         }
-        _cursor = result['cursor'];
+        _cursor = result['nextCursor'];
         _loading = false;
       });
     } catch (e) {
