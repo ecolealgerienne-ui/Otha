@@ -1,11 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
 import { FeedQueryDto } from './dto/feed.dto';
 import { SwipeDto, SwipeAction } from './dto/swipe.dto';
-import { AdoptStatus, Prisma, Sex } from '@prisma/client';
+import { AdoptStatus, AdoptRequestStatus, Prisma, Sex } from '@prisma/client';
 import { bboxFromCenter, clampLat, clampLng, haversineKm, parseLatLngFromGoogleUrl } from './geo.util';
+import { generateAnonymousName } from './anonymous-names.util';
+
+// Constantes de quotas et limites
+const MAX_SWIPES_PER_DAY = 5;
+const MAX_POSTS_PER_DAY = 1;
+const MAX_IMAGES_PER_POST = 3;
 
 type ImgLike = { id?: string; url?: string; width?: number | null; height?: number | null; order?: number };
 
@@ -51,14 +57,111 @@ export class AdoptService {
     return undefined;
   }
 
+  // ---------- Quota Helpers ----------
+  private async checkAndUpdateSwipeQuota(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailySwipeCount: true, lastSwipeDate: true },
+    });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastSwipe = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipe ? new Date(lastSwipe.getFullYear(), lastSwipe.getMonth(), lastSwipe.getDate()) : null;
+
+    if (!lastSwipeDay || lastSwipeDay < today) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { dailySwipeCount: 1, lastSwipeDate: now },
+      });
+      return;
+    }
+
+    if (user.dailySwipeCount >= MAX_SWIPES_PER_DAY) {
+      throw new BadRequestException(`Quota quotidien atteint (${MAX_SWIPES_PER_DAY} swipes droits/jour)`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { dailySwipeCount: { increment: 1 }, lastSwipeDate: now },
+    });
+  }
+
+  private async checkAndUpdatePostQuota(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyPostCount: true, lastPostDate: true },
+    });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastPost = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPost ? new Date(lastPost.getFullYear(), lastPost.getMonth(), lastPost.getDate()) : null;
+
+    if (!lastPostDay || lastPostDay < today) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { dailyPostCount: 1, lastPostDate: now },
+      });
+      return;
+    }
+
+    if (user.dailyPostCount >= MAX_POSTS_PER_DAY) {
+      throw new BadRequestException(`Quota quotidien atteint (${MAX_POSTS_PER_DAY} annonce/jour)`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { dailyPostCount: { increment: 1 }, lastPostDate: now },
+    });
+  }
+
+  async getQuotas(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailySwipeCount: true, lastSwipeDate: true, dailyPostCount: true, lastPostDate: true },
+    });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const lastSwipe = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipe ? new Date(lastSwipe.getFullYear(), lastSwipe.getMonth(), lastSwipe.getDate()) : null;
+    const swipesUsed = (!lastSwipeDay || lastSwipeDay < today) ? 0 : user.dailySwipeCount;
+    const swipesRemaining = Math.max(0, MAX_SWIPES_PER_DAY - swipesUsed);
+
+    const lastPost = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPost ? new Date(lastPost.getFullYear(), lastPost.getMonth(), lastPost.getDate()) : null;
+    const postsUsed = (!lastPostDay || lastPostDay < today) ? 0 : user.dailyPostCount;
+    const postsRemaining = Math.max(0, MAX_POSTS_PER_DAY - postsUsed);
+
+    return { swipesRemaining, postsRemaining };
+  }
+
   private toPublicImages(images: unknown): { id: string; url: string; width: number | null; height: number | null; order: number }[] {
     const arr = (Array.isArray(images) ? (images as ImgLike[]) : []) as ImgLike[];
-    return arr
-@@ -59,86 +70,114 @@ export class AdoptService {
+    return arr.map((img) => ({
+      id: img.id ?? '',
+      url: img.url ?? '',
+      width: img.width ?? null,
+      height: img.height ?? null,
+      order: img.order ?? 0,
+    }));
+  }
+
+  private pickPublic(post: any, center?: { lat: number; lng: number }) {
+    const out: any = {
       id: post.id,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       status: post.status,
+      animalName: post.animalName || post.title,
       title: post.title,
       description: post.description,
       species: post.species,
@@ -71,6 +174,7 @@ export class AdoptService {
       mapsUrl: post.mapsUrl,
       lat: post.lat,
       lng: post.lng,
+      adoptedAt: post.adoptedAt,
       createdById: post.createdById,
       images: this.toPublicImages(post.images),
     };
@@ -110,7 +214,8 @@ export class AdoptService {
   async create(user: any, dto: CreateAdoptPostDto) {
     const { lat, lng } = this.normalizeGeo(dto);
     const userId = this.requireUserId(user);
-    const images = (dto.images ?? []).slice(0, 6).map((i: any, idx: number) => ({
+    await this.checkAndUpdatePostQuota(userId);
+    const images = (dto.images ?? []).slice(0, MAX_IMAGES_PER_POST).map((i: any, idx: number) => ({
       url: i.url,
       width: i.width ?? null,
       height: i.height ?? null,
@@ -120,6 +225,7 @@ export class AdoptService {
     const post = await this.prisma.adoptPost.create({
       data: {
         title: dto.title,
+        animalName: dto.title,
         description: dto.description ?? null,
         species: dto.species,
         sex: this.asSex(dto.sex), // <-- enum Prisma
@@ -164,17 +270,17 @@ export class AdoptService {
       mapsUrl: dto.mapsUrl ?? existing.mapsUrl,
       lat: lat ?? existing.lat,
       lng: lng ?? existing.lng,
+      status: AdoptStatus.PENDING, // Repasse en PENDING pour validation admin
+      approvedAt: null,
+      rejectedAt: null,
+      moderationNote: null,
     };
 
-    // Si l’owner modifie un champ "substantiel" et que le post était APPROVED → repasse en PENDING
-    const substantial =
-      dto.title ?? dto.description ?? dto.species ?? dto.sex ?? dto.ageMonths ??
-@@ -153,165 +192,252 @@ export class AdoptService {
     // Images (remplacement complet si fourni)
     let imagesOut = existing.images;
     if (dto.images) {
       await this.prisma.adoptImage.deleteMany({ where: { postId: id } });
-      const imgs = dto.images.slice(0, 6).map((i: any, idx: number) => ({
+      const imgs = dto.images.slice(0, MAX_IMAGES_PER_POST).map((i: any, idx: number) => ({
         url: i.url,
         width: i.width ?? null,
         height: i.height ?? null,
@@ -223,7 +329,10 @@ export class AdoptService {
   async listMine(user: any) {
     const userId = this.requireUserId(user);
     const rows = await this.prisma.adoptPost.findMany({
-      where: { createdById: userId },
+      where: {
+        createdById: userId,
+        status: { not: AdoptStatus.ARCHIVED }, // Exclure les posts archivés (supprimés)
+      },
       orderBy: { updatedAt: 'desc' },
       include: { images: true },
     });
@@ -232,7 +341,7 @@ export class AdoptService {
 
   // ---------- Feed ----------
   async feed(user: any | null, q: FeedQueryDto) {
-    const limit = q.limit ?? 20;
+    const limit = q.limit ?? 10;
 
     const where: any = { status: AdoptStatus.APPROVED };
     const and: any[] = [];
@@ -260,6 +369,7 @@ export class AdoptService {
       const userId = this.getUserId(user);
       if (userId) {
         and.push({ createdById: { not: userId } });
+
         const seen = await this.prisma.adoptSwipe.findMany({
           where: { userId },
           select: { postId: true },
@@ -297,16 +407,53 @@ export class AdoptService {
   async swipe(user: any, postId: string, dto: SwipeDto) {
     const userId = this.requireUserId(user);
     const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
-    if (!post || post.status !== AdoptStatus.APPROVED) throw new NotFoundException('Post not found');
-    if (post.createdById === userId) throw new ForbiddenException('Cannot swipe own post');
 
+    if (!post || post.status !== AdoptStatus.APPROVED) {
+      throw new NotFoundException('Post not found');
+    }
+    if (post.createdById === userId) {
+      throw new ForbiddenException('Cannot swipe own post');
+    }
+
+    // Vérifier si déjà adopté
+    if (post.adoptedAt) {
+      return {
+        ok: false,
+        action: dto.action,
+        message: 'Cet animal a déjà été adopté',
+        alreadyAdopted: true,
+      };
+    }
+
+    // Vérifier quota uniquement pour LIKE
+    if (dto.action === SwipeAction.LIKE) {
+      await this.checkAndUpdateSwipeQuota(userId);
+    }
+
+    // Upsert swipe
     const rec = await this.prisma.adoptSwipe.upsert({
       where: { userId_postId: { userId, postId } },
       create: { userId, postId, action: dto.action },
       update: { action: dto.action },
     });
 
-    // TODO: notify post.owner on LIKE (queue)
+    // Si LIKE, créer une demande d'adoption
+    if (dto.action === SwipeAction.LIKE) {
+      console.log(`[DEBUG] Création demande adoption - User: ${userId}, Post: ${postId}`);
+      const request = await this.prisma.adoptRequest.upsert({
+        where: { requesterId_postId: { requesterId: userId, postId } },
+        create: {
+          requesterId: userId,
+          postId,
+          status: AdoptRequestStatus.PENDING,
+        },
+        update: {
+          status: AdoptRequestStatus.PENDING, // Réactiver si refusée avant
+        },
+      });
+      console.log(`[DEBUG] Demande adoption créée - ID: ${request.id}, Status: ${request.status}`);
+    }
+
     return { ok: true, action: rec.action };
   }
 
@@ -353,6 +500,413 @@ export class AdoptService {
         liker: r.user,
         post: this.pickPublic(r.post!),
       }));
+  }
+
+  // ---------- Adoption Requests ----------
+
+  /**
+   * Liste des demandes d'adoption reçues sur mes annonces
+   */
+  async myIncomingRequests(user: any) {
+    const userId = this.requireUserId(user);
+
+    console.log(`[DEBUG] Récupération demandes entrantes pour user: ${userId}`);
+
+    // Vérifier toutes les demandes pour cet utilisateur (debug)
+    const allRequests = await this.prisma.adoptRequest.findMany({
+      where: { post: { createdById: userId } },
+      select: { id: true, status: true, createdAt: true, requesterId: true, postId: true },
+    });
+    console.log(`[DEBUG] Toutes les demandes pour cet user: ${JSON.stringify(allRequests)}`);
+
+    const requests = await this.prisma.adoptRequest.findMany({
+      where: {
+        post: { createdById: userId },
+        status: AdoptRequestStatus.PENDING,
+      },
+      include: {
+        requester: {
+          select: { id: true, firstName: true, lastName: true, photoUrl: true },
+        },
+        post: {
+          include: { images: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    console.log(`[DEBUG] Nombre de demandes PENDING trouvées: ${requests.length}`);
+
+    return requests.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      status: r.status,
+      requester: {
+        id: r.requester.id,
+        // Ne pas exposer le vrai nom - sera anonymisé dans la conversation
+        anonymousName: generateAnonymousName(r.requester.id),
+      },
+      post: this.pickPublic(r.post),
+    }));
+  }
+
+  /**
+   * Mes demandes envoyées
+   */
+  async myOutgoingRequests(user: any) {
+    const userId = this.requireUserId(user);
+
+    const requests = await this.prisma.adoptRequest.findMany({
+      where: { requesterId: userId },
+      include: {
+        post: {
+          include: { images: true, createdBy: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      status: r.status,
+      post: this.pickPublic(r.post),
+    }));
+  }
+
+  /**
+   * Accepter une demande d'adoption → crée la conversation
+   */
+  async acceptRequest(user: any, requestId: string) {
+    const userId = this.requireUserId(user);
+
+    const request = await this.prisma.adoptRequest.findUnique({
+      where: { id: requestId },
+      include: { post: true },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+    if (request.status !== AdoptRequestStatus.PENDING) {
+      throw new BadRequestException('Request already processed');
+    }
+
+    // Créer la conversation
+    const conversation = await this.prisma.adoptConversation.create({
+      data: {
+        postId: request.postId,
+        ownerId: userId,
+        adopterId: request.requesterId,
+        ownerAnonymousName: generateAnonymousName(userId),
+        adopterAnonymousName: generateAnonymousName(request.requesterId),
+      },
+    });
+
+    // Mettre à jour la demande
+    await this.prisma.adoptRequest.update({
+      where: { id: requestId },
+      data: {
+        status: AdoptRequestStatus.ACCEPTED,
+        conversationId: conversation.id,
+      },
+    });
+
+    return {
+      ok: true,
+      conversationId: conversation.id,
+    };
+  }
+
+  /**
+   * Refuser une demande d'adoption
+   */
+  async rejectRequest(user: any, requestId: string) {
+    const userId = this.requireUserId(user);
+
+    const request = await this.prisma.adoptRequest.findUnique({
+      where: { id: requestId },
+      include: { post: true },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+    if (request.status !== AdoptRequestStatus.PENDING) {
+      throw new BadRequestException('Request already processed');
+    }
+
+    await this.prisma.adoptRequest.update({
+      where: { id: requestId },
+      data: { status: AdoptRequestStatus.REJECTED },
+    });
+
+    return { ok: true };
+  }
+
+  // ---------- Conversations & Messages ----------
+
+  /**
+   * Liste de mes conversations
+   */
+  async myConversations(user: any) {
+    const userId = this.requireUserId(user);
+
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { adopterId: userId },
+        ],
+      },
+      include: {
+        post: { include: { images: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1, // Dernier message pour preview
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((c) => {
+      const isOwner = c.ownerId === userId;
+      const lastMessage = c.messages[0];
+
+      return {
+        id: c.id,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        post: this.pickPublic(c.post),
+        myRole: isOwner ? 'owner' : 'adopter',
+        otherPersonName: isOwner ? c.adopterAnonymousName : c.ownerAnonymousName,
+        lastMessage: lastMessage ? {
+          content: lastMessage.content,
+          sentAt: lastMessage.createdAt,
+          sentByMe: lastMessage.senderId === userId,
+        } : null,
+      };
+    });
+  }
+
+  /**
+   * Messages d'une conversation
+   */
+  async getConversationMessages(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        post: { include: { images: true } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    // Vérifier accès
+    if (conversation.ownerId !== userId && conversation.adopterId !== userId) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    const isOwner = conversation.ownerId === userId;
+
+    // Marquer messages comme lus
+    await this.prisma.adoptMessage.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    });
+
+    return {
+      id: conversation.id,
+      post: this.pickPublic(conversation.post),
+      myRole: isOwner ? 'owner' : 'adopter',
+      myAnonymousName: isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName,
+      otherPersonName: isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName,
+      messages: conversation.messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        sentAt: m.createdAt,
+        sentByMe: m.senderId === userId,
+        senderName: m.senderId === userId
+          ? (isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName)
+          : (isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName),
+        read: !!m.readAt,
+      })),
+    };
+  }
+
+  /**
+   * Envoyer un message dans une conversation
+   */
+  async sendMessage(user: any, conversationId: string, content: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    // Vérifier accès
+    if (conversation.ownerId !== userId && conversation.adopterId !== userId) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    const message = await this.prisma.adoptMessage.create({
+      data: {
+        conversationId,
+        senderId: userId,
+        content,
+      },
+    });
+
+    // Mettre à jour conversation.updatedAt
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+
+    return {
+      id: message.id,
+      content: message.content,
+      sentAt: message.createdAt,
+    };
+  }
+
+  /**
+   * Récupérer les conversations pour un post (pour choisir l'adoptant)
+   */
+  async getPostConversations(user: any, postId: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: { postId },
+      include: {
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      adopterId: conv.adopterId,
+      adopterName: conv.adopterAnonymousName,
+      adopterEmail: conv.adopter.email,
+      lastMessage: conv.messages[0]?.content ?? '',
+      updatedAt: conv.updatedAt,
+    }));
+  }
+
+  /**
+   * Marquer une annonce comme adoptée (avec choix de l'adoptant)
+   */
+  async markAsAdopted(user: any, postId: string, adoptedById?: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({
+      where: { id: postId },
+      include: { images: true },
+    });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+
+    // Si adoptedById est fourni, vérifier qu'il existe une conversation
+    let conversation = null;
+    if (adoptedById) {
+      conversation = await this.prisma.adoptConversation.findFirst({
+        where: { postId, adopterId: adoptedById },
+      });
+      if (!conversation) {
+        throw new BadRequestException('No conversation found with this user');
+      }
+    }
+
+    await this.prisma.adoptPost.update({
+      where: { id: postId },
+      data: {
+        adoptedAt: new Date(),
+        adoptedById: adoptedById ?? null,
+      },
+    });
+
+    // Envoyer un message système de félicitations dans la conversation
+    if (conversation && adoptedById) {
+      const animalName = post.animalName || 'cet animal';
+      const congratsMessage = `🎉 Félicitations ! Vous avez changé une vie en adoptant ${animalName}. Créez son profil dans l'application pour suivre sa santé et son bien-être. Cliquez sur "Créer le profil" pour commencer !`;
+
+      await this.prisma.adoptMessage.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: userId, // Message envoyé par le propriétaire (système)
+          content: congratsMessage,
+        },
+      });
+
+      // Mettre à jour la conversation
+      await this.prisma.adoptConversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * Récupérer les adoptions en attente de création de profil pet
+   */
+  async myPendingPetCreation(user: any) {
+    const userId = this.requireUserId(user);
+
+    const posts = await this.prisma.adoptPost.findMany({
+      where: {
+        adoptedById: userId,
+        petProfileCreated: false,
+        adoptedAt: { not: null },
+      },
+      include: { images: true, createdBy: true },
+      orderBy: { adoptedAt: 'desc' },
+    });
+
+    return posts.map((post) => this.pickPublic(post));
+  }
+
+  /**
+   * Marquer qu'un profil pet a été créé pour une adoption
+   */
+  async markPetProfileCreated(user: any, postId: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.adoptedById !== userId) {
+      throw new ForbiddenException('Not your adoption');
+    }
+
+    await this.prisma.adoptPost.update({
+      where: { id: postId },
+      data: { petProfileCreated: true },
+    });
+
+    return { ok: true };
   }
 
   // ---------- Admin ----------
@@ -420,5 +974,13 @@ export class AdoptService {
       include: { images: true, createdBy: true },
     });
     return this.pickAdmin(post);
+  }
+
+  async adminApproveAll(_admin: any) {
+    const result = await this.prisma.adoptPost.updateMany({
+      where: { status: AdoptStatus.PENDING },
+      data: { status: AdoptStatus.APPROVED, approvedAt: new Date(), moderationNote: null },
+    });
+    return { approved: result.count };
   }
 }
