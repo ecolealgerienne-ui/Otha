@@ -29,7 +29,7 @@ import '../features/adopt/adopt_swipe_screen.dart';
 import '../features/adopt/adopt_chats_screen.dart';
 import '../features/adopt/adopt_create_screen.dart';
 import '../features/adopt/adopt_conversation_screen.dart';
-
+import '../features/adopt/admin/adopt_admin_screen.dart';
 
 // Pro
 import '../features/pro/pro_shell.dart';
@@ -367,8 +367,10 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
           conversationId: st.pathParameters['conversationId']!,
         ),
       ),
-
-
+      GoRoute(
+        path: '/adopt/admin',
+        builder: (ctx, st) => const AdoptAdminScreen(),
+      ),
 
       // -------- PRO (protégé + shell) --------
       ShellRoute(
