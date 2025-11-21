@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import 'admin_shared.dart';
 import 'admin_editor.dart';
+import 'admin_user_detail_screen.dart';
 
 /// ================= Thème admin (saumon) =================
 ThemeData _adminTheme(BuildContext context) {
@@ -470,6 +471,15 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                               if (role.isNotEmpty) 'role=$role',
                             ].join(' • '),
                           ),
+                          onTap: () {
+                            // Naviguer vers la page de détails
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdminUserDetailScreen(user: m),
+                              ),
+                            );
+                          },
                           trailing: PopupMenuButton<String>(
                             onSelected: (value) async {
                               if (value == 'edit') {

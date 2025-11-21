@@ -129,6 +129,51 @@ export class UsersService {
     return { ok: true };
   }
 
+  // Admin: get user quotas
+  async getUserQuotas(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        dailySwipeCount: true,
+        lastSwipeDate: true,
+        dailyPostCount: true,
+        lastPostDate: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Calculer les swipes utilisés aujourd'hui
+    const lastSwipeDate = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipeDate
+      ? new Date(lastSwipeDate.getFullYear(), lastSwipeDate.getMonth(), lastSwipeDate.getDate())
+      : null;
+    const swipesUsed = (!lastSwipeDay || lastSwipeDay < today) ? 0 : user.dailySwipeCount;
+    const swipesRemaining = Math.max(0, 5 - swipesUsed); // MAX_SWIPES_PER_DAY = 5
+
+    // Calculer les posts utilisés aujourd'hui
+    const lastPostDate = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPostDate
+      ? new Date(lastPostDate.getFullYear(), lastPostDate.getMonth(), lastPostDate.getDate())
+      : null;
+    const postsUsed = (!lastPostDay || lastPostDay < today) ? 0 : user.dailyPostCount;
+    const postsRemaining = Math.max(0, 1 - postsUsed); // MAX_POSTS_PER_DAY = 1
+
+    return {
+      swipesUsed,
+      swipesRemaining,
+      postsUsed,
+      postsRemaining,
+      lastSwipeDate: user.lastSwipeDate,
+      lastPostDate: user.lastPostDate,
+    };
+  }
+
   // Admin: update user info
   async adminUpdateUser(userId: string, dto: any) {
     const data: Prisma.UserUpdateInput = {};

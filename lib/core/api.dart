@@ -2172,6 +2172,13 @@ Future<Map<String, dynamic>> adminResetUserAdoptQuotas(String userId) async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// GET /users/:id/quotas - Get user quotas (admin)
+Future<Map<String, dynamic>> adminGetUserQuotas(String userId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/users/$userId/quotas'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // Admin: modifier les informations d'un utilisateur
 Future<Map<String, dynamic>> adminUpdateUser(String userId, {
   String? firstName,

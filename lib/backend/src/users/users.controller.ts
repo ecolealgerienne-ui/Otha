@@ -47,6 +47,14 @@ export class UsersController {
     return this.users.resetUserAdoptQuotas(userId);
   }
 
+  // Admin: get user quotas
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @Get(':id/quotas')
+  async getUserQuotas(@Param('id') userId: string) {
+    return this.users.getUserQuotas(userId);
+  }
+
   // Admin: update user info
   @Roles('ADMIN')
   @UseGuards(RolesGuard)
