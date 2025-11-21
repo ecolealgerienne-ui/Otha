@@ -272,21 +272,17 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
                         ]),
                         const SizedBox(height: 12),
 
-                        // Ligne 3 — Adoptions en attente
-                        StatsRow(items: [
-                          StatBox(
-                            label: 'Adoptions à modérer',
-                            value: _countAdoptPending,
-                            icon: Icons.pets,
-                            badge: (_countAdoptPending ?? 0) > 0 ? _countAdoptPending : null,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const AdminAdoptPostsPage()),
-                            ),
+                        // Adoptions à modérer
+                        StatBox(
+                          label: 'Adoptions à modérer',
+                          value: _countAdoptPending,
+                          icon: Icons.pets,
+                          badge: (_countAdoptPending ?? 0) > 0 ? _countAdoptPending : null,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AdminAdoptPostsPage()),
                           ),
-                        ]),
-                        const SizedBox(height: 12),
-
-                        const SizedBox(height: 8),
+                        ),
+                        const SizedBox(height: 20),
 
                         // Statistiques globales
                         const Text('Statistiques globales',
