@@ -53,33 +53,79 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
     final pet = widget.existingPet;
     if (pet == null) return;
 
-    _name.text = pet['name'] ?? '';
-    _gender = pet['gender'] ?? 'UNKNOWN';
-    _weightKg = (pet['weightKg'] as num?)?.toDouble();
-    _color.text = pet['color'] ?? '';
-    _city.text = pet['country'] ?? '';
-    _breed.text = pet['breed'] ?? '';
-    _microchip.text = pet['microchipNumber'] ?? '';
-    _allergies.text = pet['allergiesNotes'] ?? '';
-    _notes.text = pet['description'] ?? '';
-    _animalType = pet['idNumber'];
-    _existingPhotoUrl = pet['photoUrl'];
+    // Détecter si c'est des données d'adoption (AdoptPost) ou un pet existant
+    final isAdoptionData = pet.containsKey('animalName') || pet.containsKey('ageMonths');
 
-    // Parse dates
-    if (pet['neuteredAt'] != null) {
-      _neuteredAt = DateTime.tryParse(pet['neuteredAt']);
-    }
-    if (pet['birthDate'] != null) {
-      _birthDate = DateTime.tryParse(pet['birthDate']);
-    }
+    if (isAdoptionData) {
+      // Données d'adoption : mapper les champs AdoptPost vers Pet
+      _name.text = pet['animalName']?.toString() ?? '';
 
-    // Calculer l'âge à partir de birthDate
-    if (_birthDate != null) {
-      final now = DateTime.now();
-      _ageYears = now.year - _birthDate!.year;
-      if (now.month < _birthDate!.month ||
-          (now.month == _birthDate!.month && now.day < _birthDate!.day)) {
-        _ageYears = _ageYears! - 1;
+      // Mapper sex (M/F/U) vers gender (MALE/FEMALE/UNKNOWN)
+      final sex = pet['sex']?.toString().toUpperCase();
+      if (sex == 'M') {
+        _gender = 'MALE';
+      } else if (sex == 'F') {
+        _gender = 'FEMALE';
+      } else {
+        _gender = 'UNKNOWN';
+      }
+
+      // Mapper species (dog/cat/other) vers idNumber
+      final species = pet['species']?.toString().toLowerCase();
+      _animalType = species; // Utilisé temporairement
+
+      _color.text = pet['color']?.toString() ?? '';
+      _city.text = pet['city']?.toString() ?? '';
+      _notes.text = pet['description']?.toString() ?? '';
+
+      // Calculer birthDate à partir de ageMonths
+      final ageMonths = pet['ageMonths'] as int?;
+      if (ageMonths != null) {
+        final now = DateTime.now();
+        _birthDate = DateTime(now.year, now.month - ageMonths, now.day);
+        _ageYears = (ageMonths / 12).floor();
+      }
+
+      // Récupérer la première image
+      final images = pet['images'] as List?;
+      if (images != null && images.isNotEmpty) {
+        final firstImage = images[0];
+        if (firstImage is Map) {
+          _existingPhotoUrl = firstImage['url']?.toString();
+        } else if (firstImage is String) {
+          _existingPhotoUrl = firstImage;
+        }
+      }
+    } else {
+      // Données de pet existant : chargement normal
+      _name.text = pet['name'] ?? '';
+      _gender = pet['gender'] ?? 'UNKNOWN';
+      _weightKg = (pet['weightKg'] as num?)?.toDouble();
+      _color.text = pet['color'] ?? '';
+      _city.text = pet['country'] ?? '';
+      _breed.text = pet['breed'] ?? '';
+      _microchip.text = pet['microchipNumber'] ?? '';
+      _allergies.text = pet['allergiesNotes'] ?? '';
+      _notes.text = pet['description'] ?? '';
+      _animalType = pet['idNumber'];
+      _existingPhotoUrl = pet['photoUrl'];
+
+      // Parse dates
+      if (pet['neuteredAt'] != null) {
+        _neuteredAt = DateTime.tryParse(pet['neuteredAt']);
+      }
+      if (pet['birthDate'] != null) {
+        _birthDate = DateTime.tryParse(pet['birthDate']);
+      }
+
+      // Calculer l'âge à partir de birthDate
+      if (_birthDate != null) {
+        final now = DateTime.now();
+        _ageYears = now.year - _birthDate!.year;
+        if (now.month < _birthDate!.month ||
+            (now.month == _birthDate!.month && now.day < _birthDate!.day)) {
+          _ageYears = _ageYears! - 1;
+        }
       }
     }
   }
