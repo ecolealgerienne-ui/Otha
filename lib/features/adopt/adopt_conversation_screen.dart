@@ -20,13 +20,11 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   bool _loading = true;
   bool _sending = false;
   String? _error;
-  String? _myId;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    _loadMyId();
   }
 
   @override
@@ -34,20 +32,6 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMyId() async {
-    try {
-      final api = ref.read(apiProvider);
-      final me = await api.me();
-      if (mounted) {
-        setState(() {
-          _myId = me['id']?.toString();
-        });
-      }
-    } catch (e) {
-      // Silently fail
-    }
   }
 
   Future<void> _loadMessages() async {
@@ -62,12 +46,11 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
       final messages = (result['messages'] as List<dynamic>?)
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList() ?? [];
-      final conversation = result['conversation'] as Map<String, dynamic>?;
 
       if (mounted) {
         setState(() {
           _messages = messages;
-          _conversation = conversation;
+          _conversation = result; // Le backend renvoie directement l'objet, pas {conversation: {...}}
           _loading = false;
         });
         _scrollToBottom();
@@ -182,10 +165,9 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
                               itemCount: _messages.length,
                               itemBuilder: (context, index) {
                                 final message = _messages[index];
-                                final senderId = message['senderId']?.toString();
-                                final isMe = senderId == _myId;
+                                final isMe = message['sentByMe'] == true;
                                 final content = (message['content'] ?? '').toString();
-                                final timestamp = message['createdAt'] as String?;
+                                final timestamp = message['sentAt'] as String?;
 
                                 return _MessageBubble(
                                   content: content,
