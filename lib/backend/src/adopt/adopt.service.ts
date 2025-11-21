@@ -851,4 +851,12 @@ export class AdoptService {
     });
     return this.pickAdmin(post);
   }
+
+  async adminApproveAll(_admin: any) {
+    const result = await this.prisma.adoptPost.updateMany({
+      where: { status: AdoptStatus.PENDING },
+      data: { status: AdoptStatus.APPROVED, approvedAt: new Date(), moderationNote: null },
+    });
+    return { approved: result.count };
+  }
 }

@@ -62,4 +62,9 @@ export class AdoptAdminController {
   async archive(@Req() req: any, @Param('id') id: string) {
     return this.service.adminArchive(req.user, id);
   }
+
+  @Patch('posts/approve-all')
+  async approveAll(@Req() req: any) {
+    return this.service.adminApproveAll(req.user);
+  }
 }
