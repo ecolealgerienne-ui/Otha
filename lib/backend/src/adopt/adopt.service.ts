@@ -270,6 +270,10 @@ export class AdoptService {
       mapsUrl: dto.mapsUrl ?? existing.mapsUrl,
       lat: lat ?? existing.lat,
       lng: lng ?? existing.lng,
+      status: AdoptStatus.PENDING, // Repasse en PENDING pour validation admin
+      approvedAt: null,
+      rejectedAt: null,
+      moderationNote: null,
     };
 
     // Images (remplacement complet si fourni)

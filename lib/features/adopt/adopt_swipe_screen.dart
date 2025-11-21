@@ -20,6 +20,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
   int _currentIndex = 0;
   bool _loading = false;
   String? _error;
+  String? _backendMessage;
 
   @override
   void initState() {
@@ -46,6 +47,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
         setState(() {
           _posts.addAll(posts);
           _loading = false;
+          _backendMessage = posts.isEmpty ? 'Aucune annonce disponible' : null;
         });
       }
     } catch (e) {
@@ -53,6 +55,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
         setState(() {
           _loading = false;
           _error = e.toString();
+          _backendMessage = 'Erreur chargement: ${e.toString()}';
         });
       }
     }
@@ -60,7 +63,10 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
 
   void _nextCard() {
     if (_currentIndex < _posts.length - 1) {
-      setState(() => _currentIndex++);
+      setState(() {
+        _currentIndex++;
+        _backendMessage = null;
+      });
     }
 
     // Load more if near the end
@@ -74,6 +80,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
       _posts.clear();
       _currentIndex = 0;
       _error = null;
+      _backendMessage = null;
     });
     _loadFeed();
   }
@@ -83,58 +90,28 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
     final quotasAsync = ref.watch(_quotasProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Adopter'),
-        actions: [
-          quotasAsync.when(
-            data: (quotas) {
-              final swipesRemaining = quotas['swipesRemaining'] ?? 0;
-              return Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Center(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.favorite, size: 18),
-                      const SizedBox(width: 4),
-                      Text('$swipesRemaining/5'),
-                    ],
-                  ),
-                ),
-              );
-            },
-            loading: () => const SizedBox(),
-            error: (_, __) => const SizedBox(),
-          ),
-        ],
-      ),
-      body: _loading && _posts.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Erreur: $_error'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadFeed,
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                )
+      backgroundColor: Colors.grey[100],
+      body: Stack(
+        children: [
+          // Main content
+          _loading && _posts.isEmpty
+              ? const Center(child: CircularProgressIndicator())
               : _posts.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.pets, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          const Text('Plus d\'annonces pour le moment'),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
+                          Icon(Icons.pets, size: 80, color: Colors.grey[400]),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Plus d\'annonces pour le moment',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 24),
+                          FilledButton.icon(
                             onPressed: _reset,
-                            child: const Text('Recharger'),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Recharger'),
                           ),
                         ],
                       ),
@@ -143,8 +120,62 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                       posts: _posts,
                       currentIndex: _currentIndex,
                       onNext: _nextCard,
+                      onMessage: (msg) => setState(() => _backendMessage = msg),
                       onInvalidateQuotas: () => ref.invalidate(_quotasProvider),
                     ),
+
+          // Quotas indicator (top right)
+          quotasAsync.when(
+            data: (quotas) {
+              final swipesRemaining = quotas['swipesRemaining'] ?? 0;
+              return Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.favorite, size: 16, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$swipesRemaining/5',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            loading: () => const SizedBox(),
+            error: (_, __) => const SizedBox(),
+          ),
+
+          // Backend message (bottom)
+          if (_backendMessage != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 24,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _backendMessage!,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -153,12 +184,14 @@ class _SwipeCards extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> posts;
   final int currentIndex;
   final VoidCallback onNext;
+  final Function(String) onMessage;
   final VoidCallback onInvalidateQuotas;
 
   const _SwipeCards({
     required this.posts,
     required this.currentIndex,
     required this.onNext,
+    required this.onMessage,
     required this.onInvalidateQuotas,
   });
 
@@ -206,11 +239,14 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
           action: isLike ? 'LIKE' : 'PASS',
         );
         widget.onInvalidateQuotas();
+        widget.onMessage(isLike ? '❤️ Demande envoyée' : 'Passé');
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
+        // Handle 403 (own post) gracefully - just skip to next
+        final errorMsg = e.toString();
+        if (errorMsg.contains('403') || errorMsg.contains('Cannot swipe own post')) {
+          widget.onMessage('Cette annonce vous appartient');
+        } else {
+          widget.onMessage('Erreur: $e');
         }
       }
     }
@@ -245,8 +281,11 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         if (widget.currentIndex + 1 < widget.posts.length)
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: _PostCard(post: widget.posts[widget.currentIndex + 1]),
+              padding: const EdgeInsets.all(16),
+              child: Transform.scale(
+                scale: 0.92,
+                child: _PostCard(post: widget.posts[widget.currentIndex + 1]),
+              ),
             ),
           ),
 
@@ -262,7 +301,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
                   onPanUpdate: _onPanUpdate,
                   onPanEnd: _onPanEnd,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     child: _PostCard(post: post),
                   ),
                 ),
@@ -272,52 +311,27 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         ),
 
         // Swipe indicators
-        if (_isDragging && _dragX.abs() > 30)
+        if (_isDragging && _dragX.abs() > 50)
           Positioned.fill(
             child: IgnorePointer(
               child: Container(
                 alignment: _dragX > 0 ? Alignment.centerLeft : Alignment.centerRight,
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(48),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: _dragX > 0 ? Colors.green : Colors.red,
-                    borderRadius: BorderRadius.circular(12),
+                    color: (_dragX > 0 ? Colors.green : Colors.red).withOpacity(0.9),
+                    shape: BoxShape.circle,
                   ),
                   child: Icon(
                     _dragX > 0 ? Icons.favorite : Icons.close,
                     color: Colors.white,
-                    size: 48,
+                    size: 56,
                   ),
                 ),
               ),
             ),
           ),
-
-        // Bottom buttons
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 32,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              FloatingActionButton(
-                heroTag: 'pass',
-                onPressed: () => _handleSwipe(false),
-                backgroundColor: Colors.red,
-                child: const Icon(Icons.close, size: 32),
-              ),
-              const SizedBox(width: 32),
-              FloatingActionButton(
-                heroTag: 'like',
-                onPressed: () => _handleSwipe(true),
-                backgroundColor: Colors.green,
-                child: const Icon(Icons.favorite, size: 32),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -349,100 +363,131 @@ class _PostCard extends StatelessWidget {
             : '${(ageMonths / 12).floor()} an${ageMonths >= 24 ? 's' : ''}'
         : '';
 
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Image
-          Expanded(
-            flex: 3,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (images.isNotEmpty)
-                  Image.network(
-                    images.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.pets, size: 64, color: Colors.grey),
-                    ),
-                  )
-                else
-                  Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.pets, size: 64, color: Colors.grey),
-                  ),
-
-                // Adopted badge
-                if (adoptedAt != null)
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'ADOPTÉ',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
             ),
-          ),
+          ],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image (full screen)
+            if (images.isNotEmpty)
+              Image.network(
+                images.first,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.pets, size: 100, color: Colors.grey),
+                ),
+              )
+            else
+              Container(
+                color: Colors.grey[300],
+                child: const Icon(Icons.pets, size: 100, color: Colors.grey),
+              ),
 
-          // Info
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    animalName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            // Gradient overlay
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                      Colors.black.withOpacity(0.9),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    [species, ageText, city].where((s) => s.isNotEmpty).join(' • '),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  if (description.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Text(
-                          description,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+
+            // Info overlay (bottom)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            animalName,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (adoptedAt != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'ADOPTÉ',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if ([species, ageText, city].where((s) => s.isNotEmpty).isNotEmpty)
+                      Text(
+                        [species, ageText, city].where((s) => s.isNotEmpty).join(' • '),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Colors.white,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
