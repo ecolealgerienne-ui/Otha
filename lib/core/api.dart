@@ -1526,6 +1526,21 @@ Future<Map<String, dynamic>> markAdoptPostAsAdopted(String postId, {String? adop
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// AUTH: récupérer mes adoptions en attente de création de profil pet
+Future<List<Map<String, dynamic>>> myPendingPetCreation() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/my/pending-pet-creation'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// AUTH: marquer qu'un profil pet a été créé pour une adoption
+Future<Map<String, dynamic>> markAdoptPetProfileCreated(String postId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/adopt/posts/$postId/mark-pet-created'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // AUTH: mes posts
 Future<List<Map<String, dynamic>>> myAdoptPosts() async {
   await ensureAuth();

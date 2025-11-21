@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
+import '../adopt/adoption_pet_creation_dialog.dart';
 
 class AuthLoginScreen extends ConsumerStatefulWidget {
   final String asRole; // 'user' | 'pro'
@@ -302,6 +303,13 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
       } catch (_) {}
       if (!mounted) return;
       context.go('/home');
+
+      // Vérifier les adoptions pendantes après login
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _checkPendingAdoptions();
+        }
+      });
       return;
     }
 
@@ -310,6 +318,14 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
       context.go('/pro/home');
     } else {
       context.go('/home');
+    }
+  }
+
+  Future<void> _checkPendingAdoptions() async {
+    try {
+      await checkAndShowAdoptionDialog(context, ref);
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
     }
   }
 
