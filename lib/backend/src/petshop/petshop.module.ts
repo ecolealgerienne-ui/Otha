@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PetshopService } from './petshop.service';
 import {
   PetshopController,
@@ -10,7 +11,7 @@ import {
 } from './petshop.controller';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, NotificationsModule],
   controllers: [
     PetshopController,
     ProvidersPetshopController,

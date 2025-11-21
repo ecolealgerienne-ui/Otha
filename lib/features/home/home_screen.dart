@@ -29,7 +29,17 @@ class _Notif {
   final String title, body;
   final DateTime at;
   final bool read;
-  _Notif({required this.id, required this.title, required this.body, required this.at, this.read = false});
+  final String? type;
+  final Map<String, dynamic>? metadata;
+  _Notif({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.at,
+    this.read = false,
+    this.type,
+    this.metadata,
+  });
 }
 
 // Provider pour tracker si on a déjà vérifié les adoptions pendantes (une fois par session)
@@ -43,12 +53,15 @@ final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) asy
 
     return notifs.map((n) {
       final createdAt = DateTime.tryParse(n['createdAt']?.toString() ?? '') ?? DateTime.now();
+      final metadata = n['metadata'] as Map<String, dynamic>?;
       return _Notif(
         id: n['id']?.toString() ?? '',
         title: n['title']?.toString() ?? '',
         body: n['body']?.toString() ?? '',
         at: createdAt,
         read: n['read'] == true,
+        type: n['type']?.toString(),
+        metadata: metadata,
       );
     }).toList();
   } catch (e) {
@@ -93,6 +106,56 @@ class NotificationsStore extends ValueNotifier<List<_Notif>> {
   ];
   void setAll(List<_Notif> notifs) => value = notifs;
   void clear() => value = const [];
+}
+
+/// Navigation au clic sur une notification
+void _handleNotificationTap(BuildContext context, _Notif notif) {
+  final type = notif.type;
+  final metadata = notif.metadata;
+
+  if (type == null || metadata == null) return;
+
+  switch (type) {
+    // Messages d'adoption → Ouvrir la conversation
+    case 'NEW_ADOPT_MESSAGE':
+      final conversationId = metadata['conversationId']?.toString();
+      if (conversationId != null) {
+        context.push('/adopt/chat/$conversationId');
+      }
+      break;
+
+    // Demandes d'adoption (reçue/acceptée/refusée) → Ouvrir l'écran adopt (onglet chats)
+    case 'ADOPT_REQUEST_RECEIVED':
+    case 'ADOPT_REQUEST_ACCEPTED':
+    case 'ADOPT_REQUEST_REJECTED':
+      context.push('/adopt');
+      break;
+
+    // Rendez-vous confirmés/annulés → Ouvrir mes rendez-vous
+    case 'BOOKING_CONFIRMED':
+    case 'BOOKING_CANCELLED':
+      context.push('/me/bookings');
+      break;
+
+    // Commandes expédiées/livrées → Ouvrir détails de la commande
+    case 'ORDER_SHIPPED':
+    case 'ORDER_DELIVERED':
+      final orderId = metadata['orderId']?.toString();
+      if (orderId != null) {
+        context.push('/petshop/order/$orderId');
+      }
+      break;
+
+    // Adoption approuvée/rejetée (admin) → Ouvrir l'écran adopt
+    case 'ADOPT_POST_APPROVED':
+    case 'ADOPT_POST_REJECTED':
+      context.push('/adopt');
+      break;
+
+    default:
+      // Type de notification inconnu, ne rien faire
+      break;
+  }
 }
 
 void _showNotifDialog(BuildContext context) {
@@ -146,6 +209,10 @@ void _showNotifDialog(BuildContext context) {
                                 TimeOfDay.fromDateTime(n.at).format(context),
                                 style: TextStyle(color: Colors.black.withOpacity(.5), fontSize: 12),
                               ),
+                              onTap: () {
+                                Navigator.of(context).pop(); // Fermer le dialog
+                                _handleNotificationTap(context, n);
+                              },
                             );
                           },
                         ),
