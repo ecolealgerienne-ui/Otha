@@ -1639,11 +1639,15 @@ Future<Map<String, dynamic>> adminAdoptApprove(String postId) async {
 }
 
 // PATCH /admin/adopt/posts/:id/reject
-Future<Map<String, dynamic>> adminAdoptReject(String postId, {String? note}) async {
+Future<Map<String, dynamic>> adminAdoptReject(String postId, {List<String>? reasons, String? note}) async {
   await ensureAuth();
+  final body = <String, dynamic>{};
+  if (reasons != null && reasons.isNotEmpty) body['reasons'] = reasons;
+  if (note != null && note.trim().isNotEmpty) body['note'] = note.trim();
+
   final res = await _authRetry(() async => await _dio.patch(
         '/admin/adopt/posts/$postId/reject',
-        data: {if (note != null && note.trim().isNotEmpty) 'note': note.trim()},
+        data: body,
       ));
   return _unwrap<Map<String, dynamic>>(res.data);
 }
