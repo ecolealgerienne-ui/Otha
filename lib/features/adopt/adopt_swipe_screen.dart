@@ -275,12 +275,26 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         widget.onInvalidateQuotas();
         widget.onMessage(isLike ? '❤️ Demande envoyée' : 'Passé');
       } catch (e) {
-        // Handle 403 (own post) gracefully - just skip to next
         final errorMsg = e.toString();
+
+        // Détecter les différentes erreurs
         if (errorMsg.contains('403') || errorMsg.contains('Cannot swipe own post')) {
-          widget.onMessage('Cette annonce vous appartient');
+          widget.onMessage('❌ Cette annonce vous appartient');
+        } else if (errorMsg.contains('quota') || errorMsg.contains('Quota') ||
+                   errorMsg.contains('limite') || errorMsg.contains('limit')) {
+          if (isLike) {
+            widget.onMessage('⏳ Quota atteint : 5 likes maximum par jour');
+          } else {
+            widget.onMessage('⏳ Quota atteint pour aujourd\'hui');
+          }
+        } else if (errorMsg.contains('400')) {
+          widget.onMessage('⚠️ Requête invalide. Veuillez réessayer');
+        } else if (errorMsg.contains('429')) {
+          widget.onMessage('⏳ Trop de requêtes. Patientez un moment');
+        } else if (errorMsg.contains('500') || errorMsg.contains('502') || errorMsg.contains('503')) {
+          widget.onMessage('🔧 Serveur temporairement indisponible');
         } else {
-          widget.onMessage('Erreur: $e');
+          widget.onMessage('❌ Erreur: ${errorMsg.length > 50 ? errorMsg.substring(0, 50) + '...' : errorMsg}');
         }
       }
     }
