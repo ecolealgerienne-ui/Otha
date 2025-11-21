@@ -1,6 +1,7 @@
 // lib/features/adopt/adopt_conversation_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 
 class AdoptConversationScreen extends ConsumerStatefulWidget {
@@ -169,10 +170,16 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
                                 final content = (message['content'] ?? '').toString();
                                 final timestamp = message['sentAt'] as String?;
 
+                                // Détecter le message de félicitations
+                                final isCongratulationsMessage = content.contains('🎉 Félicitations') ||
+                                    content.contains('changé une vie');
+
                                 return _MessageBubble(
                                   content: content,
                                   isMe: isMe,
                                   timestamp: timestamp,
+                                  isCongratulationsMessage: isCongratulationsMessage,
+                                  adoptionPost: isCongratulationsMessage ? post : null,
                                 );
                               },
                             ),
@@ -245,15 +252,19 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends ConsumerWidget {
   final String content;
   final bool isMe;
   final String? timestamp;
+  final bool isCongratulationsMessage;
+  final Map<String, dynamic>? adoptionPost;
 
   const _MessageBubble({
     required this.content,
     required this.isMe,
     this.timestamp,
+    this.isCongratulationsMessage = false,
+    this.adoptionPost,
   });
 
   String _formatTime(String? isoString) {
@@ -267,7 +278,7 @@ class _MessageBubble extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -309,6 +320,40 @@ class _MessageBubble extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   color: isMe ? Colors.white70 : Colors.grey[500],
+                ),
+              ),
+            ],
+            // Bouton "Créer le profil" pour le message de félicitations
+            if (isCongratulationsMessage && adoptionPost != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    // Marquer le profil pet comme en cours de création
+                    final postId = adoptionPost!['id']?.toString();
+                    if (postId != null) {
+                      try {
+                        await ref.read(apiProvider).markAdoptPetProfileCreated(postId);
+                      } catch (e) {
+                        // Ignorer l'erreur, on laisse l'utilisateur créer le profil
+                      }
+                    }
+
+                    // Naviguer vers le pet onboarding avec les données d'adoption
+                    if (context.mounted) {
+                      context.push('/pets/add', extra: adoptionPost);
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.pets, size: 20),
+                  label: const Text('Créer le profil'),
                 ),
               ),
             ],

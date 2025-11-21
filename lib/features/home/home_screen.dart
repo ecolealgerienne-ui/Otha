@@ -18,6 +18,7 @@ import '../../core/api.dart';
 // 👇 pour le bouton "Modifier" (pending)
 import '../bookings/booking_flow_screen.dart';
 import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
+import '../adopt/adoption_pet_creation_dialog.dart';
 
 // ⛔️ Ne pas afficher Annuler/Modifier dans la bannière PENDING du Home
 const bool kShowPendingActionsOnHome = false;
@@ -28,6 +29,9 @@ class _Notif {
   final DateTime at;
   _Notif(this.title, this.body) : at = DateTime.now();
 }
+
+// Provider pour tracker si on a déjà vérifié les adoptions pendantes
+final _adoptionCheckDoneProvider = StateProvider<bool>((ref) => false);
 
 final isHostProvider = FutureProvider<bool>((ref) async {
   final user = ref.watch(sessionProvider).user ?? {};
@@ -338,6 +342,20 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  Future<void> _checkPendingAdoptions(BuildContext context, WidgetRef ref) async {
+    // Ne vérifier qu'une seule fois par session
+    final alreadyChecked = ref.read(_adoptionCheckDoneProvider);
+    if (alreadyChecked) return;
+
+    ref.read(_adoptionCheckDoneProvider.notifier).state = true;
+
+    try {
+      await checkAndShowAdoptionDialog(context, ref);
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
+    }
+  }
+
   Future<void> _refreshAll(WidgetRef ref) async {
     // Invalide les providers pour forcer un vrai refresh
     ref.invalidate(topVetsProvider);
@@ -371,6 +389,13 @@ class HomeScreen extends ConsumerWidget {
           data: (v) => v,
           orElse: () => null,
         );
+
+    // Vérifier les adoptions pendantes au premier affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isPro) {
+        _checkPendingAdoptions(context, ref);
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
