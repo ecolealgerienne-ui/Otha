@@ -30,8 +30,8 @@ class _Notif {
   _Notif(this.title, this.body) : at = DateTime.now();
 }
 
-// Provider pour tracker si on a déjà vérifié les adoptions pendantes
-final _adoptionCheckDoneProvider = StateProvider<bool>((ref) => false);
+// Provider pour tracker si on a déjà vérifié les adoptions pendantes (une fois par session)
+bool _adoptionCheckDone = false;
 
 final isHostProvider = FutureProvider<bool>((ref) async {
   final user = ref.watch(sessionProvider).user ?? {};
@@ -344,10 +344,8 @@ class HomeScreen extends ConsumerWidget {
 
   Future<void> _checkPendingAdoptions(BuildContext context, WidgetRef ref) async {
     // Ne vérifier qu'une seule fois par session
-    final alreadyChecked = ref.read(_adoptionCheckDoneProvider);
-    if (alreadyChecked) return;
-
-    ref.read(_adoptionCheckDoneProvider.notifier).state = true;
+    if (_adoptionCheckDone) return;
+    _adoptionCheckDone = true;
 
     try {
       await checkAndShowAdoptionDialog(context, ref);
