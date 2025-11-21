@@ -8,24 +8,13 @@ const _kInk = Color(0xFF1F2328);
 const _kCoral = Color(0xFFF36C6C);
 
 final _requestsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  // TODO backend: endpoint "likes reçus" pour vos annonces.
-  // Fallback: montre vos "likes" en supposant mutual=false (demo).
   final api = ref.read(apiProvider);
-  final mine = await api.myAdoptPosts(); // vos annonces
-  final likes = await api.adoptMyLikes(); // vos likes (pas idéal pour requests)
-  // Sans endpoint inbound, on affiche liste vide pour "Demandes".
-  // Laisse la structure en place pour brancher plus tard.
-  return <Map<String, dynamic>>[];
+  return await api.adoptMyIncomingRequests();
 });
 
 final _chatsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
-  // Hypothèse: adoptMyLikes() peut renvoyer un champ "mutual": true
-  final likes = await api.adoptMyLikes();
-  return likes.where((m) {
-    final mutual = (m['mutual'] ?? false) == true;
-    return mutual;
-  }).toList();
+  return await api.adoptMyConversations();
 });
 
 class AdoptChatsScreen extends ConsumerWidget {
@@ -85,36 +74,70 @@ class _RequestsTab extends ConsumerWidget {
   }
 }
 
-class _RequestTile extends StatelessWidget {
+class _RequestTile extends ConsumerWidget {
   final Map<String, dynamic> item;
   const _RequestTile({required this.item});
 
   @override
-  Widget build(BuildContext context) {
-    // Masque identité utilisateur — n’affiche que l’animal
-    final petName = (item['petName'] ?? item['title'] ?? 'Animal').toString();
-    final species = (item['species'] ?? '').toString();
-    final city = (item['city'] ?? '').toString();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final post = item['post'] as Map<String, dynamic>? ?? {};
+    final requester = item['requester'] as Map<String, dynamic>? ?? {};
+    final requestId = item['id']?.toString() ?? '';
+
+    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+    final anonymousName = (requester['anonymousName'] ?? 'Anonyme').toString();
+    final species = (post['species'] ?? '').toString();
+    final city = (post['city'] ?? '').toString();
 
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.pets)),
-        title: Text(petName, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text([species, city].where((s) => s.isNotEmpty).join(' · ')),
+        title: Text(animalName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text('De: $anonymousName\n${[species, city].where((s) => s.isNotEmpty).join(' · ')}'),
+        isThreeLine: true,
         trailing: Wrap(
           spacing: 8,
           children: [
             OutlinedButton(
-              onPressed: () {
-                // TODO backend: refuser la demande
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demande refusée (mock)')));
+              onPressed: () async {
+                try {
+                  await ref.read(apiProvider).adoptRejectRequest(requestId);
+                  ref.invalidate(_requestsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Demande refusée')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e')),
+                    );
+                  }
+                }
               },
               child: const Text('Refuser'),
             ),
             FilledButton(
-              onPressed: () {
-                // TODO backend: accepter/confirm -> ouvre chat
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demande acceptée (mock)')));
+              onPressed: () async {
+                try {
+                  final result = await ref.read(apiProvider).adoptAcceptRequest(requestId);
+                  ref.invalidate(_requestsProvider);
+                  ref.invalidate(_chatsProvider);
+                  if (context.mounted) {
+                    final convId = result['conversationId']?.toString();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Demande acceptée ! Chat créé')),
+                    );
+                    // TODO: Naviguer vers le chat si on veut
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e')),
+                    );
+                  }
+                }
               },
               child: const Text('Accepter'),
             ),
@@ -143,19 +166,25 @@ class _ChatsTab extends ConsumerWidget {
           itemCount: list.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
-            final m = list[i];
-            final petName = (m['petName'] ?? m['title'] ?? 'Animal').toString();
-            final species = (m['species'] ?? '').toString();
-            final city = (m['city'] ?? '').toString();
+            final conv = list[i];
+            final post = conv['post'] as Map<String, dynamic>? ?? {};
+            final conversationId = conv['id']?.toString() ?? '';
+            final otherPersonName = (conv['otherPersonName'] ?? 'Anonyme').toString();
+            final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+
+            final lastMessage = conv['lastMessage'] as Map<String, dynamic>?;
+            final lastMessageText = lastMessage != null
+              ? (lastMessage['content'] ?? '').toString()
+              : 'Aucun message';
 
             return Card(
               child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.chat_bubble_outline)),
-                title: Text(petName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text([species, city].where((s) => s.isNotEmpty).join(' · ')),
+                title: Text('$animalName • $otherPersonName', style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(lastMessageText, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () {
-                  // TODO: ouvrir écran de chat (non demandé ici)
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ouvrir chat (TODO)')));
+                  // TODO: Naviguer vers l'écran de chat
+                  context.push('/adopt/chat/$conversationId');
                 },
               ),
             );
