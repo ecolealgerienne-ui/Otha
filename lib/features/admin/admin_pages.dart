@@ -473,8 +473,7 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                           ),
                           onTap: () {
                             // Naviguer vers la page de détails
-                            Navigator.push(
-                              context,
+                            Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => AdminUserDetailScreen(user: m),
                               ),
