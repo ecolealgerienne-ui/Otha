@@ -73,7 +73,7 @@ export class UsersService {
       });
       return user;
     } catch (e: any) {
-      // Mappe l’unicité Prisma (P2002) → 409
+      // Mappe l'unicité Prisma (P2002) → 409
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         const target = (e.meta as any)?.target;
         const arr = Array.isArray(target) ? target : [target];
@@ -84,5 +84,34 @@ export class UsersService {
       }
       throw e;
     }
+  }
+
+  // Admin: list all users
+  async listUsers(query?: { role?: string; q?: string; limit?: number; offset?: number }) {
+    const where: Prisma.UserWhereInput = {};
+
+    if (query?.role) {
+      where.role = query.role as any;
+    }
+
+    if (query?.q && query.q.trim()) {
+      const search = query.q.trim();
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: userSelect,
+      orderBy: { createdAt: 'desc' },
+      take: query?.limit ?? 100,
+      skip: query?.offset ?? 0,
+    });
+
+    return users;
   }
 }
