@@ -200,7 +200,7 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
   }
 }
 
-class _PetSwipeCard extends StatelessWidget {
+class _PetSwipeCard extends ConsumerWidget {
   final Map<String, dynamic> pet;
 
   const _PetSwipeCard({required this.pet});
@@ -271,7 +271,7 @@ class _PetSwipeCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final id = (pet['id'] ?? '').toString();
     final name = (pet['name'] ?? 'Animal').toString();
     final species = pet['species']?.toString();
@@ -514,13 +514,21 @@ class _PetSwipeCard extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Boutons d'action
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
+                        // Bouton Modifier
+                        SizedBox(
+                          width: double.infinity,
                           child: OutlinedButton.icon(
-                            onPressed: () => context.push('/pets/$id/medical'),
-                            icon: const Icon(Icons.medical_services, size: 18),
-                            label: const Text('Carnet'),
+                            onPressed: () async {
+                              await context.push('/pets/edit', extra: pet);
+                              // Rafraîchir après modification
+                              if (context.mounted) {
+                                ref.invalidate(myPetsProvider);
+                              }
+                            },
+                            icon: const Icon(Icons.edit, size: 18),
+                            label: const Text('Modifier les informations'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: _coral,
                               side: const BorderSide(color: _coral, width: 1.5),
@@ -531,21 +539,42 @@ class _PetSwipeCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => context.push('/pets/$id/qr'),
-                            icon: const Icon(Icons.qr_code, size: 18),
-                            label: const Text('QR Code'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _coral,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 12),
+                        // Carnet et QR Code
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => context.push('/pets/$id/medical'),
+                                icon: const Icon(Icons.medical_services, size: 18),
+                                label: const Text('Carnet'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _coral,
+                                  side: const BorderSide(color: _coral, width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () => context.push('/pets/$id/qr'),
+                                icon: const Icon(Icons.qr_code, size: 18),
+                                label: const Text('QR Code'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _coral,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

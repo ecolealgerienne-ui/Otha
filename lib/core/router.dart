@@ -75,6 +75,7 @@ import '../features/profile/user_settings_screen.dart';
 
 // Pets (carnet de santé)
 import '../features/pets/pets_management_screen.dart';
+import '../features/pets/pet_onboarding_screen.dart';
 import '../features/pets/pet_medical_history_screen.dart';
 import '../features/pets/add_medical_record_screen.dart';
 import '../features/pets/pet_qr_code_screen.dart';
@@ -193,6 +194,16 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
       GoRoute(
         path: '/pets',
         builder: (_, __) => const PetsManagementScreen(),
+      ),
+      GoRoute(
+        path: '/pets/add',
+        builder: (_, __) => const PetOnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/pets/edit',
+        builder: (_, state) => PetOnboardingScreen(
+          existingPet: (state.extra as Map<String, dynamic>?) ?? {},
+        ),
       ),
       GoRoute(
         path: '/pets/:id/medical',
