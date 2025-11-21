@@ -2163,6 +2163,43 @@ Future<Map<String, dynamic>> reapplyMyProvider() async {
 // ========================== FIN ADMIN (/earnings) ==========================
 
 
+// ========================== ADMIN (Users Management) ==========================
+
+// Admin: reset quotas adoption d'un utilisateur
+Future<Map<String, dynamic>> adminResetUserAdoptQuotas(String userId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/users/$userId/reset-adopt-quotas'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// Admin: modifier les informations d'un utilisateur
+Future<Map<String, dynamic>> adminUpdateUser(String userId, {
+  String? firstName,
+  String? lastName,
+  String? phone,
+  String? email,
+  String? city,
+  double? lat,
+  double? lng,
+  String? role,
+}) async {
+  await ensureAuth();
+  final body = <String, dynamic>{};
+  if (firstName != null) body['firstName'] = firstName;
+  if (lastName != null) body['lastName'] = lastName;
+  if (phone != null) body['phone'] = phone;
+  if (email != null) body['email'] = email;
+  if (city != null) body['city'] = city;
+  if (lat != null) body['lat'] = lat;
+  if (lng != null) body['lng'] = lng;
+  if (role != null) body['role'] = role;
+
+  final res = await _authRetry(() async => await _dio.patch('/users/$userId', data: body));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// ========================== FIN ADMIN (Users) ==========================
+
 
   // ---------------- Patients (fallback et version améliorée) ----------------
 
