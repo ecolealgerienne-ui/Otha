@@ -1508,6 +1508,24 @@ Future<bool> deleteAdoptPost(String postId) async {
   }
 }
 
+// AUTH: récupérer les conversations pour un post (pour choisir l'adoptant)
+Future<List<Map<String, dynamic>>> getAdoptPostConversations(String postId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/posts/$postId/conversations'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// AUTH: marquer un post comme adopté
+Future<Map<String, dynamic>> markAdoptPostAsAdopted(String postId, {String? adoptedById}) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+        '/adopt/posts/$postId/adopted',
+        data: adoptedById != null ? {'adoptedById': adoptedById} : {},
+      ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // AUTH: mes posts
 Future<List<Map<String, dynamic>>> myAdoptPosts() async {
   await ensureAuth();
