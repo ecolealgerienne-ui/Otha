@@ -361,7 +361,9 @@ export class AdoptService {
     if (user) {
       const userId = this.getUserId(user);
       if (userId) {
-        and.push({ createdById: { not: userId } });
+        // DISABLED FOR TESTING: Don't filter own posts
+        // and.push({ createdById: { not: userId } });
+
         const seen = await this.prisma.adoptSwipe.findMany({
           where: { userId },
           select: { postId: true },
