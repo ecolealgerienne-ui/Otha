@@ -1646,6 +1646,24 @@ Future<Map<String, dynamic>> adoptSendMessage(String conversationId, String cont
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// POST /adopt/conversations/:id/confirm-adoption - Confirmer l'adoption
+Future<Map<String, dynamic>> adoptConfirmAdoption(String conversationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+    '/adopt/conversations/$conversationId/confirm-adoption',
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// POST /adopt/conversations/:id/decline-adoption - Refuser l'adoption
+Future<Map<String, dynamic>> adoptDeclineAdoption(String conversationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+    '/adopt/conversations/$conversationId/decline-adoption',
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ===================== Adoption Admin (modération) =====================
 
 // GET /admin/adopt/posts?status=...
