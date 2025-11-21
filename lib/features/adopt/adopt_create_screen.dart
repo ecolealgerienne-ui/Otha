@@ -86,6 +86,25 @@ class AdoptCreateScreen extends ConsumerWidget {
                       return _PostCard(
                         post: post,
                         onEdit: () {
+                          // Vérifier si l'annonce est adoptée
+                          final status = post['status']?.toString() ?? '';
+                          if (status == 'ADOPTED') {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Modification impossible'),
+                                content: const Text('Cette annonce a déjà été adoptée et ne peut plus être modifiée.'),
+                                actions: [
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return;
+                          }
+
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => _CreateEditPostScreen(post: post),

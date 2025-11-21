@@ -1,6 +1,7 @@
 // lib/features/adopt/adopt_swipe_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 
 final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -134,15 +135,15 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                       onInvalidateQuotas: () => ref.invalidate(_quotasProvider),
                     ),
 
-          // Previous button (top left)
-          if (_posts.isNotEmpty && _currentIndex > 0)
+          // Back to home button (top left)
+          if (_posts.isNotEmpty)
             Positioned(
               top: MediaQuery.of(context).padding.top + 16,
               left: 16,
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: _previousCard,
+                  onTap: () => context.go('/home'),
                   borderRadius: BorderRadius.circular(30),
                   child: Container(
                     padding: const EdgeInsets.all(12),

@@ -1,4 +1,5 @@
 // lib/features/adopt/adopt_conversation_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,25 +22,35 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   bool _loading = true;
   bool _sending = false;
   String? _error;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    // Polling toutes les 5 secondes pour actualiser les messages
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && !_loading && !_sending) {
+        _loadMessages(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _loadMessages({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final api = ref.read(apiProvider);
@@ -54,7 +65,9 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           _conversation = result; // Le backend renvoie directement l'objet, pas {conversation: {...}}
           _loading = false;
         });
-        _scrollToBottom();
+        if (!silent) {
+          _scrollToBottom();
+        }
       }
     } catch (e) {
       if (mounted) {
