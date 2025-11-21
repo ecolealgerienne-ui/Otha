@@ -22,7 +22,7 @@ export class NotificationsService {
         type,
         title,
         body,
-        metadata: metadata || null,
+        metadata: metadata ?? undefined,
       },
     });
   }
@@ -95,7 +95,7 @@ export class NotificationsService {
 
     if (!notification || notification.userId !== userId) {
       throw new Error('Notification not found');
-    });
+    }
 
     return this.prisma.notification.delete({
       where: { id: notificationId },
