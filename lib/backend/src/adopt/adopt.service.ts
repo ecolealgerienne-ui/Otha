@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
 import { FeedQueryDto } from './dto/feed.dto';
 import { SwipeDto, SwipeAction } from './dto/swipe.dto';
-import { AdoptStatus, AdoptRequestStatus, Prisma, Sex } from '@prisma/client';
+import { AdoptStatus, AdoptRequestStatus, Prisma, Sex, NotificationType } from '@prisma/client';
 import { bboxFromCenter, clampLat, clampLng, haversineKm, parseLatLngFromGoogleUrl } from './geo.util';
 import { generateAnonymousName } from './anonymous-names.util';
 
@@ -17,7 +18,10 @@ type ImgLike = { id?: string; url?: string; width?: number | null; height?: numb
 
 @Injectable()
 export class AdoptService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   // ---------- Helpers ----------
   private getUserId(user: any): string | null {
@@ -752,6 +756,11 @@ export class AdoptService {
 
     const conversation = await this.prisma.adoptConversation.findUnique({
       where: { id: conversationId },
+      include: {
+        post: true,
+        owner: { select: { firstName: true, lastName: true } },
+        adopter: { select: { firstName: true, lastName: true } },
+      },
     });
 
     if (!conversation) throw new NotFoundException('Conversation not found');
@@ -774,6 +783,30 @@ export class AdoptService {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    // Créer une notification pour le destinataire
+    const recipientId = userId === conversation.ownerId ? conversation.adopterId : conversation.ownerId;
+    const senderName = userId === conversation.ownerId
+      ? `${conversation.owner.firstName || ''} ${conversation.owner.lastName || ''}`.trim() || 'Quelqu\'un'
+      : `${conversation.adopter.firstName || ''} ${conversation.adopter.lastName || ''}`.trim() || 'Quelqu\'un';
+    const animalName = conversation.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        recipientId,
+        NotificationType.NEW_ADOPT_MESSAGE,
+        `Nouveau message - ${animalName}`,
+        `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`,
+        {
+          conversationId: conversation.id,
+          postId: conversation.postId,
+          senderId: userId,
+        },
+      );
+    } catch (e) {
+      // Si la notification échoue, on ne bloque pas l'envoi du message
+      console.error('Failed to create notification:', e);
+    }
 
     return {
       id: message.id,
