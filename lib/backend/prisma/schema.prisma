@@ -405,13 +405,14 @@ model AdoptPost {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  moderationNote String?
-  approvedAt     DateTime?
-  rejectedAt     DateTime?
-  archivedAt     DateTime?
-  adoptedAt      DateTime? // Quand l'animal a été adopté
-  adoptedById    String?   // User qui a adopté l'animal
-  adoptedBy      User?     @relation("AdoptedPosts", fields: [adoptedById], references: [id])
+  moderationNote     String?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  archivedAt         DateTime?
+  adoptedAt          DateTime? // Quand l'animal a été adopté
+  adoptedById        String?   // User qui a adopté l'animal
+  adoptedBy          User?     @relation("AdoptedPosts", fields: [adoptedById], references: [id])
+  petProfileCreated  Boolean   @default(false) // Si l'adoptant a créé le profil pet
 
   images        AdoptImage[]
   swipes        AdoptSwipe[]

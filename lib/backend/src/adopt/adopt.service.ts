@@ -807,15 +807,19 @@ export class AdoptService {
   async markAsAdopted(user: any, postId: string, adoptedById?: string) {
     const userId = this.requireUserId(user);
 
-    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    const post = await this.prisma.adoptPost.findUnique({
+      where: { id: postId },
+      include: { images: true },
+    });
     if (!post) throw new NotFoundException('Post not found');
     if (post.createdById !== userId) {
       throw new ForbiddenException('Not your post');
     }
 
     // Si adoptedById est fourni, vérifier qu'il existe une conversation
+    let conversation = null;
     if (adoptedById) {
-      const conversation = await this.prisma.adoptConversation.findFirst({
+      conversation = await this.prisma.adoptConversation.findFirst({
         where: { postId, adopterId: adoptedById },
       });
       if (!conversation) {
@@ -829,6 +833,65 @@ export class AdoptService {
         adoptedAt: new Date(),
         adoptedById: adoptedById ?? null,
       },
+    });
+
+    // Envoyer un message système de félicitations dans la conversation
+    if (conversation && adoptedById) {
+      const animalName = post.animalName || 'cet animal';
+      const congratsMessage = `🎉 Félicitations ! Vous avez changé une vie en adoptant ${animalName}. Créez son profil dans l'application pour suivre sa santé et son bien-être. Cliquez sur "Créer le profil" pour commencer !`;
+
+      await this.prisma.adoptMessage.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: userId, // Message envoyé par le propriétaire (système)
+          content: congratsMessage,
+        },
+      });
+
+      // Mettre à jour la conversation
+      await this.prisma.adoptConversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * Récupérer les adoptions en attente de création de profil pet
+   */
+  async myPendingPetCreation(user: any) {
+    const userId = this.requireUserId(user);
+
+    const posts = await this.prisma.adoptPost.findMany({
+      where: {
+        adoptedById: userId,
+        petProfileCreated: false,
+        adoptedAt: { not: null },
+      },
+      include: { images: true, createdBy: true },
+      orderBy: { adoptedAt: 'desc' },
+    });
+
+    return posts.map((post) => this.pickPublic(post));
+  }
+
+  /**
+   * Marquer qu'un profil pet a été créé pour une adoption
+   */
+  async markPetProfileCreated(user: any, postId: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.adoptedById !== userId) {
+      throw new ForbiddenException('Not your adoption');
+    }
+
+    await this.prisma.adoptPost.update({
+      where: { id: postId },
+      data: { petProfileCreated: true },
     });
 
     return { ok: true };
