@@ -34,7 +34,7 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
   }
 
   Future<void> _pickImage() async {
-    if (_images.length >= 2) return;
+    if (_images.length >= 3) return;
     final pic = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
     if (pic != null) setState(() => _images.add(pic));
   }

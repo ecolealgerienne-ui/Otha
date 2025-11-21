@@ -1534,6 +1534,75 @@ Future<List<Map<String, dynamic>>> adoptMyLikes() async {
   return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 }
 
+// GET /adopt/my/quotas - Quotas restants
+Future<Map<String, dynamic>> adoptMyQuotas() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/my/quotas'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// POST /adopt/posts/:id/adopted - Marquer comme adopté
+Future<Map<String, dynamic>> adoptMarkAsAdopted(String postId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/adopt/posts/$postId/adopted'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// GET /adopt/my/requests/incoming - Demandes reçues
+Future<List<Map<String, dynamic>>> adoptMyIncomingRequests() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/my/requests/incoming'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// GET /adopt/my/requests/outgoing - Demandes envoyées
+Future<List<Map<String, dynamic>>> adoptMyOutgoingRequests() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/my/requests/outgoing'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// POST /adopt/requests/:id/accept - Accepter demande
+Future<Map<String, dynamic>> adoptAcceptRequest(String requestId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/adopt/requests/$requestId/accept'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// POST /adopt/requests/:id/reject - Refuser demande
+Future<Map<String, dynamic>> adoptRejectRequest(String requestId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/adopt/requests/$requestId/reject'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// GET /adopt/my/conversations - Liste conversations
+Future<List<Map<String, dynamic>>> adoptMyConversations() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/my/conversations'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// GET /adopt/conversations/:id/messages - Messages d'une conversation
+Future<Map<String, dynamic>> adoptGetConversationMessages(String conversationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/adopt/conversations/$conversationId/messages'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// POST /adopt/conversations/:id/messages - Envoyer message
+Future<Map<String, dynamic>> adoptSendMessage(String conversationId, String content) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+    '/adopt/conversations/$conversationId/messages',
+    data: {'content': content},
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ===================== Adoption Admin (modération) =====================
 
 // GET /admin/adopt/posts?status=...
