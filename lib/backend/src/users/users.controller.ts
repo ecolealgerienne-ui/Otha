@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -37,5 +37,21 @@ export class UsersController {
     const offset = offsetStr ? parseInt(offsetStr, 10) : 0;
 
     return this.users.listUsers({ role, q, limit, offset });
+  }
+
+  // Admin: reset quotas adoption d'un user
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @Post(':id/reset-adopt-quotas')
+  async resetUserAdoptQuotas(@Param('id') userId: string) {
+    return this.users.resetUserAdoptQuotas(userId);
+  }
+
+  // Admin: update user info
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @Patch(':id')
+  async adminUpdateUser(@Param('id') userId: string, @Body() dto: any) {
+    return this.users.adminUpdateUser(userId, dto);
   }
 }

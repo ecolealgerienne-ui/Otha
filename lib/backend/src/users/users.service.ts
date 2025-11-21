@@ -114,4 +114,53 @@ export class UsersService {
 
     return users;
   }
+
+  // Admin: reset quotas adoption d'un utilisateur
+  async resetUserAdoptQuotas(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        dailySwipeCount: 0,
+        dailyPostCount: 0,
+        lastSwipeDate: null,
+        lastPostDate: null,
+      },
+    });
+    return { ok: true };
+  }
+
+  // Admin: update user info
+  async adminUpdateUser(userId: string, dto: any) {
+    const data: Prisma.UserUpdateInput = {};
+
+    if (dto.firstName !== undefined) data.firstName = dto.firstName?.trim() || null;
+    if (dto.lastName !== undefined) data.lastName = dto.lastName?.trim() || null;
+    if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null;
+    if (dto.email !== undefined) data.email = dto.email?.trim();
+    if (dto.city !== undefined) data.city = dto.city?.trim() || null;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+    if (dto.role !== undefined) data.role = dto.role;
+
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data,
+        select: userSelect,
+      });
+      return user;
+    } catch (e: any) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const target = (e.meta as any)?.target;
+        const arr = Array.isArray(target) ? target : [target];
+        if (arr?.some((t: any) => String(t).toLowerCase().includes('phone'))) {
+          throw new ConflictException('Phone already in use');
+        }
+        if (arr?.some((t: any) => String(t).toLowerCase().includes('email'))) {
+          throw new ConflictException('Email already in use');
+        }
+      }
+      throw e;
+    }
+  }
 }

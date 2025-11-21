@@ -251,6 +251,146 @@ Future<List<Map<String, dynamic>>> _load() async {
   }).toList();
 }
 
+Future<void> _handleResetQuotas(BuildContext context, String userId, String userName) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Reset quotas adoption'),
+      content: Text(
+        'Voulez-vous réinitialiser les quotas d\'adoption (annonces + swipes) pour $userName ?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Reset'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    final api = ref.read(apiProvider);
+    await api.adminResetUserAdoptQuotas(userId);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Quotas réinitialisés')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+}
+
+Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user) async {
+  final userId = user['id']?.toString() ?? '';
+  final firstNameCtl = TextEditingController(text: user['firstName']?.toString() ?? '');
+  final lastNameCtl = TextEditingController(text: user['lastName']?.toString() ?? '');
+  final emailCtl = TextEditingController(text: user['email']?.toString() ?? '');
+  final phoneCtl = TextEditingController(text: user['phone']?.toString() ?? '');
+  final cityCtl = TextEditingController(text: user['city']?.toString() ?? '');
+
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Modifier utilisateur'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: firstNameCtl,
+              decoration: const InputDecoration(
+                labelText: 'Prénom',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lastNameCtl,
+              decoration: const InputDecoration(
+                labelText: 'Nom',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailCtl,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtl,
+              decoration: const InputDecoration(
+                labelText: 'Téléphone',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: cityCtl,
+              decoration: const InputDecoration(
+                labelText: 'Ville',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    ),
+  );
+
+  if (result != true) return;
+
+  try {
+    final api = ref.read(apiProvider);
+    await api.adminUpdateUser(
+      userId,
+      firstName: firstNameCtl.text.trim(),
+      lastName: lastNameCtl.text.trim(),
+      email: emailCtl.text.trim(),
+      phone: phoneCtl.text.trim(),
+      city: cityCtl.text.trim(),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Utilisateur modifié')),
+      );
+      setState(() {}); // Recharger la liste
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -307,6 +447,7 @@ Future<List<Map<String, dynamic>>> _load() async {
                           last,
                         ].where((e) => e.trim().isNotEmpty).join(' ').trim();
                         final avatarSeed = (name.isEmpty ? email : name);
+                        final userId = m['id']?.toString() ?? '';
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor: const Color(0xFFFFE7E7),
@@ -328,6 +469,37 @@ Future<List<Map<String, dynamic>>> _load() async {
                               if (phone.isNotEmpty) phone,
                               if (role.isNotEmpty) 'role=$role',
                             ].join(' • '),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                await _showEditUserDialog(context, m);
+                              } else if (value == 'reset_quotas') {
+                                await _handleResetQuotas(context, userId, name.isEmpty ? email : name);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Modifier'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'reset_quotas',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.refresh, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Reset quotas adoption'),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
