@@ -83,6 +83,7 @@ model User {
   conversationsAsOwner   AdoptConversation[] @relation("ConversationOwner")
   conversationsAsAdopter AdoptConversation[] @relation("ConversationAdopter")
   adoptMessages          AdoptMessage[]
+  adoptedPosts           AdoptPost[]         @relation("AdoptedPosts") // Posts qu'il a adoptés
 
   // Quotas adoption (réinitialisation quotidienne)
   dailySwipeCount Int      @default(0)
@@ -409,6 +410,8 @@ model AdoptPost {
   rejectedAt     DateTime?
   archivedAt     DateTime?
   adoptedAt      DateTime? // Quand l'animal a été adopté
+  adoptedById    String?   // User qui a adopté l'animal
+  adoptedBy      User?     @relation("AdoptedPosts", fields: [adoptedById], references: [id])
 
   images        AdoptImage[]
   swipes        AdoptSwipe[]

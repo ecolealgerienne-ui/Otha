@@ -159,7 +159,7 @@ class AdoptCreateScreen extends ConsumerWidget {
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends ConsumerWidget {
   final Map<String, dynamic> post;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -170,8 +170,111 @@ class _PostCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  Future<void> _handleMarkAsAdopted(BuildContext context, WidgetRef ref) async {
+    final api = ref.read(apiProvider);
+    final postId = post['id']?.toString();
+    if (postId == null) return;
+
+    try {
+      // Récupérer les conversations pour ce post
+      final conversations = await api.getAdoptPostConversations(postId);
+
+      if (!context.mounted) return;
+
+      if (conversations.isEmpty) {
+        // Aucune conversation, marquer simplement comme adopté
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Marquer comme adopté'),
+            content: const Text(
+              'Aucune conversation trouvée. Voulez-vous quand même marquer cet animal comme adopté ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF8A8A)),
+                child: const Text('Marquer adopté'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirm == true) {
+          await api.markAdoptPostAsAdopted(postId);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Animal marqué comme adopté')),
+            );
+            ref.invalidate(_myPostsProvider);
+          }
+        }
+      } else {
+        // Afficher la liste des contacts pour choisir l'adoptant
+        final adopterId = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Qui a adopté cet animal ?'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Sélectionnez la personne qui a adopté l\'animal :'),
+                  const SizedBox(height: 16),
+                  ...conversations.map((conv) {
+                    final name = conv['adopterName']?.toString() ?? 'Anonyme';
+                    final lastMsg = conv['lastMessage']?.toString() ?? '';
+                    return ListTile(
+                      title: Text(name),
+                      subtitle: Text(
+                        lastMsg.isEmpty ? 'Aucun message' : lastMsg,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFFFEEF0),
+                        child: Icon(Icons.person, color: Color(0xFFFF8A8A)),
+                      ),
+                      onTap: () => Navigator.pop(ctx, conv['adopterId']?.toString()),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler'),
+              ),
+            ],
+          ),
+        );
+
+        if (adopterId != null) {
+          await api.markAdoptPostAsAdopted(postId, adoptedById: adopterId);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Animal marqué comme adopté')),
+            );
+            ref.invalidate(_myPostsProvider);
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final images = (post['images'] as List<dynamic>?)
         ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
         .where((url) => url != null && url.isNotEmpty)
@@ -183,6 +286,7 @@ class _PostCard extends StatelessWidget {
     final city = (post['city'] ?? '').toString();
     final status = (post['status'] ?? 'PENDING').toString();
     final ageMonths = post['ageMonths'] as int?;
+    final adoptedAt = post['adoptedAt'];
 
     final ageText = ageMonths != null
         ? ageMonths < 12
@@ -190,17 +294,23 @@ class _PostCard extends StatelessWidget {
             : '${(ageMonths / 12).floor()} an${ageMonths >= 24 ? 's' : ''}'
         : '';
 
-    final statusColor = status == 'APPROVED'
-        ? Colors.green
-        : status == 'REJECTED'
-            ? Colors.red
-            : Colors.orange;
+    // Priorité à "Adopté" si adoptedAt existe
+    final isAdopted = adoptedAt != null;
+    final statusColor = isAdopted
+        ? const Color(0xFF4CAF50) // Vert pour adopté
+        : status == 'APPROVED'
+            ? Colors.green
+            : status == 'REJECTED'
+                ? Colors.red
+                : Colors.orange;
 
-    final statusText = status == 'APPROVED'
-        ? 'Approuvée'
-        : status == 'REJECTED'
-            ? 'Refusée'
-            : 'En attente';
+    final statusText = isAdopted
+        ? 'Adopté ✓'
+        : status == 'APPROVED'
+            ? 'Approuvée'
+            : status == 'REJECTED'
+                ? 'Refusée'
+                : 'En attente';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -296,9 +406,21 @@ class _PostCard extends StatelessWidget {
                   onSelected: (value) {
                     if (value == 'edit') onEdit();
                     if (value == 'delete') onDelete();
+                    if (value == 'adopted') _handleMarkAsAdopted(context, ref);
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                    if (!isAdopted) // N'afficher "Adopté" que si pas encore adopté
+                      const PopupMenuItem(
+                        value: 'adopted',
+                        child: Row(
+                          children: [
+                            Icon(Icons.pets, size: 18, color: Color(0xFF4CAF50)),
+                            SizedBox(width: 8),
+                            Text('Marquer adopté'),
+                          ],
+                        ),
+                      ),
                     const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
                   ],
                 ),
@@ -335,6 +457,26 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
   List<String> _existingImageUrls = [];
   bool _submitting = false;
 
+  // Map backend sex enum (M/F/U) to dropdown values (male/female/unknown)
+  String _mapSexFromBackend(String? backendSex) {
+    if (backendSex == null) return 'unknown';
+    final s = backendSex.toUpperCase();
+    if (s == 'M') return 'male';
+    if (s == 'F') return 'female';
+    if (s == 'U') return 'unknown';
+    // Fallback pour valeurs lowercase complètes
+    final lower = backendSex.toLowerCase();
+    if (lower == 'male' || lower == 'female' || lower == 'unknown') return lower;
+    return 'unknown';
+  }
+
+  // Map dropdown value back to backend enum (male → M, female → F, unknown → U)
+  String _mapSexToBackend(String dropdownValue) {
+    if (dropdownValue == 'male') return 'M';
+    if (dropdownValue == 'female') return 'F';
+    return 'U';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -344,9 +486,11 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     _city = TextEditingController(text: p?['city']?.toString() ?? '');
     _desc = TextEditingController(text: p?['description']?.toString() ?? '');
 
-    // Normaliser species et sex en lowercase pour matcher les dropdowns
+    // Normaliser species en lowercase pour matcher le dropdown
     _species = (p?['species']?.toString() ?? 'dog').toLowerCase();
-    _sex = (p?['sex']?.toString() ?? 'unknown').toLowerCase();
+
+    // Mapper sex depuis le backend (M/F/U) vers le dropdown (male/female/unknown)
+    _sex = _mapSexFromBackend(p?['sex']?.toString());
 
     final ageMonths = p?['ageMonths'] as int?;
     if (ageMonths != null) {
@@ -426,7 +570,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
           title: _title.text.trim(),
           animalName: _name.text.trim().isEmpty ? null : _name.text.trim(),
           species: _species,
-          sex: _sex,
+          sex: _mapSexToBackend(_sex), // Convertir vers enum backend (M/F/U)
           ageMonths: ageMonths,
           city: _city.text.trim().isEmpty ? null : _city.text.trim(),
           description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
@@ -437,7 +581,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
           title: _title.text.trim(),
           animalName: _name.text.trim().isEmpty ? null : _name.text.trim(),
           species: _species,
-          sex: _sex,
+          sex: _mapSexToBackend(_sex), // Convertir vers enum backend (M/F/U)
           ageMonths: ageMonths,
           city: _city.text.trim().isEmpty ? null : _city.text.trim(),
           description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
