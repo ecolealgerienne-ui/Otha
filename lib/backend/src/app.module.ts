@@ -26,6 +26,7 @@ import { MapsModule } from './maps/maps.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { AdoptModule } from './adopt/adopt.module';
 import { PetshopModule } from './petshop/petshop.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 
 
@@ -95,6 +96,7 @@ import { PetshopModule } from './petshop/petshop.module';
     EarningsModule,
     AdoptModule,
     PetshopModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: TransformInterceptor }],
 })
