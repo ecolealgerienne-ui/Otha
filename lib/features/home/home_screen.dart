@@ -379,6 +379,15 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  Future<void> _loadNotifications(WidgetRef ref) async {
+    try {
+      final notifs = await ref.read(notificationsProvider.future);
+      NotificationsStore.instance.setAll(notifs);
+    } catch (e) {
+      // Ignorer les erreurs de chargement des notifications
+    }
+  }
+
   Future<void> _checkPendingAdoptions(BuildContext context, WidgetRef ref) async {
     // Ne vérifier qu'une seule fois par session
     if (_adoptionCheckDone) return;
@@ -399,7 +408,11 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(activeOrdersProvider);
     ref.invalidate(homeUserPositionStreamProvider);
     ref.invalidate(avatarUrlProvider);
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadNotificationsCountProvider);
     await Future.delayed(const Duration(milliseconds: 120));
+    // Recharger les notifications après invalidation
+    _loadNotifications(ref);
   }
 
   @override
@@ -425,8 +438,9 @@ class HomeScreen extends ConsumerWidget {
           orElse: () => null,
         );
 
-    // Vérifier les adoptions pendantes au premier affichage
+    // Charger les notifications et vérifier les adoptions pendantes au premier affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadNotifications(ref);
       if (!isPro) {
         _checkPendingAdoptions(context, ref);
       }
@@ -553,24 +567,46 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          ValueListenableBuilder<List<_Notif>>(
-            valueListenable: NotificationsStore.instance,
-            builder: (_, items, __) => Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(onPressed: () => _showNotifDialog(context), icon: const Icon(Icons.notifications_none)),
-                if (items.isNotEmpty)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+          Consumer(
+            builder: (_, ref, __) {
+              final unreadCount = ref.watch(unreadNotificationsCountProvider).maybeWhen(
+                data: (count) => count,
+                orElse: () => 0,
+              );
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(onPressed: () => _showNotifDialog(context), icon: const Icon(Icons.notifications_none)),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ],
       ),

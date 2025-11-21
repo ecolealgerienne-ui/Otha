@@ -454,8 +454,31 @@ export class AdoptService {
         update: {
           status: AdoptRequestStatus.PENDING, // Réactiver si refusée avant
         },
+        include: {
+          requester: { select: { firstName: true, lastName: true } },
+        },
       });
       console.log(`[DEBUG] Demande adoption créée - ID: ${request.id}, Status: ${request.status}`);
+
+      // Créer une notification pour le propriétaire
+      const requesterName = `${request.requester.firstName || ''} ${request.requester.lastName || ''}`.trim() || 'Quelqu\'un';
+      const animalName = post.animalName || 'Votre animal';
+
+      try {
+        await this.notificationsService.createNotification(
+          post.createdById,
+          NotificationType.ADOPT_REQUEST_RECEIVED,
+          'Nouvelle demande d\'adoption',
+          `${requesterName} souhaite adopter ${animalName}`,
+          {
+            requestId: request.id,
+            postId: post.id,
+            requesterId: userId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
     }
 
     return { ok: true, action: rec.action };
@@ -616,6 +639,25 @@ export class AdoptService {
       },
     });
 
+    // Créer une notification pour le demandeur
+    const animalName = request.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        request.requesterId,
+        NotificationType.ADOPT_REQUEST_ACCEPTED,
+        'Demande d\'adoption acceptée',
+        `Votre demande pour ${animalName} a été acceptée ! Vous pouvez maintenant discuter avec le propriétaire.`,
+        {
+          requestId: request.id,
+          postId: request.postId,
+          conversationId: conversation.id,
+        },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
+
     return {
       ok: true,
       conversationId: conversation.id,
@@ -645,6 +687,24 @@ export class AdoptService {
       where: { id: requestId },
       data: { status: AdoptRequestStatus.REJECTED },
     });
+
+    // Créer une notification pour le demandeur
+    const animalName = request.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        request.requesterId,
+        NotificationType.ADOPT_REQUEST_REJECTED,
+        'Demande d\'adoption refusée',
+        `Votre demande pour ${animalName} a été refusée.`,
+        {
+          requestId: request.id,
+          postId: request.postId,
+        },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
 
     return { ok: true };
   }
