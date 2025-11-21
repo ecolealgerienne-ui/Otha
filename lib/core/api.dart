@@ -1664,6 +1664,52 @@ Future<Map<String, dynamic>> adoptDeclineAdoption(String conversationId) async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// ===================== Notifications =====================
+
+// GET /notifications - Récupérer toutes les notifications
+Future<List<Map<String, dynamic>>> getNotifications() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/notifications'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// GET /notifications/unread/count - Compter les notifications non lues
+Future<int> getUnreadNotificationsCount() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/notifications/unread/count'));
+  final data = _unwrap<Map<String, dynamic>>(res.data);
+  return (data['count'] as num?)?.toInt() ?? 0;
+}
+
+// PATCH /notifications/:id/read - Marquer comme lu
+Future<Map<String, dynamic>> markNotificationAsRead(String notificationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.patch('/notifications/$notificationId/read'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// PATCH /notifications/read-all - Tout marquer comme lu
+Future<Map<String, dynamic>> markAllNotificationsAsRead() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.patch('/notifications/read-all'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// DELETE /notifications/:id - Supprimer une notification
+Future<Map<String, dynamic>> deleteNotification(String notificationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.delete('/notifications/$notificationId'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// DELETE /notifications - Supprimer toutes les notifications
+Future<Map<String, dynamic>> deleteAllNotifications() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.delete('/notifications'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ===================== Adoption Admin (modération) =====================
 
 // GET /admin/adopt/posts?status=...

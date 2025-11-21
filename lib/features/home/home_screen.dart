@@ -25,13 +25,46 @@ const bool kShowPendingActionsOnHome = false;
 
 /// -------------------- Notifications (store léger) --------------------
 class _Notif {
+  final String id;
   final String title, body;
   final DateTime at;
-  _Notif(this.title, this.body) : at = DateTime.now();
+  final bool read;
+  _Notif({required this.id, required this.title, required this.body, required this.at, this.read = false});
 }
 
 // Provider pour tracker si on a déjà vérifié les adoptions pendantes (une fois par session)
 bool _adoptionCheckDone = false;
+
+// Provider pour charger les notifications depuis le backend
+final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final notifs = await api.getNotifications();
+
+    return notifs.map((n) {
+      final createdAt = DateTime.tryParse(n['createdAt']?.toString() ?? '') ?? DateTime.now();
+      return _Notif(
+        id: n['id']?.toString() ?? '',
+        title: n['title']?.toString() ?? '',
+        body: n['body']?.toString() ?? '',
+        at: createdAt,
+        read: n['read'] == true,
+      );
+    }).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Provider pour compter les non lues
+final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    return await api.getUnreadNotificationsCount();
+  } catch (e) {
+    return 0;
+  }
+});
 
 final isHostProvider = FutureProvider<bool>((ref) async {
   final user = ref.watch(sessionProvider).user ?? {};
@@ -54,7 +87,11 @@ final avatarUrlProvider = FutureProvider<String?>((ref) async {
 class NotificationsStore extends ValueNotifier<List<_Notif>> {
   static final instance = NotificationsStore._();
   NotificationsStore._() : super(const []);
-  void add(String title, String body) => value = [_Notif(title, body), ...value];
+  void add(String title, String body) => value = [
+    _Notif(id: DateTime.now().millisecondsSinceEpoch.toString(), title: title, body: body, at: DateTime.now()),
+    ...value
+  ];
+  void setAll(List<_Notif> notifs) => value = notifs;
   void clear() => value = const [];
 }
 
