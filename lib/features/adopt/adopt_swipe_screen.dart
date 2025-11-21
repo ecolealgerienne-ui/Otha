@@ -3,55 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 
-// State class for feed
-class _FeedState {
-  final List<Map<String, dynamic>> posts;
-  final bool loading;
-  final String? error;
-  final int currentIndex;
+final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final api = ref.read(apiProvider);
+  return await api.adoptMyQuotas();
+});
 
-  _FeedState({
-    this.posts = const [],
-    this.loading = false,
-    this.error,
-    this.currentIndex = 0,
-  });
+class AdoptSwipeScreen extends ConsumerStatefulWidget {
+  const AdoptSwipeScreen({super.key});
 
-  _FeedState copyWith({
-    List<Map<String, dynamic>>? posts,
-    bool? loading,
-    String? error,
-    int? currentIndex,
-  }) {
-    return _FeedState(
-      posts: posts ?? this.posts,
-      loading: loading ?? this.loading,
-      error: error ?? this.error,
-      currentIndex: currentIndex ?? this.currentIndex,
-    );
-  }
+  @override
+  ConsumerState<AdoptSwipeScreen> createState() => _AdoptSwipeScreenState();
 }
 
-// Simple state provider using ChangeNotifier approach
-class _FeedNotifier extends ChangeNotifier {
-  final Ref ref;
-  _FeedState _state = _FeedState();
+class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
+  List<Map<String, dynamic>> _posts = [];
+  int _currentIndex = 0;
+  bool _loading = false;
+  String? _error;
 
-  _FeedState get state => _state;
-
-  _FeedNotifier(this.ref) {
-    loadFeed();
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
   }
 
-  void _updateState(_FeedState newState) {
-    _state = newState;
-    notifyListeners();
-  }
+  Future<void> _loadFeed() async {
+    if (_loading) return;
 
-  Future<void> loadFeed() async {
-    if (_state.loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-    _updateState(_state.copyWith(loading: true, error: null));
     try {
       final api = ref.read(apiProvider);
       final result = await api.adoptFeed(limit: 10);
@@ -59,45 +42,44 @@ class _FeedNotifier extends ChangeNotifier {
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList() ?? [];
 
-      _updateState(_state.copyWith(posts: posts, loading: false));
+      if (mounted) {
+        setState(() {
+          _posts.addAll(posts);
+          _loading = false;
+        });
+      }
     } catch (e) {
-      _updateState(_state.copyWith(loading: false, error: e.toString()));
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
-  void nextCard() {
-    if (_state.currentIndex < _state.posts.length - 1) {
-      _updateState(_state.copyWith(currentIndex: _state.currentIndex + 1));
+  void _nextCard() {
+    if (_currentIndex < _posts.length - 1) {
+      setState(() => _currentIndex++);
     }
 
     // Load more if near the end
-    if (_state.currentIndex >= _state.posts.length - 2 && !_state.loading) {
-      loadFeed();
+    if (_currentIndex >= _posts.length - 2 && !_loading) {
+      _loadFeed();
     }
   }
 
-  void reset() {
-    _updateState(_FeedState());
-    loadFeed();
+  void _reset() {
+    setState(() {
+      _posts.clear();
+      _currentIndex = 0;
+      _error = null;
+    });
+    _loadFeed();
   }
-}
-
-final _feedProvider = ChangeNotifierProvider<_FeedNotifier>((ref) {
-  return _FeedNotifier(ref);
-});
-
-final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final api = ref.read(apiProvider);
-  return await api.adoptMyQuotas();
-});
-
-class AdoptSwipeScreen extends ConsumerWidget {
-  const AdoptSwipeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final feedNotifier = ref.watch(_feedProvider);
-    final feedState = feedNotifier.state;
+  Widget build(BuildContext context) {
     final quotasAsync = ref.watch(_quotasProvider);
 
     return Scaffold(
@@ -125,23 +107,23 @@ class AdoptSwipeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: feedState.loading && feedState.posts.isEmpty
+      body: _loading && _posts.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : feedState.error != null
+          : _error != null
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Erreur: ${feedState.error}'),
+                      Text('Erreur: $_error'),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => feedNotifier.loadFeed(),
+                        onPressed: _loadFeed,
                         child: const Text('Réessayer'),
                       ),
                     ],
                   ),
                 )
-              : feedState.posts.isEmpty
+              : _posts.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -151,15 +133,17 @@ class AdoptSwipeScreen extends ConsumerWidget {
                           const Text('Plus d\'annonces pour le moment'),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: () => feedNotifier.reset(),
+                            onPressed: _reset,
                             child: const Text('Recharger'),
                           ),
                         ],
                       ),
                     )
                   : _SwipeCards(
-                      posts: feedState.posts,
-                      currentIndex: feedState.currentIndex,
+                      posts: _posts,
+                      currentIndex: _currentIndex,
+                      onNext: _nextCard,
+                      onInvalidateQuotas: () => ref.invalidate(_quotasProvider),
                     ),
     );
   }
@@ -168,10 +152,14 @@ class AdoptSwipeScreen extends ConsumerWidget {
 class _SwipeCards extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> posts;
   final int currentIndex;
+  final VoidCallback onNext;
+  final VoidCallback onInvalidateQuotas;
 
   const _SwipeCards({
     required this.posts,
     required this.currentIndex,
+    required this.onNext,
+    required this.onInvalidateQuotas,
   });
 
   @override
@@ -217,7 +205,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
           postId: postId,
           action: isLike ? 'LIKE' : 'PASS',
         );
-        ref.invalidate(_quotasProvider);
+        widget.onInvalidateQuotas();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +223,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         _dragY = 0;
         _isDragging = false;
       });
-      ref.read(_feedProvider).nextCard();
+      widget.onNext();
     }
   }
 
