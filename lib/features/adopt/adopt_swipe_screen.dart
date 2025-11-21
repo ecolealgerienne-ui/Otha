@@ -75,6 +75,15 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
     }
   }
 
+  void _previousCard() {
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _backendMessage = null;
+      });
+    }
+  }
+
   void _reset() {
     setState(() {
       _posts.clear();
@@ -120,9 +129,32 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                       posts: _posts,
                       currentIndex: _currentIndex,
                       onNext: _nextCard,
+                      onPrevious: _previousCard,
                       onMessage: (msg) => setState(() => _backendMessage = msg),
                       onInvalidateQuotas: () => ref.invalidate(_quotasProvider),
                     ),
+
+          // Previous button (top left)
+          if (_posts.isNotEmpty && _currentIndex > 0)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 16,
+              left: 16,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _previousCard,
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ),
 
           // Quotas indicator (top right)
           quotasAsync.when(
@@ -184,6 +216,7 @@ class _SwipeCards extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> posts;
   final int currentIndex;
   final VoidCallback onNext;
+  final VoidCallback onPrevious;
   final Function(String) onMessage;
   final VoidCallback onInvalidateQuotas;
 
@@ -191,6 +224,7 @@ class _SwipeCards extends ConsumerStatefulWidget {
     required this.posts,
     required this.currentIndex,
     required this.onNext,
+    required this.onPrevious,
     required this.onMessage,
     required this.onInvalidateQuotas,
   });

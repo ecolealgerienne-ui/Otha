@@ -105,8 +105,8 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
       int countAdoptPending = 0;
       try {
         final adoptResult = await futAdoptPending;
-        final adoptPosts = adoptResult['posts'] as List? ?? [];
-        countAdoptPending = adoptResult['total'] as int? ?? adoptPosts.length;
+        final counts = adoptResult['counts'] as Map<String, dynamic>? ?? {};
+        countAdoptPending = counts['PENDING'] as int? ?? 0;
       } catch (_) {
         countAdoptPending = 0;
       }
