@@ -38,7 +38,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
     try {
       final api = ref.read(apiProvider);
       final result = await api.adoptFeed(limit: 10);
-      final posts = (result['data'] as List<dynamic>?)
+      final posts = (result['items'] as List<dynamic>?)
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList() ?? [];
 
