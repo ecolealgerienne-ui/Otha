@@ -335,6 +335,26 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
   List<String> _existingImageUrls = [];
   bool _submitting = false;
 
+  // Map backend sex enum (M/F/U) to dropdown values (male/female/unknown)
+  String _mapSexFromBackend(String? backendSex) {
+    if (backendSex == null) return 'unknown';
+    final s = backendSex.toUpperCase();
+    if (s == 'M') return 'male';
+    if (s == 'F') return 'female';
+    if (s == 'U') return 'unknown';
+    // Fallback pour valeurs lowercase complètes
+    final lower = backendSex.toLowerCase();
+    if (lower == 'male' || lower == 'female' || lower == 'unknown') return lower;
+    return 'unknown';
+  }
+
+  // Map dropdown value back to backend enum (male → M, female → F, unknown → U)
+  String _mapSexToBackend(String dropdownValue) {
+    if (dropdownValue == 'male') return 'M';
+    if (dropdownValue == 'female') return 'F';
+    return 'U';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -344,9 +364,11 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     _city = TextEditingController(text: p?['city']?.toString() ?? '');
     _desc = TextEditingController(text: p?['description']?.toString() ?? '');
 
-    // Normaliser species et sex en lowercase pour matcher les dropdowns
+    // Normaliser species en lowercase pour matcher le dropdown
     _species = (p?['species']?.toString() ?? 'dog').toLowerCase();
-    _sex = (p?['sex']?.toString() ?? 'unknown').toLowerCase();
+
+    // Mapper sex depuis le backend (M/F/U) vers le dropdown (male/female/unknown)
+    _sex = _mapSexFromBackend(p?['sex']?.toString());
 
     final ageMonths = p?['ageMonths'] as int?;
     if (ageMonths != null) {
@@ -426,7 +448,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
           title: _title.text.trim(),
           animalName: _name.text.trim().isEmpty ? null : _name.text.trim(),
           species: _species,
-          sex: _sex,
+          sex: _mapSexToBackend(_sex), // Convertir vers enum backend (M/F/U)
           ageMonths: ageMonths,
           city: _city.text.trim().isEmpty ? null : _city.text.trim(),
           description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
@@ -437,7 +459,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
           title: _title.text.trim(),
           animalName: _name.text.trim().isEmpty ? null : _name.text.trim(),
           species: _species,
-          sex: _sex,
+          sex: _mapSexToBackend(_sex), // Convertir vers enum backend (M/F/U)
           ageMonths: ageMonths,
           city: _city.text.trim().isEmpty ? null : _city.text.trim(),
           description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
