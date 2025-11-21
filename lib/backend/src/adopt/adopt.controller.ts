@@ -67,9 +67,20 @@ export class AdoptController {
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
+  @Get('posts/:id/conversations')
+  async getPostConversations(@Req() req: any, @Param('id') id: string) {
+    return this.service.getPostConversations(req.user, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Post('posts/:id/adopted')
-  async markAdopted(@Req() req: any, @Param('id') id: string) {
-    return this.service.markAsAdopted(req.user, id);
+  async markAdopted(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { adoptedById?: string },
+  ) {
+    return this.service.markAsAdopted(req.user, id, body.adoptedById);
   }
 
   // ====== Swipe ======

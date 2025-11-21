@@ -771,9 +771,9 @@ export class AdoptService {
   }
 
   /**
-   * Marquer une annonce comme adoptée
+   * Récupérer les conversations pour un post (pour choisir l'adoptant)
    */
-  async markAsAdopted(user: any, postId: string) {
+  async getPostConversations(user: any, postId: string) {
     const userId = this.requireUserId(user);
 
     const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
@@ -782,9 +782,53 @@ export class AdoptService {
       throw new ForbiddenException('Not your post');
     }
 
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: { postId },
+      include: {
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      adopterId: conv.adopterId,
+      adopterName: conv.adopterAnonymousName,
+      adopterEmail: conv.adopter.email,
+      lastMessage: conv.messages[0]?.content ?? '',
+      updatedAt: conv.updatedAt,
+    }));
+  }
+
+  /**
+   * Marquer une annonce comme adoptée (avec choix de l'adoptant)
+   */
+  async markAsAdopted(user: any, postId: string, adoptedById?: string) {
+    const userId = this.requireUserId(user);
+
+    const post = await this.prisma.adoptPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.createdById !== userId) {
+      throw new ForbiddenException('Not your post');
+    }
+
+    // Si adoptedById est fourni, vérifier qu'il existe une conversation
+    if (adoptedById) {
+      const conversation = await this.prisma.adoptConversation.findFirst({
+        where: { postId, adopterId: adoptedById },
+      });
+      if (!conversation) {
+        throw new BadRequestException('No conversation found with this user');
+      }
+    }
+
     await this.prisma.adoptPost.update({
       where: { id: postId },
-      data: { adoptedAt: new Date() },
+      data: {
+        adoptedAt: new Date(),
+        adoptedById: adoptedById ?? null,
+      },
     });
 
     return { ok: true };
