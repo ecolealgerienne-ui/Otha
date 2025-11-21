@@ -1501,6 +1501,47 @@ class _AdminAdoptPostsPageState extends ConsumerState<AdminAdoptPostsPage> {
     }
   }
 
+  Future<void> _approveAll() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tout approuver'),
+        content: const Text('Approuver toutes les annonces en attente ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Approuver tout')),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      final result = await api.adminAdoptApproveAll();
+      final count = result['approved'] as int? ?? 0;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ $count annonce(s) approuvée(s)'), backgroundColor: Colors.green),
+        );
+        // Reload
+        setState(() {
+          _posts.clear();
+          _cursor = null;
+          _currentIndex = 0;
+        });
+        _loadPendingPosts();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<List<String>?> _showRejectDialog() async {
     final selected = <String>{};
 
@@ -1610,6 +1651,12 @@ class _AdminAdoptPostsPageState extends ConsumerState<AdminAdoptPostsPage> {
         appBar: AppBar(
           title: const Text('Modération Adoptions'),
           actions: [
+            if (_totalPending > 0)
+              IconButton(
+                icon: const Icon(Icons.done_all),
+                tooltip: 'Tout approuver',
+                onPressed: _approveAll,
+              ),
             if (_totalPending > 0)
               Padding(
                 padding: const EdgeInsets.only(right: 16),

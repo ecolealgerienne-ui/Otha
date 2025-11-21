@@ -1659,6 +1659,13 @@ Future<Map<String, dynamic>> adminAdoptArchive(String postId) async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// PATCH /admin/adopt/posts/approve-all
+Future<Map<String, dynamic>> adminAdoptApproveAll() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.patch('/admin/adopt/posts/approve-all'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ---------------- Wrappers rétrocompat (si ton UI les appelle déjà) ----------------
 
 @deprecated
