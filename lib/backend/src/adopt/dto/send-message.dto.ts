@@ -6,5 +6,5 @@ export class SendMessageDto {
   @IsString()
   @MinLength(1)
   @MaxLength(5000)
-  content: string;
+  content!: string;
 }
