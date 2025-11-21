@@ -78,9 +78,20 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
       _city.text = pet['city']?.toString() ?? '';
       _notes.text = pet['description']?.toString() ?? '';
 
-      // Calculer birthDate à partir de ageMonths
-      final ageMonths = pet['ageMonths'] as int?;
-      if (ageMonths != null) {
+      // Calculer birthDate à partir de ageMonths (parsing robuste)
+      final ageMonthsValue = pet['ageMonths'];
+      int? ageMonths;
+      if (ageMonthsValue != null) {
+        if (ageMonthsValue is int) {
+          ageMonths = ageMonthsValue;
+        } else if (ageMonthsValue is num) {
+          ageMonths = ageMonthsValue.toInt();
+        } else if (ageMonthsValue is String) {
+          ageMonths = int.tryParse(ageMonthsValue);
+        }
+      }
+
+      if (ageMonths != null && ageMonths > 0) {
         final now = DateTime.now();
         _birthDate = DateTime(now.year, now.month - ageMonths, now.day);
         _ageYears = (ageMonths / 12).floor();
@@ -100,7 +111,17 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
       // Données de pet existant : chargement normal
       _name.text = pet['name'] ?? '';
       _gender = pet['gender'] ?? 'UNKNOWN';
-      _weightKg = (pet['weightKg'] as num?)?.toDouble();
+
+      // Parse weightKg de manière robuste (peut être String ou num)
+      final weightValue = pet['weightKg'];
+      if (weightValue != null) {
+        if (weightValue is num) {
+          _weightKg = weightValue.toDouble();
+        } else if (weightValue is String) {
+          _weightKg = double.tryParse(weightValue);
+        }
+      }
+
       _color.text = pet['color'] ?? '';
       _city.text = pet['country'] ?? '';
       _breed.text = pet['breed'] ?? '';
@@ -112,10 +133,10 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
 
       // Parse dates
       if (pet['neuteredAt'] != null) {
-        _neuteredAt = DateTime.tryParse(pet['neuteredAt']);
+        _neuteredAt = DateTime.tryParse(pet['neuteredAt'].toString());
       }
       if (pet['birthDate'] != null) {
-        _birthDate = DateTime.tryParse(pet['birthDate']);
+        _birthDate = DateTime.tryParse(pet['birthDate'].toString());
       }
 
       // Calculer l'âge à partir de birthDate
