@@ -17,23 +17,31 @@ class AdminUserDetailScreen extends ConsumerStatefulWidget {
 class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
   bool _loading = false;
   Map<String, dynamic>? _quotas;
+  List<Map<String, dynamic>> _conversations = [];
+  bool _loadingConversations = false;
 
   @override
   void initState() {
     super.initState();
-    _loadQuotas();
+    _loadData();
   }
 
-  Future<void> _loadQuotas() async {
+  Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
       final api = ref.read(apiProvider);
       final userId = widget.user['id']?.toString() ?? '';
-      // On va créer un endpoint admin pour récupérer les quotas d'un user
-      final quotas = await api.adminGetUserQuotas(userId);
+
+      // Charger les quotas et conversations en parallèle
+      final results = await Future.wait([
+        api.adminGetUserQuotas(userId),
+        api.adminGetUserAdoptConversations(userId),
+      ]);
+
       if (mounted) {
         setState(() {
-          _quotas = quotas;
+          _quotas = results[0] as Map<String, dynamic>;
+          _conversations = results[1] as List<Map<String, dynamic>>;
           _loading = false;
         });
       }
@@ -76,7 +84,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.adminResetUserAdoptQuotas(userId);
-      await _loadQuotas(); // Recharger les quotas
+      await _loadData(); // Recharger les données
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -310,20 +318,27 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Carte historique messages (TODO)
+                  // Carte historique messages
                   _Card(
-                    title: 'Historique des messages',
+                    title: 'Conversations adoption (${_conversations.length})',
                     icon: Icons.chat_bubble_outline,
-                    child: const Column(
-                      children: [
-                        SizedBox(height: 8),
-                        Text(
-                          '📨 Fonctionnalité en cours de développement',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        ),
-                        SizedBox(height: 8),
-                      ],
-                    ),
+                    child: _conversations.isEmpty
+                        ? const Column(
+                            children: [
+                              SizedBox(height: 8),
+                              Text(
+                                'Aucune conversation',
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                              SizedBox(height: 8),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              for (final conv in _conversations)
+                                _ConversationTile(conversation: conv, currentUserId: widget.user['id']?.toString() ?? ''),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -434,6 +449,115 @@ class _InfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ConversationTile extends StatelessWidget {
+  final Map<String, dynamic> conversation;
+  final String currentUserId;
+
+  const _ConversationTile({
+    required this.conversation,
+    required this.currentUserId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final post = conversation['post'] as Map<String, dynamic>? ?? {};
+    final owner = conversation['owner'] as Map<String, dynamic>? ?? {};
+    final adopter = conversation['adopter'] as Map<String, dynamic>? ?? {};
+    final lastMessage = conversation['lastMessage'] as Map<String, dynamic>?;
+
+    final animalName = post['animalName']?.toString() ?? post['title']?.toString() ?? 'Animal';
+    final ownerName = '${owner['firstName'] ?? ''} ${owner['lastName'] ?? ''}'.trim();
+    final adopterName = '${adopter['firstName'] ?? ''} ${adopter['lastName'] ?? ''}'.trim();
+
+    final isOwner = owner['id']?.toString() == currentUserId;
+    final otherPerson = isOwner ? adopterName : ownerName;
+    final role = isOwner ? 'Propriétaire' : 'Adoptant';
+
+    final lastMessageText = lastMessage?['content']?.toString() ?? '';
+    final createdAt = conversation['createdAt']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pets, size: 16, color: AdminColors.salmon),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  animalName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: role == 'Propriétaire' ? Colors.green.shade50 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  role,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: role == 'Propriétaire' ? Colors.green.shade700 : Colors.blue.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                'Avec: $otherPerson',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          if (lastMessageText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              lastMessageText,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _formatDate(createdAt),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String isoString) {
+    if (isoString.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(isoString);
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return isoString;
+    }
   }
 }
 

@@ -174,6 +174,66 @@ export class UsersService {
     };
   }
 
+  // Admin: get user adoption conversations
+  async getUserAdoptConversations(userId: string) {
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { adopterId: userId },
+        ],
+      },
+      include: {
+        post: {
+          select: {
+            id: true,
+            animalName: true,
+            title: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        adopter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            content: true,
+            createdAt: true,
+            senderId: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+      post: conv.post,
+      owner: conv.owner,
+      adopter: conv.adopter,
+      ownerAnonymousName: conv.ownerAnonymousName,
+      adopterAnonymousName: conv.adopterAnonymousName,
+      lastMessage: conv.messages[0] || null,
+      messageCount: conv.messages.length > 0 ? 1 : 0, // On ne récupère que le dernier
+    }));
+  }
+
   // Admin: update user info
   async adminUpdateUser(userId: string, dto: any) {
     const data: Prisma.UserUpdateInput = {};

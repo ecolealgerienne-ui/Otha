@@ -2179,6 +2179,14 @@ Future<Map<String, dynamic>> adminGetUserQuotas(String userId) async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// GET /users/:id/adopt-conversations - Get user adoption conversations (admin)
+Future<List<Map<String, dynamic>>> adminGetUserAdoptConversations(String userId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/users/$userId/adopt-conversations'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
 // Admin: modifier les informations d'un utilisateur
 Future<Map<String, dynamic>> adminUpdateUser(String userId, {
   String? firstName,
