@@ -129,6 +129,111 @@ export class UsersService {
     return { ok: true };
   }
 
+  // Admin: get user quotas
+  async getUserQuotas(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        dailySwipeCount: true,
+        lastSwipeDate: true,
+        dailyPostCount: true,
+        lastPostDate: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Calculer les swipes utilisés aujourd'hui
+    const lastSwipeDate = user.lastSwipeDate ? new Date(user.lastSwipeDate) : null;
+    const lastSwipeDay = lastSwipeDate
+      ? new Date(lastSwipeDate.getFullYear(), lastSwipeDate.getMonth(), lastSwipeDate.getDate())
+      : null;
+    const swipesUsed = (!lastSwipeDay || lastSwipeDay < today) ? 0 : user.dailySwipeCount;
+    const swipesRemaining = Math.max(0, 5 - swipesUsed); // MAX_SWIPES_PER_DAY = 5
+
+    // Calculer les posts utilisés aujourd'hui
+    const lastPostDate = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const lastPostDay = lastPostDate
+      ? new Date(lastPostDate.getFullYear(), lastPostDate.getMonth(), lastPostDate.getDate())
+      : null;
+    const postsUsed = (!lastPostDay || lastPostDay < today) ? 0 : user.dailyPostCount;
+    const postsRemaining = Math.max(0, 1 - postsUsed); // MAX_POSTS_PER_DAY = 1
+
+    return {
+      swipesUsed,
+      swipesRemaining,
+      postsUsed,
+      postsRemaining,
+      lastSwipeDate: user.lastSwipeDate,
+      lastPostDate: user.lastPostDate,
+    };
+  }
+
+  // Admin: get user adoption conversations
+  async getUserAdoptConversations(userId: string) {
+    const conversations = await this.prisma.adoptConversation.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { adopterId: userId },
+        ],
+      },
+      include: {
+        post: {
+          select: {
+            id: true,
+            animalName: true,
+            title: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        adopter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            content: true,
+            createdAt: true,
+            senderId: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+      post: conv.post,
+      owner: conv.owner,
+      adopter: conv.adopter,
+      ownerAnonymousName: conv.ownerAnonymousName,
+      adopterAnonymousName: conv.adopterAnonymousName,
+      lastMessage: conv.messages[0] || null,
+      messageCount: conv.messages.length > 0 ? 1 : 0, // On ne récupère que le dernier
+    }));
+  }
+
   // Admin: update user info
   async adminUpdateUser(userId: string, dto: any) {
     const data: Prisma.UserUpdateInput = {};
