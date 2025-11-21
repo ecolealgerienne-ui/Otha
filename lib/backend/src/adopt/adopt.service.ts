@@ -361,7 +361,9 @@ export class AdoptService {
     if (user) {
       const userId = this.getUserId(user);
       if (userId) {
-        and.push({ createdById: { not: userId } });
+        // DISABLED FOR TESTING: Don't filter own posts
+        // and.push({ createdById: { not: userId } });
+
         const seen = await this.prisma.adoptSwipe.findMany({
           where: { userId },
           select: { postId: true },
@@ -848,5 +850,13 @@ export class AdoptService {
       include: { images: true, createdBy: true },
     });
     return this.pickAdmin(post);
+  }
+
+  async adminApproveAll(_admin: any) {
+    const result = await this.prisma.adoptPost.updateMany({
+      where: { status: AdoptStatus.PENDING },
+      data: { status: AdoptStatus.APPROVED, approvedAt: new Date(), moderationNote: null },
+    });
+    return { approved: result.count };
   }
 }
