@@ -24,10 +24,11 @@ import '../features/bookings/booking_details_screen.dart';
 import '../features/bookings/my_bookings_screen.dart';
 
 // Adopt
-
-import '../features/adopt/adopt_screen.dart';
+import '../features/adopt/adopt_main_screen.dart';
+import '../features/adopt/adopt_swipe_screen.dart';
 import '../features/adopt/adopt_chats_screen.dart';
 import '../features/adopt/adopt_create_screen.dart';
+import '../features/adopt/adopt_conversation_screen.dart';
 
 
 // Pro
@@ -351,12 +352,23 @@ GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPa
         builder: (ctx, st) => const PetshopAvailabilityScreen(),
       ),
 
+      // -------- Adopt --------
+      GoRoute(
+        path: '/adopt',
+        builder: (ctx, st) => const AdoptMainScreen(),
+      ),
       GoRoute(
         path: '/adopt/new',
         builder: (ctx, st) => const AdoptCreateScreen(),
       ),
+      GoRoute(
+        path: '/adopt/chat/:conversationId',
+        builder: (ctx, st) => AdoptConversationScreen(
+          conversationId: st.pathParameters['conversationId']!,
+        ),
+      ),
 
-      
+
 
       // -------- PRO (protégé + shell) --------
       ShellRoute(
