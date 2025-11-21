@@ -2,17 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
-import 'dart:math' as math;
 
-final _feedProvider = StateNotifierProvider<_FeedNotifier, _FeedState>((ref) {
-  return _FeedNotifier(ref);
-});
-
-final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final api = ref.read(apiProvider);
-  return await api.adoptMyQuotas();
-});
-
+// State class for feed
 class _FeedState {
   final List<Map<String, dynamic>> posts;
   final bool loading;
@@ -41,17 +32,26 @@ class _FeedState {
   }
 }
 
-class _FeedNotifier extends StateNotifier<_FeedState> {
+// Simple state provider using ChangeNotifier approach
+class _FeedNotifier extends ChangeNotifier {
   final Ref ref;
+  _FeedState _state = _FeedState();
 
-  _FeedNotifier(this.ref) : super(_FeedState()) {
+  _FeedState get state => _state;
+
+  _FeedNotifier(this.ref) {
     loadFeed();
   }
 
-  Future<void> loadFeed() async {
-    if (state.loading) return;
+  void _updateState(_FeedState newState) {
+    _state = newState;
+    notifyListeners();
+  }
 
-    state = state.copyWith(loading: true, error: null);
+  Future<void> loadFeed() async {
+    if (_state.loading) return;
+
+    _updateState(_state.copyWith(loading: true, error: null));
     try {
       final api = ref.read(apiProvider);
       final result = await api.adoptFeed(limit: 10);
@@ -59,35 +59,45 @@ class _FeedNotifier extends StateNotifier<_FeedState> {
           ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList() ?? [];
 
-      state = state.copyWith(posts: posts, loading: false);
+      _updateState(_state.copyWith(posts: posts, loading: false));
     } catch (e) {
-      state = state.copyWith(loading: false, error: e.toString());
+      _updateState(_state.copyWith(loading: false, error: e.toString()));
     }
   }
 
   void nextCard() {
-    if (state.currentIndex < state.posts.length - 1) {
-      state = state.copyWith(currentIndex: state.currentIndex + 1);
+    if (_state.currentIndex < _state.posts.length - 1) {
+      _updateState(_state.copyWith(currentIndex: _state.currentIndex + 1));
     }
 
     // Load more if near the end
-    if (state.currentIndex >= state.posts.length - 2 && !state.loading) {
+    if (_state.currentIndex >= _state.posts.length - 2 && !_state.loading) {
       loadFeed();
     }
   }
 
   void reset() {
-    state = _FeedState();
+    _updateState(_FeedState());
     loadFeed();
   }
 }
+
+final _feedProvider = ChangeNotifierProvider<_FeedNotifier>((ref) {
+  return _FeedNotifier(ref);
+});
+
+final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final api = ref.read(apiProvider);
+  return await api.adoptMyQuotas();
+});
 
 class AdoptSwipeScreen extends ConsumerWidget {
   const AdoptSwipeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feedState = ref.watch(_feedProvider);
+    final feedNotifier = ref.watch(_feedProvider);
+    final feedState = feedNotifier.state;
     final quotasAsync = ref.watch(_quotasProvider);
 
     return Scaffold(
@@ -125,7 +135,7 @@ class AdoptSwipeScreen extends ConsumerWidget {
                       Text('Erreur: ${feedState.error}'),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => ref.read(_feedProvider.notifier).loadFeed(),
+                        onPressed: () => feedNotifier.loadFeed(),
                         child: const Text('Réessayer'),
                       ),
                     ],
@@ -141,7 +151,7 @@ class AdoptSwipeScreen extends ConsumerWidget {
                           const Text('Plus d\'annonces pour le moment'),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: () => ref.read(_feedProvider.notifier).reset(),
+                            onPressed: () => feedNotifier.reset(),
                             child: const Text('Recharger'),
                           ),
                         ],
@@ -225,7 +235,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         _dragY = 0;
         _isDragging = false;
       });
-      ref.read(_feedProvider.notifier).nextCard();
+      ref.read(_feedProvider).nextCard();
     }
   }
 

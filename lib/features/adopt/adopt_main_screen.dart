@@ -5,21 +5,54 @@ import 'adopt_chats_screen.dart';
 import 'adopt_swipe_screen.dart';
 import 'adopt_create_screen.dart';
 
-final _currentPageProvider = StateProvider<int>((ref) => 1); // Start on swipe screen
+// Simple notifier for current page
+class _PageNotifier extends ChangeNotifier {
+  int _currentPage = 1; // Start on swipe screen
 
-class AdoptMainScreen extends ConsumerWidget {
+  int get currentPage => _currentPage;
+
+  void setPage(int page) {
+    _currentPage = page;
+    notifyListeners();
+  }
+}
+
+final _currentPageProvider = ChangeNotifierProvider<_PageNotifier>((ref) {
+  return _PageNotifier();
+});
+
+class AdoptMainScreen extends ConsumerStatefulWidget {
   const AdoptMainScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentPage = ref.watch(_currentPageProvider);
-    final pageController = PageController(initialPage: currentPage);
+  ConsumerState<AdoptMainScreen> createState() => _AdoptMainScreenState();
+}
+
+class _AdoptMainScreenState extends ConsumerState<AdoptMainScreen> {
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 1);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pageNotifier = ref.watch(_currentPageProvider);
+    final currentPage = pageNotifier.currentPage;
 
     return Scaffold(
       body: PageView(
-        controller: pageController,
+        controller: _pageController,
         onPageChanged: (index) {
-          ref.read(_currentPageProvider.notifier).state = index;
+          ref.read(_currentPageProvider).setPage(index);
         },
         children: const [
           AdoptChatsScreen(),
@@ -30,8 +63,8 @@ class AdoptMainScreen extends ConsumerWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentPage,
         onTap: (index) {
-          ref.read(_currentPageProvider.notifier).state = index;
-          pageController.animateToPage(
+          ref.read(_currentPageProvider).setPage(index);
+          _pageController.animateToPage(
             index,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
