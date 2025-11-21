@@ -25,6 +25,7 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
   int? _countProsApproved;
   int? _countPending;
   int? _countRejected;
+  int? _countAdoptPending;   // annonces d'adoption en attente
 
   // Activité / inscriptions
   int _activeNow = 0;        // pas dispo dans api.dart → 0
@@ -68,6 +69,9 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
       // Clients (users) — exclusivement role=USER
       final futUsers    = api.adminListUsers(q: '', role: 'USER', limit: 1000, offset: 0);
 
+      // Annonces d'adoption en attente
+      final futAdoptPending = api.adminAdoptList(status: 'PENDING', limit: 1000);
+
       // Commission mois courant (agrégée côté client via /earnings admin)
       final futSummary  = api.adminCommissionSummary();
 
@@ -95,6 +99,16 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
       } catch (_) {
         countUsers = 0;
         signups30d = 0;
+      }
+
+      // Annonces d'adoption en attente
+      int countAdoptPending = 0;
+      try {
+        final adoptResult = await futAdoptPending;
+        final adoptPosts = adoptResult['posts'] as List? ?? [];
+        countAdoptPending = adoptResult['total'] as int? ?? adoptPosts.length;
+      } catch (_) {
+        countAdoptPending = 0;
       }
 
       // Commissions mois courant
@@ -138,8 +152,9 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
         _countProsApproved = approved.length;
         _countPending      = pending.length;
         _countRejected     = rejected.length;
+        _countAdoptPending = countAdoptPending;
 
-        _activeNow  = 0; // pas d’endpoint dans api.dart
+        _activeNow  = 0; // pas d'endpoint dans api.dart
         _signups30d = signups30d;
 
         _dueMonthDa       = dueMonthDa;
@@ -255,7 +270,28 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
                             ),
                           ),
                         ]),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
+
+                        // Ligne 3 — Adoptions en attente
+                        if (_countAdoptPending != null && _countAdoptPending! > 0)
+                          Column(
+                            children: [
+                              StatsRow(items: [
+                                StatBox(
+                                  label: 'Adoptions à modérer',
+                                  value: _countAdoptPending,
+                                  icon: Icons.pets,
+                                  badge: _countAdoptPending,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const AdminAdoptPostsPage()),
+                                  ),
+                                ),
+                              ]),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+
+                        const SizedBox(height: 8),
 
                         // Statistiques globales
                         const Text('Statistiques globales',
