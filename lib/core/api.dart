@@ -1431,27 +1431,32 @@ Future<Map<String, dynamic>> getAdoptPost(String id) async {
 
 // AUTH: créer un post
 Future<Map<String, dynamic>> createAdoptPost({
-  required String petName,
+  required String title,
+  String? animalName,
   required String species,
-  String sex = 'U',   // 'M' | 'F' | 'U'
-  String? age,        // ex: "3 mois", "2 ans"
-  required String city,
+  String sex = 'unknown',
+  int? ageMonths,
+  String? city,
   double? lat,
   double? lng,
-  String? desc,
+  String? description,
   required List<String> photos,
 }) async {
   await ensureAuth();
   final body = <String, dynamic>{
-    'petName': petName,
+    'title': title,
+    if (animalName != null && animalName.trim().isNotEmpty) 'animalName': animalName.trim(),
     'species': species,
-    'sex': sex,
-    if (age != null && age.trim().isNotEmpty) 'age': age.trim(),
-    'city': city,
+    if (sex.isNotEmpty) 'sex': sex,
+    if (ageMonths != null && ageMonths > 0) 'ageMonths': ageMonths,
+    if (city != null && city.trim().isNotEmpty) 'city': city.trim(),
     if (lat != null) 'lat': lat,
     if (lng != null) 'lng': lng,
-    if (desc != null && desc.trim().isNotEmpty) 'desc': desc.trim(),
-    'photos': photos,
+    if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+    'images': photos.asMap().entries.map((e) => {
+      'url': e.value,
+      'order': e.key,
+    }).toList(),
   };
   final res = await _authRetry(() async => await _dio.post('/adopt/posts', data: body));
   return _unwrap<Map<String, dynamic>>(res.data);
@@ -1460,27 +1465,32 @@ Future<Map<String, dynamic>> createAdoptPost({
 // AUTH: éditer un post (propriétaire)
 Future<Map<String, dynamic>> updateAdoptPost(
   String postId, {
-  String? petName,
+  String? title,
+  String? animalName,
   String? species,
-  String? sex,   // 'M' | 'F' | 'U'
-  String? age,
+  String? sex,
+  int? ageMonths,
   String? city,
   double? lat,
   double? lng,
-  String? desc,
+  String? description,
   List<String>? photos,
 }) async {
   await ensureAuth();
   final body = <String, dynamic>{
-    if (petName != null) 'petName': petName,
+    if (title != null) 'title': title,
+    if (animalName != null) 'animalName': animalName,
     if (species != null) 'species': species,
     if (sex != null) 'sex': sex,
-    if (age != null) 'age': age,
+    if (ageMonths != null) 'ageMonths': ageMonths,
     if (city != null) 'city': city,
     if (lat != null) 'lat': lat,
     if (lng != null) 'lng': lng,
-    if (desc != null) 'desc': desc,
-    if (photos != null) 'photos': photos,
+    if (description != null) 'description': description,
+    if (photos != null) 'images': photos.asMap().entries.map((e) => {
+      'url': e.value,
+      'order': e.key,
+    }).toList(),
   };
   final res = await _authRetry(() async => await _dio.patch('/adopt/posts/$postId', data: body));
   return _unwrap<Map<String, dynamic>>(res.data);

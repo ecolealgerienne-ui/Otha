@@ -14,6 +14,7 @@ class AdoptCreateScreen extends ConsumerStatefulWidget {
 
 class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
   final _form = GlobalKey<FormState>();
+  final _title = TextEditingController();
   final _name = TextEditingController();
   final _age = TextEditingController();
   final _city = TextEditingController();
@@ -22,13 +23,13 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
   final _desc = TextEditingController();
 
   String _species = 'dog';
-  String _sex = 'U';
+  String _sex = 'unknown';
   final List<XFile> _images = [];
   bool _submitting = false;
 
   @override
   void dispose() {
-    _name.dispose(); _age.dispose(); _city.dispose();
+    _title.dispose(); _name.dispose(); _age.dispose(); _city.dispose();
     _lat.dispose(); _lng.dispose(); _desc.dispose();
     super.dispose();
   }
@@ -62,15 +63,30 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
       final lat = double.tryParse(_lat.text.trim());
       final lng = double.tryParse(_lng.text.trim());
 
+      // Parse age text to months
+      int? ageMonths;
+      final ageText = _age.text.trim().toLowerCase();
+      if (ageText.isNotEmpty) {
+        final monthsMatch = RegExp(r'(\d+)\s*mois').firstMatch(ageText);
+        final yearsMatch = RegExp(r'(\d+)\s*an').firstMatch(ageText);
+        if (monthsMatch != null) {
+          ageMonths = int.tryParse(monthsMatch.group(1)!);
+        } else if (yearsMatch != null) {
+          final years = int.tryParse(yearsMatch.group(1)!);
+          if (years != null) ageMonths = years * 12;
+        }
+      }
+
       await api.createAdoptPost(
-        petName: _name.text.trim(),
+        title: _title.text.trim(),
+        animalName: _name.text.trim().isEmpty ? null : _name.text.trim(),
         species: _species,
         sex: _sex,
-        age: _age.text.trim().isEmpty ? null : _age.text.trim(),
-        city: _city.text.trim(),
+        ageMonths: ageMonths,
+        city: _city.text.trim().isEmpty ? null : _city.text.trim(),
         lat: lat,
         lng: lng,
-        desc: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
+        description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
         photos: urls,
       );
 
@@ -100,9 +116,22 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               TextFormField(
+                controller: _title,
+                decoration: const InputDecoration(
+                  labelText: 'Titre de l\'annonce',
+                  hintText: 'Ex: Chiot adorable cherche famille',
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Titre requis' : null,
+                maxLength: 140,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
                 controller: _name,
-                decoration: const InputDecoration(labelText: 'Nom de l’animal'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Nom requis' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nom de l\'animal (optionnel)',
+                  hintText: 'Ex: Max',
+                ),
+                maxLength: 100,
               ),
               const SizedBox(height: 12),
               Row(
@@ -124,11 +153,11 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
                     child: DropdownButtonFormField<String>(
                       value: _sex,
                       items: const [
-                        DropdownMenuItem(value: 'U', child: Text('Inconnu')),
-                        DropdownMenuItem(value: 'M', child: Text('Mâle')),
-                        DropdownMenuItem(value: 'F', child: Text('Femelle')),
+                        DropdownMenuItem(value: 'unknown', child: Text('Inconnu')),
+                        DropdownMenuItem(value: 'male', child: Text('Mâle')),
+                        DropdownMenuItem(value: 'female', child: Text('Femelle')),
                       ],
-                      onChanged: (v) => setState(() => _sex = v ?? 'U'),
+                      onChanged: (v) => setState(() => _sex = v ?? 'unknown'),
                       decoration: const InputDecoration(labelText: 'Sexe'),
                     ),
                   ),
@@ -139,8 +168,7 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _city,
-                decoration: const InputDecoration(labelText: 'Ville'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Ville requise' : null,
+                decoration: const InputDecoration(labelText: 'Ville (optionnel)'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -179,7 +207,7 @@ class _AdoptCreateScreenState extends ConsumerState<AdoptCreateScreen> {
                       ),
                     );
                   }),
-                  if (_images.length < 2)
+                  if (_images.length < 3)
                     OutlinedButton.icon(
                       onPressed: _pickImage,
                       icon: const Icon(Icons.add_a_photo),
