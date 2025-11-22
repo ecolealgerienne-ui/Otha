@@ -41,7 +41,15 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
   String? _existingPhotoUrl;  // URL de la photo existante (mode édition)
 
   bool _saving = false;
-  bool get _isEditMode => widget.existingPet != null;
+
+  // Mode édition uniquement si c'est un pet existant (pas des données d'adoption)
+  bool get _isEditMode {
+    if (widget.existingPet == null) return false;
+    // Si c'est des données d'adoption (a animalName ou ageMonths), ce n'est PAS un pet existant
+    final isAdoptionData = widget.existingPet!.containsKey('animalName') ||
+                          widget.existingPet!.containsKey('ageMonths');
+    return !isAdoptionData;
+  }
 
   @override
   void initState() {
