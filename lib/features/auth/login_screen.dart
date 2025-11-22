@@ -550,38 +550,41 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
             ),
           ),
 
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(child: Divider(color: Colors.grey[400])),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('OU', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
-              ),
-              Expanded(child: Divider(color: Colors.grey[400])),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey[300]!),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                foregroundColor: Colors.black87,
-              ),
-              onPressed: _loading ? null : _handleGoogleSignIn,
-              icon: Image.network(
-                'https://www.google.com/favicon.ico',
-                height: 24,
-                width: 24,
-                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
-              ),
-              label: const Text('Continuer avec Google'),
+          // Google Sign-In uniquement pour les utilisateurs (pas les pros)
+          if (widget.asRole == 'user') ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: Divider(color: Colors.grey[400])),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('OU', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                ),
+                Expanded(child: Divider(color: Colors.grey[400])),
+              ],
             ),
-          ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              height: 52,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.grey[300]!),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  foregroundColor: Colors.black87,
+                ),
+                onPressed: _loading ? null : _handleGoogleSignIn,
+                icon: Image.network(
+                  'https://www.google.com/favicon.ico',
+                  height: 24,
+                  width: 24,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+                ),
+                label: const Text('Continuer avec Google'),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 16),
           Center(
