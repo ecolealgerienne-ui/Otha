@@ -1,8 +1,10 @@
 
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
@@ -179,7 +181,14 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   bool _obscure = true;
   bool _registered = false;
 
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errAddress, _errMapsUrl;
+  // Carte AVN (recto-verso)
+  File? _avnFront;
+  File? _avnBack;
+  String? _avnFrontUrl;
+  String? _avnBackUrl;
+  final _picker = ImagePicker();
+
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errAddress, _errMapsUrl, _errAvn;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
@@ -209,17 +218,22 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
         _errPhone = _phone.text.trim().isEmpty ? 'Téléphone requis' : (_isValidPhone(_phone.text) ? null : 'Téléphone invalide');
-      } else {
+      } else if (step == 2) {
         _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
         final mapsOk = _isValidHttpUrl(_mapsUrl.text);
         _errMapsUrl = mapsOk
             ? null
             : (_mapsUrl.text.trim().isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)');
+      } else if (step == 3) {
+        // Validation carte AVN (recto obligatoire, verso obligatoire)
+        _errAvn = (_avnFront == null || _avnBack == null) ? 'Carte AVN recto-verso obligatoire' : null;
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
     if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
-    return _errAddress == null && _errMapsUrl == null;
+    if (step == 2) return _errAddress == null && _errMapsUrl == null;
+    if (step == 3) return _errAvn == null;
+    return false;
   }
 
   Future<void> _next() async {
@@ -248,11 +262,11 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       }
     }
 
-    setState(() => _step = (_step + 1).clamp(0, 2));
+    setState(() => _step = (_step + 1).clamp(0, 3));
   }
 
   Future<void> _submitFinal() async {
-    if (!_validateStep(2)) return;
+    if (!_validateStep(3)) return;
     setState(() => _loading = true);
 
     try {
@@ -292,6 +306,25 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         return;
       }
 
+      // Upload cartes AVN
+      String? frontUrl, backUrl;
+      if (_avnFront != null) {
+        try {
+          frontUrl = await api.uploadLocalFile(_avnFront!, folder: 'avn');
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload recto: $e')));
+          return;
+        }
+      }
+      if (_avnBack != null) {
+        try {
+          backUrl = await api.uploadLocalFile(_avnBack!, folder: 'avn');
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload verso: $e')));
+          return;
+        }
+      }
+
       await api.upsertMyProvider(
         displayName: displayName,
         address: _address.text.trim(),
@@ -300,6 +333,8 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
           'visible': true,
           'mapsUrl': finalMaps,
         },
+        avnCardFront: frontUrl,
+        avnCardBack: backUrl,
       );
 
       if (!mounted) return;
@@ -329,14 +364,14 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
           children: [
             Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: _buildStep())),
             const SizedBox(height: 8),
-            _DotsIndicator(current: _step, total: 3),
+            _DotsIndicator(current: _step, total: 4),
             const SizedBox(height: 12),
             Row(
               children: [
                 if (_step > 0)
                   OutlinedButton(onPressed: _loading ? null : () => setState(() => _step -= 1), child: const Text('Précédent')),
                 const Spacer(),
-                FilledButton(onPressed: _loading ? null : (_step < 2 ? _next : _submitFinal), child: Text(_step < 2 ? 'Suivant' : 'Soumettre')),
+                FilledButton(onPressed: _loading ? null : (_step < 3 ? _next : _submitFinal), child: Text(_step < 3 ? 'Suivant' : 'Soumettre')),
               ],
             ),
           ],
@@ -379,22 +414,122 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       ], key: const ValueKey('vet1'));
     }
 
+    if (_step == 2) {
+      return _centeredForm([
+        _label('Adresse du vétérinaire'),
+        _input(_address, errorText: _errAddress),
+        const SizedBox(height: 12),
+        _label('Lien Google Maps (obligatoire)'),
+        TextField(
+          controller: _mapsUrl,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errMapsUrl,
+            hintText: 'https://maps.google.com/...',
+          ),
+        ),
+      ], key: const ValueKey('vet2'));
+    }
+
+    // Step 3: Upload carte AVN
     return _centeredForm([
-      _label('Adresse du vétérinaire'),
-      _input(_address, errorText: _errAddress),
-      const SizedBox(height: 12),
-      _label('Lien Google Maps (obligatoire)'),
-      TextField(
-        controller: _mapsUrl,
-        keyboardType: TextInputType.url,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-          isDense: true,
-          errorText: _errMapsUrl,
-          hintText: 'https://maps.google.com/...',
+      _label('Carte AVN (Attestation Vétérinaire Nationale)'),
+      const SizedBox(height: 8),
+      Text('Recto', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      _buildImagePicker(
+        image: _avnFront,
+        onTap: () => _pickImage(isBack: false),
+        label: 'Téléverser recto',
+      ),
+      const SizedBox(height: 16),
+      Text('Verso', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      _buildImagePicker(
+        image: _avnBack,
+        onTap: () => _pickImage(isBack: true),
+        label: 'Téléverser verso',
+      ),
+      if (_errAvn != null) ...[
+        const SizedBox(height: 12),
+        Text(_errAvn!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+      ],
+    ], key: const ValueKey('vet3'));
+  }
+
+  Future<void> _pickImage({required bool isBack}) async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, imageQuality: 85);
+      if (image == null) return;
+
+      setState(() {
+        if (isBack) {
+          _avnBack = File(image.path);
+        } else {
+          _avnFront = File(image.path);
+        }
+        _errAvn = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
+  }
+
+  Widget _buildImagePicker({required File? image, required VoidCallback onTap, required String label}) {
+    if (image != null) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(image, height: 150, width: double.infinity, fit: BoxFit.cover),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: CircleAvatar(
+              backgroundColor: Colors.black54,
+              radius: 16,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                onPressed: () => setState(() {
+                  if (image == _avnFront) {
+                    _avnFront = null;
+                  } else {
+                    _avnBack = null;
+                  }
+                }),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 150,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.upload_file, size: 40, color: Colors.grey[600]),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+          ],
         ),
       ),
-    ], key: const ValueKey('vet2'));
+    );
   }
 
   Widget _centeredForm(List<Widget> children, {Key? key}) {

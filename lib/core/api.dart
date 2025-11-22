@@ -524,7 +524,7 @@ class ApiClient {
 
 
   /// Backend-first: on envoie displayName/adresse/specialties (mapsUrl inclus).
-  /// Le back gère l’expansion des liens Google Maps et l’extraction lat/lng.
+  /// Le back gère l'expansion des liens Google Maps et l'extraction lat/lng.
   Future<Map<String, dynamic>> upsertMyProvider({
     required String displayName,
     String? bio,
@@ -534,6 +534,8 @@ class ApiClient {
     Map<String, dynamic>? specialties,
     bool forceReparse = false,
     String? timezone,
+    String? avnCardFront,
+    String? avnCardBack,
   }) async {
     await ensureAuth();
 
@@ -546,9 +548,11 @@ class ApiClient {
       if (timezone != null) 'timezone': timezone,
       if (specialties != null) 'specialties': specialties,
       'forceReparse': forceReparse,
-      // si le front n’envoie pas lat/lng, le back recalcule depuis mapsUrl
+      // si le front n'envoie pas lat/lng, le back recalcule depuis mapsUrl
       if (!forceReparse && _validCoord(lat)) 'lat': lat,
       if (!forceReparse && _validCoord(lng)) 'lng': lng,
+      if (avnCardFront != null) 'avnCardFront': avnCardFront,
+      if (avnCardBack != null) 'avnCardBack': avnCardBack,
     };
 
     final res = await _dio.post(
