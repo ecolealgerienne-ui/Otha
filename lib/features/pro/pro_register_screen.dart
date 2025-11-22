@@ -186,6 +186,11 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   File? _avnBack;
   String? _avnFrontUrl;
   String? _avnBackUrl;
+
+  // Photo de profil
+  File? _profilePhoto;
+  String? _profilePhotoUrl;
+
   final _picker = ImagePicker();
 
   String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errAddress, _errMapsUrl, _errAvn;
@@ -273,11 +278,23 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       final api = ref.read(apiProvider);
       await api.ensureAuth();
 
+      // Upload photo de profil (si présente)
+      String? photoUrl;
+      if (_profilePhoto != null) {
+        try {
+          photoUrl = await api.uploadLocalFile(_profilePhoto!, folder: 'avatars');
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload photo: $e')));
+          // On continue même si l'upload photo échoue (optionnel)
+        }
+      }
+
       try {
         await api.updateMe(
           firstName: _firstName.text.trim(),
           lastName: _lastName.text.trim(),
           phone: _phone.text.trim(),
+          photoUrl: photoUrl,
         );
       } on DioException catch (e) {
         final status = e.response?.statusCode;
@@ -383,6 +400,22 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   Widget _buildStep() {
     if (_step == 0) {
       return _centeredForm([
+        _label('Photo de profil (optionnelle)'),
+        const SizedBox(height: 6),
+        Center(
+          child: GestureDetector(
+            onTap: () => _pickProfilePhoto(),
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: _profilePhoto != null ? FileImage(_profilePhoto!) : null,
+              child: _profilePhoto == null
+                  ? Icon(Icons.add_a_photo, size: 30, color: Colors.grey[600])
+                  : null,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         _label('Prénom'),
         _input(_firstName, errorText: _errFirst),
         const SizedBox(height: 12),
@@ -457,6 +490,21 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         Text(_errAvn!, style: const TextStyle(color: Colors.red, fontSize: 12)),
       ],
     ], key: const ValueKey('vet3'));
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 90);
+      if (image == null) return;
+
+      setState(() {
+        _profilePhoto = File(image.path);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
   }
 
   Future<void> _pickImage({required bool isBack}) async {
