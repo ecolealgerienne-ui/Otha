@@ -79,6 +79,7 @@ model User {
   refreshTokens   RefreshToken[]
   pets            Pet[]
   orders          Order[]
+  daycareBookings DaycareBooking[]
 
   // Adoption (nouvelle implémentation)
   adoptPosts             AdoptPost[]
@@ -130,10 +131,11 @@ model ProviderProfile {
   timeOffs ProviderTimeOff[]
 
   // Back-relations
-  earnings    ProviderEarning[]
-  collections AdminCollection[]
-  products    Product[]
-  orders      Order[]
+  earnings        ProviderEarning[]
+  collections     AdminCollection[]
+  products        Product[]
+  orders          Order[]
+  daycareBookings DaycareBooking[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -246,14 +248,15 @@ model Pet {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  owner          User              @relation(fields: [ownerId], references: [id])
-  medicalRecords MedicalRecord[]
-  accessTokens   PetAccessToken[]
-  weightRecords  WeightRecord[]
-  vaccinations   Vaccination[]
-  treatments     Treatment[]
-  allergies      Allergy[]
-  preventiveCare PreventiveCare[]
+  owner           User              @relation(fields: [ownerId], references: [id])
+  medicalRecords  MedicalRecord[]
+  accessTokens    PetAccessToken[]
+  weightRecords   WeightRecord[]
+  vaccinations    Vaccination[]
+  treatments      Treatment[]
+  allergies       Allergy[]
+  preventiveCare  PreventiveCare[]
+  daycareBookings DaycareBooking[]
 
   @@index([ownerId])
 }
@@ -656,6 +659,53 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+// =========================
+// Daycare (Garderie)
+// =========================
+
+enum DaycareBookingStatus {
+  PENDING       // En attente de confirmation
+  CONFIRMED     // Confirmé par la garderie
+  IN_PROGRESS   // Animal déposé (heure d'arrivée enregistrée)
+  COMPLETED     // Animal récupéré (heure de départ enregistrée)
+  CANCELLED     // Annulé
+}
+
+model DaycareBooking {
+  id              String                @id @default(cuid())
+  userId          String                // Propriétaire de l'animal
+  providerId      String                // Garderie
+  petId           String                // Animal concerné
+  status          DaycareBookingStatus  @default(PENDING)
+
+  // Dates prévues
+  startDate       DateTime              // Date/heure de dépôt prévue
+  endDate         DateTime              // Date/heure de récupération prévue
+
+  // Heures réelles
+  actualDropOff   DateTime?             // Heure réelle de dépôt
+  actualPickup    DateTime?             // Heure réelle de récupération
+
+  // Tarification
+  priceDa         Int                   // Prix de base
+  commissionDa    Int       @default(100)  // Commission fixe 100 DA
+  totalDa         Int                   // Prix total payé par client
+
+  notes           String?               // Notes du client
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id])
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+  pet      Pet             @relation(fields: [petId], references: [id])
+
+  @@index([userId])
+  @@index([providerId])
+  @@index([petId])
+  @@index([providerId, startDate])
+  @@index([status])
 }
 
 enum NotificationType {
