@@ -103,86 +103,172 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: const Color(0xFFF36C6C),
+        ),
       );
     }
   }
 
   Widget _label(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF4A4A4A),
+        ),
       ),
     );
   }
 
   Widget _input(TextEditingController ctrl, {TextInputType? keyboard, String? errorText}) {
+    const coral = Color(0xFFF36C6C);
     return TextField(
       controller: ctrl,
       keyboardType: keyboard,
       decoration: InputDecoration(
-        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+        border: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: coral, width: 2),
+        ),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         errorText: errorText,
+        errorStyle: const TextStyle(fontSize: 12),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    const coral = Color(0xFFF36C6C);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Compléter votre profil'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false, // Empêcher le retour arrière
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
+
+              // Logo et titre
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: coral.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.person_outline,
+                    size: 40,
+                    color: coral,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               const Text(
-                'Informations personnelles',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                'Complétez votre profil',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF4A4A4A),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Veuillez compléter vos informations pour continuer',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                'Quelques informations supplémentaires\npour finaliser votre inscription',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
               ),
-              const SizedBox(height: 32),
+
+              const SizedBox(height: 48),
 
               _label('Prénom'),
               _input(_firstNameController, errorText: _errFirstName),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               _label('Nom'),
               _input(_lastNameController, errorText: _errLastName),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               _label('Téléphone'),
               _input(_phoneController, keyboard: TextInputType.phone, errorText: _errPhone),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               SizedBox(
-                width: double.infinity,
-                height: 52,
+                height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D6A4F),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    backgroundColor: coral,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: coral.withOpacity(0.4),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   onPressed: _loading ? null : _submit,
                   child: _loading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Continuer', style: TextStyle(color: Colors.white)),
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : const Text('Continuer'),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Note de confidentialité
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Vos informations sont sécurisées et ne seront jamais partagées sans votre consentement.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],
