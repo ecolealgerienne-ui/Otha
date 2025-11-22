@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsNumber, IsNotEmpty, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsNotEmpty, IsArray, ArrayNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBookingDto {
   @IsString() @IsNotEmpty()
@@ -11,7 +12,9 @@ export class CreateBookingDto {
   scheduledAtTs?: number;
 
   // Champs pour garderies
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   petIds?: string[];
 
   @IsOptional() @IsString()
@@ -21,5 +24,6 @@ export class CreateBookingDto {
   endDate?: string;
 
   @IsOptional() @IsNumber()
+  @Type(() => Number)
   commissionDa?: number;
 }
