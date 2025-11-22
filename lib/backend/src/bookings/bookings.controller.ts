@@ -174,18 +174,36 @@ export class BookingsController {
   /** Client: créer une réservation */
   @Post()
   async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[]; clientNotes?: string; endDate?: any; commissionDa?: number }) {
+    // Debug logs
+    console.log('📥 Booking creation request:', {
+      serviceId: body.serviceId,
+      scheduledAt: body.scheduledAt,
+      petIds: body.petIds,
+      clientNotes: body.clientNotes,
+      endDate: body.endDate,
+      commissionDa: body.commissionDa,
+    });
+
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
-    if (!when) throw new BadRequestException('Invalid scheduledAt');
+    if (!when) {
+      console.error('❌ Invalid scheduledAt:', body.scheduledAt);
+      throw new BadRequestException('Invalid scheduledAt');
+    }
 
     // Parse endDate si fourni (pour garderies)
     let endDateParsed: Date | null = null;
     if (body.endDate) {
       endDateParsed = this.parseWhen(body.endDate);
+      if (!endDateParsed) {
+        console.error('❌ Invalid endDate:', body.endDate);
+      }
     }
+
+    console.log('✅ Parsed dates:', { scheduledAt: when, endDate: endDateParsed });
 
     // transaction + re-check
     return this.prisma.$transaction(async (tx) => {
