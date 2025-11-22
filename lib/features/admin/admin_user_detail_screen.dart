@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/api.dart';
 import 'admin_shared.dart';
 
@@ -480,7 +481,7 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _ConversationTile extends StatelessWidget {
+class _ConversationTile extends ConsumerWidget {
   final Map<String, dynamic> conversation;
   final String currentUserId;
 
@@ -490,7 +491,7 @@ class _ConversationTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final post = conversation['post'] as Map<String, dynamic>? ?? {};
     final owner = conversation['owner'] as Map<String, dynamic>? ?? {};
     final adopter = conversation['adopter'] as Map<String, dynamic>? ?? {};
@@ -506,75 +507,120 @@ class _ConversationTile extends StatelessWidget {
 
     final lastMessageText = lastMessage?['content']?.toString() ?? '';
     final createdAt = conversation['createdAt']?.toString() ?? '';
+    final conversationId = conversation['id']?.toString() ?? '';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+    // Déterminer s'il y a des signalements
+    final reportedByOwner = conversation['reportedByOwner'] == true;
+    final reportedByAdopter = conversation['reportedByAdopter'] == true;
+    final hasReports = reportedByOwner || reportedByAdopter;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: conversationId.isNotEmpty ? () => _showConversationDetails(context, ref, conversationId) : null,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.pets, size: 16, color: AdminColors.salmon),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  animalName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+              Row(
+                children: [
+                  Icon(Icons.pets, size: 16, color: AdminColors.salmon),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      animalName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: role == 'Propriétaire' ? Colors.green.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      role,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: role == 'Propriétaire' ? Colors.green.shade700 : Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: role == 'Propriétaire' ? Colors.green.shade50 : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  role,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: role == 'Propriétaire' ? Colors.green.shade700 : Colors.blue.shade700,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Avec: $otherPerson',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
+                ],
+              ),
+              if (lastMessageText.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  lastMessageText,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ],
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    _formatDate(createdAt),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                  if (hasReports) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange[100],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('🚩', style: TextStyle(fontSize: 10)),
+                          SizedBox(width: 2),
+                          Text(
+                            'Signalée',
+                            style: TextStyle(fontSize: 10, color: Colors.deepOrange, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.person_outline, size: 14, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(
-                'Avec: $otherPerson',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-          if (lastMessageText.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              lastMessageText,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            _formatDate(createdAt),
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Future<void> _showConversationDetails(BuildContext context, WidgetRef ref, String conversationId) async {
+    showDialog(
+      context: context,
+      builder: (context) => _ConversationDetailsDialog(conversationId: conversationId),
     );
   }
 
@@ -795,5 +841,282 @@ class _AdoptPostTile extends StatelessWidget {
     } catch (_) {
       return '';
     }
+  }
+}
+
+class _ConversationDetailsDialog extends ConsumerWidget {
+  final String conversationId;
+
+  const _ConversationDetailsDialog({required this.conversationId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadConversation(ref.read(apiProvider)),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const AlertDialog(
+            content: SizedBox(
+              height: 100,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return AlertDialog(
+            title: const Text('Erreur'),
+            content: Text('Erreur: ${snapshot.error}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fermer'),
+              ),
+            ],
+          );
+        }
+
+        final conv = snapshot.data!;
+        final post = conv['post'] as Map<String, dynamic>? ?? {};
+        final owner = conv['owner'] as Map<String, dynamic>? ?? {};
+        final adopter = conv['adopter'] as Map<String, dynamic>? ?? {};
+        final messages = (conv['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+        return AlertDialog(
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  post['animalName']?.toString() ?? 'Conversation',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info participants
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '👤 Propriétaire: ${owner['name']} (${owner['email']})',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '🐾 Adoptant: ${adopter['name']} (${adopter['email']})',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Signalements
+                if (conv['reportedByOwner'] == true || conv['reportedByAdopter'] == true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange[50],
+                      border: Border.all(color: Colors.deepOrange.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('🚩', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Signalements',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (conv['reportedByAdopter'] == true) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '🐾 Signalé par l\'adoptant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (conv['reportedAtByAdopter'] != null)
+                                      Text(
+                                        DateFormat('dd/MM/yyyy HH:mm').format(
+                                          DateTime.parse(conv['reportedAtByAdopter'].toString()),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Motif: ${conv['reportReasonByAdopter'] ?? 'Non spécifié'}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        if (conv['reportedByOwner'] == true) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '👤 Signalé par le propriétaire',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (conv['reportedAtByOwner'] != null)
+                                      Text(
+                                        DateFormat('dd/MM/yyyy HH:mm').format(
+                                          DateTime.parse(conv['reportedAtByOwner'].toString()),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Motif: ${conv['reportReasonByOwner'] ?? 'Non spécifié'}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Messages
+                const Text(
+                  'Messages:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: messages.isEmpty
+                      ? const Center(child: Text('Aucun message'))
+                      : ListView.builder(
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            final sentByOwner = msg['sentByOwner'] == true;
+                            final sentAt = DateTime.tryParse(msg['sentAt']?.toString() ?? '');
+
+                            return Align(
+                              alignment: sentByOwner ? Alignment.centerLeft : Alignment.centerRight,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: sentByOwner ? Colors.grey[200] : Colors.blueGrey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      sentByOwner
+                                          ? '${conv['ownerAnonymousName']} (Proprio)'
+                                          : '${conv['adopterAnonymousName']} (Adoptant)',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      msg['content']?.toString() ?? '',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                    if (sentAt != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        DateFormat('dd/MM/yyyy HH:mm').format(sentAt),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> _loadConversation(ApiClient api) async {
+    return await api.adminAdoptGetConversationDetails(conversationId);
   }
 }

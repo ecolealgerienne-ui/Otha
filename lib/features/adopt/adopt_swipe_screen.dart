@@ -95,6 +95,16 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
     _loadFeed();
   }
 
+  void _handleSwipeComplete() {
+    // Recharger complètement le feed après un swipe
+    setState(() {
+      _posts.clear();
+      _currentIndex = 0;
+      _backendMessage = null;
+    });
+    _loadFeed();
+  }
+
   @override
   Widget build(BuildContext context) {
     final quotasAsync = ref.watch(_quotasProvider);
@@ -114,8 +124,13 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                           Icon(Icons.pets, size: 80, color: Colors.grey[400]),
                           const SizedBox(height: 24),
                           Text(
-                            'Plus d\'annonces pour le moment',
-                            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                            'Aucune annonce pour le moment',
+                            style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Revenez plus tard !',
+                            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                           ),
                           const SizedBox(height: 24),
                           FilledButton.icon(
@@ -133,6 +148,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                       onPrevious: _previousCard,
                       onMessage: (msg) => setState(() => _backendMessage = msg),
                       onInvalidateQuotas: () => ref.invalidate(_quotasProvider),
+                      onSwipeComplete: _handleSwipeComplete,
                     ),
 
           // Back to home button (top left)
@@ -220,6 +236,7 @@ class _SwipeCards extends ConsumerStatefulWidget {
   final VoidCallback onPrevious;
   final Function(String) onMessage;
   final VoidCallback onInvalidateQuotas;
+  final VoidCallback onSwipeComplete;
 
   const _SwipeCards({
     required this.posts,
@@ -228,6 +245,7 @@ class _SwipeCards extends ConsumerStatefulWidget {
     required this.onPrevious,
     required this.onMessage,
     required this.onInvalidateQuotas,
+    required this.onSwipeComplete,
   });
 
   @override
@@ -275,6 +293,9 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         );
         widget.onInvalidateQuotas();
         widget.onMessage(isLike ? '❤️ Demande envoyée' : 'Passé');
+
+        // Demander le rechargement du feed après le swipe
+        widget.onSwipeComplete();
       } catch (e) {
         final errorMsg = e.toString();
 
@@ -300,7 +321,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
       }
     }
 
-    // Wait for animation then show next
+    // Wait for animation
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) {
       setState(() {
@@ -308,7 +329,6 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
         _dragY = 0;
         _isDragging = false;
       });
-      widget.onNext();
     }
   }
 

@@ -249,6 +249,8 @@ export class UsersService {
       adopterAnonymousName: conv.adopterAnonymousName,
       lastMessage: conv.messages[0] || null,
       messageCount: conv.messages.length > 0 ? 1 : 0, // On ne récupère que le dernier
+      reportedByOwner: conv.reportedByOwner,
+      reportedByAdopter: conv.reportedByAdopter,
     }));
   }
 
