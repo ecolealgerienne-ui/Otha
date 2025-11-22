@@ -198,6 +198,32 @@ class ApiClient {
     return access;
   }
 
+  Future<Map<String, dynamic>> googleAuth({
+    required String googleId,
+    required String email,
+    String? firstName,
+    String? lastName,
+    String? photoUrl,
+  }) async {
+    final res = await _dio.post('/auth/google', data: {
+      'googleId': googleId,
+      'email': email,
+      if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+      if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+    });
+    final data = _unwrap<Map<String, dynamic>>(res.data);
+
+    final access = (data['accessToken'] ?? data['token'] ?? '') as String;
+    if (access.isEmpty) throw Exception('Token manquant');
+
+    final refresh = (data['refreshToken'] ?? data['refresh_token'] ?? '') as String?;
+    await setToken(access);
+    await setRefreshToken(refresh);
+
+    return data;
+  }
+
   Future<void> logout() async {
     _dio.options.headers.remove('Authorization');
     await _storage.delete(key: _kTokenPrimary);
