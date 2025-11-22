@@ -66,7 +66,11 @@ COPY --from=deps /ms-playwright /ms-playwright
 # Copier package.json pour info de version
 COPY package*.json ./
 
+# Copier le script de démarrage
+COPY --from=builder /app/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 EXPOSE 3000 5555
 
-# Lancer les migrations Prisma, démarrer Prisma Studio en arrière-plan, puis l'app
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma studio --hostname 0.0.0.0 & node dist/src/main.js"]
+# Lancer le script de démarrage
+CMD ["./start.sh"]
