@@ -460,8 +460,8 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                 ),
               ),
             ],
-            // Bouton "Créer le profil" pour le message de félicitations
-            if (widget.isCongratulationsMessage && widget.adoptionPost != null) ...[
+            // Bouton "Créer le profil" pour le message de félicitations (uniquement pour l'adopteur)
+            if (widget.isCongratulationsMessage && widget.adoptionPost != null && !widget.isMe) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
