@@ -55,7 +55,10 @@ import '../features/petshop/order_confirmation_screen.dart';
 import '../features/petshop/user_order_detail_screen.dart';
 import '../features/petshop/petshop_settings_screen.dart';
 import '../features/petshop/petshop_availability_screen.dart';
-import '../features/pro/pro_daycare_home_screen.dart';
+import '../features/daycare/daycare_home_screen.dart';
+import '../features/daycare/daycare_settings_screen.dart';
+import '../features/daycare/daycare_page_editor_screen.dart';
+import '../features/daycare/daycare_bookings_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
 
@@ -374,6 +377,18 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       GoRoute(
         path: '/daycare/home',
         builder: (ctx, st) => const DaycareHomeScreen(),
+      ),
+      GoRoute(
+        path: '/daycare/settings',
+        builder: (ctx, st) => const DaycareSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/daycare/page',
+        builder: (ctx, st) => const DaycarePageEditorScreen(),
+      ),
+      GoRoute(
+        path: '/daycare/bookings',
+        builder: (ctx, st) => const DaycareBookingsScreen(),
       ),
       GoRoute(
         path: '/petshop/home',
