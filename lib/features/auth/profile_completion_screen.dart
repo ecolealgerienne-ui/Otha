@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
-import '../../core/session.dart';
-import '../../core/router.dart';
+import '../../core/session_controller.dart';
 
 /// Écran de complétion de profil pour les utilisateurs Google
 /// Demande les informations manquantes : prénom, nom, téléphone
@@ -29,9 +29,9 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
     super.initState();
     // Pré-remplir avec les données Google si disponibles
     final user = ref.read(sessionProvider).user;
-    _firstNameController.text = user?.firstName ?? '';
-    _lastNameController.text = user?.lastName ?? '';
-    _phoneController.text = user?.phone ?? '';
+    _firstNameController.text = (user?['firstName'] ?? '').toString();
+    _lastNameController.text = (user?['lastName'] ?? '').toString();
+    _phoneController.text = (user?['phone'] ?? '').toString();
   }
 
   @override

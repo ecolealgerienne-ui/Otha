@@ -208,9 +208,9 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
 
       // Vérifier si le profil est complet (prénom, nom, téléphone)
       final user = ref.read(sessionProvider).user;
-      final hasFirstName = user?.firstName?.trim().isNotEmpty ?? false;
-      final hasLastName = user?.lastName?.trim().isNotEmpty ?? false;
-      final hasPhone = user?.phone?.trim().isNotEmpty ?? false;
+      final hasFirstName = (user?['firstName']?.toString().trim().isNotEmpty) ?? false;
+      final hasLastName = (user?['lastName']?.toString().trim().isNotEmpty) ?? false;
+      final hasPhone = (user?['phone']?.toString().trim().isNotEmpty) ?? false;
 
       if (!hasFirstName || !hasLastName || !hasPhone) {
         // Profil incomplet -> rediriger vers complétion
