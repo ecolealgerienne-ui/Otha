@@ -133,8 +133,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/home';
       }
 
-      // Si pas connecté et on essaie d'accéder à une page protégée, rediriger vers gate
+      // Si pas connecté et on essaie d'accéder à une page protégée, rediriger intelligemment
       if (!isLoggedIn && protectedPaths.any((p) => currentPath.startsWith(p))) {
+        // Si c'était une page admin, rediriger vers login pro (pour admins)
+        if (currentPath.startsWith('/admin')) {
+          return '/auth/login?as=pro';
+        }
+        // Si c'était une page pro, rediriger vers login pro
+        if (currentPath.startsWith('/pro')) {
+          return '/auth/login?as=pro';
+        }
+        // Sinon (user), rediriger vers gate pour choisir le type de compte
         return '/gate';
       }
 
