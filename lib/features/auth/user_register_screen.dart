@@ -206,8 +206,19 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
 
-      // Rediriger vers home (temporaire - onboard/pet pas encore implémenté)
-      context.go('/home');
+      // Vérifier si le profil est complet (prénom, nom, téléphone)
+      final user = ref.read(sessionProvider).user;
+      final hasFirstName = user?.firstName?.trim().isNotEmpty ?? false;
+      final hasLastName = user?.lastName?.trim().isNotEmpty ?? false;
+      final hasPhone = user?.phone?.trim().isNotEmpty ?? false;
+
+      if (!hasFirstName || !hasLastName || !hasPhone) {
+        // Profil incomplet -> rediriger vers complétion
+        context.go('/auth/profile-completion');
+      } else {
+        // Profil complet -> rediriger vers home
+        context.go('/home');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);

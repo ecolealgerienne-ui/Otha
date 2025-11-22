@@ -11,6 +11,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/user_register_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/otp_screen.dart';
+import '../features/auth/profile_completion_screen.dart';
 import '../features/pro/pro_register_screen.dart';
 
 // Home (client)
@@ -159,8 +160,13 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) =>
             OtpScreen(asRole: st.uri.queryParameters['as'] ?? 'user'),
       ),
+      GoRoute(
+        path: '/auth/profile-completion',
+        name: 'profileCompletion',
+        builder: (context, state) => const ProfileCompletionScreen(),
+      ),
 
-      // -------- States d’application PRO --------
+      // -------- States d'application PRO --------
       GoRoute(
         path: '/pro/application/submitted',
         builder: (_, __) => const ProApplicationSubmittedScreen(),

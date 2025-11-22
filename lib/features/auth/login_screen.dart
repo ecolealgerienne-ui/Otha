@@ -430,6 +430,18 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
           }
         } catch (_) {}
         if (!mounted) return;
+
+        // Vérifier si le profil est complet (prénom, nom, téléphone)
+        final hasFirstName = me?['firstName']?.toString().trim().isNotEmpty ?? false;
+        final hasLastName = me?['lastName']?.toString().trim().isNotEmpty ?? false;
+        final hasPhone = me?['phone']?.toString().trim().isNotEmpty ?? false;
+
+        if (!hasFirstName || !hasLastName || !hasPhone) {
+          // Profil incomplet -> rediriger vers complétion
+          context.go('/auth/profile-completion');
+          return;
+        }
+
         context.go('/home');
 
         Future.delayed(const Duration(milliseconds: 500), () {
