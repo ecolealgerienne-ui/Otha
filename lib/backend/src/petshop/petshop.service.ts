@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class PetshopService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private async getProviderIdForUser(userId: string) {
     const prov = await this.prisma.providerProfile.findUnique({
@@ -190,16 +194,67 @@ export class PetshopService {
         id: orderId,
         providerId,
       },
+      include: {
+        provider: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+        items: {
+          include: {
+            product: { select: { title: true } },
+          },
+        },
+      },
     });
 
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: status as any },
     });
+
+    // Créer des notifications pour le client
+    const providerName = `${order.provider.user.firstName || ''} ${order.provider.user.lastName || ''}`.trim() || 'L\'animalerie';
+    const itemCount = order.items.length;
+    const firstProduct = order.items[0]?.product?.title || 'vos produits';
+
+    if (status === 'SHIPPED') {
+      try {
+        await this.notificationsService.createNotification(
+          order.userId,
+          NotificationType.ORDER_SHIPPED,
+          'Commande expédiée',
+          `${providerName} a expédié votre commande (${itemCount} ${itemCount > 1 ? 'articles' : 'article'})`,
+          {
+            orderId: order.id,
+            providerId: order.providerId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+    } else if (status === 'DELIVERED') {
+      try {
+        await this.notificationsService.createNotification(
+          order.userId,
+          NotificationType.ORDER_DELIVERED,
+          'Commande livrée',
+          `Votre commande de ${itemCount} ${itemCount > 1 ? 'articles' : 'article'} a été livrée !`,
+          {
+            orderId: order.id,
+            providerId: order.providerId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+    }
+
+    return updated;
   }
 
   // Client updates their own order status (confirm delivery or cancel)

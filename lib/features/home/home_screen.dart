@@ -25,13 +25,59 @@ const bool kShowPendingActionsOnHome = false;
 
 /// -------------------- Notifications (store léger) --------------------
 class _Notif {
+  final String id;
   final String title, body;
   final DateTime at;
-  _Notif(this.title, this.body) : at = DateTime.now();
+  final bool read;
+  final String? type;
+  final Map<String, dynamic>? metadata;
+  _Notif({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.at,
+    this.read = false,
+    this.type,
+    this.metadata,
+  });
 }
 
 // Provider pour tracker si on a déjà vérifié les adoptions pendantes (une fois par session)
 bool _adoptionCheckDone = false;
+
+// Provider pour charger les notifications depuis le backend
+final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final notifs = await api.getNotifications();
+
+    return notifs.map((n) {
+      final createdAt = DateTime.tryParse(n['createdAt']?.toString() ?? '') ?? DateTime.now();
+      final metadata = n['metadata'] as Map<String, dynamic>?;
+      return _Notif(
+        id: n['id']?.toString() ?? '',
+        title: n['title']?.toString() ?? '',
+        body: n['body']?.toString() ?? '',
+        at: createdAt,
+        read: n['read'] == true,
+        type: n['type']?.toString(),
+        metadata: metadata,
+      );
+    }).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Provider pour compter les non lues
+final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    return await api.getUnreadNotificationsCount();
+  } catch (e) {
+    return 0;
+  }
+});
 
 final isHostProvider = FutureProvider<bool>((ref) async {
   final user = ref.watch(sessionProvider).user ?? {};
@@ -54,8 +100,62 @@ final avatarUrlProvider = FutureProvider<String?>((ref) async {
 class NotificationsStore extends ValueNotifier<List<_Notif>> {
   static final instance = NotificationsStore._();
   NotificationsStore._() : super(const []);
-  void add(String title, String body) => value = [_Notif(title, body), ...value];
+  void add(String title, String body) => value = [
+    _Notif(id: DateTime.now().millisecondsSinceEpoch.toString(), title: title, body: body, at: DateTime.now()),
+    ...value
+  ];
+  void setAll(List<_Notif> notifs) => value = notifs;
   void clear() => value = const [];
+}
+
+/// Navigation au clic sur une notification
+void _handleNotificationTap(BuildContext context, _Notif notif) {
+  final type = notif.type;
+  final metadata = notif.metadata;
+
+  if (type == null || metadata == null) return;
+
+  switch (type) {
+    // Messages d'adoption → Ouvrir la conversation
+    case 'NEW_ADOPT_MESSAGE':
+      final conversationId = metadata['conversationId']?.toString();
+      if (conversationId != null) {
+        context.push('/adopt/chat/$conversationId');
+      }
+      break;
+
+    // Demandes d'adoption (reçue/acceptée/refusée) → Ouvrir l'écran adopt (onglet chats)
+    case 'ADOPT_REQUEST_RECEIVED':
+    case 'ADOPT_REQUEST_ACCEPTED':
+    case 'ADOPT_REQUEST_REJECTED':
+      context.push('/adopt');
+      break;
+
+    // Rendez-vous confirmés/annulés → Ouvrir mes rendez-vous
+    case 'BOOKING_CONFIRMED':
+    case 'BOOKING_CANCELLED':
+      context.push('/me/bookings');
+      break;
+
+    // Commandes expédiées/livrées → Ouvrir détails de la commande
+    case 'ORDER_SHIPPED':
+    case 'ORDER_DELIVERED':
+      final orderId = metadata['orderId']?.toString();
+      if (orderId != null) {
+        context.push('/petshop/order/$orderId');
+      }
+      break;
+
+    // Adoption approuvée/rejetée (admin) → Ouvrir l'écran adopt
+    case 'ADOPT_POST_APPROVED':
+    case 'ADOPT_POST_REJECTED':
+      context.push('/adopt');
+      break;
+
+    default:
+      // Type de notification inconnu, ne rien faire
+      break;
+  }
 }
 
 void _showNotifDialog(BuildContext context) {
@@ -109,6 +209,10 @@ void _showNotifDialog(BuildContext context) {
                                 TimeOfDay.fromDateTime(n.at).format(context),
                                 style: TextStyle(color: Colors.black.withOpacity(.5), fontSize: 12),
                               ),
+                              onTap: () {
+                                Navigator.of(context).pop(); // Fermer le dialog
+                                _handleNotificationTap(context, n);
+                              },
                             );
                           },
                         ),
@@ -342,6 +446,15 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  Future<void> _loadNotifications(WidgetRef ref) async {
+    try {
+      final notifs = await ref.read(notificationsProvider.future);
+      NotificationsStore.instance.setAll(notifs);
+    } catch (e) {
+      // Ignorer les erreurs de chargement des notifications
+    }
+  }
+
   Future<void> _checkPendingAdoptions(BuildContext context, WidgetRef ref) async {
     // Ne vérifier qu'une seule fois par session
     if (_adoptionCheckDone) return;
@@ -362,7 +475,11 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(activeOrdersProvider);
     ref.invalidate(homeUserPositionStreamProvider);
     ref.invalidate(avatarUrlProvider);
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadNotificationsCountProvider);
     await Future.delayed(const Duration(milliseconds: 120));
+    // Recharger les notifications après invalidation
+    _loadNotifications(ref);
   }
 
   @override
@@ -388,8 +505,9 @@ class HomeScreen extends ConsumerWidget {
           orElse: () => null,
         );
 
-    // Vérifier les adoptions pendantes au premier affichage
+    // Charger les notifications et vérifier les adoptions pendantes au premier affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadNotifications(ref);
       if (!isPro) {
         _checkPendingAdoptions(context, ref);
       }
@@ -516,24 +634,46 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          ValueListenableBuilder<List<_Notif>>(
-            valueListenable: NotificationsStore.instance,
-            builder: (_, items, __) => Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(onPressed: () => _showNotifDialog(context), icon: const Icon(Icons.notifications_none)),
-                if (items.isNotEmpty)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+          Consumer(
+            builder: (_, ref, __) {
+              final unreadCount = ref.watch(unreadNotificationsCountProvider).maybeWhen(
+                data: (count) => count,
+                orElse: () => 0,
+              );
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(onPressed: () => _showNotifDialog(context), icon: const Icon(Icons.notifications_none)),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ],
       ),
