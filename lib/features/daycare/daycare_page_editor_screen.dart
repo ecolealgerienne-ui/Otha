@@ -333,12 +333,20 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   /// Crée ou met à jour les services de garderie pour permettre les réservations
   Future<void> _createOrUpdateDaycareServices(dynamic api, Map<String, dynamic> pricing) async {
     try {
+      debugPrint('🔧 Création/mise à jour des services garderie...');
+
       // Récupérer les services existants
       final existingServices = await api.listMyServices();
+      debugPrint('📋 Services existants: ${existingServices.length}');
+
+      int servicesCreated = 0;
+      int servicesUpdated = 0;
 
       // Service horaire
       if (pricing.containsKey('hourlyRate')) {
         final hourlyRate = pricing['hourlyRate'] as int;
+        debugPrint('💰 Tarif horaire: $hourlyRate DA');
+
         final existingHourly = existingServices.firstWhere(
           (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde horaire'),
           orElse: () => {},
@@ -346,15 +354,19 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
         if (existingHourly.isEmpty) {
           // Créer nouveau service horaire
+          debugPrint('➕ Création service "Garde horaire"...');
           await api.createService(
             title: 'Garde horaire',
             durationMin: 60, // 1 heure par défaut
             price: hourlyRate,
             description: 'Garde d\'animaux à l\'heure',
           );
+          servicesCreated++;
+          debugPrint('✅ Service horaire créé');
         } else {
           // Mettre à jour le prix si différent
           final serviceId = existingHourly['id'] as String;
+          debugPrint('🔄 Mise à jour service horaire ID: $serviceId');
           await api.updateService(
             serviceId: serviceId,
             title: 'Garde horaire',
@@ -362,12 +374,16 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
             price: hourlyRate,
             description: 'Garde d\'animaux à l\'heure',
           );
+          servicesUpdated++;
+          debugPrint('✅ Service horaire mis à jour');
         }
       }
 
       // Service journalier
       if (pricing.containsKey('dailyRate')) {
         final dailyRate = pricing['dailyRate'] as int;
+        debugPrint('💰 Tarif journalier: $dailyRate DA');
+
         final existingDaily = existingServices.firstWhere(
           (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde journalière'),
           orElse: () => {},
@@ -375,15 +391,19 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
         if (existingDaily.isEmpty) {
           // Créer nouveau service journalier
+          debugPrint('➕ Création service "Garde journalière"...');
           await api.createService(
             title: 'Garde journalière',
             durationMin: 1440, // 24 heures = 1440 minutes
             price: dailyRate,
             description: 'Garde d\'animaux à la journée',
           );
+          servicesCreated++;
+          debugPrint('✅ Service journalier créé');
         } else {
           // Mettre à jour le prix si différent
           final serviceId = existingDaily['id'] as String;
+          debugPrint('🔄 Mise à jour service journalier ID: $serviceId');
           await api.updateService(
             serviceId: serviceId,
             title: 'Garde journalière',
@@ -391,11 +411,34 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
             price: dailyRate,
             description: 'Garde d\'animaux à la journée',
           );
+          servicesUpdated++;
+          debugPrint('✅ Service journalier mis à jour');
         }
       }
-    } catch (e) {
-      // Ne pas bloquer la sauvegarde si la création des services échoue
-      debugPrint('Erreur création services garderie: $e');
+
+      debugPrint('🎉 Services: $servicesCreated créés, $servicesUpdated mis à jour');
+
+      // Afficher un message à l'utilisateur si des services ont été créés
+      if (servicesCreated > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$servicesCreated service(s) de réservation créé(s)')),
+        );
+      }
+    } catch (e, stackTrace) {
+      // Logger l'erreur complète
+      debugPrint('❌ ERREUR création services garderie: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      // Afficher l'erreur à l'utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur création services: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 

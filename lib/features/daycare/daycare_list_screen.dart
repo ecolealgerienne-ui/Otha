@@ -340,9 +340,6 @@ class _BookingComStyleCardState extends State<_BookingComStyleCard> {
     final openingTime = widget.daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
 
-    // Simuler places restantes (dans un vrai système, ça viendrait du backend)
-    final remainingSpots = capacity != null ? (capacity as int) - ((capacity as int) ~/ 3) : null;
-
     String? priceText;
     if (hourlyRate != null) {
       final priceWithCommission = (hourlyRate as int) + kDaycareCommissionDa;
@@ -523,31 +520,19 @@ class _BookingComStyleCardState extends State<_BookingComStyleCard> {
 
                     const SizedBox(height: 12),
 
-                    // Capacité et places restantes
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (capacity != null)
+                    // Capacité
+                    if (capacity != null)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
                           _infoBadge(
                             Icons.pets,
-                            'Capacité: $capacity',
+                            'Capacité: $capacity animaux',
                             Colors.orange,
                           ),
-                        if (remainingSpots != null && remainingSpots > 0)
-                          _infoBadge(
-                            Icons.check_circle,
-                            '$remainingSpots places restantes',
-                            Colors.green,
-                          ),
-                        if (remainingSpots != null && remainingSpots <= 0)
-                          _infoBadge(
-                            Icons.warning,
-                            'Complet',
-                            Colors.red,
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
 
                     if (animalTypes.isNotEmpty) ...[
                       const SizedBox(height: 10),
