@@ -191,12 +191,12 @@ void _showNotifDialog(BuildContext context) {
                       if (items.isNotEmpty)
                         TextButton(onPressed: NotificationsStore.instance.clear, child: const Text('Tout effacer')),
                     ]),
-                    const SizedBox(height: 8),
                     if (items.isEmpty)
                       const Expanded(child: Center(child: Text("Pas de notification pour l'instant")))
                     else
                       Expanded(
                         child: ListView.separated(
+                          padding: const EdgeInsets.only(top: 8),
                           itemCount: items.length,
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (_, i) {
@@ -550,10 +550,11 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: _MyPetsButton()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  const SliverToBoxAdapter(child: _SectionTitle('Top spécialistes')),
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  const SliverToBoxAdapter(child: _TopSpecialistsList()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  // ▼ Top spécialistes (caché temporairement)
+                  // const SliverToBoxAdapter(child: _SectionTitle('Top spécialistes')),
+                  // const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  // const SliverToBoxAdapter(child: _TopSpecialistsList()),
+                  // const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
                   // ▼ Vethub en bas
                   const SliverToBoxAdapter(child: _SectionTitle('Vethub')),
@@ -1643,8 +1644,8 @@ class _VethubRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', 'Trouvez votre stage', '/internships'),
       ('https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800', 'Adoptez, changez une vie', '/adopt'),
+      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', 'Boostez votre carrière.', '/internships'),
     ];
     return SizedBox(
       height: 180,
