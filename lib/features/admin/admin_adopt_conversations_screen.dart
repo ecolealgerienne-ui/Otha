@@ -5,9 +5,7 @@ import 'package:intl/intl.dart';
 
 final adoptConversationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
-  final response = await api.get('/admin/adopt/conversations');
-  final data = response.data as List;
-  return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  return await api.adminAdoptGetConversations();
 });
 
 class AdminAdoptConversationsScreen extends ConsumerWidget {
@@ -345,8 +343,7 @@ class _ConversationDetailsDialog extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, dynamic>> _loadConversation(Api api) async {
-    final response = await api.get('/admin/adopt/conversations/$conversationId');
-    return Map<String, dynamic>.from(response.data as Map);
+  Future<Map<String, dynamic>> _loadConversation(ApiClient api) async {
+    return await api.adminAdoptGetConversationDetails(conversationId);
   }
 }
