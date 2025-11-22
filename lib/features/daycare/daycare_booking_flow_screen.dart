@@ -50,7 +50,7 @@ class _DaycareBookingFlowScreenState extends ConsumerState<DaycareBookingFlowScr
     final api = ref.read(apiProvider);
     try {
       // Charger les providers de type daycare
-      final providers = await api.nearbyProviders(lat: 0, lng: 0, radiusKm: 1000);
+      final providers = await api.nearby(lat: 0, lng: 0, radiusKm: 1000);
 
       // Filtrer seulement les garderies approuvées
       return providers.where((p) {
