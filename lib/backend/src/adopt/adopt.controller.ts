@@ -193,4 +193,15 @@ export class AdoptController {
   async hideConversation(@Req() req: any, @Param('id') conversationId: string) {
     return this.service.hideConversation(req.user, conversationId);
   }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/report')
+  async reportConversation(
+    @Req() req: any,
+    @Param('id') conversationId: string,
+    @Body('reason') reason: string,
+  ) {
+    return this.service.reportConversation(req.user, conversationId, reason);
+  }
 }

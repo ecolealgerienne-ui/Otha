@@ -1673,6 +1673,16 @@ Future<Map<String, dynamic>> adoptHideConversation(String conversationId) async 
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// POST /adopt/conversations/:id/report - Signaler une conversation
+Future<Map<String, dynamic>> adoptReportConversation(String conversationId, String reason) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+    '/adopt/conversations/$conversationId/report',
+    data: {'reason': reason},
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ===================== Notifications =====================
 
 // GET /notifications - Récupérer toutes les notifications

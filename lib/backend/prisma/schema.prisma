@@ -510,6 +510,14 @@ model AdoptConversation {
   hiddenByOwner   Boolean @default(false)
   hiddenByAdopter Boolean @default(false)
 
+  // Signalement de conversation
+  reportedByOwner       Boolean   @default(false)
+  reportReasonByOwner   String?
+  reportedAtByOwner     DateTime?
+  reportedByAdopter     Boolean   @default(false)
+  reportReasonByAdopter String?
+  reportedAtByAdopter   DateTime?
+
   messages      AdoptMessage[]
   adoptRequests AdoptRequest[]
 

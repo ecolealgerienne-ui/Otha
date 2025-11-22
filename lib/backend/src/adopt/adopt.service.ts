@@ -1113,6 +1113,42 @@ export class AdoptService {
     return { ok: true };
   }
 
+  async reportConversation(user: any, conversationId: string, reason: string) {
+    const userId = this.requireUserId(user);
+
+    if (!reason || reason.trim().length === 0) {
+      throw new BadRequestException('Reason is required');
+    }
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    const isOwner = conversation.ownerId === userId;
+    const isAdopter = conversation.adopterId === userId;
+
+    if (!isOwner && !isAdopter) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    // Signaler pour l'utilisateur concerné
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        reportedByOwner: isOwner ? true : conversation.reportedByOwner,
+        reportReasonByOwner: isOwner ? reason : conversation.reportReasonByOwner,
+        reportedAtByOwner: isOwner ? new Date() : conversation.reportedAtByOwner,
+        reportedByAdopter: isAdopter ? true : conversation.reportedByAdopter,
+        reportReasonByAdopter: isAdopter ? reason : conversation.reportReasonByAdopter,
+        reportedAtByAdopter: isAdopter ? new Date() : conversation.reportedAtByAdopter,
+      },
+    });
+
+    return { ok: true, message: 'Conversation signalée' };
+  }
+
   /**
    * Récupérer les adoptions en attente de création de profil pet
    */
