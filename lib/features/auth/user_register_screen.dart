@@ -147,10 +147,10 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   }
 
   Future<void> _finish({required bool skip}) async {
-    // Si l'utilisateur ignore la photo, on passe direct à l'ajout d'un animal
+    // Si l'utilisateur ignore la photo, on passe direct à l'app
     if (skip || _avatarFile == null) {
       if (!mounted) return;
-      context.go('/onboard/pet');
+      context.go('/home');
       return;
     }
 
@@ -163,14 +163,14 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       String url = await api.uploadLocalFile(_avatarFile!, folder: 'avatar');
       await api.meUpdate(photoUrl: url);
       if (!mounted) return;
-      context.go('/onboard/pet');
+      context.go('/home');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload avatar échoué: $e')),
       );
-      // On n'empêche pas la suite : on va quand même vers l'ajout animal
-      context.go('/onboard/pet');
+      // On n'empêche pas la suite : on va quand même vers l'app
+      context.go('/home');
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -206,8 +206,8 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
 
-      // Rediriger vers l'ajout d'un animal
-      context.go('/onboard/pet');
+      // Rediriger vers home (temporaire - onboard/pet pas encore implémenté)
+      context.go('/home');
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
