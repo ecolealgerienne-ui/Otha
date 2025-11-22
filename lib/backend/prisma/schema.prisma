@@ -505,6 +505,10 @@ model AdoptConversation {
   pendingAdoptionConfirmation Boolean   @default(false)
   pendingAdoptionRequestedAt  DateTime?
 
+  // Soft delete : masquage par user sans suppression DB
+  hiddenByOwner   Boolean @default(false)
+  hiddenByAdopter Boolean @default(false)
+
   messages      AdoptMessage[]
   adoptRequests AdoptRequest[]
 
