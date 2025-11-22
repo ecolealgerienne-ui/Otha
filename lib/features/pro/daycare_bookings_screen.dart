@@ -24,7 +24,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
   Future<List<dynamic>> _loadBookings() async {
     final api = ref.read(apiProvider);
     try {
-      final res = await api.dio.get('/daycare/provider/bookings');
+      final res = await api.dio.get('/bookings/provider/me');
       final data = res.data;
       if (data is Map && data['data'] is List) {
         return data['data'] as List;
@@ -39,7 +39,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.dio.patch(
-        '/daycare/bookings/$bookingId/status',
+        '/bookings/$bookingId/provider-status',
         data: {'status': newStatus},
       );
 
