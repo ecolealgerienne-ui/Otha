@@ -123,89 +123,109 @@ class StartScreen extends StatelessWidget {
                               ),
                             ),
 
-                            // "Ou" séparateur
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                const Expanded(child: Divider(thickness: 1.0)),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                  child: Text(
-                                    'Ou',
-                                    style: TextStyle(
-                                      color: Colors.black.withOpacity(0.55),
-                                      fontWeight: FontWeight.w600,
+                            // Différent pour user et pro
+                            if (variant == StartVariant.user) ...[
+                              // Pour les utilisateurs : Google Sign-In + lien inscription
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  const Expanded(child: Divider(thickness: 1.0)),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    child: Text(
+                                      'Ou',
+                                      style: TextStyle(
+                                        color: Colors.black.withOpacity(0.55),
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const Expanded(child: Divider(thickness: 1.0)),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
+                                  const Expanded(child: Divider(thickness: 1.0)),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
 
-                            // Bouton Google (placeholder visuel)
-                            SizedBox(
-                              height: 50,
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  side: BorderSide(color: Colors.black.withOpacity(0.15)),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  // TODO: Google Sign-In prochainement
-                                },
-                                icon: const CircleAvatar(
-                                  radius: 11,
-                                  backgroundColor: Colors.transparent,
-                                  child: Text(
-                                    'G',
-                                    style: TextStyle(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.w800,
+                              // Bouton Google Sign-In
+                              SizedBox(
+                                height: 50,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    side: BorderSide(color: Colors.black.withOpacity(0.15)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-                                ),
-                                label: const Text(
-                                  'Se connecter avec Google',
-                                  style: TextStyle(
-                                    color: Colors.black87,
-                                    fontWeight: FontWeight.w700,
+                                  onPressed: () {
+                                    // TODO: Google Sign-In prochainement
+                                  },
+                                  icon: const CircleAvatar(
+                                    radius: 11,
+                                    backgroundColor: Colors.transparent,
+                                    child: Text(
+                                      'G',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  label: const Text(
+                                    'Se connecter avec Google',
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(height: 12),
-                            // Lien inscription
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Pas de compte ? ',
-                                  style: TextStyle(color: Colors.black.withOpacity(0.6)),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    // Routes nommées créées dans router.dart
-                                    if (variant == StartVariant.user) {
-                                      context.pushNamed('registerUser'); // /auth/register/user
-                                    } else {
-                                      context.pushNamed('registerPro'); // /auth/register/pro
-                                    }
-                                  },
-                                  child: const Text(
-                                    "S'inscrire",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.black87,
+                              const SizedBox(height: 12),
+                              // Lien inscription pour user
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Pas de compte ? ',
+                                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                                  ),
+                                  InkWell(
+                                    onTap: () => context.pushNamed('registerUser'),
+                                    child: const Text(
+                                      "S'inscrire",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ] else ...[
+                              // Pour les pros : juste le bouton S'inscrire
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                height: 52,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    side: const BorderSide(color: coral, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  onPressed: () => context.pushNamed('registerPro'),
+                                  child: const Text(
+                                    "S'inscrire",
+                                    style: TextStyle(color: coral),
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
