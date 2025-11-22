@@ -59,6 +59,7 @@ import '../features/daycare/daycare_home_screen.dart';
 import '../features/daycare/daycare_settings_screen.dart';
 import '../features/daycare/daycare_page_editor_screen.dart';
 import '../features/daycare/daycare_bookings_screen.dart';
+import '../features/daycare/daycare_booking_details_screen.dart';
 import '../features/daycare/daycare_list_screen.dart';
 import '../features/daycare/daycare_detail_screen.dart';
 import '../features/daycare/daycare_booking_screen.dart';
@@ -410,6 +411,13 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       GoRoute(
         path: '/daycare/bookings',
         builder: (ctx, st) => const DaycareBookingsScreen(),
+      ),
+      GoRoute(
+        path: '/daycare/booking-details',
+        builder: (ctx, st) {
+          final booking = st.extra as Map<String, dynamic>;
+          return DaycareBookingDetailsScreen(booking: booking);
+        },
       ),
       GoRoute(
         path: '/petshop/home',

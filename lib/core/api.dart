@@ -979,6 +979,53 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  // --------------- Daycare Bookings (SÉPARÉ des bookings vétérinaires) ---------------
+
+  /// Créer une réservation de garderie
+  Future<Map<String, dynamic>> createDaycareBooking({
+    required String petId,
+    required String providerId,
+    required String startDate,
+    required String endDate,
+    required int priceDa,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final res = await _dio.post('/daycare/bookings', data: {
+      'petId': petId,
+      'providerId': providerId,
+      'startDate': startDate,
+      'endDate': endDate,
+      'priceDa': priceDa,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    });
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Récupérer mes réservations de garderie (client)
+  Future<List<dynamic>> myDaycareBookings() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/my/bookings'));
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  /// Annuler une réservation de garderie (client)
+  Future<Map<String, dynamic>> cancelDaycareBooking(String bookingId) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/status', data: {'status': 'CANCELLED'});
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Mettre à jour le statut d'une réservation de garderie (client)
+  Future<Map<String, dynamic>> setDaycareBookingStatus({
+    required String bookingId,
+    required String status,
+  }) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/status', data: {'status': status});
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   // --------------- Reviews ---------------
   Future<Map<String, dynamic>> createReview({
     required String bookingId,
