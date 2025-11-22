@@ -254,7 +254,7 @@ export class BookingsController {
         console.log('✅ Booking created successfully:', booking.id);
         return booking;
       }, { isolationLevel: 'Serializable' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Transaction failed:', error);
       console.error('Error details:', {
         name: error?.name,
