@@ -1246,7 +1246,7 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               onTap: () async {
                 final changed = await context.push<bool>('/daycare/booking-details', extra: m);
-                if (changed == true && mounted) {
+                if (changed == true) {
                   ref.invalidate(nextConfirmedDaycareBookingProvider);
                   ref.invalidate(nextPendingDaycareBookingProvider);
                 }
