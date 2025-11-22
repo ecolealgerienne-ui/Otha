@@ -199,8 +199,19 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       specs['animalTypes'] = animalTypes;
       if (pricing.isNotEmpty) specs['pricing'] = pricing;
 
+      // Get user info for displayName
+      final user = ref.read(sessionProvider).user ?? {};
+      final firstName = (user['firstName'] ?? '').toString().trim();
+      final lastName = (user['lastName'] ?? '').toString().trim();
+      final email = (user['email'] ?? '').toString();
+      final fullName = '$firstName $lastName'.trim();
+      final displayName = fullName.isEmpty ? email.split('@').first : fullName;
+
       // Sauvegarder
-      await api.upsertMyProvider(specialties: specs);
+      await api.upsertMyProvider(
+        displayName: displayName,
+        specialties: specs,
+      );
       await ref.read(sessionProvider.notifier).refreshMe();
 
       if (!mounted) return;
