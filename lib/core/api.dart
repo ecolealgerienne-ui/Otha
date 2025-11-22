@@ -1664,6 +1664,15 @@ Future<Map<String, dynamic>> adoptDeclineAdoption(String conversationId) async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// POST /adopt/conversations/:id/hide - Masquer une conversation (soft delete)
+Future<Map<String, dynamic>> adoptHideConversation(String conversationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post(
+    '/adopt/conversations/$conversationId/hide',
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ===================== Notifications =====================
 
 // GET /notifications - Récupérer toutes les notifications
