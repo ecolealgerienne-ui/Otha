@@ -306,9 +306,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
 
   Future<void> _logout() async {
     try {
-      await ref.read(apiProvider).setToken(null); // supprime aussi les 2 clés
+      await ref.read(sessionProvider.notifier).logout();
       if (!mounted) return;
-      context.go('/gate'); // la redirection non-auth se charge du reste
+      context.go('/gate');
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
