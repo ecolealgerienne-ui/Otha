@@ -5,18 +5,26 @@ class SessionState {
   final Map<String, dynamic>? user; // { id, email, role, ... }
   final bool loading;
   final String? error;
+  final bool isCompletingProRegistration; // Flag pour bloquer les redirections pendant l'inscription PRO
 
-  const SessionState({this.user, this.loading = false, this.error});
+  const SessionState({
+    this.user,
+    this.loading = false,
+    this.error,
+    this.isCompletingProRegistration = false,
+  });
 
   SessionState copyWith({
     Map<String, dynamic>? user,
     bool? loading,
     String? error,
+    bool? isCompletingProRegistration,
   }) =>
       SessionState(
         user: user ?? this.user,
         loading: loading ?? this.loading,
         error: error,
+        isCompletingProRegistration: isCompletingProRegistration ?? this.isCompletingProRegistration,
       );
 }
 
@@ -92,6 +100,12 @@ class SessionController extends Notifier<SessionState> {
   Future<void> logout() async {
     await ref.read(apiProvider).setToken(null);
     state = const SessionState();
+  }
+
+  /// Active/désactive le flag isCompletingProRegistration
+  /// Ce flag empêche le router de rediriger pendant la création du profil PRO
+  void setCompletingProRegistration(bool value) {
+    state = state.copyWith(isCompletingProRegistration: value);
   }
 }
 
