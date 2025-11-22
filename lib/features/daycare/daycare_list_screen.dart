@@ -29,7 +29,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
         }
         if (perm != LocationPermission.denied &&
             perm != LocationPermission.deniedForever) {
-          // Last known (ultra rapide)
           final last = await Geolocator.getLastKnownPosition().timeout(
             const Duration(milliseconds: 300),
             onTimeout: () => null,
@@ -37,16 +36,15 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
           if (last != null) {
             return (lat: last.latitude, lng: last.longitude);
           }
-          // Current position (timeout court)
           try {
             final pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.medium,
             ).timeout(const Duration(seconds: 2));
             return (lat: pos.latitude, lng: pos.longitude);
           } on TimeoutException {
-            // On tombera sur profil/fallback
+            // continue
           } catch (_) {
-            // ignore et on tombe sur profil/fallback
+            // continue
           }
         }
       }
@@ -66,7 +64,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
 
   final center = await getCenter();
 
-  // ---------- 2) API: on récupère les pros depuis le backend ----------
   final raw = await api.nearby(
     lat: center.lat,
     lng: center.lng,
@@ -75,14 +72,12 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     status: 'approved',
   );
 
-  // ---------- 3) Normalisation légère côté client ----------
   double? _toDouble(dynamic v) {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
   }
 
-  // Haversine (fallback au cas où le backend n'aurait pas mis distance_km)
   double? _haversineKm(double? lat, double? lng) {
     if (lat == null || lng == null) return null;
     const R = 6371.0;
@@ -105,7 +100,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     return kind == 'daycare';
   }).toList();
 
-  // On prépare l'output minimum: id, displayName, bio, address, distanceKm, specialties
   final mapped = daycaresOnly.map((m) {
     final id = (m['id'] ?? m['providerId'] ?? '').toString();
     final name = (m['displayName'] ?? m['name'] ?? 'Garderie').toString();
@@ -113,26 +107,24 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     final bio = (specs?['bio'] ?? m['bio'] ?? '').toString();
     final address = (m['address'] ?? '').toString();
 
-    // Images
     final images = specs?['images'] as List?;
     final imageUrls = images?.map((e) => e.toString()).toList() ?? <String>[];
 
-    // Capacité
     final capacity = specs?['capacity'];
 
-    // Types d'animaux
     final animalTypes = specs?['animalTypes'] as List?;
     final types = animalTypes?.map((e) => e.toString()).toList() ?? <String>[];
 
-    // Tarifs
     final pricing = specs?['pricing'] as Map?;
     final hourlyRate = pricing?['hourlyRate'];
     final dailyRate = pricing?['dailyRate'];
 
-    // distance_km fournie par le backend si centre valide
-    double? dKm = _toDouble(m['distance_km']);
+    final availability = specs?['availability'] as Map?;
+    final is24_7 = availability?['is24_7'] == true;
+    final openingTime = availability?['openingTime']?.toString() ?? '08:00';
+    final closingTime = availability?['closingTime']?.toString() ?? '20:00';
 
-    // Fallback si distance_km manquante: calcule localement avec lat/lng
+    double? dKm = _toDouble(m['distance_km']);
     if (dKm == null) {
       final lat = _toDouble(m['lat']);
       final lng = _toDouble(m['lng']);
@@ -150,10 +142,12 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       'animalTypes': types,
       'hourlyRate': hourlyRate,
       'dailyRate': dailyRate,
+      'is24_7': is24_7,
+      'openingTime': openingTime,
+      'closingTime': closingTime,
     };
   }).toList();
 
-  // Dédoublonnage soft
   final seen = <String>{};
   final unique = <Map<String, dynamic>>[];
   for (final m in mapped) {
@@ -164,7 +158,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     if (seen.add(key)) unique.add(m);
   }
 
-  // Tri: distance si dispo, sinon nom
   unique.sort((a, b) {
     final da = a['distanceKm'] as double?;
     final db = b['distanceKm'] as double?;
@@ -191,7 +184,6 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
   @override
   void initState() {
     super.initState();
-    // Réévalue à chaque ouverture (nouvelle géoloc)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(daycareProvidersListProvider);
     });
@@ -199,7 +191,6 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
 
   List<Map<String, dynamic>> _filterDaycares(List<Map<String, dynamic>> daycares) {
     return daycares.where((daycare) {
-      // Search filter
       if (_searchQuery.isNotEmpty) {
         final name = (daycare['displayName'] ?? '').toString().toLowerCase();
         final address = (daycare['address'] ?? '').toString().toLowerCase();
@@ -252,7 +243,7 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
                   ),
                 ),
 
-                // List
+                // List - Style Booking.com
                 Expanded(
                   child: filtered.isEmpty
                       ? Center(
@@ -275,9 +266,9 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
                             ref.invalidate(daycareProvidersListProvider);
                           },
                           child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                             itemCount: filtered.length,
-                            itemBuilder: (context, i) => _DaycareCard(daycare: filtered[i]),
+                            itemBuilder: (context, i) => _BookingComStyleCard(daycare: filtered[i]),
                           ),
                         ),
                 ),
@@ -312,139 +303,296 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
   }
 }
 
-class _DaycareCard extends StatelessWidget {
+class _BookingComStyleCard extends StatefulWidget {
   final Map<String, dynamic> daycare;
 
-  const _DaycareCard({required this.daycare});
+  const _BookingComStyleCard({required this.daycare});
+
+  @override
+  State<_BookingComStyleCard> createState() => _BookingComStyleCardState();
+}
+
+class _BookingComStyleCardState extends State<_BookingComStyleCard> {
+  final PageController _pageController = PageController();
+  int _currentImageIndex = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final name = (daycare['displayName'] ?? 'Garderie').toString();
-    final bio = (daycare['bio'] ?? '').toString();
-    final address = (daycare['address'] ?? '').toString();
-    final distanceKm = daycare['distanceKm'] as double?;
-    final images = daycare['images'] as List<dynamic>? ?? [];
-    final firstImage = images.isNotEmpty ? images.first.toString() : null;
-    final capacity = daycare['capacity'];
-    final animalTypes = daycare['animalTypes'] as List<dynamic>? ?? [];
-    final hourlyRate = daycare['hourlyRate'];
-    final dailyRate = daycare['dailyRate'];
+    final name = (widget.daycare['displayName'] ?? 'Garderie').toString();
+    final bio = (widget.daycare['bio'] ?? '').toString();
+    final address = (widget.daycare['address'] ?? '').toString();
+    final distanceKm = widget.daycare['distanceKm'] as double?;
+    final images = widget.daycare['images'] as List<dynamic>? ?? [];
+    final capacity = widget.daycare['capacity'];
+    final animalTypes = widget.daycare['animalTypes'] as List<dynamic>? ?? [];
+    final hourlyRate = widget.daycare['hourlyRate'];
+    final dailyRate = widget.daycare['dailyRate'];
+    final is24_7 = widget.daycare['is24_7'] == true;
+    final openingTime = widget.daycare['openingTime']?.toString() ?? '08:00';
+    final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
+
+    // Simuler places restantes (dans un vrai système, ça viendrait du backend)
+    final remainingSpots = capacity != null ? (capacity as int) - (capacity as int ~/ 3) : null;
 
     String? priceText;
     if (hourlyRate != null) {
-      priceText = '$hourlyRate DA/h';
+      priceText = 'À partir de $hourlyRate DA/heure';
     } else if (dailyRate != null) {
-      priceText = '$dailyRate DA/j';
+      priceText = 'À partir de $dailyRate DA/jour';
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            final id = (daycare['id'] ?? '').toString();
+            final id = (widget.daycare['id'] ?? '').toString();
             if (id.isNotEmpty) {
-              context.push('/explore/daycare/$id', extra: daycare);
+              context.push('/explore/daycare/$id', extra: widget.daycare);
             }
           },
           borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: firstImage != null
-                      ? Image.network(
-                          firstImage,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholderImage(),
-                        )
-                      : _placeholderImage(),
-                ),
-                const SizedBox(width: 12),
-
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Grande image avec slider (style Booking.com)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: SizedBox(
+                  height: 220,
+                  child: Stack(
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (address.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                address,
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                      // Images
+                      images.isNotEmpty
+                          ? PageView.builder(
+                              controller: _pageController,
+                              onPageChanged: (index) {
+                                setState(() => _currentImageIndex = index);
+                              },
+                              itemCount: images.length,
+                              itemBuilder: (context, index) {
+                                return Image.network(
+                                  images[index].toString(),
+                                  width: double.infinity,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _placeholderImage(),
+                                );
+                              },
+                            )
+                          : _placeholderImage(),
+
+                      // Distance badge (top left)
+                      if (distanceKm != null)
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.location_on, size: 14, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${distanceKm.toStringAsFixed(1)} km',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ],
-                      if (distanceKm != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          '${distanceKm.toStringAsFixed(1)} km',
-                          style: TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.w600),
+
+                      // Image indicators (bottom center)
+                      if (images.length > 1)
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(images.length, (index) {
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _currentImageIndex == index
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.4),
+                                ),
+                              );
+                            }),
+                          ),
                         ),
-                      ],
-                      if (bio.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          bio,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      if (animalTypes.isNotEmpty || priceText != null) ...[
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            if (capacity != null)
-                              _chip(Icons.pets, 'Capacité: $capacity', Colors.orange),
-                            if (priceText != null)
-                              _chip(Icons.monetization_on, priceText, Colors.green),
-                            ...animalTypes.take(2).map((t) => _chip(Icons.pets, t.toString(), _primary)),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_forward_ios, size: 16),
-              ],
-            ),
+              // Contenu
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nom de la garderie
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    if (address.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.place, size: 14, color: Colors.grey[600]),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              address,
+                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    // Horaires
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: _primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          is24_7 ? 'Ouvert 24h/24 - 7j/7' : 'Ouvert $openingTime - $closingTime',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (bio.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        bio,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // Capacité et places restantes
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (capacity != null)
+                          _infoBadge(
+                            Icons.pets,
+                            'Capacité: $capacity',
+                            Colors.orange,
+                          ),
+                        if (remainingSpots != null && remainingSpots > 0)
+                          _infoBadge(
+                            Icons.check_circle,
+                            '$remainingSpots places restantes',
+                            Colors.green,
+                          ),
+                        if (remainingSpots != null && remainingSpots <= 0)
+                          _infoBadge(
+                            Icons.warning,
+                            'Complet',
+                            Colors.red,
+                          ),
+                      ],
+                    ),
+
+                    if (animalTypes.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: animalTypes.take(4).map((type) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _primarySoft,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _primary.withOpacity(0.3)),
+                            ),
+                            child: Text(
+                              type.toString(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _primary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+
+                    if (priceText != null) ...[
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            priceText,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _primary,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 16, color: _primary),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -453,33 +601,34 @@ class _DaycareCard extends StatelessWidget {
 
   Widget _placeholderImage() {
     return Container(
-      width: 80,
-      height: 80,
+      width: double.infinity,
+      height: 220,
       decoration: BoxDecoration(
         color: _primarySoft,
-        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.pets, size: 32, color: _primary),
+      child: const Center(
+        child: Icon(Icons.pets, size: 64, color: _primary),
+      ),
     );
   }
 
-  Widget _chip(IconData icon, String label, Color color) {
+  Widget _infoBadge(IconData icon, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
             ),

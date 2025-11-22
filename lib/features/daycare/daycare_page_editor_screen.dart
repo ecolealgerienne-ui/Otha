@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,11 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   // Tarifs
   final _hourlyRate = TextEditingController();
   final _dailyRate = TextEditingController();
+
+  // Horaires de disponibilité
+  bool _is24_7 = true;
+  String _openingTime = '08:00';
+  String _closingTime = '20:00';
 
   String? _errCapacity;
   String? _errHourlyRate;
@@ -131,6 +137,14 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
         _dailyRate.text = (pricing['dailyRate'] ?? '').toString();
       }
 
+      // Charger les horaires
+      final availability = specs['availability'];
+      if (availability is Map) {
+        _is24_7 = availability['is24_7'] == true;
+        _openingTime = (availability['openingTime'] ?? '08:00').toString();
+        _closingTime = (availability['closingTime'] ?? '20:00').toString();
+      }
+
       if (mounted) setState(() {});
     } catch (_) {}
   }
@@ -187,12 +201,8 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       final responseData = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final json = Map<String, dynamic>.from(
-          (await http.Response.fromStream(http.StreamedResponse(
-            Stream.value(responseData.codeUnits),
-            response.statusCode,
-          ))).body as dynamic,
-        );
+        // Parse JSON correctement
+        final json = jsonDecode(responseData) as Map<String, dynamic>;
 
         final url = json['url'] as String?;
         if (url != null && url.isNotEmpty) {
@@ -305,6 +315,13 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
           ? Map<String, dynamic>.from(p['specialties'])
           : <String, dynamic>{};
 
+      // Construire les horaires
+      final availability = <String, dynamic>{
+        'is24_7': _is24_7,
+        'openingTime': _openingTime,
+        'closingTime': _closingTime,
+      };
+
       // Fusionner avec les nouvelles données
       final specs = Map<String, dynamic>.from(existingSpecs);
       specs['images'] = _imageUrls;
@@ -314,6 +331,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       specs['animalTypes'] = _animalTypes;
       specs['bio'] = _bio.text.trim();
       if (pricing.isNotEmpty) specs['pricing'] = pricing;
+      specs['availability'] = availability;
 
       // Get user info for displayName
       final user = ref.read(sessionProvider).user ?? {};
@@ -386,6 +404,8 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
               _animalTypesCard(),
               const SizedBox(height: 12),
               _pricingCard(),
+              const SizedBox(height: 12),
+              _availabilityCard(),
               const SizedBox(height: 20),
               SizedBox(
                 height: 48,
@@ -788,6 +808,99 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
               suffixText: 'DA/jour',
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _availabilityCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Horaires de disponibilité', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          const Text(
+            'Indiquez vos horaires d\'ouverture',
+            style: TextStyle(fontSize: 12, color: _muted),
+          ),
+          const SizedBox(height: 12),
+
+          // Switch 24/7
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Ouvert 24h/24 - 7j/7'),
+            value: _is24_7,
+            onChanged: (value) => setState(() => _is24_7 = value),
+            activeColor: _primary,
+          ),
+
+          if (!_is24_7) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay(
+                          hour: int.parse(_openingTime.split(':')[0]),
+                          minute: int.parse(_openingTime.split(':')[1]),
+                        ),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          _openingTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                        ),
+                        labelText: 'Ouverture',
+                        isDense: true,
+                        prefixIcon: Icon(Icons.access_time),
+                      ),
+                      child: Text(_openingTime),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay(
+                          hour: int.parse(_closingTime.split(':')[0]),
+                          minute: int.parse(_closingTime.split(':')[1]),
+                        ),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          _closingTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                        });
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                        ),
+                        labelText: 'Fermeture',
+                        isDense: true,
+                        prefixIcon: Icon(Icons.access_time),
+                      ),
+                      child: Text(_closingTime),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
