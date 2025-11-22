@@ -81,6 +81,82 @@ final pendingDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<Strin
   }
 });
 
+// Commission for daycare: 100 DA per reservation
+const kDaycareCommissionDa = 100;
+
+/// Ledger pour la garderie
+class _DaycareLedger {
+  final String ym;
+  final int bookingsCount;
+  final int totalRevenue;
+  final int commissionDue;
+  final int commissionPaid;
+  final int netDue;
+
+  const _DaycareLedger({
+    required this.ym,
+    required this.bookingsCount,
+    required this.totalRevenue,
+    required this.commissionDue,
+    required this.commissionPaid,
+    required this.netDue,
+  });
+}
+
+final daycareLedgerProvider = FutureProvider.autoDispose<_DaycareLedger>((ref) async {
+  try {
+    final bookings = await ref.watch(myDaycareBookingsProvider.future);
+
+    final now = DateTime.now();
+    final ymNow = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    int bookingsThisMonth = 0;
+    int revenueThisMonth = 0;
+
+    for (final booking in bookings) {
+      // Only count completed/delivered bookings
+      final status = (booking['status'] ?? '').toString().toUpperCase();
+      if (status != 'COMPLETED' && status != 'DELIVERED') continue;
+
+      // Check if this booking is from this month
+      final startDate = booking['startDate'];
+      if (startDate == null) continue;
+
+      final date = DateTime.tryParse(startDate.toString());
+      if (date == null) continue;
+
+      final bookingYm = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+      if (bookingYm == ymNow) {
+        bookingsThisMonth++;
+        revenueThisMonth += _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
+      }
+    }
+
+    // Commission is per booking (fixed 100 DA)
+    final commissionDue = bookingsThisMonth * kDaycareCommissionDa;
+
+    return _DaycareLedger(
+      ym: ymNow,
+      bookingsCount: bookingsThisMonth,
+      totalRevenue: revenueThisMonth,
+      commissionDue: commissionDue,
+      commissionPaid: 0, // TODO: Connect to backend payment tracking
+      netDue: commissionDue,
+    );
+  } catch (_) {
+    final now = DateTime.now();
+    final ymNow = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    return _DaycareLedger(
+      ym: ymNow,
+      bookingsCount: 0,
+      totalRevenue: 0,
+      commissionDue: 0,
+      commissionPaid: 0,
+      netDue: 0,
+    );
+  }
+});
+
 int _asInt(dynamic v) {
   if (v is int) return v;
   if (v is num) return v.toInt();
@@ -90,14 +166,14 @@ int _asInt(dynamic v) {
 
 /// ========================= MAIN SCREEN =========================
 
-class ProDaycareHomeScreen extends ConsumerStatefulWidget {
-  const ProDaycareHomeScreen({super.key});
+class DaycareHomeScreen extends ConsumerStatefulWidget {
+  const DaycareHomeScreen({super.key});
 
   @override
-  ConsumerState<ProDaycareHomeScreen> createState() => _ProDaycareHomeScreenState();
+  ConsumerState<DaycareHomeScreen> createState() => _DaycareHomeScreenState();
 }
 
-class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
+class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
   @override
   Widget build(BuildContext context) {
     const bgSoft = Color(0xFFF7F8FA);
@@ -121,6 +197,7 @@ class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
 
     final pendingAsync = ref.watch(pendingDaycareBookingsProvider);
     final bookingsAsync = ref.watch(myDaycareBookingsProvider);
+    final ledgerAsync = ref.watch(daycareLedgerProvider);
 
     return Theme(
       data: _daycareTheme(context),
@@ -140,7 +217,7 @@ class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
                 SliverToBoxAdapter(
                   child: _Header(
                     daycareName: daycareName,
-                    onAvatarTap: () => context.push('/pro/settings'),
+                    onAvatarTap: () => context.push('/daycare/settings'),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
@@ -156,7 +233,7 @@ class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
                         if (pending.isEmpty) return const SizedBox.shrink();
                         return _PendingBookingsBanner(
                           bookings: pending,
-                          onTap: () => context.push('/pro/daycare/bookings'),
+                          onTap: () => context.push('/daycare/bookings'),
                         );
                       },
                     ),
@@ -167,6 +244,20 @@ class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
 
                 // Actions rapides
                 const SliverToBoxAdapter(child: _ActionGrid()),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // Commission du mois
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ledgerAsync.when(
+                      loading: () => const _CommissionCard.loading(),
+                      error: (e, _) => _SectionCard(child: Text('Erreur: $e')),
+                      data: (ledger) => _CommissionCard(ledger: ledger),
+                    ),
+                  ),
+                ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
@@ -374,8 +465,8 @@ class _ActionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _Action('Gérer ma garderie', Icons.settings, '/pro/daycare/settings', const Color(0xFF3A86FF)),
-      _Action('Mes réservations', Icons.calendar_today, '/pro/daycare/bookings', const Color(0xFFFF6D00)),
+      _Action('Gérer la page', Icons.edit_location, '/daycare/page', const Color(0xFF3A86FF)),
+      _Action('Mes réservations', Icons.calendar_today, '/daycare/bookings', const Color(0xFFFF6D00)),
     ];
 
     return Padding(
@@ -648,7 +739,7 @@ class _RecentBookings extends StatelessWidget {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () => context.push('/pro/daycare/bookings'),
+                onPressed: () => context.push('/daycare/bookings'),
                 child: const Text('Voir tout'),
               ),
             ],
@@ -798,6 +889,141 @@ class _RecentBookings extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _CommissionCard extends StatelessWidget {
+  final _DaycareLedger? ledger;
+  const _CommissionCard({required this.ledger});
+  const _CommissionCard.loading() : ledger = null;
+
+  String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
+
+  @override
+  Widget build(BuildContext context) {
+    if (ledger == null) {
+      return const _SectionCard(
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final l = ledger!;
+    final now = DateTime.now();
+    final monthLabel = DateFormat('MMMM yyyy', 'fr_FR')
+        .format(now)
+        .replaceFirstMapped(RegExp(r'^\w'), (m) => m.group(0)!.toUpperCase());
+
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 44,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0E5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.payments_outlined, color: Color(0xFFFB8C00)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Commission du mois',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      monthLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.black.withOpacity(.65)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Montant à payer
+          Text(
+            _da(l.netDue),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${l.bookingsCount} réservation${l.bookingsCount > 1 ? 's' : ''} terminée${l.bookingsCount > 1 ? 's' : ''}',
+            style: TextStyle(color: Colors.black.withOpacity(.6)),
+          ),
+          const SizedBox(height: 12),
+
+          // Stats
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _miniPill(Icons.monetization_on, 'Revenus', _da(l.totalRevenue)),
+              _miniPill(Icons.receipt, 'Commission', _da(l.commissionDue)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniPill(IconData icon, String label, String value) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 140),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: _DaycareColors.primarySoft,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _DaycareColors.primary.withOpacity(.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: _DaycareColors.primary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(.6)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
