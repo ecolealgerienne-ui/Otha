@@ -369,6 +369,82 @@ final nextPendingBookingProvider =
   return best;
 });
 
+/// -------------------- Prochaine réservation garderie confirmée (client) --------------------
+final nextConfirmedDaycareBookingProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final api = ref.read(apiProvider);
+  try {
+    final rows = await api.myDaycareBookings(); // réservations garderie
+    final now = DateTime.now().toUtc();
+
+    Map<String, dynamic>? best;
+    DateTime? bestAt;
+
+    for (final raw in rows) {
+      final m = Map<String, dynamic>.from(raw as Map);
+      final st = (m['status'] ?? '').toString().toUpperCase();
+      if (st != 'CONFIRMED') continue;
+
+      final iso = (m['startDate'] ?? '').toString(); // daycare utilise startDate au lieu de scheduledAt
+      if (iso.isEmpty) continue;
+
+      DateTime at;
+      try {
+        at = DateTime.parse(iso).toUtc();
+      } catch (_) {
+        continue;
+      }
+      if (at.isBefore(now)) continue;
+
+      if (bestAt == null || at.isBefore(bestAt)) {
+        bestAt = at;
+        best = m;
+      }
+    }
+    return best;
+  } catch (e) {
+    return null; // Ignorer les erreurs si l'utilisateur n'a pas de réservations garderie
+  }
+});
+
+/// -------------------- Prochaine réservation garderie pending (client) --------------------
+final nextPendingDaycareBookingProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final api = ref.read(apiProvider);
+  try {
+    final rows = await api.myDaycareBookings(); // réservations garderie
+    final now = DateTime.now().toUtc();
+
+    Map<String, dynamic>? best;
+    DateTime? bestAt;
+
+    for (final raw in rows) {
+      final m = Map<String, dynamic>.from(raw as Map);
+      final st = (m['status'] ?? '').toString().toUpperCase();
+      if (st != 'PENDING') continue;
+
+      final iso = (m['startDate'] ?? '').toString(); // daycare utilise startDate au lieu de scheduledAt
+      if (iso.isEmpty) continue;
+
+      DateTime at;
+      try {
+        at = DateTime.parse(iso).toUtc();
+      } catch (_) {
+        continue;
+      }
+      if (at.isBefore(now)) continue;
+
+      if (bestAt == null || at.isBefore(bestAt)) {
+        bestAt = at;
+        best = m;
+      }
+    }
+    return best;
+  } catch (e) {
+    return null; // Ignorer les erreurs si l'utilisateur n'a pas de réservations garderie
+  }
+});
+
 /// -------------------- Commandes petshop en cours (client) --------------------
 final activeOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -472,6 +548,8 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(topVetsProvider);
     ref.invalidate(nextConfirmedBookingProvider);
     ref.invalidate(nextPendingBookingProvider);
+    ref.invalidate(nextConfirmedDaycareBookingProvider);
+    ref.invalidate(nextPendingDaycareBookingProvider);
     ref.invalidate(activeOrdersProvider);
     ref.invalidate(homeUserPositionStreamProvider);
     ref.invalidate(avatarUrlProvider);
@@ -534,6 +612,12 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   // ▼ Prochain RDV pending (orange) — sous le confirmé
                   const SliverToBoxAdapter(child: _NextPendingBanner()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                  // ▼ Prochaine réservation garderie confirmée (vert)
+                  const SliverToBoxAdapter(child: _NextConfirmedDaycareBookingBanner()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                  // ▼ Prochaine réservation garderie pending (orange)
+                  const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   // ▼ Commandes en cours (rose saumon)
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
@@ -1102,6 +1186,232 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                         ),
                       ),
                     ],
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// -------------------- Bandeau réservation garderie confirmée --------------------
+class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
+  const _NextConfirmedDaycareBookingBanner({super.key});
+
+  String _petName(Map<String, dynamic> m) {
+    final pet = m['pet'];
+    if (pet is Map) {
+      final name = (pet['name'] ?? '').toString().trim();
+      if (name.isNotEmpty) return name;
+    }
+    return 'Votre animal';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(nextConfirmedDaycareBookingProvider);
+
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (m) {
+        if (m == null) return const SizedBox.shrink();
+
+        final iso = (m['startDate'] ?? '').toString();
+        DateTime? dtLocal;
+        try {
+          dtLocal = DateTime.parse(iso).toLocal();
+        } catch (_) {}
+        final when = dtLocal != null
+            ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
+                .format(dtLocal)
+                .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
+            : '—';
+
+        final petName = _petName(m);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () async {
+                final changed = await context.push<bool>('/daycare/booking-details', extra: m);
+                if (changed == true && mounted) {
+                  ref.invalidate(nextConfirmedDaycareBookingProvider);
+                  ref.invalidate(nextPendingDaycareBookingProvider);
+                }
+              },
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E), // ✅ vert
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.home, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Garderie confirmée: $when — $petName',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_ios, size: 16),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// -------------------- Bandeau réservation garderie pending --------------------
+class _NextPendingDaycareBookingBanner extends ConsumerStatefulWidget {
+  const _NextPendingDaycareBookingBanner({super.key});
+  @override
+  ConsumerState<_NextPendingDaycareBookingBanner> createState() => _NextPendingDaycareBookingBannerState();
+}
+
+class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDaycareBookingBanner> {
+  String _petName(Map<String, dynamic> m) {
+    final pet = m['pet'];
+    if (pet is Map) {
+      final name = (pet['name'] ?? '').toString().trim();
+      if (name.isNotEmpty) return name;
+    }
+    return 'Votre animal';
+  }
+
+  Future<void> _cancel(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
+    final id = (m['id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Annuler la réservation ?'),
+        content: const Text('Cette action est irréversible. Confirmez-vous l\'annulation ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF36C6C)),
+            child: const Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await ref.read(apiProvider).cancelDaycareBooking(id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Réservation annulée.')));
+      }
+      ref.invalidate(nextConfirmedDaycareBookingProvider);
+      ref.invalidate(nextPendingDaycareBookingProvider);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(nextPendingDaycareBookingProvider);
+
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (m) {
+        if (m == null) return const SizedBox.shrink();
+
+        final iso = (m['startDate'] ?? '').toString();
+        DateTime? dtLocal;
+        try {
+          dtLocal = DateTime.parse(iso).toLocal();
+        } catch (_) {}
+        final when = dtLocal != null
+            ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
+                .format(dtLocal)
+                .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
+            : '—';
+
+        final petName = _petName(m);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final changed = await context.push<bool>('/daycare/booking-details', extra: m);
+                    if (changed == true && mounted) {
+                      ref.invalidate(nextConfirmedDaycareBookingProvider);
+                      ref.invalidate(nextPendingDaycareBookingProvider);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFA000), // orange
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.hourglass_empty, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Garderie en attente: $when — $petName',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          maxLines: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Bouton Annuler
+                if (kShowPendingActionsOnHome)
+                  OutlinedButton(
+                    onPressed: () => _cancel(context, ref, m),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF36C6C),
+                      side: const BorderSide(color: Color(0xFFF36C6C)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Annuler'),
                   ),
               ],
             ),
