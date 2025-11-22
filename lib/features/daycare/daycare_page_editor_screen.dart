@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
@@ -169,54 +167,20 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
       setState(() => _uploadingImage = true);
 
-      // Upload via le backend
+      // Upload via api.uploadLocalFile comme dans settings_screen.dart
       final api = ref.read(apiProvider);
-      await api.ensureAuth();
-
       final file = File(image.path);
-      final bytes = await file.readAsBytes();
-      final filename = image.name;
+      final url = await api.uploadLocalFile(file, folder: 'daycare');
 
-      // Créer multipart request
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${api.dio.options.baseUrl}/uploads/local'),
-      );
+      if (mounted) {
+        setState(() {
+          _imageUrls.add(url);
+          _uploadingImage = false;
+        });
 
-      // Ajouter le token d'auth
-      final token = api.dio.options.headers['Authorization'];
-      if (token != null) {
-        request.headers['Authorization'] = token.toString();
-      }
-
-      // Ajouter le fichier
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: filename,
-      ));
-
-      // Envoyer
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Parse JSON correctement
-        final json = jsonDecode(responseData) as Map<String, dynamic>;
-
-        final url = json['url'] as String?;
-        if (url != null && url.isNotEmpty) {
-          setState(() {
-            _imageUrls.add(url);
-            _uploadingImage = false;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Photo ajoutée')),
-          );
-        }
-      } else {
-        throw Exception('Upload failed: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo ajoutée')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -346,6 +310,10 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
         displayName: displayName,
         specialties: specs,
       );
+
+      // Créer/mettre à jour les services pour permettre les réservations
+      await _createOrUpdateDaycareServices(api, pricing);
+
       await ref.read(sessionProvider.notifier).refreshMe();
 
       if (!mounted) return;
@@ -359,6 +327,75 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       );
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Crée ou met à jour les services de garderie pour permettre les réservations
+  Future<void> _createOrUpdateDaycareServices(dynamic api, Map<String, dynamic> pricing) async {
+    try {
+      // Récupérer les services existants
+      final existingServices = await api.listMyServices();
+
+      // Service horaire
+      if (pricing.containsKey('hourlyRate')) {
+        final hourlyRate = pricing['hourlyRate'] as int;
+        final existingHourly = existingServices.firstWhere(
+          (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde horaire'),
+          orElse: () => {},
+        );
+
+        if (existingHourly.isEmpty) {
+          // Créer nouveau service horaire
+          await api.createService(
+            title: 'Garde horaire',
+            durationMin: 60, // 1 heure par défaut
+            price: hourlyRate,
+            description: 'Garde d\'animaux à l\'heure',
+          );
+        } else {
+          // Mettre à jour le prix si différent
+          final serviceId = existingHourly['id'] as String;
+          await api.updateService(
+            serviceId: serviceId,
+            title: 'Garde horaire',
+            durationMin: 60,
+            price: hourlyRate,
+            description: 'Garde d\'animaux à l\'heure',
+          );
+        }
+      }
+
+      // Service journalier
+      if (pricing.containsKey('dailyRate')) {
+        final dailyRate = pricing['dailyRate'] as int;
+        final existingDaily = existingServices.firstWhere(
+          (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde journalière'),
+          orElse: () => {},
+        );
+
+        if (existingDaily.isEmpty) {
+          // Créer nouveau service journalier
+          await api.createService(
+            title: 'Garde journalière',
+            durationMin: 1440, // 24 heures = 1440 minutes
+            price: dailyRate,
+            description: 'Garde d\'animaux à la journée',
+          );
+        } else {
+          // Mettre à jour le prix si différent
+          final serviceId = existingDaily['id'] as String;
+          await api.updateService(
+            serviceId: serviceId,
+            title: 'Garde journalière',
+            durationMin: 1440,
+            price: dailyRate,
+            description: 'Garde d\'animaux à la journée',
+          );
+        }
+      }
+    } catch (e) {
+      // Ne pas bloquer la sauvegarde si la création des services échoue
+      debugPrint('Erreur création services garderie: $e');
     }
   }
 

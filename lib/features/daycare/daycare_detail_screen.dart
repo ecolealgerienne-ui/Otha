@@ -7,6 +7,9 @@ const _primary = Color(0xFF00ACC1);
 const _primarySoft = Color(0xFFE0F7FA);
 const _ink = Color(0xFF222222);
 
+// Commission cachée ajoutée au prix affiché
+const kDaycareCommissionDa = 100;
+
 class DaycareDetailScreen extends ConsumerStatefulWidget {
   final String providerId;
   final Map<String, dynamic>? daycareData;
@@ -252,9 +255,15 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
                     _sectionTitle('Tarifs'),
                     const SizedBox(height: 12),
                     if (hourlyRate != null)
-                      _pricingRow('Tarif horaire', '$hourlyRate DA/heure'),
+                      _pricingRow(
+                        'Tarif horaire',
+                        '${(hourlyRate as int) + kDaycareCommissionDa} DA/heure',
+                      ),
                     if (dailyRate != null)
-                      _pricingRow('Tarif journalier', '$dailyRate DA/jour'),
+                      _pricingRow(
+                        'Tarif journalier',
+                        '${(dailyRate as int) + kDaycareCommissionDa} DA/jour',
+                      ),
                     const SizedBox(height: 24),
                   ],
 

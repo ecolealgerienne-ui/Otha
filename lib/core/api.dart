@@ -2539,6 +2539,48 @@ final hay = [
     }
   }
 
+  // --------------- Mes Services (création/modification) ---------------
+  Future<Map<String, dynamic>> createService({
+    required String title,
+    required int durationMin,
+    required int price,
+    String? description,
+  }) async {
+    await ensureAuth();
+    final res = await _dio.post('/providers/me/services', data: {
+      'title': title,
+      'durationMin': durationMin,
+      'price': price,
+      if (description != null) 'description': description,
+    });
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> updateService({
+    required String serviceId,
+    String? title,
+    int? durationMin,
+    int? price,
+    String? description,
+  }) async {
+    await ensureAuth();
+    final data = <String, dynamic>{};
+    if (title != null) data['title'] = title;
+    if (durationMin != null) data['durationMin'] = durationMin;
+    if (price != null) data['price'] = price;
+    if (description != null) data['description'] = description;
+
+    final res = await _dio.patch('/services/$serviceId', data: data);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<List<Map<String, dynamic>>> listMyServices() async {
+    await ensureAuth();
+    final res = await _dio.get('/providers/me/services');
+    final raw = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+    return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
   // ========= Public Petshop Products =========
 
   /// Liste publique des produits d'une animalerie (accessibles aux utilisateurs)
