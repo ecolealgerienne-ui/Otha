@@ -515,7 +515,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const _BottomBar(),
+      // bottomNavigationBar: const _BottomBar(), // Caché temporairement
       body: SafeArea(
         child: Stack(
           children: [
