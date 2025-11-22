@@ -17,7 +17,7 @@ RUN npm ci
 
 # Prisma: copier schema et générer client (version 6.19.0 du package.json)
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npx prisma@6.19.0 generate
 
 # Playwright: installer Chromium + dépendances système UNE SEULE FOIS
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
@@ -40,7 +40,7 @@ RUN npm ci --omit=dev
 
 # Prisma: générer client pour production (même version 6.19.0)
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npx prisma@6.19.0 generate
 
 # ---------- run ----------
 FROM base AS runner
@@ -69,4 +69,4 @@ COPY package*.json ./
 EXPOSE 3000
 
 # Lancer les migrations Prisma et démarrer l'app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma@6.19.0 migrate deploy && node dist/src/main.js"]
