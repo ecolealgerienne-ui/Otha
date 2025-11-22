@@ -66,7 +66,7 @@ COPY --from=deps /ms-playwright /ms-playwright
 # Copier package.json pour info de version
 COPY package*.json ./
 
-EXPOSE 3000
+EXPOSE 3000 5555
 
-# Lancer les migrations Prisma et démarrer l'app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Lancer les migrations Prisma, démarrer Prisma Studio en arrière-plan, puis l'app
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma studio --hostname 0.0.0.0 & node dist/src/main.js"]
