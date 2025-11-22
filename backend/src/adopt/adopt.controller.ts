@@ -1,4 +1,6 @@
-Controller,
+import {
+  Body,
+  Controller,
   Delete,
   Get,
   Param,
@@ -9,31 +11,32 @@ Controller,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { AdoptService } from './adopt.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
 import { FeedQueryDto } from './dto/feed.dto';
 import { SwipeDto } from './dto/swipe.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @ApiTags('Adopt')
 @Controller({ path: 'adopt', version: '1' })
 export class AdoptController {
   constructor(private readonly service: AdoptService) {}
 
-  // Public feed (APPROVED only)
+  // ====== Feed public ======
   @Get('feed')
-  async feed(@Query() q: FeedQueryDto) {
-    return this.service.feed(null, q);
+  async feed(@Query() q: FeedQueryDto, @Req() req: any) {
+    const user = req.user ?? null;
+    return this.service.feed(user, q);
   }
 
-  // Public detail (APPROVED only)
   @Get('posts/:id')
-  async getOne(@Param('id') id: string) {
+  async getPost(@Param('id') id: string) {
     return this.service.getPublic(id);
   }
 
-  // Authenticated CRUD
+  // ====== Posts (authentifié) ======
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Post('posts')
@@ -50,7 +53,7 @@ export class AdoptController {
 
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-@@ -58,26 +57,34 @@ export class AdoptController {
+  @Delete('posts/:id')
   async remove(@Req() req: any, @Param('id') id: string) {
     return this.service.remove(req.user, id);
   }
@@ -62,7 +65,39 @@ export class AdoptController {
     return this.service.listMine(req.user);
   }
 
-  // Swipe
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('posts/:id/conversations')
+  async getPostConversations(@Req() req: any, @Param('id') id: string) {
+    return this.service.getPostConversations(req.user, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('posts/:id/adopted')
+  async markAdopted(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { adoptedById?: string },
+  ) {
+    return this.service.markAsAdopted(req.user, id, body.adoptedById);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/pending-pet-creation')
+  async myPendingPetCreation(@Req() req: any) {
+    return this.service.myPendingPetCreation(req.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('posts/:id/mark-pet-created')
+  async markPetProfileCreated(@Req() req: any, @Param('id') id: string) {
+    return this.service.markPetProfileCreated(req.user, id);
+  }
+
+  // ====== Swipe ======
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Post('posts/:id/swipe')
@@ -77,11 +112,77 @@ export class AdoptController {
     return this.service.myLikes(req.user);
   }
 
-  // Likes reçus sur mes annonces (approchantes du Tinder-like)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @Get('my/requests')
-  async myRequests(@Req() req: any) {
-    return this.service.incomingRequests(req.user);
+  @Get('my/quotas')
+  async myQuotas(@Req() req: any) {
+    const userId = req.user.id ?? req.user.sub;
+    return this.service.getQuotas(userId);
+  }
+
+  // ====== Requests (demandes d'adoption) ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/requests/incoming')
+  async incomingRequests(@Req() req: any) {
+    return this.service.myIncomingRequests(req.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/requests/outgoing')
+  async outgoingRequests(@Req() req: any) {
+    return this.service.myOutgoingRequests(req.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('requests/:id/accept')
+  async acceptRequest(@Req() req: any, @Param('id') id: string) {
+    return this.service.acceptRequest(req.user, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('requests/:id/reject')
+  async rejectRequest(@Req() req: any, @Param('id') id: string) {
+    return this.service.rejectRequest(req.user, id);
+  }
+
+  // ====== Conversations & Messages ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my/conversations')
+  async myConversations(@Req() req: any) {
+    return this.service.myConversations(req.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Get('conversations/:id/messages')
+  async getMessages(@Req() req: any, @Param('id') id: string) {
+    return this.service.getConversationMessages(req.user, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/messages')
+  async sendMessage(@Req() req: any, @Param('id') id: string, @Body() dto: SendMessageDto) {
+    return this.service.sendMessage(req.user, id, dto.content);
+  }
+
+  // ====== Adoption Confirmation ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/confirm-adoption')
+  async confirmAdoption(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.confirmAdoption(req.user, conversationId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/decline-adoption')
+  async declineAdoption(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.declineAdoption(req.user, conversationId);
   }
 }

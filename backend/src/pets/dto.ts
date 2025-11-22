@@ -17,11 +17,11 @@ export class CreatePetDto {
   @ApiPropertyOptional() @IsOptional() @IsString()
   color?: string;
 
-  // <- tu utilises "country" pour la ville dans l'app
+  // <- tu utilises "country" pour la ville dans l’app
   @ApiPropertyOptional() @IsOptional() @IsString()
   country?: string;
 
-  // <- type d'animal
+  // <- type d’animal
   @ApiPropertyOptional() @IsOptional() @IsString()
   idNumber?: string;
 
@@ -31,20 +31,20 @@ export class CreatePetDto {
   @ApiPropertyOptional() @IsOptional() @IsISO8601()
   neuteredAt?: string; // string ISO en entrée
 
+  @ApiPropertyOptional() @IsOptional() @IsISO8601()
+  birthDate?: string; // Date de naissance ISO
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  microchipNumber?: string; // Numéro de puce électronique
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  allergiesNotes?: string; // Notes sur les allergies
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  description?: string; // Description/notes générales
+
   @ApiPropertyOptional() @IsOptional() @IsUrl()
   photoUrl?: string;
-
-  @ApiPropertyOptional() @IsOptional() @IsISO8601()
-  birthDate?: string;
-
-  @ApiPropertyOptional() @IsOptional() @IsString()
-  microchipNumber?: string;
-
-  @ApiPropertyOptional() @IsOptional() @IsString()
-  allergiesNotes?: string;
-
-  @ApiPropertyOptional() @IsOptional() @IsString()
-  description?: string;
 }
 
 export class UpdatePetDto extends CreatePetDto {}

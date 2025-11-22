@@ -5,9 +5,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { BookingStatus, Prisma } from '@prisma/client';
+import { BookingStatus, Prisma, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const COMMISSION_DA = Number(process.env.APP_COMMISSION_DA ?? 100);
 
@@ -16,6 +17,7 @@ export class BookingsService {
   constructor(
     private prisma: PrismaService,
     private availability: AvailabilityService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /** --------- Client: mes réservations --------- */
@@ -251,6 +253,7 @@ export class BookingsService {
   ) {
     const prov = await this.prisma.providerProfile.findUnique({
       where: { userId },
+      include: { user: { select: { firstName: true, lastName: true } } },
     });
     if (!prov) throw new ForbiddenException('No provider profile');
 
@@ -264,6 +267,48 @@ export class BookingsService {
       where: { id: bookingId },
       data: { status },
     });
+
+    // Créer une notification pour le client
+    const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || 'Le vétérinaire';
+    const serviceName = b.service.title || 'Votre rendez-vous';
+
+    if (status === 'CONFIRMED') {
+      try {
+        await this.notificationsService.createNotification(
+          b.userId,
+          NotificationType.BOOKING_CONFIRMED,
+          'Rendez-vous confirmé',
+          `${providerName} a confirmé votre rendez-vous pour ${serviceName}`,
+          {
+            bookingId: b.id,
+            providerId: prov.id,
+            serviceId: b.serviceId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+    } else if (status === 'CANCELLED') {
+      try {
+        await this.notificationsService.createNotification(
+          b.userId,
+          NotificationType.BOOKING_CANCELLED,
+          'Rendez-vous annulé',
+          `${providerName} a annulé votre rendez-vous pour ${serviceName}`,
+          {
+            bookingId: b.id,
+            providerId: prov.id,
+            serviceId: b.serviceId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+      // Pro annule => on supprime l'earning éventuel
+      await this.prisma.providerEarning.deleteMany({
+        where: { bookingId: b.id },
+      });
+    }
 
     if (status === 'COMPLETED') {
       const gross = Number((b.service.price as Prisma.Decimal).toNumber());
@@ -281,11 +326,6 @@ export class BookingsService {
           commissionDa: commission,
           netToProviderDa: net,
         },
-      });
-    } else if (status === 'CANCELLED') {
-      // Pro annule => on supprime l’earning éventuel
-      await this.prisma.providerEarning.deleteMany({
-        where: { bookingId: b.id },
       });
     }
 

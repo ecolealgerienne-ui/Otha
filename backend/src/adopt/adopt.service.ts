@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
 import { FeedQueryDto } from './dto/feed.dto';
 import { SwipeDto, SwipeAction } from './dto/swipe.dto';
-import { AdoptStatus, AdoptRequestStatus, Prisma, Sex } from '@prisma/client';
+import { AdoptStatus, AdoptRequestStatus, Prisma, Sex, NotificationType } from '@prisma/client';
 import { bboxFromCenter, clampLat, clampLng, haversineKm, parseLatLngFromGoogleUrl } from './geo.util';
 import { generateAnonymousName } from './anonymous-names.util';
 
@@ -17,7 +18,10 @@ type ImgLike = { id?: string; url?: string; width?: number | null; height?: numb
 
 @Injectable()
 export class AdoptService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   // ---------- Helpers ----------
   private getUserId(user: any): string | null {
@@ -450,8 +454,31 @@ export class AdoptService {
         update: {
           status: AdoptRequestStatus.PENDING, // Réactiver si refusée avant
         },
+        include: {
+          requester: { select: { firstName: true, lastName: true } },
+        },
       });
       console.log(`[DEBUG] Demande adoption créée - ID: ${request.id}, Status: ${request.status}`);
+
+      // Créer une notification pour le propriétaire
+      const requesterName = `${request.requester.firstName || ''} ${request.requester.lastName || ''}`.trim() || 'Quelqu\'un';
+      const animalName = post.animalName || 'Votre animal';
+
+      try {
+        await this.notificationsService.createNotification(
+          post.createdById,
+          NotificationType.ADOPT_REQUEST_RECEIVED,
+          'Nouvelle demande d\'adoption',
+          `${requesterName} souhaite adopter ${animalName}`,
+          {
+            requestId: request.id,
+            postId: post.id,
+            requesterId: userId,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
     }
 
     return { ok: true, action: rec.action };
@@ -612,6 +639,25 @@ export class AdoptService {
       },
     });
 
+    // Créer une notification pour le demandeur
+    const animalName = request.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        request.requesterId,
+        NotificationType.ADOPT_REQUEST_ACCEPTED,
+        'Demande d\'adoption acceptée',
+        `Votre demande pour ${animalName} a été acceptée ! Vous pouvez maintenant discuter avec le propriétaire.`,
+        {
+          requestId: request.id,
+          postId: request.postId,
+          conversationId: conversation.id,
+        },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
+
     return {
       ok: true,
       conversationId: conversation.id,
@@ -641,6 +687,24 @@ export class AdoptService {
       where: { id: requestId },
       data: { status: AdoptRequestStatus.REJECTED },
     });
+
+    // Créer une notification pour le demandeur
+    const animalName = request.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        request.requesterId,
+        NotificationType.ADOPT_REQUEST_REJECTED,
+        'Demande d\'adoption refusée',
+        `Votre demande pour ${animalName} a été refusée.`,
+        {
+          requestId: request.id,
+          postId: request.postId,
+        },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
 
     return { ok: true };
   }
@@ -752,6 +816,11 @@ export class AdoptService {
 
     const conversation = await this.prisma.adoptConversation.findUnique({
       where: { id: conversationId },
+      include: {
+        post: true,
+        owner: { select: { firstName: true, lastName: true } },
+        adopter: { select: { firstName: true, lastName: true } },
+      },
     });
 
     if (!conversation) throw new NotFoundException('Conversation not found');
@@ -774,6 +843,30 @@ export class AdoptService {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    // Créer une notification pour le destinataire
+    const recipientId = userId === conversation.ownerId ? conversation.adopterId : conversation.ownerId;
+    const senderName = userId === conversation.ownerId
+      ? `${conversation.owner.firstName || ''} ${conversation.owner.lastName || ''}`.trim() || 'Quelqu\'un'
+      : `${conversation.adopter.firstName || ''} ${conversation.adopter.lastName || ''}`.trim() || 'Quelqu\'un';
+    const animalName = conversation.post.animalName || 'l\'animal';
+
+    try {
+      await this.notificationsService.createNotification(
+        recipientId,
+        NotificationType.NEW_ADOPT_MESSAGE,
+        `Nouveau message - ${animalName}`,
+        `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`,
+        {
+          conversationId: conversation.id,
+          postId: conversation.postId,
+          senderId: userId,
+        },
+      );
+    } catch (e) {
+      // Si la notification échoue, on ne bloque pas l'envoi du message
+      console.error('Failed to create notification:', e);
+    }
 
     return {
       id: message.id,
@@ -814,7 +907,7 @@ export class AdoptService {
   }
 
   /**
-   * Marquer une annonce comme adoptée (avec choix de l'adoptant)
+   * Demander confirmation d'adoption (avec choix de l'adoptant)
    */
   async markAsAdopted(user: any, postId: string, adoptedById?: string) {
     const userId = this.requireUserId(user);
@@ -839,33 +932,126 @@ export class AdoptService {
       }
     }
 
-    await this.prisma.adoptPost.update({
-      where: { id: postId },
-      data: {
-        adoptedAt: new Date(),
-        adoptedById: adoptedById ?? null,
-      },
-    });
-
-    // Envoyer un message système de félicitations dans la conversation
+    // NOUVEAU : Au lieu de marquer direct comme adopté, demander confirmation
     if (conversation && adoptedById) {
       const animalName = post.animalName || 'cet animal';
-      const congratsMessage = `🎉 Félicitations ! Vous avez changé une vie en adoptant ${animalName}. Créez son profil dans l'application pour suivre sa santé et son bien-être. Cliquez sur "Créer le profil" pour commencer !`;
+      const confirmationMessage = `🐾 Voulez-vous adopter ${animalName} ?`;
 
       await this.prisma.adoptMessage.create({
         data: {
           conversationId: conversation.id,
-          senderId: userId, // Message envoyé par le propriétaire (système)
-          content: congratsMessage,
+          senderId: userId,
+          content: confirmationMessage,
         },
       });
 
-      // Mettre à jour la conversation
+      // Marquer la conversation comme en attente de confirmation
       await this.prisma.adoptConversation.update({
         where: { id: conversation.id },
-        data: { updatedAt: new Date() },
+        data: {
+          pendingAdoptionConfirmation: true,
+          pendingAdoptionRequestedAt: new Date(),
+          updatedAt: new Date(),
+        },
       });
     }
+
+    return { ok: true, message: 'Demande de confirmation envoyée à l\'adoptant' };
+  }
+
+  /**
+   * L'adoptant confirme qu'il accepte l'adoption
+   */
+  async confirmAdoption(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: { post: { include: { images: true } } },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+    if (conversation.adopterId !== userId) {
+      throw new ForbiddenException('You are not the adopter');
+    }
+    if (!conversation.pendingAdoptionConfirmation) {
+      throw new BadRequestException('No pending confirmation');
+    }
+
+    // Marquer l'annonce comme adoptée
+    await this.prisma.adoptPost.update({
+      where: { id: conversation.postId },
+      data: {
+        adoptedAt: new Date(),
+        adoptedById: userId,
+      },
+    });
+
+    // Envoyer message de félicitations
+    const animalName = conversation.post.animalName || 'cet animal';
+    const congratsMessage = `🎉 Félicitations ! Vous avez changé une vie en adoptant ${animalName}. Créez son profil dans l'application pour suivre sa santé et son bien-être. Cliquez sur "Créer le profil" pour commencer !`;
+
+    await this.prisma.adoptMessage.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: conversation.ownerId,
+        content: congratsMessage,
+      },
+    });
+
+    // Mettre à jour la conversation
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        pendingAdoptionConfirmation: false,
+        pendingAdoptionRequestedAt: null,
+        updatedAt: new Date(),
+      },
+    });
+
+    return { ok: true, post: conversation.post };
+  }
+
+  /**
+   * L'adoptant refuse l'adoption
+   */
+  async declineAdoption(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: { post: true },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+    if (conversation.adopterId !== userId) {
+      throw new ForbiddenException('You are not the adopter');
+    }
+    if (!conversation.pendingAdoptionConfirmation) {
+      throw new BadRequestException('No pending confirmation');
+    }
+
+    // Envoyer message de refus
+    const animalName = conversation.post.animalName || 'cet animal';
+    const declineMessage = `L'adoptant a décliné l'adoption de ${animalName}. L'annonce reste disponible pour d'autres adoptants.`;
+
+    await this.prisma.adoptMessage.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: conversation.ownerId,
+        content: declineMessage,
+      },
+    });
+
+    // Réinitialiser la confirmation
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        pendingAdoptionConfirmation: false,
+        pendingAdoptionRequestedAt: null,
+        updatedAt: new Date(),
+      },
+    });
 
     return { ok: true };
   }

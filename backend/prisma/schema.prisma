@@ -45,6 +45,12 @@ enum AdoptAction {
   PASS
 }
 
+enum AdoptRequestStatus {
+  PENDING   // En attente de réponse du propriétaire
+  ACCEPTED  // Accepté → conversation ouverte
+  REJECTED  // Refusé par le propriétaire
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
@@ -68,10 +74,25 @@ model User {
   reviews         Review[]
   refreshTokens   RefreshToken[]
   pets            Pet[]
+  orders          Order[]
 
   // Adoption (nouvelle implémentation)
-  adoptPosts  AdoptPost[]
-  adoptSwipes AdoptSwipe[]
+  adoptPosts             AdoptPost[]
+  adoptSwipes            AdoptSwipe[]
+  adoptRequests          AdoptRequest[]
+  conversationsAsOwner   AdoptConversation[] @relation("ConversationOwner")
+  conversationsAsAdopter AdoptConversation[] @relation("ConversationAdopter")
+
+  // Notifications
+  notifications Notification[]
+  adoptMessages          AdoptMessage[]
+  adoptedPosts           AdoptPost[]         @relation("AdoptedPosts") // Posts qu'il a adoptés
+
+  // Quotas adoption (réinitialisation quotidienne)
+  dailySwipeCount Int      @default(0)
+  dailyPostCount  Int      @default(0)
+  lastSwipeDate   DateTime?
+  lastPostDate    DateTime?
 
   @@index([email])
   @@index([city])
@@ -103,6 +124,8 @@ model ProviderProfile {
   // Back-relations
   earnings    ProviderEarning[]
   collections AdminCollection[]
+  products    Product[]
+  orders      Order[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -197,26 +220,121 @@ model Pet {
   id              String    @id @default(cuid())
   ownerId         String
   name            String
+  species         String?   // dog, cat, bird, rodent, reptile, other
   gender          Gender    @default(UNKNOWN)
+  birthDate       DateTime? // Date de naissance pour calcul d'âge
   weightKg        Decimal?  @db.Decimal(5, 2)
   color           String?
   country         String?
-  idNumber        String?
+  idNumber        String?   // Puce/tatouage
+  microchipNumber String?   // Numéro de puce électronique
   breed           String?
+  bloodType       String?   // Groupe sanguin
+  isNeutered      Boolean   @default(false)
   neuteredAt      DateTime?
   photoUrl        String?
-  birthDate       DateTime?
-  microchipNumber String?
-  allergiesNotes  String?
-  description     String?
+  allergiesNotes  String?   // Notes rapides sur les allergies
+  description     String?   // Description/notes générales
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   owner          User              @relation(fields: [ownerId], references: [id])
   medicalRecords MedicalRecord[]
   accessTokens   PetAccessToken[]
+  weightRecords  WeightRecord[]
+  vaccinations   Vaccination[]
+  treatments     Treatment[]
+  allergies      Allergy[]
+  preventiveCare PreventiveCare[]
 
   @@index([ownerId])
+}
+
+// Suivi du poids avec historique
+model WeightRecord {
+  id        String   @id @default(cuid())
+  petId     String
+  weightKg  Decimal  @db.Decimal(5, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, date])
+}
+
+// Vaccinations avec rappels
+model Vaccination {
+  id          String    @id @default(cuid())
+  petId       String
+  name        String    // Rage, CHPL, Typhus, Coryza, etc.
+  date        DateTime
+  nextDueDate DateTime? // Date du prochain rappel
+  batchNumber String?   // Numéro de lot
+  vetId       String?
+  vetName     String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, date])
+  @@index([petId, nextDueDate])
+}
+
+// Traitements et médicaments
+model Treatment {
+  id          String    @id @default(cuid())
+  petId       String
+  name        String    // Nom du médicament
+  dosage      String?   // Ex: "1 comprimé"
+  frequency   String?   // Ex: "2x/jour"
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, isActive])
+  @@index([petId, startDate])
+}
+
+// Allergies (critique pour les pros)
+model Allergy {
+  id        String   @id @default(cuid())
+  petId     String
+  type      String   // drug, food, environment
+  allergen  String   // Ex: "Pénicilline", "Poulet"
+  severity  String?  // mild, moderate, severe
+  notes     String?
+  createdAt DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+// Soins préventifs (vermifugation, antiparasitaires, dentaire)
+model PreventiveCare {
+  id          String    @id @default(cuid())
+  petId       String
+  type        String    // deworming, flea_tick, dental, other
+  lastDate    DateTime
+  nextDueDate DateTime?
+  product     String?   // Produit utilisé
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId, type])
+  @@index([petId, nextDueDate])
 }
 
 model MedicalRecord {
@@ -273,10 +391,11 @@ model AdoptPost {
   updatedAt DateTime    @updatedAt
   status    AdoptStatus @default(PENDING)
 
-  title       String
+  animalName  String   // Nom de l'animal (affiché publiquement)
+  title       String   // Titre annonce (legacy, peut être = animalName)
   description String?
   species     String
-  sex         Sex     @default(U)
+  sex         Sex      @default(U)
   ageMonths   Int?
   size        String?
   color       String?
@@ -289,13 +408,19 @@ model AdoptPost {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  moderationNote String?
-  approvedAt     DateTime?
-  rejectedAt     DateTime?
-  archivedAt     DateTime?
+  moderationNote     String?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  archivedAt         DateTime?
+  adoptedAt          DateTime? // Quand l'animal a été adopté
+  adoptedById        String?   // User qui a adopté l'animal
+  adoptedBy          User?     @relation("AdoptedPosts", fields: [adoptedById], references: [id])
+  petProfileCreated  Boolean   @default(false) // Si l'adoptant a créé le profil pet
 
-  images AdoptImage[]
-  swipes AdoptSwipe[]
+  images        AdoptImage[]
+  swipes        AdoptSwipe[]
+  requests      AdoptRequest[]
+  conversations AdoptConversation[]
 
   @@index([status, createdAt])
   @@index([lat, lng])
@@ -328,6 +453,85 @@ model AdoptSwipe {
 
   @@unique([userId, postId])
   @@index([action, createdAt])
+}
+
+// Demande d'adoption (créée quand user swipe droite)
+model AdoptRequest {
+  id        String             @id @default(cuid())
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  status    AdoptRequestStatus @default(PENDING)
+
+  // User qui veut adopter (celui qui a swipé droite)
+  requesterId String
+  requester   User   @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  // Annonce concernée
+  postId String
+  post   AdoptPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Conversation créée si accepté
+  conversationId String?           @unique
+  conversation   AdoptConversation? @relation(fields: [conversationId], references: [id])
+
+  @@unique([requesterId, postId]) // Une seule demande par user par post
+  @@index([postId, status])
+  @@index([requesterId, status])
+}
+
+// Conversation entre propriétaire et adoptant (après acceptation)
+model AdoptConversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Annonce concernée
+  postId String
+  post   AdoptPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Propriétaire de l'annonce
+  ownerId String
+  owner   User   @relation("ConversationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Adoptant (user qui a fait la demande)
+  adopterId String
+  adopter   User   @relation("ConversationAdopter", fields: [adopterId], references: [id], onDelete: Cascade)
+
+  // Noms anonymes générés
+  ownerAnonymousName   String // Ex: "Ami des Animaux"
+  adopterAnonymousName String // Ex: "Cœur Tendre"
+
+  // Confirmation d'adoption en attente
+  pendingAdoptionConfirmation Boolean   @default(false)
+  pendingAdoptionRequestedAt  DateTime?
+
+  messages      AdoptMessage[]
+  adoptRequests AdoptRequest[]
+
+  @@unique([postId, ownerId, adopterId]) // Une conversation unique par trio
+  @@index([ownerId])
+  @@index([adopterId])
+  @@index([adopterId, pendingAdoptionConfirmation]) // Pour trouver les confirmations pendantes
+}
+
+// Messages dans une conversation
+model AdoptMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversationId String
+  conversation   AdoptConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Auteur du message
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content String @db.Text
+  readAt  DateTime? // Quand le destinataire l'a lu
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }
 
 model ProviderEarning {
@@ -363,4 +567,104 @@ model AdminCollection {
 
   @@unique([providerId, month])
   @@index([providerId, month])
+}
+
+// =========================
+// Petshop (Animalerie)
+// =========================
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  providerId  String
+  title       String
+  description String
+  priceDa     Int      // Prix en dinars algériens
+  stock       Int?     // Stock disponible (null = illimité)
+  category    String?  // Catégorie du produit
+  imageUrls   Json?    // Array de strings (URLs des images)
+  active      Boolean  @default(true) // Visible pour les clients
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([providerId])
+  @@index([active])
+  @@index([providerId, active])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String      // Client qui a passé la commande
+  providerId      String      // Animalerie
+  status          OrderStatus @default(PENDING)
+  totalDa         Int         // Total en dinars algériens
+  phone           String?     // Numéro de téléphone du client
+  deliveryAddress String?     // Adresse de livraison
+  notes           String?     // Notes/instructions du client
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user   User            @relation(fields: [userId], references: [id])
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+  items  OrderItem[]
+
+  @@index([userId])
+  @@index([providerId])
+  @@index([status])
+  @@index([providerId, status])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int    @default(1)
+  priceDa   Int    // Prix unitaire au moment de la commande
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum NotificationType {
+  NEW_ADOPT_MESSAGE      // Nouveau message dans une conversation d'adoption
+  ADOPT_REQUEST_RECEIVED // Nouvelle demande d'adoption reçue
+  ADOPT_REQUEST_ACCEPTED // Demande d'adoption acceptée
+  ADOPT_REQUEST_REJECTED // Demande d'adoption rejetée
+  ADOPT_POST_APPROVED    // Annonce d'adoption approuvée par admin
+  ADOPT_POST_REJECTED    // Annonce d'adoption rejetée par admin
+  BOOKING_CONFIRMED      // Rendez-vous vétérinaire confirmé
+  BOOKING_CANCELLED      // Rendez-vous vétérinaire annulé
+  ORDER_SHIPPED          // Commande PetShop expédiée
+  ORDER_DELIVERED        // Commande PetShop livrée
+  GENERAL                // Notification générale
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(GENERAL)
+  title     String
+  body      String
+  metadata  Json?            // Données supplémentaires (IDs, URLs, etc.)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }
