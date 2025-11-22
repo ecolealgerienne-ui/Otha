@@ -660,67 +660,78 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     try {
       final api = ref.read(apiProvider);
 
-      // Récupérer les services de la garderie
-      final services = await api.listServices(widget.providerId);
+      // Obtenir les infos de la garderie et du premier pet sélectionné
+      final daycare = widget.daycareData ?? {};
+      final hourlyRate = daycare['hourlyRate'] as int?;
+      final dailyRate = daycare['dailyRate'] as int?;
+      final basePrice = _bookingType == 'hourly' ? (hourlyRate ?? 1000) : (dailyRate ?? 5000);
 
-      // Trouver le service approprié (horaire ou journalier)
-      final serviceTitle = _bookingType == 'hourly' ? 'Garde horaire' : 'Garde journalière';
-      final service = services.firstWhere(
-        (s) => (s['title'] ?? '').toString().toLowerCase().contains(serviceTitle.toLowerCase()),
-        orElse: () => throw Exception('Service non trouvé. Veuillez demander au PRO de configurer sa page garderie.'),
-      );
+      // Récupérer le nom du premier pet
+      final petsAsync = ref.read(_userPetsProvider);
+      final pets = petsAsync.value ?? [];
+      final firstPetId = _selectedPetIds.first;
+      final firstPet = pets.firstWhere((p) => p['id'] == firstPetId, orElse: () => {});
+      final petName = (firstPet['name'] ?? 'Votre animal').toString();
 
-      final serviceId = service['id'] as String;
+      // Préparer les dates
+      DateTime startDateTime;
+      DateTime? endDateTime;
 
-      // Combine date and time for hourly bookings
-      DateTime scheduledAt;
       if (_bookingType == 'hourly') {
-        scheduledAt = DateTime(
+        startDateTime = DateTime(
           _startDate!.year,
           _startDate!.month,
           _startDate!.day,
           _startTime.hour,
           _startTime.minute,
         );
+        endDateTime = DateTime(
+          _startDate!.year,
+          _startDate!.month,
+          _startDate!.day,
+          _endTime.hour,
+          _endTime.minute,
+        );
       } else {
-        // Pour les réservations journalières, utiliser 9h00 par défaut
-        scheduledAt = DateTime(
+        // Réservation journalière
+        startDateTime = DateTime(
           _startDate!.year,
           _startDate!.month,
           _startDate!.day,
           9,
           0,
         );
+        endDateTime = DateTime(
+          _endDate!.year,
+          _endDate!.month,
+          _endDate!.day,
+          17,
+          0,
+        );
       }
 
-      // Calculer la commission et le total
-      final daycare = widget.daycareData ?? {};
-      final hourlyRate = daycare['hourlyRate'] as int?;
-      final dailyRate = daycare['dailyRate'] as int?;
-      final basePrice = _bookingType == 'hourly' ? (hourlyRate ?? 0) : (dailyRate ?? 0);
-      final commissionDa = kDaycareCommissionDa;
+      final totalDa = basePrice + kDaycareCommissionDa;
 
-      // Créer la réservation avec tous les détails
-      await api.createBooking(
-        serviceId: serviceId,
-        scheduledAtIso: scheduledAt.toIso8601String(),
-        petIds: _selectedPetIds.toList(),
-        clientNotes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-        endDateIso: _bookingType == 'daily' && _endDate != null ? _endDate!.toIso8601String() : null,
-        commissionDa: commissionDa,
+      // Créer la réservation garderie (système séparé)
+      final booking = await api.createDaycareBooking(
+        petId: firstPetId,
+        providerId: widget.providerId,
+        startDate: startDateTime.toIso8601String(),
+        endDate: endDateTime.toIso8601String(),
+        priceDa: basePrice,
+        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Réservation créée avec succès!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Navigate to my bookings page
-      context.go('/me/bookings');
+      // Naviguer vers l'écran de confirmation
+      context.go('/daycare/booking-confirmation', extra: {
+        'bookingId': booking['id'],
+        'totalDa': totalDa,
+        'petName': petName,
+        'startDate': startDateTime.toIso8601String(),
+        'endDate': endDateTime.toIso8601String(),
+      });
     } catch (e) {
       if (!mounted) return;
 

@@ -59,7 +59,9 @@ import '../features/daycare/daycare_home_screen.dart';
 import '../features/daycare/daycare_settings_screen.dart';
 import '../features/daycare/daycare_page_editor_screen.dart';
 import '../features/daycare/daycare_bookings_screen.dart';
+import '../features/daycare/my_daycare_bookings_screen.dart';
 import '../features/daycare/daycare_booking_details_screen.dart';
+import '../features/daycare/daycare_booking_confirmation_screen.dart';
 import '../features/daycare/daycare_list_screen.dart';
 import '../features/daycare/daycare_detail_screen.dart';
 import '../features/daycare/daycare_booking_screen.dart';
@@ -413,10 +415,27 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => const DaycareBookingsScreen(),
       ),
       GoRoute(
+        path: '/daycare/my-bookings',
+        builder: (ctx, st) => const MyDaycareBookingsScreen(),
+      ),
+      GoRoute(
         path: '/daycare/booking-details',
         builder: (ctx, st) {
           final booking = st.extra as Map<String, dynamic>;
           return DaycareBookingDetailsScreen(booking: booking);
+        },
+      ),
+      GoRoute(
+        path: '/daycare/booking-confirmation',
+        builder: (ctx, st) {
+          final data = st.extra as Map<String, dynamic>? ?? {};
+          return DaycareBookingConfirmationScreen(
+            bookingId: data['bookingId'] as String?,
+            totalDa: data['totalDa'] as int? ?? 0,
+            petName: data['petName'] as String?,
+            startDate: data['startDate'] != null ? DateTime.parse(data['startDate']) : null,
+            endDate: data['endDate'] != null ? DateTime.parse(data['endDate']) : null,
+          );
         },
       ),
       GoRoute(

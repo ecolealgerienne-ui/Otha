@@ -25,12 +25,7 @@ class _MyDaycareBookingsScreenState extends ConsumerState<MyDaycareBookingsScree
   Future<List<dynamic>> _loadBookings() async {
     final api = ref.read(apiProvider);
     try {
-      final res = await api.dio.get('/daycare/my/bookings');
-      final data = res.data;
-      if (data is Map && data['data'] is List) {
-        return data['data'] as List;
-      }
-      return [];
+      return await api.myDaycareBookings();
     } catch (e) {
       rethrow;
     }
