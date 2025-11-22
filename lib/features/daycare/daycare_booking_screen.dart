@@ -660,6 +660,18 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     try {
       final api = ref.read(apiProvider);
 
+      // Récupérer les services de la garderie
+      final services = await api.listServices(widget.providerId);
+
+      // Trouver le service approprié (horaire ou journalier)
+      final serviceTitle = _bookingType == 'hourly' ? 'Garde horaire' : 'Garde journalière';
+      final service = services.firstWhere(
+        (s) => (s['title'] ?? '').toString().toLowerCase().contains(serviceTitle.toLowerCase()),
+        orElse: () => throw Exception('Service non trouvé. Veuillez demander au PRO de configurer sa page garderie.'),
+      );
+
+      final serviceId = service['id'] as String;
+
       // Combine date and time for hourly bookings
       DateTime scheduledAt;
       if (_bookingType == 'hourly') {
@@ -671,24 +683,22 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
           _startTime.minute,
         );
       } else {
-        scheduledAt = _startDate!;
+        // Pour les réservations journalières, utiliser 9h00 par défaut
+        scheduledAt = DateTime(
+          _startDate!.year,
+          _startDate!.month,
+          _startDate!.day,
+          9,
+          0,
+        );
       }
 
-      // For now, we'll create a booking using the standard API
-      // In the future, this should be enhanced to support daycare-specific bookings
-      // with multiple pets, date ranges, etc.
+      // Créer la réservation
+      await api.createBooking(
+        serviceId: serviceId,
+        scheduledAtIso: scheduledAt.toIso8601String(),
+      );
 
-      // Note: This is a simplified version. In production, you'd need to:
-      // 1. Create a daycare service first, or
-      // 2. Use a dedicated daycare booking endpoint that accepts:
-      //    - providerId
-      //    - petIds (array)
-      //    - startDate, endDate
-      //    - startTime, endTime
-      //    - notes
-      //    - type (hourly/daily)
-
-      // For now, we'll show a success message and navigate back
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -698,8 +708,8 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
         ),
       );
 
-      // Navigate back to home or bookings list
-      context.go('/home');
+      // Navigate to my bookings page
+      context.go('/me/bookings');
     } catch (e) {
       if (!mounted) return;
 

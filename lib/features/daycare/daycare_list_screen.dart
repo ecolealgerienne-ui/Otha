@@ -14,6 +14,9 @@ const _primary = Color(0xFF00ACC1);
 const _primarySoft = Color(0xFFE0F7FA);
 const _ink = Color(0xFF222222);
 
+// Commission cachée ajoutée au prix affiché
+const kDaycareCommissionDa = 100;
+
 /// Provider qui charge la liste des garderies autour du centre
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
@@ -342,9 +345,11 @@ class _BookingComStyleCardState extends State<_BookingComStyleCard> {
 
     String? priceText;
     if (hourlyRate != null) {
-      priceText = 'À partir de $hourlyRate DA/heure';
+      final priceWithCommission = (hourlyRate as int) + kDaycareCommissionDa;
+      priceText = 'À partir de $priceWithCommission DA/heure';
     } else if (dailyRate != null) {
-      priceText = 'À partir de $dailyRate DA/jour';
+      final priceWithCommission = (dailyRate as int) + kDaycareCommissionDa;
+      priceText = 'À partir de $priceWithCommission DA/jour';
     }
 
     return Container(
