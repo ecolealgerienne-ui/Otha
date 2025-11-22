@@ -63,6 +63,14 @@ export class UsersController {
     return this.users.getUserAdoptConversations(userId);
   }
 
+  // Admin: get user adoption posts (all statuses)
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @Get(':id/adopt-posts')
+  async getUserAdoptPosts(@Param('id') userId: string) {
+    return this.users.getUserAdoptPosts(userId);
+  }
+
   // Admin: update user info
   @Roles('ADMIN')
   @UseGuards(RolesGuard)
