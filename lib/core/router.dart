@@ -133,20 +133,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Si connecté et on est sur une page publique (sauf start/gate), rediriger vers home
       if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
         final role = user['role']?.toString() ?? 'user';
+
+        // Admin : toujours rediriger vers admin hub
         if (role == 'admin') return '/admin/hub';
-        if (role == 'vet') return '/pro/home';
-        if (role == 'daycare') return '/pro/daycare/home';
-        if (role == 'petshop') return '/pro/petshop/home';
+
+        // PRO (vet/daycare/petshop) : NE PAS rediriger automatiquement
+        // La logique de redirection (approved ou non) est gérée par login_screen.dart
+        // On laisse l'utilisateur là où il est (sera géré par la page de login)
+        if (role == 'vet' || role == 'daycare' || role == 'petshop') {
+          return null; // Pas de redirection automatique pour les PRO
+        }
+
+        // User normal : rediriger vers home
         return '/home';
       }
 
       // Si connecté et sur /home mais pas le bon rôle, rediriger
       if (isLoggedIn && currentPath == '/home') {
         final role = user['role']?.toString() ?? 'user';
+
+        // Admin : rediriger vers admin hub
         if (role == 'admin') return '/admin/hub';
-        if (role == 'vet') return '/pro/home';
-        if (role == 'daycare') return '/pro/daycare/home';
-        if (role == 'petshop') return '/pro/petshop/home';
+
+        // PRO : NE PAS rediriger automatiquement depuis /home
+        // Ils peuvent rester sur /home s'ils y sont (utile pour les non approuvés)
+        // La logique de redirection est gérée par login_screen.dart
       }
 
       // Pages PRO publiques (accessibles sans connexion)
