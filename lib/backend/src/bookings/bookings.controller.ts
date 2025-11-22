@@ -214,15 +214,22 @@ export class BookingsController {
           console.error('❌ Service not found:', body.serviceId);
           throw new NotFoundException('Service not found');
         }
-        console.log('✅ Service found:', { id: service.id, providerId: service.providerId, durationMin: service.durationMin });
+        console.log('✅ Service found:', { id: service.id, providerId: service.providerId, durationMin: service.durationMin, title: service.title });
 
-        console.log('🔍 Checking slot availability for provider:', service.providerId);
-        // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
-        const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
-        console.log('📊 Slot check result:', ok);
-        if (!ok) {
-          console.error('❌ Slot not available');
-          throw new BadRequestException('Slot not available');
+        // Pour les garderies, on skip la vérification isSlotFree car elles n'ont pas de WeeklyAvailability
+        const isDaycareService = service.title?.toLowerCase().includes('garde');
+
+        if (isDaycareService) {
+          console.log('🏠 Service garderie détecté - skip vérification créneaux (pas de WeeklyAvailability requise)');
+        } else {
+          console.log('🔍 Checking slot availability for provider:', service.providerId);
+          // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
+          const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
+          console.log('📊 Slot check result:', ok);
+          if (!ok) {
+            console.error('❌ Slot not available');
+            throw new BadRequestException('Slot not available');
+          }
         }
 
         console.log('💾 Creating booking with data:', {
