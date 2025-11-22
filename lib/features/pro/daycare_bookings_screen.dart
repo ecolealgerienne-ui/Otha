@@ -26,9 +26,17 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
     try {
       final res = await api.dio.get('/bookings/provider/me');
       final data = res.data;
+
+      // Le backend retourne directement un tableau, pas {data: [...]}
+      if (data is List) {
+        return data;
+      }
+
+      // Fallback si jamais c'est dans un wrapper
       if (data is Map && data['data'] is List) {
         return data['data'] as List;
       }
+
       return [];
     } catch (e) {
       rethrow;
