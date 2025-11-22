@@ -365,6 +365,9 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         avnCardBack: backUrl,
       );
 
+      // Refresh user pour mettre à jour le role (user → provider)
+      await ref.read(sessionProvider.notifier).refreshMe();
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
@@ -840,6 +843,9 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
         },
       );
 
+      // Refresh user pour mettre à jour le role (user → provider)
+      await ref.read(sessionProvider.notifier).refreshMe();
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
@@ -1180,6 +1186,9 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
           'mapsUrl': finalMaps,
         },
       );
+
+      // Refresh user pour mettre à jour le role (user → provider)
+      await ref.read(sessionProvider.notifier).refreshMe();
 
       if (!mounted) return;
       Navigator.pop(context, true);

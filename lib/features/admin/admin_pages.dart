@@ -808,6 +808,7 @@ class _AdminApplicationsPageState extends ConsumerState<AdminApplicationsPage> {
                           (p['user'] ?? const {}) as Map,
                         );
                         final email = (u['email'] ?? '').toString();
+                        final role = (u['role'] ?? '').toString();
 
                         final avatarSeed = (name.isEmpty ? email : name);
                         return ListTile(
@@ -833,8 +834,35 @@ class _AdminApplicationsPageState extends ConsumerState<AdminApplicationsPage> {
                             name.isEmpty ? '(Sans nom)' : name,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          subtitle: Text(
-                            [email, if (addr.isNotEmpty) addr].join(' • '),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (role.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getRoleColor(role),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    _getRoleLabel(role),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
+                              Text(
+                                [email, if (addr.isNotEmpty) addr].join(' • '),
+                              ),
+                            ],
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -902,6 +930,36 @@ class _AdminApplicationsPageState extends ConsumerState<AdminApplicationsPage> {
         ),
       ),
     );
+  }
+
+  String _getRoleLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'vet':
+        return 'VÉTÉRINAIRE';
+      case 'daycare':
+        return 'GARDERIE';
+      case 'petshop':
+        return 'PETSHOP';
+      case 'admin':
+        return 'ADMIN';
+      default:
+        return role.toUpperCase();
+    }
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'vet':
+        return const Color(0xFFE57373); // Red/Pink for vets
+      case 'daycare':
+        return const Color(0xFF4CAF50); // Green for daycare
+      case 'petshop':
+        return const Color(0xFF64B5F6); // Blue for petshop
+      case 'admin':
+        return const Color(0xFF9575CD); // Purple for admin
+      default:
+        return Colors.grey;
+    }
   }
 }
 

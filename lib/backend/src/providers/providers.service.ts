@@ -377,7 +377,17 @@ async upsertMyProvider(userId: string, dto: any) {
   if (avnCardFront) createData.avnCardFront = avnCardFront;
   if (avnCardBack) createData.avnCardBack = avnCardBack;
 
-  return this.prisma.providerProfile.create({ data: createData });
+  // Créer le provider profile
+  const profile = await this.prisma.providerProfile.create({ data: createData });
+
+  // IMPORTANT: Définir le role basé sur le kind (vet, daycare, petshop, etc.)
+  const kind = (normalized as any)?.kind || 'vet';
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { role: kind },
+  });
+
+  return profile;
 }
 
 
