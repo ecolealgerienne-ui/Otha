@@ -795,6 +795,7 @@ export class AdoptService {
       myRole: isOwner ? 'owner' : 'adopter',
       myAnonymousName: isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName,
       otherPersonName: isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName,
+      pendingAdoptionConfirmation: conversation.pendingAdoptionConfirmation || false,
       messages: conversation.messages.map((m) => ({
         id: m.id,
         content: m.content,
@@ -944,6 +945,23 @@ export class AdoptService {
           content: confirmationMessage,
         },
       });
+
+      // Créer une notification pour l'adopteur
+      try {
+        await this.notificationsService.createNotification(
+          adoptedById,
+          NotificationType.NEW_ADOPT_MESSAGE,
+          `Demande de confirmation d'adoption`,
+          `Le propriétaire souhaite finaliser l'adoption de ${animalName} avec vous !`,
+          {
+            conversationId: conversation.id,
+            postId: post.id,
+            senderId: userId,
+          },
+        );
+      } catch (err) {
+        console.error('Failed to create notification:', err);
+      }
 
       // Marquer la conversation comme en attente de confirmation
       await this.prisma.adoptConversation.update({
