@@ -368,6 +368,10 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       // Refresh user pour mettre à jour le role (user → provider)
       await ref.read(sessionProvider.notifier).refreshMe();
 
+      // Déconnexion immédiate pour éviter la redirection automatique
+      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
+      await ref.read(sessionProvider.notifier).logout();
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
@@ -846,6 +850,10 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
       // Refresh user pour mettre à jour le role (user → provider)
       await ref.read(sessionProvider.notifier).refreshMe();
 
+      // Déconnexion immédiate pour éviter la redirection automatique
+      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
+      await ref.read(sessionProvider.notifier).logout();
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
@@ -1189,6 +1197,10 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
 
       // Refresh user pour mettre à jour le role (user → provider)
       await ref.read(sessionProvider.notifier).refreshMe();
+
+      // Déconnexion immédiate pour éviter la redirection automatique
+      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
+      await ref.read(sessionProvider.notifier).logout();
 
       if (!mounted) return;
       Navigator.pop(context, true);
