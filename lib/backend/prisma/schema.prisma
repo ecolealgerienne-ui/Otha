@@ -200,6 +200,12 @@ model Booking {
   scheduledAt DateTime
   createdAt   DateTime      @default(now())
 
+  // Champs spécifiques pour les garderies
+  petIds       String[]  @default([])  // IDs des animaux concernés
+  clientNotes  String?                 // Notes du client
+  endDate      DateTime?               // Date de fin (pour réservations journalières)
+  commissionDa Int?                    // Commission en DA
+
   user     User            @relation(fields: [userId], references: [id])
   provider ProviderProfile @relation(fields: [providerId], references: [id])
   service  Service         @relation(fields: [serviceId], references: [id])

@@ -847,10 +847,23 @@ class ApiClient {
   Future<Map<String, dynamic>> createBooking({
     required String serviceId,
     required String scheduledAtIso,
+    List<String>? petIds,
+    String? clientNotes,
+    String? endDateIso,
+    int? commissionDa,
   }) async {
     await ensureAuth();
-    final res =
-        await _dio.post('/bookings', data: {'serviceId': serviceId, 'scheduledAt': scheduledAtIso});
+    final data = <String, dynamic>{
+      'serviceId': serviceId,
+      'scheduledAt': scheduledAtIso,
+    };
+
+    if (petIds != null && petIds.isNotEmpty) data['petIds'] = petIds;
+    if (clientNotes != null && clientNotes.isNotEmpty) data['clientNotes'] = clientNotes;
+    if (endDateIso != null) data['endDate'] = endDateIso;
+    if (commissionDa != null) data['commissionDa'] = commissionDa;
+
+    final res = await _dio.post('/bookings', data: data);
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
