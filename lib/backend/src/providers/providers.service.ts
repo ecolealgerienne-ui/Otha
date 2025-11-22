@@ -514,6 +514,8 @@ async upsertMyProvider(userId: string, dto: any) {
         rejectedAt: true,
         rejectionReason: true,
         specialties: true,
+        avnCardFront: true,
+        avnCardBack: true,
         user: {
           select: {
             id: true,
