@@ -29,6 +29,9 @@ class ApiClient {
           headers: {'Content-Type': 'application/json'},
         ));
 
+  // Getter public pour permettre les appels directs (ex: daycare endpoints)
+  Dio get dio => _dio;
+
   void dispose() {
     _dio.close(force: true);
   }
