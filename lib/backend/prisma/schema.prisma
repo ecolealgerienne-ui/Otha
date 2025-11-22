@@ -38,6 +38,7 @@ enum AdoptStatus {
   APPROVED
   REJECTED
   ARCHIVED
+  ADOPTED
 }
 
 enum AdoptAction {
