@@ -377,7 +377,16 @@ async upsertMyProvider(userId: string, dto: any) {
   if (avnCardFront) createData.avnCardFront = avnCardFront;
   if (avnCardBack) createData.avnCardBack = avnCardBack;
 
-  return this.prisma.providerProfile.create({ data: createData });
+  // Créer le provider profile
+  const profile = await this.prisma.providerProfile.create({ data: createData });
+
+  // IMPORTANT: Changer le role de l'utilisateur en 'provider'
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { role: 'provider' },
+  });
+
+  return profile;
 }
 
 
