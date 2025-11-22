@@ -6,6 +6,6 @@ import { UploadsModule } from '../uploads/uploads.module';
 @Module({
   imports: [UploadsModule],
   providers: [PetsService],
-  controllers: [PetsController]
+  controllers: [PetsController],
 })
 export class PetsModule {}

@@ -12,11 +12,13 @@ import {
   ExecutionContext,
   ParseEnumPipe,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdoptService } from './adopt.service';
 import { AuthGuard } from '@nestjs/passport';
 import { AdoptStatus } from '@prisma/client';
+import { RejectPostDto } from './dto/reject-post.dto';
 
 @Injectable()
 class AdminOnlyGuard implements CanActivate {
@@ -44,17 +46,25 @@ export class AdoptAdminController {
   }
 
   @Patch('posts/:id/approve')
-  async approve(@Param('id') id: string) {
-    return this.service.adminApprove(null as any, id);
+  async approve(@Req() req: any, @Param('id') id: string) {
+    return this.service.adminApprove(req.user, id);
   }
 
   @Patch('posts/:id/reject')
-  async reject(@Param('id') id: string, @Body() body: { note?: string }) {
-    return this.service.adminReject(null as any, id, body?.note);
+  async reject(@Req() req: any, @Param('id') id: string, @Body() dto: RejectPostDto) {
+    const note = dto.reasons?.length
+      ? `Raisons: ${dto.reasons.join(', ')}${dto.note ? ` | Note: ${dto.note}` : ''}`
+      : dto.note;
+    return this.service.adminReject(req.user, id, note);
   }
 
   @Patch('posts/:id/archive')
-  async archive(@Param('id') id: string) {
-    return this.service.adminArchive(null as any, id);
+  async archive(@Req() req: any, @Param('id') id: string) {
+    return this.service.adminArchive(req.user, id);
+  }
+
+  @Patch('posts/approve-all')
+  async approveAll(@Req() req: any) {
+    return this.service.adminApproveAll(req.user);
   }
 }

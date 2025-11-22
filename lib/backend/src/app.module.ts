@@ -2,7 +2,7 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-ioredis-yet';
+// import { redisStore } from 'cache-manager-ioredis-yet';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { LoggerModule } from 'nestjs-pino';
@@ -64,20 +64,10 @@ import { NotificationsModule } from './notifications/notifications.module';
     // Cron
     ScheduleModule.forRoot(),
 
-    // Cache Redis (fallback mémoire si REDIS_URL absent)
-    CacheModule.registerAsync({
+    // Cache en mémoire simple (Redis désactivé)
+    CacheModule.register({
       isGlobal: true,
-      useFactory: async () => {
-        const url = process.env.REDIS_URL;
-        if (!url) return { ttl: 5 };
-        const store = await redisStore({
-          url, // ex: redis://redis_master:6379
-          // options ioredis facultatives:
-          // family: 4,
-          // maxRetriesPerRequest: 3,
-        } as any);
-        return { store: store as any, ttl: 5 };
-      },
+      ttl: 5,
     }),
 
     // Domain modules

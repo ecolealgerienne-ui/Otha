@@ -93,4 +93,129 @@ export class PetsController {
     const vetName = dto.vetName || 'Vétérinaire';
     return this.pets.createMedicalRecordByToken(token, vetId, vetName, dto);
   }
+
+  // ============ WEIGHT RECORDS ============
+
+  @Get(':petId/weight-records')
+  listWeightRecords(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listWeightRecords(req.user.sub, petId);
+  }
+
+  @Post(':petId/weight-records')
+  createWeightRecord(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createWeightRecord(req.user.sub, petId, dto);
+  }
+
+  @Delete(':petId/weight-records/:recordId')
+  deleteWeightRecord(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('recordId') recordId: string,
+  ) {
+    return this.pets.deleteWeightRecord(req.user.sub, petId, recordId);
+  }
+
+  // ============ VACCINATIONS ============
+
+  @Get(':petId/vaccinations')
+  listVaccinations(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listVaccinations(req.user.sub, petId);
+  }
+
+  @Post(':petId/vaccinations')
+  createVaccination(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createVaccination(req.user.sub, petId, dto);
+  }
+
+  @Delete(':petId/vaccinations/:vaccinationId')
+  deleteVaccination(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('vaccinationId') vaccinationId: string,
+  ) {
+    return this.pets.deleteVaccination(req.user.sub, petId, vaccinationId);
+  }
+
+  // ============ TREATMENTS ============
+
+  @Get(':petId/treatments')
+  listTreatments(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listTreatments(req.user.sub, petId);
+  }
+
+  @Post(':petId/treatments')
+  createTreatment(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createTreatment(req.user.sub, petId, dto);
+  }
+
+  @Patch(':petId/treatments/:treatmentId')
+  updateTreatment(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('treatmentId') treatmentId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updateTreatment(req.user.sub, petId, treatmentId, dto);
+  }
+
+  @Delete(':petId/treatments/:treatmentId')
+  deleteTreatment(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('treatmentId') treatmentId: string,
+  ) {
+    return this.pets.deleteTreatment(req.user.sub, petId, treatmentId);
+  }
+
+  // ============ ALLERGIES ============
+
+  @Get(':petId/allergies')
+  listAllergies(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listAllergies(req.user.sub, petId);
+  }
+
+  @Post(':petId/allergies')
+  createAllergy(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createAllergy(req.user.sub, petId, dto);
+  }
+
+  @Delete(':petId/allergies/:allergyId')
+  deleteAllergy(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('allergyId') allergyId: string,
+  ) {
+    return this.pets.deleteAllergy(req.user.sub, petId, allergyId);
+  }
+
+  // ============ PREVENTIVE CARE ============
+
+  @Get(':petId/preventive-care')
+  listPreventiveCare(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listPreventiveCare(req.user.sub, petId);
+  }
+
+  @Post(':petId/preventive-care')
+  createPreventiveCare(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createPreventiveCare(req.user.sub, petId, dto);
+  }
+
+  @Patch(':petId/preventive-care/:careId')
+  updatePreventiveCare(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('careId') careId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updatePreventiveCare(req.user.sub, petId, careId, dto);
+  }
+
+  @Delete(':petId/preventive-care/:careId')
+  deletePreventiveCare(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('careId') careId: string,
+  ) {
+    return this.pets.deletePreventiveCare(req.user.sub, petId, careId);
+  }
 }

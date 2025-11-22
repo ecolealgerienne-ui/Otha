@@ -1,20 +1,21 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class FeedQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString()
   cursor?: string; // id de post (pagination)
 
-  @ApiPropertyOptional({ default: 20 }) @IsOptional() @IsInt() @Min(1) @Max(100)
+  @ApiPropertyOptional({ default: 20 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional() @IsOptional() @IsNumber()
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber()
   lat?: number;
 
-  @ApiPropertyOptional() @IsOptional() @IsNumber()
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber()
   lng?: number;
 
-  @ApiPropertyOptional({ default: 40000 }) @IsOptional() @IsNumber()
+  @ApiPropertyOptional({ default: 40000 }) @IsOptional() @Type(() => Number) @IsNumber()
   radiusKm?: number = 40000;
 
   @ApiPropertyOptional() @IsOptional() @IsString()
