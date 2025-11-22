@@ -349,7 +349,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
         final existingHourly = existingServices.firstWhere(
           (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde horaire'),
-          orElse: () => {},
+          orElse: () => <String, dynamic>{},
         );
 
         if (existingHourly.isEmpty) {
@@ -386,7 +386,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
         final existingDaily = existingServices.firstWhere(
           (s) => (s['title'] ?? '').toString().toLowerCase().contains('garde journalière'),
-          orElse: () => {},
+          orElse: () => <String, dynamic>{},
         );
 
         if (existingDaily.isEmpty) {
