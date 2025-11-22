@@ -69,6 +69,19 @@ class SessionController extends Notifier<SessionState> {
     }
   }
 
+  /// Inscription SANS login automatique (pour les wizards pro)
+  Future<bool> registerOnly(String email, String password) async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      await ref.read(apiProvider).register(email: email, password: password);
+      state = state.copyWith(loading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+      return false;
+    }
+  }
+
   Future<void> refreshMe() async {
     try {
       final me = await ref.read(apiProvider).me();
