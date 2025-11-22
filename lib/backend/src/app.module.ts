@@ -26,6 +26,7 @@ import { MapsModule } from './maps/maps.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { AdoptModule } from './adopt/adopt.module';
 import { PetshopModule } from './petshop/petshop.module';
+import { DaycareModule } from './daycare/daycare.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 
@@ -86,6 +87,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     EarningsModule,
     AdoptModule,
     PetshopModule,
+    DaycareModule,
     NotificationsModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: TransformInterceptor }],

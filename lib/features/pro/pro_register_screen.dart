@@ -640,7 +640,10 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   bool _obscure = true;
   bool _registered = false;
 
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errShop, _errAddress, _errMapsUrl;
+  final List<File> _daycareImages = [];
+  final _picker = ImagePicker();
+
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errShop, _errAddress, _errMapsUrl, _errImages;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
@@ -678,11 +681,47 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
         _errMapsUrl = mapsOk
             ? null
             : (_mapsUrl.text.trim().isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)');
+        _errImages = _daycareImages.isEmpty ? 'Au moins 1 photo requise' : null;
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
     if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
-    return _errShop == null && _errAddress == null && _errMapsUrl == null;
+    return _errShop == null && _errAddress == null && _errMapsUrl == null && _errImages == null;
+  }
+
+  Future<void> _pickDaycareImage() async {
+    if (_daycareImages.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximum 3 photos')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+
+      setState(() {
+        _daycareImages.add(File(image.path));
+        _errImages = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeDaycareImage(int index) {
+    setState(() {
+      _daycareImages.removeAt(index);
+    });
   }
 
   Future<void> _next() async {
@@ -754,6 +793,22 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
         return;
       }
 
+      // Upload des photos de la garderie
+      final List<String> imageUrls = [];
+      for (int i = 0; i < _daycareImages.length; i++) {
+        try {
+          final url = await api.uploadLocalFile(_daycareImages[i], folder: 'daycare');
+          imageUrls.add(url);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erreur upload photo ${i + 1}: $e')),
+            );
+          }
+          return;
+        }
+      }
+
       await api.upsertMyProvider(
         displayName: display,
         address: _address.text.trim(),
@@ -761,6 +816,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
           'kind': 'daycare',
           'visible': true,
           'mapsUrl': finalMaps,
+          'images': imageUrls,
         },
       );
 
@@ -842,10 +898,10 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     }
 
     return _centeredForm([
-      _label('Nom de la boutique'),
+      _label('Nom de la garderie'),
       _input(_shopName, errorText: _errShop),
       const SizedBox(height: 12),
-      _label('Adresse de la boutique'),
+      _label('Adresse de la garderie'),
       _input(_address, errorText: _errAddress),
       const SizedBox(height: 12),
       _label('Lien Google Maps (obligatoire)'),
@@ -859,6 +915,56 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
           hintText: 'https://maps.google.com/...',
         ),
       ),
+      const SizedBox(height: 16),
+      _label('Photos de la garderie (1 à 3 photos)'),
+      const SizedBox(height: 8),
+      ..._daycareImages.asMap().entries.map((entry) {
+        final index = entry.key;
+        final image = entry.value;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  image,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: CircleAvatar(
+                  backgroundColor: Colors.red,
+                  radius: 18,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: Colors.white),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _removeDaycareImage(index),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+      if (_daycareImages.length < 3)
+        OutlinedButton.icon(
+          onPressed: _pickDaycareImage,
+          icon: const Icon(Icons.add_photo_alternate),
+          label: Text(_daycareImages.isEmpty ? 'Ajouter une photo' : 'Ajouter une autre photo'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      if (_errImages != null) ...[
+        const SizedBox(height: 8),
+        Text(_errImages!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+      ],
     ], key: const ValueKey('day2'));
   }
 
