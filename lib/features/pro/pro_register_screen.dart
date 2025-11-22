@@ -248,7 +248,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     if (_step == 1 && !_registered) {
       setState(() => _loading = true);
       try {
-        final ok = await ref.read(sessionProvider.notifier).register(_email.text.trim(), _pass.text);
+        final ok = await ref.read(sessionProvider.notifier).registerOnly(_email.text.trim(), _pass.text);
         if (!mounted) return;
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
@@ -276,8 +276,18 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // Login d'abord (avec les identifiants de l'étape 1)
+      final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
+      if (!loginOk) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur de connexion')),
+          );
+        }
+        return;
+      }
+
       final api = ref.read(apiProvider);
-      await api.ensureAuth();
 
       // Upload photo de profil (si présente)
       String? photoUrl;
@@ -730,7 +740,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     if (_step == 1 && !_registered) {
       setState(() => _loading = true);
       try {
-        final ok = await ref.read(sessionProvider.notifier).register(_email.text.trim(), _pass.text);
+        final ok = await ref.read(sessionProvider.notifier).registerOnly(_email.text.trim(), _pass.text);
         if (!mounted) return;
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
@@ -758,8 +768,18 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // Login d'abord (avec les identifiants de l'étape 1)
+      final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
+      if (!loginOk) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur de connexion')),
+          );
+        }
+        return;
+      }
+
       final api = ref.read(apiProvider);
-      await api.ensureAuth();
 
       try {
         await api.updateMe(
@@ -1078,7 +1098,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     if (_step == 1 && !_registered) {
       setState(() => _loading = true);
       try {
-        final ok = await ref.read(sessionProvider.notifier).register(_email.text.trim(), _pass.text);
+        final ok = await ref.read(sessionProvider.notifier).registerOnly(_email.text.trim(), _pass.text);
         if (!mounted) return;
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
@@ -1106,8 +1126,18 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // Login d'abord (avec les identifiants de l'étape 1)
+      final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
+      if (!loginOk) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur de connexion')),
+          );
+        }
+        return;
+      }
+
       final api = ref.read(apiProvider);
-      await api.ensureAuth();
 
       try {
         await api.updateMe(
