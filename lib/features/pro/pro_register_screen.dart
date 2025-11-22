@@ -276,6 +276,9 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // IMPORTANT: Activer le flag pour bloquer les redirections du router
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
+
       // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
       if (!loginOk) {
@@ -372,9 +375,13 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
 
+      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
       final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
     } finally {
@@ -775,9 +782,13 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // IMPORTANT: Activer le flag pour bloquer les redirections du router
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
+
       // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
       if (!loginOk) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Erreur de connexion')),
@@ -795,6 +806,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
           phone: _phone.text.trim(),
         );
       } on DioException catch (e) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         final status = e.response?.statusCode;
         final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? '');
         if (status == 409 || msg.toLowerCase().contains('phone')) {
@@ -812,6 +824,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
 
       final finalMaps = _mapsUrl.text.trim();
       if (finalMaps.isEmpty || !_isValidHttpUrl(finalMaps)) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         setState(() {
           _errMapsUrl = finalMaps.isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)';
           _step = 2;
@@ -827,6 +840,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
           final url = await api.uploadLocalFile(_daycareImages[i], folder: 'daycare');
           imageUrls.add(url);
         } catch (e) {
+          ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Erreur upload photo ${i + 1}: $e')),
@@ -854,9 +868,13 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
       // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
 
+      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
       final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
     } finally {
@@ -1140,9 +1158,13 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     setState(() => _loading = true);
 
     try {
+      // IMPORTANT: Activer le flag pour bloquer les redirections du router
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
+
       // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
       if (!loginOk) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Erreur de connexion')),
@@ -1160,6 +1182,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
           phone: _phone.text.trim(),
         );
       } on DioException catch (e) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         final status = e.response?.statusCode;
         final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? '');
         if (status == 409 || msg.toLowerCase().contains('phone')) {
@@ -1177,6 +1200,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
 
       final finalMaps = _mapsUrl.text.trim();
       if (finalMaps.isEmpty || !_isValidHttpUrl(finalMaps)) {
+        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         setState(() {
           _errMapsUrl = finalMaps.isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)';
           _step = 2;
@@ -1202,9 +1226,13 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
       // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
 
+      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
+      ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
       final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
     } finally {

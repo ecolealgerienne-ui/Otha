@@ -102,6 +102,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = user != null;
       final currentPath = state.uri.path;
 
+      // Si on est en train de compléter l'inscription PRO, ne PAS rediriger
+      if (session.isCompletingProRegistration) {
+        return null;
+      }
+
       // Pages publiques (pas besoin d'être connecté)
       final publicPaths = [
         '/gate',
