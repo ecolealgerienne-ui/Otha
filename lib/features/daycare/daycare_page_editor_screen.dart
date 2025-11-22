@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
@@ -20,20 +23,31 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   static const Color _ink = Color(0xFF222222);
   static const Color _muted = Color(0xFF6B6B6B);
 
-  // Images (1-3)
-  final List<TextEditingController> _imageControllers = [
-    TextEditingController(),
-    TextEditingController(),
-    TextEditingController(),
-  ];
+  // Images (liste dynamique)
+  final List<String> _imageUrls = [];
+  final ImagePicker _picker = ImagePicker();
 
   // Capacité
   final _capacity = TextEditingController();
 
-  // Types d'animaux acceptés
-  bool _acceptsSmall = true;
-  bool _acceptsMedium = true;
-  bool _acceptsLarge = true;
+  // Types d'animaux personnalisables
+  final List<String> _animalTypes = [];
+  final _newAnimalTypeController = TextEditingController();
+
+  // Types pré-remplis suggérés
+  static const _suggestedTypes = [
+    'Petits chiens',
+    'Chiens moyens',
+    'Grands chiens',
+    'Chats',
+    'Lapins',
+    'Oiseaux',
+    'Rongeurs',
+  ];
+
+  // Bio de l'annonce
+  final _bio = TextEditingController();
+  static const int _bioMax = 500;
 
   // Tarifs
   final _hourlyRate = TextEditingController();
@@ -42,8 +56,10 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   String? _errCapacity;
   String? _errHourlyRate;
   String? _errDailyRate;
+  String? _errBio;
 
   bool _loading = false;
+  bool _uploadingImage = false;
   bool _bootstrapped = false;
 
   @override
@@ -54,12 +70,11 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
   @override
   void dispose() {
-    for (final ctrl in _imageControllers) {
-      ctrl.dispose();
-    }
     _capacity.dispose();
     _hourlyRate.dispose();
     _dailyRate.dispose();
+    _bio.dispose();
+    _newAnimalTypeController.dispose();
     super.dispose();
   }
 
@@ -92,9 +107,8 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       // Charger les images
       final images = specs['images'];
       if (images is List) {
-        for (int i = 0; i < images.length && i < 3; i++) {
-          _imageControllers[i].text = (images[i] ?? '').toString();
-        }
+        _imageUrls.clear();
+        _imageUrls.addAll(images.map((e) => e.toString()));
       }
 
       // Charger la capacité
@@ -102,11 +116,13 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
       // Charger les types d'animaux
       final animalTypes = specs['animalTypes'];
-      if (animalTypes is Map) {
-        _acceptsSmall = animalTypes['small'] == true;
-        _acceptsMedium = animalTypes['medium'] == true;
-        _acceptsLarge = animalTypes['large'] == true;
+      if (animalTypes is List) {
+        _animalTypes.clear();
+        _animalTypes.addAll(animalTypes.map((e) => e.toString()));
       }
+
+      // Charger la bio
+      _bio.text = (specs['bio'] ?? '').toString();
 
       // Charger les tarifs
       final pricing = specs['pricing'];
@@ -119,14 +135,120 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
     } catch (_) {}
   }
 
+  Future<void> _pickAndUploadImage() async {
+    if (_imageUrls.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximum 5 photos')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      setState(() => _uploadingImage = true);
+
+      // Upload via le backend
+      final api = ref.read(apiProvider);
+      await api.ensureAuth();
+
+      final file = File(image.path);
+      final bytes = await file.readAsBytes();
+      final filename = image.name;
+
+      // Créer multipart request
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${api.dio.options.baseUrl}/uploads/local'),
+      );
+
+      // Ajouter le token d'auth
+      final token = api.dio.options.headers['Authorization'];
+      if (token != null) {
+        request.headers['Authorization'] = token.toString();
+      }
+
+      // Ajouter le fichier
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+      ));
+
+      // Envoyer
+      final response = await request.send();
+      final responseData = await response.stream.bytesToString();
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = Map<String, dynamic>.from(
+          (await http.Response.fromStream(http.StreamedResponse(
+            Stream.value(responseData.codeUnits),
+            response.statusCode,
+          ))).body as dynamic,
+        );
+
+        final url = json['url'] as String?;
+        if (url != null && url.isNotEmpty) {
+          setState(() {
+            _imageUrls.add(url);
+            _uploadingImage = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Photo ajoutée')),
+          );
+        }
+      } else {
+        throw Exception('Upload failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingImage = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur upload: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _imageUrls.removeAt(index);
+    });
+  }
+
+  void _addAnimalType(String type) {
+    if (type.trim().isEmpty) return;
+    if (_animalTypes.contains(type.trim())) return;
+
+    setState(() {
+      _animalTypes.add(type.trim());
+    });
+  }
+
+  void _removeAnimalType(String type) {
+    setState(() {
+      _animalTypes.remove(type);
+    });
+  }
+
   bool _validate() {
     final cap = _capacity.text.trim();
     final hourly = _hourlyRate.text.trim();
     final daily = _dailyRate.text.trim();
+    final bio = _bio.text.trim();
 
     _errCapacity = null;
     _errHourlyRate = null;
     _errDailyRate = null;
+    _errBio = null;
 
     if (cap.isNotEmpty) {
       final n = int.tryParse(cap);
@@ -149,8 +271,12 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       }
     }
 
+    if (bio.length > _bioMax) {
+      _errBio = 'Max $_bioMax caracteres';
+    }
+
     setState(() {});
-    return _errCapacity == null && _errHourlyRate == null && _errDailyRate == null;
+    return _errCapacity == null && _errHourlyRate == null && _errDailyRate == null && _errBio == null;
   }
 
   Future<void> _save() async {
@@ -163,19 +289,6 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
     await api.ensureAuth();
 
     try {
-      // Construire la liste des images (ignorer les champs vides)
-      final images = _imageControllers
-          .map((c) => c.text.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-
-      // Construire les types d'animaux
-      final animalTypes = {
-        'small': _acceptsSmall,
-        'medium': _acceptsMedium,
-        'large': _acceptsLarge,
-      };
-
       // Construire les tarifs
       final pricing = <String, dynamic>{};
       if (_hourlyRate.text.trim().isNotEmpty) {
@@ -194,9 +307,12 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
 
       // Fusionner avec les nouvelles données
       final specs = Map<String, dynamic>.from(existingSpecs);
-      if (images.isNotEmpty) specs['images'] = images;
-      if (_capacity.text.trim().isNotEmpty) specs['capacity'] = int.parse(_capacity.text.trim());
-      specs['animalTypes'] = animalTypes;
+      specs['images'] = _imageUrls;
+      if (_capacity.text.trim().isNotEmpty) {
+        specs['capacity'] = int.parse(_capacity.text.trim());
+      }
+      specs['animalTypes'] = _animalTypes;
+      specs['bio'] = _bio.text.trim();
       if (pricing.isNotEmpty) specs['pricing'] = pricing;
 
       // Get user info for displayName
@@ -263,6 +379,8 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
             children: [
               _imagesCard(),
               const SizedBox(height: 12),
+              _bioCard(),
+              const SizedBox(height: 12),
               _capacityCard(),
               const SizedBox(height: 12),
               _animalTypesCard(),
@@ -310,6 +428,13 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
+      chipTheme: theme.chipTheme.copyWith(
+        backgroundColor: _primarySoft,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, color: _ink, fontSize: 13),
+        deleteIconColor: _primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        side: BorderSide(color: _primary.withOpacity(0.3)),
+      ),
       dividerTheme: theme.dividerTheme.copyWith(color: Colors.black12),
       snackBarTheme: theme.snackBarTheme.copyWith(
         backgroundColor: _ink,
@@ -323,28 +448,178 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Photos de la garderie', style: TextStyle(fontWeight: FontWeight.w800)),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Photos de la garderie',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ),
+              Text(
+                '${_imageUrls.length}/5',
+                style: TextStyle(color: _muted, fontSize: 12),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           const Text(
-            'Ajoutez 1 a 3 photos pour attirer les clients',
+            'Ajoutez jusqu\'à 5 photos pour attirer les clients',
             style: TextStyle(fontSize: 12, color: _muted),
           ),
           const SizedBox(height: 12),
-          for (int i = 0; i < 3; i++) ...[
-            TextField(
-              controller: _imageControllers[i],
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-                labelText: 'Photo ${i + 1}',
-                hintText: 'URL de la photo',
-                isDense: true,
-                prefixIcon: const Icon(Icons.image),
-              ),
+
+          // Slider horizontal des images
+          SizedBox(
+            height: 140,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _imageUrls.length + 1,
+              itemBuilder: (context, index) {
+                if (index == _imageUrls.length) {
+                  // Bouton ajouter
+                  return _uploadingImage
+                      ? Container(
+                          width: 120,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: _primarySoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _primary.withOpacity(0.3)),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : InkWell(
+                          onTap: _pickAndUploadImage,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 120,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: _primarySoft,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _primary.withOpacity(0.3), width: 2, style: BorderStyle.solid),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate, color: _primary, size: 32),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Ajouter',
+                                  style: TextStyle(color: _primary, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                }
+
+                // Image existante
+                final url = _imageUrls[index];
+                return Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: NetworkImage(url),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Overlay sombre
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Bouton supprimer
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Material(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(20),
+                          child: InkWell(
+                            onTap: () => _removeImage(index),
+                            borderRadius: BorderRadius.circular(20),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.close, size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Numéro de position
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            if (i < 2) const SizedBox(height: 8),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bioCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Description de l\'annonce', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          const Text(
+            'Présentez votre garderie aux clients',
+            style: TextStyle(fontSize: 12, color: _muted),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _bio,
+            minLines: 4,
+            maxLines: 6,
+            maxLength: _bioMax,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              hintText: 'Ex: Garderie spacieuse et sécurisée avec jardin clôturé...',
+              isDense: true,
+              errorText: _errBio,
+            ),
+          ),
         ],
       ),
     );
@@ -355,10 +630,10 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Capacité maximale', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Capacité maximale', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           const Text(
-            'Nombre maximum d\'animaux que vous pouvez accueillir simultanement',
+            'Nombre maximum d\'animaux simultanément',
             style: TextStyle(fontSize: 12, color: _muted),
           ),
           const SizedBox(height: 12),
@@ -388,36 +663,80 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Types d\'animaux acceptes', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Types d\'animaux acceptés', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           const Text(
-            'Selectionnez les tailles d\'animaux que vous acceptez',
+            'Sélectionnez ou ajoutez vos propres types',
             style: TextStyle(fontSize: 12, color: _muted),
           ),
           const SizedBox(height: 12),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Petits animaux'),
-            subtitle: const Text('Chats, petits chiens, etc.', style: TextStyle(fontSize: 12)),
-            value: _acceptsSmall,
-            onChanged: (v) => setState(() => _acceptsSmall = v ?? false),
-            activeColor: _primary,
+
+          // Types sélectionnés
+          if (_animalTypes.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _animalTypes.map((type) {
+                return Chip(
+                  label: Text(type),
+                  onDeleted: () => _removeAnimalType(type),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Types suggérés
+          const Text('Suggestions:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _suggestedTypes.where((t) => !_animalTypes.contains(t)).map((type) {
+              return ActionChip(
+                label: Text(type),
+                onPressed: () => _addAnimalType(type),
+                avatar: const Icon(Icons.add, size: 16),
+              );
+            }).toList(),
           ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Animaux moyens'),
-            subtitle: const Text('Chiens moyens, etc.', style: TextStyle(fontSize: 12)),
-            value: _acceptsMedium,
-            onChanged: (v) => setState(() => _acceptsMedium = v ?? false),
-            activeColor: _primary,
-          ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Grands animaux'),
-            subtitle: const Text('Grands chiens, etc.', style: TextStyle(fontSize: 12)),
-            value: _acceptsLarge,
-            onChanged: (v) => setState(() => _acceptsLarge = v ?? false),
-            activeColor: _primary,
+
+          const SizedBox(height: 12),
+
+          // Ajouter type personnalisé
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _newAnimalTypeController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                    labelText: 'Type personnalisé',
+                    hintText: 'Ex: Reptiles',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.pets),
+                  ),
+                  onSubmitted: (value) {
+                    _addAnimalType(value);
+                    _newAnimalTypeController.clear();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: () {
+                  _addAnimalType(_newAnimalTypeController.text);
+                  _newAnimalTypeController.clear();
+                },
+                icon: const Icon(Icons.add),
+                style: IconButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -429,10 +748,10 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tarification', style: TextStyle(fontWeight: FontWeight.w800)),
+          const Text('Tarification', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           const Text(
-            'Definissez vos tarifs horaires et/ou journaliers',
+            'Définissez vos tarifs horaires et/ou journaliers',
             style: TextStyle(fontSize: 12, color: _muted),
           ),
           const SizedBox(height: 12),
