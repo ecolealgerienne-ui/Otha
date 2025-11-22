@@ -2583,7 +2583,7 @@ final hay = [
     if (price != null) data['price'] = price;
     if (description != null) data['description'] = description;
 
-    final res = await _dio.patch('/services/$serviceId', data: data);
+    final res = await _dio.patch('/providers/me/services/$serviceId', data: data);
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
