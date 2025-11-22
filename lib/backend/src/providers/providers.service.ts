@@ -380,10 +380,11 @@ async upsertMyProvider(userId: string, dto: any) {
   // Créer le provider profile
   const profile = await this.prisma.providerProfile.create({ data: createData });
 
-  // IMPORTANT: Changer le role de l'utilisateur en 'provider'
+  // IMPORTANT: Définir le role basé sur le kind (vet, daycare, petshop, etc.)
+  const kind = (normalized as any)?.kind || 'vet';
   await this.prisma.user.update({
     where: { id: userId },
-    data: { role: 'provider' },
+    data: { role: kind },
   });
 
   return profile;

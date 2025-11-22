@@ -129,7 +129,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
         final role = user['role']?.toString() ?? 'user';
         if (role == 'admin') return '/admin/hub';
-        if (role == 'provider') return '/pro/home';
+        if (role == 'vet') return '/pro/home';
+        if (role == 'daycare') return '/pro/daycare/home';
+        if (role == 'petshop') return '/pro/petshop/home';
         return '/home';
       }
 
@@ -137,7 +139,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isLoggedIn && currentPath == '/home') {
         final role = user['role']?.toString() ?? 'user';
         if (role == 'admin') return '/admin/hub';
-        if (role == 'provider') return '/pro/home';
+        if (role == 'vet') return '/pro/home';
+        if (role == 'daycare') return '/pro/daycare/home';
+        if (role == 'petshop') return '/pro/petshop/home';
       }
 
       // Si pas connecté et on essaie d'accéder à une page protégée, rediriger intelligemment
