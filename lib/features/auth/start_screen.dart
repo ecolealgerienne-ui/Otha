@@ -1,26 +1,89 @@
 // lib/features/start/start_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../core/api.dart';
+import '../../core/session_controller.dart';
 
 enum StartVariant { user, pro }
 
-class StartScreen extends StatelessWidget {
+class StartScreen extends ConsumerStatefulWidget {
   final StartVariant variant;
   const StartScreen({super.key, required this.variant});
 
-  String get _bg =>
-      variant == StartVariant.user ? 'assets/images/fond_d.png' : 'assets/images/fond_g.png';
+  @override
+  ConsumerState<StartScreen> createState() => _StartScreenState();
+}
 
-  String get _title => variant == StartVariant.user
+class _StartScreenState extends ConsumerState<StartScreen> {
+  bool _loading = false;
+
+  String get _bg =>
+      widget.variant == StartVariant.user ? 'assets/images/fond_d.png' : 'assets/images/fond_g.png';
+
+  String get _title => widget.variant == StartVariant.user
       ? 'Prenez soin de\nvotre compagnon'
       : 'Bienvenue\nsur vethome';
 
-  String get _subtitle => variant == StartVariant.user
+  String get _subtitle => widget.variant == StartVariant.user
       ? 'vos animaux méritent le meilleur !'
       : 'Parce que vos soins font toute la différence';
 
-  String get _loginQuery => variant == StartVariant.user ? 'user' : 'pro';
+  String get _loginQuery => widget.variant == StartVariant.user ? 'user' : 'pro';
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _loading = true);
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        return;
+      }
+
+      final api = ref.read(apiProvider);
+      await api.googleAuth(
+        googleId: account.id,
+        email: account.email,
+        firstName: account.displayName?.split(' ').first,
+        lastName: account.displayName?.split(' ').skip(1).join(' '),
+        photoUrl: account.photoUrl,
+      );
+
+      // Rafraîchir les données utilisateur
+      await ref.read(sessionProvider.notifier).refreshMe();
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // Vérifier si le profil est complet
+      final user = ref.read(sessionProvider).user;
+      final hasFirstName = (user?['firstName']?.toString().trim().isNotEmpty) ?? false;
+      final hasLastName = (user?['lastName']?.toString().trim().isNotEmpty) ?? false;
+      final hasPhone = (user?['phone']?.toString().trim().isNotEmpty) ?? false;
+
+      if (!hasFirstName || !hasLastName || !hasPhone) {
+        // Profil incomplet -> rediriger vers complétion
+        context.go('/auth/profile-completion');
+      } else {
+        // Profil complet -> rediriger vers home
+        context.go('/home');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la connexion Google: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +187,7 @@ class StartScreen extends StatelessWidget {
                             ),
 
                             // Différent pour user et pro
-                            if (variant == StartVariant.user) ...[
+                            if (widget.variant == StartVariant.user) ...[
                               // Pour les utilisateurs : Google Sign-In + lien inscription
                               const SizedBox(height: 14),
                               Row(
@@ -156,9 +219,7 @@ class StartScreen extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-                                  onPressed: () {
-                                    // TODO: Google Sign-In prochainement
-                                  },
+                                  onPressed: _loading ? null : _handleGoogleSignIn,
                                   icon: const CircleAvatar(
                                     radius: 11,
                                     backgroundColor: Colors.transparent,
