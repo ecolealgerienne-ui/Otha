@@ -1772,6 +1772,24 @@ Future<Map<String, dynamic>> adminAdoptApproveAll() async {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// GET /admin/adopt/conversations - Récupérer toutes les conversations (admin)
+Future<List<Map<String, dynamic>>> adminAdoptGetConversations({int limit = 50}) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get(
+    '/admin/adopt/conversations',
+    queryParameters: {'limit': limit},
+  ));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// GET /admin/adopt/conversations/:id - Détails d'une conversation (admin)
+Future<Map<String, dynamic>> adminAdoptGetConversationDetails(String conversationId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/admin/adopt/conversations/$conversationId'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ---------------- Wrappers rétrocompat (si ton UI les appelle déjà) ----------------
 
 @deprecated
