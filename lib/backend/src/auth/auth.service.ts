@@ -16,7 +16,7 @@ export class AuthService {
   }
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !user.password) throw new UnauthorizedException('Invalid credentials');
     const ok = await argon2.verify(user.password, password);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
     const tokens = await this.issueTokens(user.id, user.role);
