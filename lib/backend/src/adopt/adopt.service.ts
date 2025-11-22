@@ -258,6 +258,14 @@ export class AdoptService {
     if (!existing) throw new NotFoundException('Post not found');
     this.assertOwnerOrAdmin(user, existing);
 
+    // Empêcher la modification si l'animal est déjà adopté ou archivé
+    if (existing.status === AdoptStatus.ADOPTED) {
+      throw new BadRequestException('Cannot modify an adopted animal listing');
+    }
+    if (existing.status === AdoptStatus.ARCHIVED) {
+      throw new BadRequestException('Cannot modify an archived listing');
+    }
+
     const { lat, lng } = this.normalizeGeo(dto);
     const maybeSex = this.asSex(dto.sex);
 
@@ -720,8 +728,8 @@ export class AdoptService {
     const conversations = await this.prisma.adoptConversation.findMany({
       where: {
         OR: [
-          { ownerId: userId },
-          { adopterId: userId },
+          { ownerId: userId, hiddenByOwner: false },
+          { adopterId: userId, hiddenByAdopter: false },
         ],
       },
       include: {
@@ -1068,6 +1076,37 @@ export class AdoptService {
         pendingAdoptionConfirmation: false,
         pendingAdoptionRequestedAt: null,
         updatedAt: new Date(),
+      },
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Masquer une conversation (soft delete)
+   */
+  async hideConversation(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    const isOwner = conversation.ownerId === userId;
+    const isAdopter = conversation.adopterId === userId;
+
+    if (!isOwner && !isAdopter) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    // Masquer pour l'utilisateur concerné
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        hiddenByOwner: isOwner ? true : conversation.hiddenByOwner,
+        hiddenByAdopter: isAdopter ? true : conversation.hiddenByAdopter,
       },
     });
 

@@ -185,4 +185,12 @@ export class AdoptController {
   async declineAdoption(@Req() req: any, @Param('id') conversationId: string) {
     return this.service.declineAdoption(req.user, conversationId);
   }
+
+  // ====== Hide Conversation (Soft Delete) ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/hide')
+  async hideConversation(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.hideConversation(req.user, conversationId);
+  }
 }
