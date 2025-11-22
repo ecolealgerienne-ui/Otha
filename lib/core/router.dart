@@ -133,6 +133,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/home';
       }
 
+      // Si connecté et sur /home mais pas le bon rôle, rediriger
+      if (isLoggedIn && currentPath == '/home') {
+        final role = user['role']?.toString() ?? 'user';
+        if (role == 'admin') return '/admin/hub';
+        if (role == 'provider') return '/pro/home';
+      }
+
       // Si pas connecté et on essaie d'accéder à une page protégée, rediriger intelligemment
       if (!isLoggedIn && protectedPaths.any((p) => currentPath.startsWith(p))) {
         // Si c'était une page admin, rediriger vers login pro (pour admins)
