@@ -693,10 +693,21 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
         );
       }
 
-      // Créer la réservation
+      // Calculer la commission et le total
+      final daycare = widget.daycareData ?? {};
+      final hourlyRate = daycare['hourlyRate'] as int?;
+      final dailyRate = daycare['dailyRate'] as int?;
+      final basePrice = _bookingType == 'hourly' ? (hourlyRate ?? 0) : (dailyRate ?? 0);
+      final commissionDa = kDaycareCommissionDa;
+
+      // Créer la réservation avec tous les détails
       await api.createBooking(
         serviceId: serviceId,
         scheduledAtIso: scheduledAt.toIso8601String(),
+        petIds: _selectedPetIds.toList(),
+        clientNotes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+        endDateIso: _bookingType == 'daily' && _endDate != null ? _endDate!.toIso8601String() : null,
+        commissionDa: commissionDa,
       );
 
       if (!mounted) return;

@@ -50,9 +50,6 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
     final openingTime = daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = daycare['closingTime']?.toString() ?? '20:00';
 
-    // Simuler places restantes (dans un vrai système, ça viendrait du backend)
-    final remainingSpots = capacity != null ? (capacity as int) - ((capacity as int) ~/ 3) : null;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
@@ -193,31 +190,14 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Info cards row
-                  Row(
-                    children: [
-                      if (capacity != null)
-                        Expanded(
-                          child: _infoCard(
-                            icon: Icons.pets,
-                            title: 'Capacité',
-                            value: capacity.toString(),
-                            color: Colors.orange,
-                          ),
-                        ),
-                      if (capacity != null && remainingSpots != null)
-                        const SizedBox(width: 12),
-                      if (remainingSpots != null)
-                        Expanded(
-                          child: _infoCard(
-                            icon: Icons.check_circle,
-                            title: 'Places restantes',
-                            value: remainingSpots.toString(),
-                            color: Colors.green,
-                          ),
-                        ),
-                    ],
-                  ),
+                  // Info card capacité
+                  if (capacity != null)
+                    _infoCard(
+                      icon: Icons.pets,
+                      title: 'Capacité maximale',
+                      value: '$capacity animaux',
+                      color: Colors.orange,
+                    ),
 
                   const SizedBox(height: 24),
 

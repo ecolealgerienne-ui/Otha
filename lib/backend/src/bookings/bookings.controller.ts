@@ -173,13 +173,19 @@ export class BookingsController {
 
   /** Client: créer une réservation */
   @Post()
-  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any }) {
+  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[]; clientNotes?: string; endDate?: any; commissionDa?: number }) {
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
+
+    // Parse endDate si fourni (pour garderies)
+    let endDateParsed: Date | null = null;
+    if (body.endDate) {
+      endDateParsed = this.parseWhen(body.endDate);
+    }
 
     // transaction + re-check
     return this.prisma.$transaction(async (tx) => {
@@ -197,6 +203,11 @@ export class BookingsController {
           providerId: service.providerId,
           scheduledAt: when, // UTC côté DB
           status: 'PENDING',
+          // Nouveaux champs pour garderies
+          petIds: body.petIds || [],
+          clientNotes: body.clientNotes,
+          endDate: endDateParsed,
+          commissionDa: body.commissionDa,
         },
       });
     }, { isolationLevel: 'Serializable' });
