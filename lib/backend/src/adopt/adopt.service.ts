@@ -1207,6 +1207,9 @@ export class AdoptService {
       adopterAnonymousName: c.adopterAnonymousName,
       hiddenByOwner: c.hiddenByOwner,
       hiddenByAdopter: c.hiddenByAdopter,
+      reportedByOwner: c.reportedByOwner,
+      reportedByAdopter: c.reportedByAdopter,
+      hasReports: c.reportedByOwner || c.reportedByAdopter,
       lastMessage: c.messages[0]
         ? {
             content: c.messages[0].content,
@@ -1254,6 +1257,13 @@ export class AdoptService {
       hiddenByOwner: conversation.hiddenByOwner,
       hiddenByAdopter: conversation.hiddenByAdopter,
       pendingAdoptionConfirmation: conversation.pendingAdoptionConfirmation,
+      // Signalements
+      reportedByOwner: conversation.reportedByOwner,
+      reportReasonByOwner: conversation.reportReasonByOwner,
+      reportedAtByOwner: conversation.reportedAtByOwner,
+      reportedByAdopter: conversation.reportedByAdopter,
+      reportReasonByAdopter: conversation.reportReasonByAdopter,
+      reportedAtByAdopter: conversation.reportedAtByAdopter,
       messages: conversation.messages.map((m) => ({
         id: m.id,
         content: m.content,

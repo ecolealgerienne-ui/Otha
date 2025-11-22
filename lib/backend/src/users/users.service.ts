@@ -252,6 +252,44 @@ export class UsersService {
     }));
   }
 
+  // Admin: get all adopt posts of a user (all statuses)
+  async getUserAdoptPosts(userId: string) {
+    const posts = await this.prisma.adoptPost.findMany({
+      where: {
+        createdById: userId,
+      },
+      include: {
+        images: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return posts.map((post) => ({
+      id: post.id,
+      title: post.title,
+      animalName: post.animalName,
+      species: post.species,
+      sex: post.sex,
+      ageMonths: post.ageMonths,
+      city: post.city,
+      status: post.status,
+      adoptedAt: post.adoptedAt,
+      adoptedById: post.adoptedById,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      images: post.images,
+      createdBy: post.createdBy,
+    }));
+  }
+
   // Admin: update user info
   async adminUpdateUser(userId: string, dto: any) {
     const data: Prisma.UserUpdateInput = {};

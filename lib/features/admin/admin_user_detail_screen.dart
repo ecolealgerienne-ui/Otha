@@ -18,6 +18,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
   bool _loading = false;
   Map<String, dynamic>? _quotas;
   List<Map<String, dynamic>> _conversations = [];
+  List<Map<String, dynamic>> _adoptPosts = [];
   bool _loadingConversations = false;
 
   @override
@@ -32,16 +33,18 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       final api = ref.read(apiProvider);
       final userId = widget.user['id']?.toString() ?? '';
 
-      // Charger les quotas et conversations en parallèle
+      // Charger les quotas, conversations et annonces en parallèle
       final results = await Future.wait([
         api.adminGetUserQuotas(userId),
         api.adminGetUserAdoptConversations(userId),
+        api.adminGetUserAdoptPosts(userId),
       ]);
 
       if (mounted) {
         setState(() {
           _quotas = results[0] as Map<String, dynamic>;
           _conversations = results[1] as List<Map<String, dynamic>>;
+          _adoptPosts = results[2] as List<Map<String, dynamic>>;
           _loading = false;
         });
       }
@@ -340,6 +343,31 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                             ],
                           ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Carte annonces d'adoption
+                  _Card(
+                    title: 'Annonces d\'adoption (${_adoptPosts.length})',
+                    icon: Icons.pets,
+                    child: _adoptPosts.isEmpty
+                        ? const Column(
+                            children: [
+                              SizedBox(height: 8),
+                              Text(
+                                'Aucune annonce',
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                              SizedBox(height: 8),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              for (final post in _adoptPosts)
+                                _AdoptPostTile(post: post),
+                            ],
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -628,5 +656,144 @@ class _QuotaCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AdoptPostTile extends StatelessWidget {
+  final Map<String, dynamic> post;
+
+  const _AdoptPostTile({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final animalName = post['animalName']?.toString() ?? post['title']?.toString() ?? 'Animal';
+    final species = post['species']?.toString() ?? '';
+    final city = post['city']?.toString() ?? '';
+    final status = post['status']?.toString() ?? 'PENDING';
+    final adoptedAt = post['adoptedAt']?.toString();
+    final createdAt = post['createdAt']?.toString() ?? '';
+    final images = (post['images'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final imageUrl = images.isNotEmpty ? images.first['url']?.toString() : null;
+
+    final Color statusColor;
+    final String statusText;
+
+    if (adoptedAt != null) {
+      statusColor = const Color(0xFF4CAF50);
+      statusText = 'Adopté ✓';
+    } else {
+      switch (status) {
+        case 'APPROVED':
+          statusColor = Colors.green;
+          statusText = 'Approuvée';
+          break;
+        case 'REJECTED':
+          statusColor = Colors.red;
+          statusText = 'Refusée';
+          break;
+        case 'ARCHIVED':
+          statusColor = Colors.grey;
+          statusText = 'Archivée';
+          break;
+        default:
+          statusColor = Colors.orange;
+          statusText = 'En attente';
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          // Image
+          if (imageUrl != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                imageUrl,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 60,
+                  height: 60,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.pets, color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.pets, color: Colors.grey),
+            ),
+          const SizedBox(width: 12),
+
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  animalName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  [species, city].where((s) => s.isNotEmpty).join(' • '),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Date
+          Text(
+            _formatDate(createdAt),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String isoString) {
+    if (isoString.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(isoString);
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    } catch (_) {
+      return '';
+    }
   }
 }
