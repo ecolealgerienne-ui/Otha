@@ -14,7 +14,7 @@ import { DaycareService } from './daycare.service';
 import { CreateDaycareBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-status.dto';
 
-@Controller('api/v1/daycare')
+@Controller({ path: 'daycare', version: '1' })
 @UseGuards(JwtAuthGuard)
 export class DaycareController {
   constructor(private daycareService: DaycareService) {}
