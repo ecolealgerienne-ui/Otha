@@ -282,6 +282,15 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
                             MaterialPageRoute(builder: (_) => const AdminAdoptPostsPage()),
                           ),
                         ),
+                        const SizedBox(height: 12),
+
+                        // Conversations d'adoption
+                        StatBox(
+                          label: 'Conversations Adoption',
+                          value: null,
+                          icon: Icons.chat,
+                          onTap: () => context.push('/admin/adopt/conversations'),
+                        ),
                         const SizedBox(height: 20),
 
                         // Statistiques globales
