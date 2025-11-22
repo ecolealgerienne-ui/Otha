@@ -355,7 +355,7 @@ export class AdoptService {
   async feed(user: any | null, q: FeedQueryDto) {
     const limit = q.limit ?? 10;
 
-    const where: any = { status: AdoptStatus.APPROVED };
+    const where: any = { status: AdoptStatus.APPROVED, adoptedAt: null };
     const and: any[] = [];
     if (q.species) where.species = q.species;
     if (q.sex) where.sex = this.asSex(q.sex);
