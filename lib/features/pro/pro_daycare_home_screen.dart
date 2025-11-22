@@ -1,3 +1,5 @@
+import 'dart:math';
+import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,276 +8,359 @@ import 'package:intl/intl.dart';
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
 
-class DaycareHomeScreen extends ConsumerStatefulWidget {
-  const DaycareHomeScreen({super.key});
-
-  @override
-  ConsumerState<DaycareHomeScreen> createState() => _DaycareHomeScreenState();
+/// ========================= THEME DAYCARE (bleu cyan) =========================
+class _DaycareColors {
+  static const ink = Color(0xFF1F2328);
+  static const primary = Color(0xFF00ACC1); // Cyan
+  static const primarySoft = Color(0xFFE0F7FA);
+  static const coral = Color(0xFFF36C6C);
 }
 
-class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
-  Future<Map<String, dynamic>>? _dataFuture;
+ThemeData _daycareTheme(BuildContext context) {
+  final base = Theme.of(context);
+  return base.copyWith(
+    colorScheme: base.colorScheme.copyWith(
+      primary: _DaycareColors.primary,
+      secondary: _DaycareColors.primary,
+      onPrimary: Colors.white,
+      surface: Colors.white,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.white,
+      foregroundColor: _DaycareColors.ink,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: const WidgetStatePropertyAll(_DaycareColors.primary),
+        foregroundColor: const WidgetStatePropertyAll(Colors.white),
+        overlayColor: WidgetStatePropertyAll(_DaycareColors.primary.withOpacity(.12)),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: _DaycareColors.primary),
+    dividerColor: _DaycareColors.primarySoft,
+  );
+}
+
+/// ========================= PROVIDERS =========================
+
+final myDaycareProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+  (ref) => ref.read(apiProvider).myProvider(),
+);
+
+final myDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    // Récupère les réservations via l'endpoint daycare
+    return await api.dio.get('/api/v1/daycare/bookings/provider').then((r) {
+      final data = r.data;
+      if (data is List) return List<Map<String, dynamic>>.from(data);
+      return [];
+    });
+  } catch (_) {
+    return [];
+  }
+});
+
+final pendingDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final bookings = await ref.watch(myDaycareBookingsProvider.future);
+    return bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').toList();
+  } catch (_) {
+    return [];
+  }
+});
+
+int _asInt(dynamic v) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? 0;
+  return 0;
+}
+
+/// ========================= MAIN SCREEN =========================
+
+class ProDaycareHomeScreen extends ConsumerStatefulWidget {
+  const ProDaycareHomeScreen({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    _dataFuture = _loadData();
-  }
+  ConsumerState<ProDaycareHomeScreen> createState() => _ProDaycareHomeScreenState();
+}
 
-  Future<Map<String, dynamic>> _loadData() async {
-    final api = ref.read(apiProvider);
-
-    // Charger en parallèle les données du provider et les réservations
-    final results = await Future.wait([
-      api.myProvider(),
-      _loadBookings(),
-    ]);
-
-    return {
-      'provider': results[0],
-      'bookings': results[1],
-    };
-  }
-
-  Future<List<dynamic>> _loadBookings() async {
-    final api = ref.read(apiProvider);
-    try {
-      final res = await api.dio.get('/daycare/provider/bookings');
-      final data = res.data;
-      if (data is Map && data['data'] is List) {
-        return data['data'] as List;
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  Future<void> _logout() async {
-    await ref.read(sessionProvider.notifier).logout();
-    if (!mounted) return;
-    context.go('/auth/login?as=pro');
-  }
-
+class _ProDaycareHomeScreenState extends ConsumerState<ProDaycareHomeScreen> {
   @override
   Widget build(BuildContext context) {
-    const coral = Color(0xFFF36C6C);
+    const bgSoft = Color(0xFFF7F8FA);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Garderie — Tableau de bord'),
-        actions: [
-          IconButton(
-            tooltip: 'Se déconnecter',
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _dataFuture,
-        builder: (ctx, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    final state = ref.watch(sessionProvider);
+    final user = state.user ?? {};
+    final first = (user['firstName'] ?? '').toString().trim();
+    final last = (user['lastName'] ?? '').toString().trim();
+    final fallbackUserName =
+        [if (first.isNotEmpty) first, if (last.isNotEmpty) last].join(' ').trim();
 
-          if (snap.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Erreur: ${snap.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() => _dataFuture = _loadData()),
-                    child: const Text('Réessayer'),
+    final provAsync = ref.watch(myDaycareProfileProvider);
+    final daycareName = provAsync.maybeWhen(
+      data: (p) {
+        final dn = (p?['displayName'] ?? '').toString().trim();
+        if (dn.isNotEmpty) return dn;
+        return fallbackUserName.isNotEmpty ? fallbackUserName : 'Ma Garderie';
+      },
+      orElse: () => (fallbackUserName.isNotEmpty ? fallbackUserName : 'Ma Garderie'),
+    );
+
+    final pendingAsync = ref.watch(pendingDaycareBookingsProvider);
+    final bookingsAsync = ref.watch(myDaycareBookingsProvider);
+
+    return Theme(
+      data: _daycareTheme(context),
+      child: Scaffold(
+        backgroundColor: bgSoft,
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(myDaycareProfileProvider);
+              ref.invalidate(myDaycareBookingsProvider);
+              ref.invalidate(pendingDaycareBookingsProvider);
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // Header
+                SliverToBoxAdapter(
+                  child: _Header(
+                    daycareName: daycareName,
+                    onAvatarTap: () => context.push('/pro/settings'),
                   ),
-                ],
-              ),
-            );
-          }
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
-          final data = snap.data!;
-          final provider = data['provider'] as Map<String, dynamic>?;
-          final bookings = (data['bookings'] as List?) ?? [];
-
-          if (provider == null || provider['isApproved'] != true) {
-            return _NotApprovedView(provider: provider);
-          }
-
-          // Calculer les stats
-          final pending = bookings.where((b) => b['status'] == 'PENDING').length;
-          final confirmed = bookings.where((b) => b['status'] == 'CONFIRMED').length;
-          final inProgress = bookings.where((b) => b['status'] == 'IN_PROGRESS').length;
-
-          // Prochaines arrivées (confirmées, date future)
-          final now = DateTime.now();
-          final upcoming = bookings.where((b) {
-            if (b['status'] != 'CONFIRMED') return false;
-            final start = DateTime.parse(b['startDate']);
-            return start.isAfter(now);
-          }).toList()
-            ..sort((a, b) {
-              final aStart = DateTime.parse(a['startDate']);
-              final bStart = DateTime.parse(b['startDate']);
-              return aStart.compareTo(bStart);
-            });
-
-          return RefreshIndicator(
-            onRefresh: () async => setState(() => _dataFuture = _loadData()),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Stats cards
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.pending_actions,
-                        label: 'En attente',
-                        value: pending.toString(),
-                        color: Colors.orange,
-                      ),
+                // Réservations en attente (si > 0)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: pendingAsync.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                      data: (pending) {
+                        if (pending.isEmpty) return const SizedBox.shrink();
+                        return _PendingBookingsBanner(
+                          bookings: pending,
+                          onTap: () => context.push('/pro/daycare/bookings'),
+                        );
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.check_circle,
-                        label: 'Confirmées',
-                        value: confirmed.toString(),
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.pets,
-                        label: 'Présents',
-                        value: inProgress.toString(),
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                 // Actions rapides
-                _SectionTitle('Actions rapides'),
-                const SizedBox(height: 12),
-                _ActionTile(
-                  icon: Icons.calendar_month,
-                  title: 'Toutes les réservations',
-                  subtitle: '${bookings.length} réservation(s) au total',
-                  onTap: () => context.push('/pro/daycare/bookings'),
-                ),
-                _ActionTile(
-                  icon: Icons.calendar_today,
-                  title: 'Calendrier',
-                  subtitle: 'Vue par jour',
-                  onTap: () => context.push('/pro/daycare/calendar'),
+                const SliverToBoxAdapter(child: _ActionGrid()),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // Statistiques rapides
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _QuickStats(bookingsAsync: bookingsAsync),
+                  ),
                 ),
 
-                if (upcoming.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _SectionTitle('Prochaines arrivées (${upcoming.length})'),
-                  const SizedBox(height: 12),
-                  ...upcoming.take(5).map((booking) => _UpcomingCard(booking: booking)),
-                ],
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // Réservations récentes
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: bookingsAsync.when(
+                      loading: () => const _LoadingCard(text: 'Chargement des réservations...'),
+                      error: (e, _) => _SectionCard(child: Text('Erreur: $e')),
+                      data: (bookings) => _RecentBookings(bookings: bookings),
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
-class _NotApprovedView extends StatelessWidget {
-  final Map<String, dynamic>? provider;
-  const _NotApprovedView({this.provider});
+/// ========================= WIDGETS =========================
+
+class _Header extends StatelessWidget {
+  final String daycareName;
+  final VoidCallback? onAvatarTap;
+  const _Header({required this.daycareName, this.onAvatarTap});
 
   @override
   Widget build(BuildContext context) {
-    if (provider == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.pets, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text(
-                'Aucun profil garderie trouvé',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Créez votre profil de garderie pour commencer',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => context.go('/auth/register/pro'),
-                child: const Text('Créer mon profil'),
-              ),
-            ],
-          ),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_DaycareColors.primary, Color(0xFF0097A7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      );
-    }
-
-    final rejected = provider!['rejectedAt'] != null;
-    final reason = provider!['rejectionReason']?.toString() ?? '';
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              rejected ? Icons.cancel : Icons.hourglass_empty,
-              size: 64,
-              color: rejected ? Colors.red : Colors.orange,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              rejected ? 'Candidature rejetée' : 'En attente d\'approbation',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              rejected
-                  ? 'Votre candidature a été rejetée par l\'administration.'
-                  : 'Votre candidature est en cours d\'examen.',
-              textAlign: TextAlign.center,
-            ),
-            if (rejected && reason.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Motif du rejet:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(reason),
-                  ],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Color(0x1A000000), blurRadius: 16, offset: Offset(0, 8)),
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(32),
+            onTap: onAvatarTap,
+            child: CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white,
+              child: Text(
+                daycareName.isNotEmpty ? daycareName.characters.first.toUpperCase() : 'G',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: _DaycareColors.primary,
                 ),
               ),
-            ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Bienvenue', style: TextStyle(color: Colors.white70)),
+                Text(
+                  daycareName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.pets, color: Colors.white, size: 26),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+  const _SectionCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  final String text;
+  const _LoadingCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      child: Row(
+        children: [
+          const SizedBox(
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingBookingsBanner extends StatelessWidget {
+  final List<Map<String, dynamic>> bookings;
+  final VoidCallback onTap;
+  const _PendingBookingsBanner({required this.bookings, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = bookings.length;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.pending_actions, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$count réservation${count > 1 ? 's' : ''} en attente',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Appuyez pour traiter', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: onTap,
+              icon: const Icon(Icons.chevron_right),
+              label: const Text('Voir'),
+              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            ),
           ],
         ),
       ),
@@ -283,13 +368,187 @@ class _NotApprovedView extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _ActionGrid extends StatelessWidget {
+  const _ActionGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _Action('Gérer ma garderie', Icons.settings, '/pro/daycare/settings', const Color(0xFF3A86FF)),
+      _Action('Mes réservations', Icons.calendar_today, '/pro/daycare/bookings', const Color(0xFFFF6D00)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.15,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+        ),
+        itemCount: items.length,
+        itemBuilder: (_, i) => _ActionCard(item: items[i]),
+      ),
+    );
+  }
+}
+
+class _Action {
+  final String title;
+  final IconData icon;
+  final String route;
+  final Color color;
+  const _Action(this.title, this.icon, this.route, this.color);
+}
+
+class _ActionCard extends StatefulWidget {
+  final _Action item;
+  const _ActionCard({required this.item});
+
+  @override
+  State<_ActionCard> createState() => _ActionCardState();
+}
+
+class _ActionCardState extends State<_ActionCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  )..forward(from: Random().nextDouble() * .6);
+
+  late final Animation<double> _scale = Tween(begin: .98, end: 1.0).animate(
+    CurvedAnimation(parent: _ctl, curve: Curves.easeOutBack),
+  );
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final it = widget.item;
+    return ScaleTransition(
+      scale: _scale,
+      child: InkWell(
+        onTap: () => context.push(it.route),
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: it.color.withOpacity(.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: it.color.withOpacity(.16)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: it.color.withOpacity(.15),
+                  child: Icon(it.icon, color: it.color),
+                ),
+                const Spacer(),
+                Text(
+                  it.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickStats extends StatelessWidget {
+  final AsyncValue<List<Map<String, dynamic>>> bookingsAsync;
+  const _QuickStats({required this.bookingsAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    final bookings = bookingsAsync.value ?? [];
+
+    final activeBookings = bookings.where((b) {
+      final status = (b['status'] ?? '').toString().toUpperCase();
+      return status == 'CONFIRMED' || status == 'IN_PROGRESS';
+    }).length;
+
+    final completedBookings = bookings.where((b) {
+      final status = (b['status'] ?? '').toString().toUpperCase();
+      return status == 'COMPLETED';
+    }).length;
+
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Aperçu rapide',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _StatPill(
+                  icon: Icons.calendar_today,
+                  label: 'Réservations actives',
+                  value: '$activeBookings',
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatPill(
+                  icon: Icons.check_circle,
+                  label: 'Terminées',
+                  value: '$completedBookings',
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _StatPill(
+                  icon: Icons.pets,
+                  label: 'Total réservations',
+                  value: '${bookings.length}',
+                  color: Colors.purple,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatPill(
+                  icon: Icons.schedule,
+                  label: 'En attente',
+                  value: '${bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').length}',
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final Color color;
-
-  const _StatCard({
+  const _StatPill({
     required this.icon,
     required this.label,
     required this.value,
@@ -298,104 +557,248 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.black.withOpacity(0.6),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentBookings extends StatelessWidget {
+  final List<Map<String, dynamic>> bookings;
+  const _RecentBookings({required this.bookings});
+
+  String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
+
+  @override
+  Widget build(BuildContext context) {
+    if (bookings.isEmpty) {
+      return _SectionCard(
         child: Column(
           children: [
-            Icon(icon, color: color, size: 32),
+            const Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            const Text('Aucune réservation'),
             const SizedBox(height: 8),
             Text(
-              value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              'Les réservations de vos clients apparaîtront ici',
+              style: TextStyle(color: Colors.black.withOpacity(0.6)),
               textAlign: TextAlign.center,
             ),
           ],
         ),
+      );
+    }
+
+    // Trier par date et prendre les 5 dernières
+    final sorted = List<Map<String, dynamic>>.from(bookings)
+      ..sort((a, b) {
+        final aDate = DateTime.tryParse((a['startDate'] ?? '').toString()) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = DateTime.tryParse((b['startDate'] ?? '').toString()) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
+    final recent = sorted.take(5).toList();
+
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Réservations récentes',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push('/pro/daycare/bookings'),
+                child: const Text('Voir tout'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...recent.map((booking) {
+            final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
+            final totalDa = _asInt(booking['totalDa'] ?? 0);
+            final startDate = booking['startDate'];
+            final endDate = booking['endDate'];
+            final user = booking['user'] as Map<String, dynamic>?;
+            final userName = (user?['firstName'] ?? 'Client').toString();
+
+            DateTime? start, end;
+            if (startDate != null) start = DateTime.tryParse(startDate.toString());
+            if (endDate != null) end = DateTime.tryParse(endDate.toString());
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  _buildStatusIcon(status),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if (start != null && end != null)
+                          Text(
+                            '${DateFormat('dd/MM').format(start.toLocal())} - ${DateFormat('dd/MM').format(end.toLocal())}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black.withOpacity(0.5),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _da(totalDa),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      _buildStatusChip(status),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
+  Widget _buildStatusIcon(String status) {
+    IconData icon;
+    Color color;
 
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-    );
-  }
-}
+    switch (status) {
+      case 'PENDING':
+        icon = Icons.schedule;
+        color = Colors.orange;
+        break;
+      case 'CONFIRMED':
+        icon = Icons.thumb_up;
+        color = Colors.blue;
+        break;
+      case 'IN_PROGRESS':
+        icon = Icons.pets;
+        color = Colors.purple;
+        break;
+      case 'COMPLETED':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'CANCELLED':
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+      default:
+        icon = Icons.help_outline;
+        color = Colors.grey;
+    }
 
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: const Color(0xFFF36C6C)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: subtitle != null ? Text(subtitle!) : null,
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
       ),
+      child: Icon(icon, color: color, size: 20),
     );
   }
-}
 
-class _UpcomingCard extends StatelessWidget {
-  final Map<String, dynamic> booking;
-  const _UpcomingCard({required this.booking});
+  Widget _buildStatusChip(String status) {
+    String label;
+    Color color;
 
-  @override
-  Widget build(BuildContext context) {
-    final pet = booking['pet'] as Map<String, dynamic>?;
-    final user = booking['user'] as Map<String, dynamic>?;
-    final startDate = DateTime.parse(booking['startDate']);
-    final endDate = DateTime.parse(booking['endDate']);
+    switch (status) {
+      case 'PENDING':
+        label = 'En attente';
+        color = Colors.orange;
+        break;
+      case 'CONFIRMED':
+        label = 'Confirmée';
+        color = Colors.blue;
+        break;
+      case 'IN_PROGRESS':
+        label = 'En cours';
+        color = Colors.purple;
+        break;
+      case 'COMPLETED':
+        label = 'Terminée';
+        color = Colors.green;
+        break;
+      case 'CANCELLED':
+        label = 'Annulée';
+        color = Colors.red;
+        break;
+      default:
+        label = status;
+        color = Colors.grey;
+    }
 
-    final dateFormat = DateFormat('dd/MM à HH:mm');
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue.withOpacity(0.2),
-          child: const Icon(Icons.pets, color: Colors.blue),
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
-        title: Text(
-          pet?['name'] ?? 'Animal',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Propriétaire: ${user?['firstName']} ${user?['lastName']}'),
-            Text('Arrivée: ${dateFormat.format(startDate)}'),
-            Text('Départ: ${dateFormat.format(endDate)}'),
-          ],
-        ),
-        isThreeLine: true,
       ),
     );
   }
