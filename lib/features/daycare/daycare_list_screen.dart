@@ -338,7 +338,7 @@ class _BookingComStyleCardState extends State<_BookingComStyleCard> {
     final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
 
     // Simuler places restantes (dans un vrai système, ça viendrait du backend)
-    final remainingSpots = capacity != null ? (capacity as int) - (capacity as int ~/ 3) : null;
+    final remainingSpots = capacity != null ? (capacity as int) - ((capacity as int) ~/ 3) : null;
 
     String? priceText;
     if (hourlyRate != null) {
