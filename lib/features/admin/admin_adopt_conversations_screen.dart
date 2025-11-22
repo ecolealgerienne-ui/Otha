@@ -79,9 +79,11 @@ class AdminAdoptConversationsScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        if (conv['hiddenByOwner'] == true || conv['hiddenByAdopter'] == true) ...[
+                        if (conv['hiddenByOwner'] == true || conv['hiddenByAdopter'] == true || conv['hasReports'] == true) ...[
                           const SizedBox(height: 4),
-                          Row(
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
                             children: [
                               if (conv['hiddenByOwner'] == true)
                                 Container(
@@ -95,8 +97,7 @@ class AdminAdoptConversationsScreen extends ConsumerWidget {
                                     style: TextStyle(fontSize: 10, color: Colors.red),
                                   ),
                                 ),
-                              if (conv['hiddenByAdopter'] == true) ...[
-                                const SizedBox(width: 4),
+                              if (conv['hiddenByAdopter'] == true)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -108,7 +109,25 @@ class AdminAdoptConversationsScreen extends ConsumerWidget {
                                     style: TextStyle(fontSize: 10, color: Colors.orange),
                                   ),
                                 ),
-                              ],
+                              if (conv['hasReports'] == true)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepOrange[100],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('🚩', style: TextStyle(fontSize: 10)),
+                                      SizedBox(width: 2),
+                                      Text(
+                                        'Signalée',
+                                        style: TextStyle(fontSize: 10, color: Colors.deepOrange, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ],
@@ -272,6 +291,125 @@ class _ConversationDetailsDialog extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Signalements
+                if (conv['reportedByOwner'] == true || conv['reportedByAdopter'] == true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange[50],
+                      border: Border.all(color: Colors.deepOrange.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('🚩', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Signalements',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (conv['reportedByAdopter'] == true) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '🐾 Signalé par l\'adoptant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (conv['reportedAtByAdopter'] != null)
+                                      Text(
+                                        DateFormat('dd/MM/yyyy HH:mm').format(
+                                          DateTime.parse(conv['reportedAtByAdopter'].toString()),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Motif: ${conv['reportReasonByAdopter'] ?? 'Non spécifié'}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        if (conv['reportedByOwner'] == true) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '👤 Signalé par le propriétaire',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (conv['reportedAtByOwner'] != null)
+                                      Text(
+                                        DateFormat('dd/MM/yyyy HH:mm').format(
+                                          DateTime.parse(conv['reportedAtByOwner'].toString()),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Motif: ${conv['reportReasonByOwner'] ?? 'Non spécifié'}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Messages
                 const Text(
                   'Messages:',
