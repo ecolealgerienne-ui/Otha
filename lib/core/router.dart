@@ -60,6 +60,8 @@ import '../features/daycare/daycare_settings_screen.dart';
 import '../features/daycare/daycare_page_editor_screen.dart';
 import '../features/daycare/daycare_bookings_screen.dart';
 import '../features/daycare/daycare_list_screen.dart';
+import '../features/daycare/daycare_detail_screen.dart';
+import '../features/daycare/daycare_booking_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
 
@@ -365,12 +367,20 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       // -------- Garderies (liste → détail → booking) --------
       GoRoute(path: '/explore/garderie', builder: (_, __) => const DaycareListScreen()),
       GoRoute(path: '/explore/daycare', builder: (_, __) => const DaycareListScreen()),
-      // TODO: Add daycare detail and booking screens
-      // GoRoute(
-      //   path: '/explore/daycare/:id',
-      //   builder: (ctx, st) =>
-      //       DaycareDetailsScreen(providerId: st.pathParameters['id']!),
-      // ),
+      GoRoute(
+        path: '/explore/daycare/:id',
+        builder: (ctx, st) => DaycareDetailScreen(
+          providerId: st.pathParameters['id']!,
+          daycareData: (st.extra as Map<String, dynamic>?),
+        ),
+      ),
+      GoRoute(
+        path: '/explore/daycare/:id/book',
+        builder: (ctx, st) => DaycareBookingScreen(
+          providerId: st.pathParameters['id']!,
+          daycareData: (st.extra as Map<String, dynamic>?),
+        ),
+      ),
 
       // -------- Flow Petshop (liste → produits) --------
       GoRoute(
