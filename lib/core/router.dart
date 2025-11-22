@@ -57,6 +57,7 @@ import '../features/pro/pro_patients_screen.dart';
 
 import '../features/admin/admin_hub_screen.dart';
 import '../features/admin/admin_pages.dart';
+import '../features/admin/admin_adopt_conversations_screen.dart';
 
 // Map
 import '../features/map/nearby_vets_map_screen.dart';
@@ -129,6 +130,7 @@ GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersPage()),
 GoRoute(path: '/admin/pros', builder:  (_, __) => const AdminProsApprovedPage()),
 GoRoute(path: '/admin/applications', builder: (_, __) => const AdminApplicationsPage()),
 GoRoute(path: '/admin/commissions', builder: (_, __) => const AdminCommissionsPage()),
+GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdoptConversationsScreen()),
 
       // -------- Auth --------
       GoRoute(

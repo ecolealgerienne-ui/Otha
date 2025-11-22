@@ -67,4 +67,16 @@ export class AdoptAdminController {
   async approveAll(@Req() req: any) {
     return this.service.adminApproveAll(req.user);
   }
+
+  @Get('conversations')
+  async getAllConversations(
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.service.adminGetAllConversations(limit ?? 50);
+  }
+
+  @Get('conversations/:id')
+  async getConversationDetails(@Param('id') id: string) {
+    return this.service.adminGetConversationDetails(id);
+  }
 }

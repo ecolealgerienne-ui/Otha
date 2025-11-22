@@ -119,6 +119,85 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     }
   }
 
+  Future<void> _showDeleteDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer la conversation'),
+        content: const Text(
+          'Voulez-vous vraiment supprimer cette conversation ? '
+          'Elle sera masquée mais l\'autre personne pourra toujours la voir.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final api = ref.read(apiProvider);
+        await api.adoptHideConversation(widget.conversationId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Conversation supprimée'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showReportDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Signaler la conversation'),
+        content: const Text(
+          'Voulez-vous signaler cette conversation à un administrateur ? '
+          'Vous serez redirigé vers la page admin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Signaler'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // TODO: Créer endpoint de signalement et rediriger vers admin
+      context.push('/admin/hub');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = _conversation?['post'] as Map<String, dynamic>? ?? {};
@@ -143,6 +222,20 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
             ),
           ],
         ),
+        actions: [
+          // Bouton Signaler
+          IconButton(
+            icon: const Icon(Icons.flag_outlined, color: Colors.orange),
+            tooltip: 'Signaler',
+            onPressed: () => _showReportDialog(context),
+          ),
+          // Bouton Supprimer
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Supprimer',
+            onPressed: () => _showDeleteDialog(context),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

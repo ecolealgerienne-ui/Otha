@@ -1132,6 +1132,103 @@ export class AdoptService {
     return posts.map((post) => this.pickPublic(post));
   }
 
+  // ---------- Admin: Conversations ----------
+
+  /**
+   * Admin: Récupérer toutes les conversations
+   */
+  async adminGetAllConversations(limit = 50) {
+    const conversations = await this.prisma.adoptConversation.findMany({
+      include: {
+        post: { include: { images: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    });
+
+    return conversations.map((c) => ({
+      id: c.id,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      post: this.pickPublic(c.post),
+      owner: {
+        id: c.owner.id,
+        name: `${c.owner.firstName || ''} ${c.owner.lastName || ''}`.trim() || 'Anonyme',
+        email: c.owner.email,
+      },
+      adopter: {
+        id: c.adopter.id,
+        name: `${c.adopter.firstName || ''} ${c.adopter.lastName || ''}`.trim() || 'Anonyme',
+        email: c.adopter.email,
+      },
+      ownerAnonymousName: c.ownerAnonymousName,
+      adopterAnonymousName: c.adopterAnonymousName,
+      hiddenByOwner: c.hiddenByOwner,
+      hiddenByAdopter: c.hiddenByAdopter,
+      lastMessage: c.messages[0]
+        ? {
+            content: c.messages[0].content,
+            sentAt: c.messages[0].createdAt,
+          }
+        : null,
+    }));
+  }
+
+  /**
+   * Admin: Récupérer les détails d'une conversation avec tous les messages
+   */
+  async adminGetConversationDetails(conversationId: string) {
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        post: { include: { images: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    return {
+      id: conversation.id,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      post: this.pickPublic(conversation.post),
+      owner: {
+        id: conversation.owner.id,
+        name: `${conversation.owner.firstName || ''} ${conversation.owner.lastName || ''}`.trim() || 'Anonyme',
+        email: conversation.owner.email,
+      },
+      adopter: {
+        id: conversation.adopter.id,
+        name: `${conversation.adopter.firstName || ''} ${conversation.adopter.lastName || ''}`.trim() || 'Anonyme',
+        email: conversation.adopter.email,
+      },
+      ownerAnonymousName: conversation.ownerAnonymousName,
+      adopterAnonymousName: conversation.adopterAnonymousName,
+      hiddenByOwner: conversation.hiddenByOwner,
+      hiddenByAdopter: conversation.hiddenByAdopter,
+      pendingAdoptionConfirmation: conversation.pendingAdoptionConfirmation,
+      messages: conversation.messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        sentAt: m.createdAt,
+        senderId: m.senderId,
+        sentByOwner: m.senderId === conversation.ownerId,
+        read: !!m.readAt,
+      })),
+    };
+  }
+
   /**
    * Marquer qu'un profil pet a été créé pour une adoption
    */
