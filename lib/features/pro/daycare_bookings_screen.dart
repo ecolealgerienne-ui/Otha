@@ -24,21 +24,33 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
   Future<List<dynamic>> _loadBookings() async {
     final api = ref.read(apiProvider);
     try {
+      debugPrint('🔄 Chargement des réservations PRO...');
       final res = await api.dio.get('/bookings/provider/me');
       final data = res.data;
 
+      debugPrint('📦 Réponse reçue type: ${data.runtimeType}');
+
       // Le backend retourne directement un tableau, pas {data: [...]}
       if (data is List) {
+        debugPrint('✅ Liste reçue avec ${data.length} réservation(s)');
+        if (data.isNotEmpty) {
+          debugPrint('📋 Première réservation: ${data[0]}');
+        }
         return data;
       }
 
       // Fallback si jamais c'est dans un wrapper
       if (data is Map && data['data'] is List) {
-        return data['data'] as List;
+        final list = data['data'] as List;
+        debugPrint('✅ Liste wrappée reçue avec ${list.length} réservation(s)');
+        return list;
       }
 
+      debugPrint('⚠️ Format de réponse inattendu, retour liste vide');
       return [];
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ Erreur chargement réservations: $e');
+      debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }

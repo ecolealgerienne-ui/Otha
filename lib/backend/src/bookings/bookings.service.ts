@@ -188,10 +188,17 @@ export class BookingsService {
     to?: Date,
     includeCancelled = true,
   ) {
+    console.log('📅 providerAgenda appelé pour userId:', userId);
+
     const prov = await this.prisma.providerProfile.findUnique({
       where: { userId },
     });
-    if (!prov) throw new ForbiddenException('No provider profile');
+    if (!prov) {
+      console.error('❌ No provider profile for userId:', userId);
+      throw new ForbiddenException('No provider profile');
+    }
+
+    console.log('✅ Provider profile trouvé:', { id: prov.id, displayName: prov.displayName });
 
     const rows = await this.prisma.booking.findMany({
       where: {
@@ -212,7 +219,7 @@ export class BookingsService {
             id: true,
             firstName: true,
             lastName: true,
-            phone: true, // ⚠️ pas d’email
+            phone: true, // ⚠️ pas d'email
             pets: {
               orderBy: { updatedAt: 'desc' },
               take: 1,
@@ -222,6 +229,15 @@ export class BookingsService {
         },
       },
     });
+
+    console.log(`📊 Nombre de réservations trouvées: ${rows.length}`);
+    if (rows.length > 0) {
+      console.log('📋 Première réservation:', {
+        id: rows[0].id,
+        status: rows[0].status,
+        serviceTitle: rows[0].service.title,
+      });
+    }
 
     return rows.map((b) => {
       const price =
