@@ -234,7 +234,7 @@ class ApiClient {
 
   Future<Map<String, dynamic>> me() async {
     await ensureAuth();
-    final res = await _dio.get('/users/me');
+    final res = await _authRetry(() async => await _dio.get('/users/me'));
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
@@ -258,7 +258,7 @@ class ApiClient {
       if (lng != null) 'lng': lng,
       if (photoUrl != null) 'photoUrl': photoUrl,
     };
-    final res = await _dio.patch('/users/me', data: body);
+    final res = await _authRetry(() async => await _dio.patch('/users/me', data: body));
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
@@ -442,13 +442,13 @@ class ApiClient {
 
   Future<Map<String, dynamic>> myWeekly() async {
     await ensureAuth();
-    final res = await _dio.get('/providers/me/availability');
+    final res = await _authRetry(() async => await _dio.get('/providers/me/availability'));
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
   Future<void> setWeekly(List<Map<String, dynamic>> entries) async {
     await ensureAuth();
-    await _dio.post('/providers/me/availability', data: {'entries': entries});
+    await _authRetry(() async => await _dio.post('/providers/me/availability', data: {'entries': entries}));
   }
 
   Future<void> addTimeOff({
@@ -650,7 +650,7 @@ class ApiClient {
   Future<Map<String, dynamic>?> myProvider() async {
     await ensureAuth();
     try {
-      final res = await _dio.get('/providers/me');
+      final res = await _authRetry(() async => await _dio.get('/providers/me'));
       final m = _unwrap<Map<String, dynamic>>(res.data);
       final pid = (m['id'] ?? '').toString();
       if (pid.isNotEmpty) await _cacheMyProviderId(pid);
@@ -853,7 +853,7 @@ class ApiClient {
 
   Future<List<dynamic>> myBookings() async {
     await ensureAuth();
-    final res = await _dio.get('/bookings/mine');
+    final res = await _authRetry(() async => await _dio.get('/bookings/mine'));
     return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
   }
 
@@ -1032,11 +1032,11 @@ Future<List<Map<String, dynamic>>> providerAgenda({
   Future<List<dynamic>> myPets() async {
     await ensureAuth();
     try {
-      final res = await _dio.get('/pets/mine');
+      final res = await _authRetry(() async => await _dio.get('/pets/mine'));
       return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        final res2 = await _dio.get('/pets');
+        final res2 = await _authRetry(() async => await _dio.get('/pets'));
         return _unwrap<List<dynamic>>(res2.data, map: (d) => (d as List).cast<dynamic>());
       }
       rethrow;
