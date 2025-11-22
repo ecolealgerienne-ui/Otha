@@ -209,12 +209,32 @@ Future<void> showProviderEditor(
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Recto', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
                           const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(avnCardFront, height: 180, width: double.infinity, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 180, color: Colors.grey[200],
-                                child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                          GestureDetector(
+                            onTap: () => _showZoomableImage(context, avnCardFront, 'Carte AVN - Recto'),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Stack(
+                                children: [
+                                  Image.network(avnCardFront, height: 180, width: double.infinity, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      height: 180, color: Colors.grey[200],
+                                      child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                                    ),
+                                  ),
+                                  // Icône zoom pour indiquer que c'est cliquable
+                                  Positioned(
+                                    bottom: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -224,12 +244,32 @@ Future<void> showProviderEditor(
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Verso', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
                           const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(avnCardBack, height: 180, width: double.infinity, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 180, color: Colors.grey[200],
-                                child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                          GestureDetector(
+                            onTap: () => _showZoomableImage(context, avnCardBack, 'Carte AVN - Verso'),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Stack(
+                                children: [
+                                  Image.network(avnCardBack, height: 180, width: double.infinity, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      height: 180, color: Colors.grey[200],
+                                      child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                                    ),
+                                  ),
+                                  // Icône zoom pour indiquer que c'est cliquable
+                                  Positioned(
+                                    bottom: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -292,5 +332,70 @@ Future<void> showProviderEditor(
         ),
       );
     },
+  );
+}
+
+/// Affiche une image en plein écran avec zoom
+void _showZoomableImage(BuildContext context, String imageUrl, String title) {
+  showDialog(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          // Image zoomable avec InteractiveViewer
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.error_outline, color: Colors.red, size: 48),
+                ),
+              ),
+            ),
+          ),
+          // Bouton fermer en haut à droite
+          Positioned(
+            top: 16,
+            right: 16,
+            child: SafeArea(
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                onPressed: () => Navigator.pop(ctx),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                ),
+              ),
+            ),
+          ),
+          // Titre en haut à gauche
+          Positioned(
+            top: 16,
+            left: 16,
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
