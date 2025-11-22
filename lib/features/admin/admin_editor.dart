@@ -22,10 +22,15 @@ Future<void> showProviderEditor(
   final user = Map<String, dynamic>.from((p['user'] ?? const {}) as Map);
   final email = (user['email'] ?? '').toString();
   final phone = (user['phone'] ?? '').toString();
+  final firstName = (user['firstName'] ?? '').toString();
+  final lastName = (user['lastName'] ?? '').toString();
 
   final lat0 = (p['lat'] as num?)?.toDouble();
   final lng0 = (p['lng'] as num?)?.toDouble();
   final maps0 = (sp0['mapsUrl'] ?? '').toString();
+
+  final avnCardFront = (p['avnCardFront'] ?? '').toString();
+  final avnCardBack = (p['avnCardBack'] ?? '').toString();
 
   final nameCtrl = TextEditingController(text: name0);
   final addrCtrl = TextEditingController(text: addr0);
@@ -45,10 +50,6 @@ Future<void> showProviderEditor(
         initialChildSize: 0.9, minChildSize: 0.5, maxChildSize: 0.95, expand: false,
         builder: (ctx, scroll) => StatefulBuilder(
           builder: (ctx, setLocal) {
-            double? lat = double.tryParse(latCtrl.text.replaceAll(',', '.'));
-            double? lng = double.tryParse(lngCtrl.text.replaceAll(',', '.'));
-            final url = staticMapUrl(lat, lng);
-
             Future<void> save() async {
               final name = nameCtrl.text.trim();
               final maps = mapsCtrl.text.trim();
@@ -104,6 +105,20 @@ Future<void> showProviderEditor(
                     IconButton(tooltip: 'Appeler', icon: const Icon(Icons.call),
                       onPressed: () => showCallSheet(context, phone, name: name0.isEmpty ? email : name0)),
                   ]),
+                  const SizedBox(height: 14), const Divider(),
+
+                  // Informations utilisateur
+                  if (firstName.isNotEmpty || lastName.isNotEmpty) ...[
+                    label('Prénom & Nom'),
+                    Text('${firstName.isEmpty ? '-' : firstName} ${lastName.isEmpty ? '-' : lastName}',
+                      style: const TextStyle(fontSize: 15)),
+                    const SizedBox(height: 8),
+                  ],
+                  label('Email'),
+                  Text(email.isEmpty ? '-' : email, style: const TextStyle(fontSize: 15)),
+                  const SizedBox(height: 8),
+                  label('Téléphone'),
+                  Text(phone.isEmpty ? '-' : phone, style: const TextStyle(fontSize: 15)),
                   const SizedBox(height: 14), const Divider(),
 
                   label('Nom à afficher'),
@@ -183,7 +198,45 @@ Future<void> showProviderEditor(
                   ]),
 
                   const SizedBox(height: 12),
-                  MapPreviewCard(url: url),
+
+                  // Cartes AVN (recto-verso)
+                  if (avnCardFront.isNotEmpty || avnCardBack.isNotEmpty) ...[
+                    const Divider(),
+                    label('Documents AVN (Attestation Vétérinaire Nationale)'),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      if (avnCardFront.isNotEmpty)
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Recto', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(avnCardFront, height: 180, width: double.infinity, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 180, color: Colors.grey[200],
+                                child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                              ),
+                            ),
+                          ),
+                        ])),
+                      if (avnCardFront.isNotEmpty && avnCardBack.isNotEmpty) const SizedBox(width: 12),
+                      if (avnCardBack.isNotEmpty)
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('Verso', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(avnCardBack, height: 180, width: double.infinity, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 180, color: Colors.grey[200],
+                                child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                              ),
+                            ),
+                          ),
+                        ])),
+                    ]),
+                    const SizedBox(height: 12),
+                  ],
 
                   const SizedBox(height: 16),
                   Row(children: [

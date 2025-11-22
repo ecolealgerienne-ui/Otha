@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
@@ -329,6 +330,131 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _authError = null;
+      _loading = true;
+    });
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        return;
+      }
+
+      final api = ref.read(apiProvider);
+      await api.googleAuth(
+        googleId: account.id,
+        email: account.email,
+        firstName: account.displayName?.split(' ').first,
+        lastName: account.displayName?.split(' ').skip(1).join(' '),
+        photoUrl: account.photoUrl,
+      );
+
+      // Rafraîchir les données utilisateur
+      await ref.read(sessionProvider.notifier).refreshMe();
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // Même logique de routage que _submit
+      final me = ref.read(sessionProvider).user;
+      final role = ((me?['role'] as String?) ?? 'USER').toUpperCase();
+
+      if (role == 'ADMIN') {
+        context.go('/admin/dashboard');
+        return;
+      }
+
+      if (widget.asRole == 'pro') {
+        Map<String, dynamic>? prov;
+        try {
+          prov = await _safeMyProvider();
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors de la récupération du profil')),
+          );
+          return;
+        }
+
+        if (prov == null) {
+          await _showDetectedClientDialogAndRedirect();
+          return;
+        }
+
+        if (_isRejected(prov)) {
+          if (!mounted) return;
+          context.go('/pro/application/rejected');
+          return;
+        }
+
+        final status = (prov['status'] ?? prov['state'] ?? '').toString().toUpperCase();
+        final isApproved = (prov['isApproved'] == true) ||
+            (prov['approved'] == true) ||
+            (status == 'APPROVED');
+
+        if (isApproved) {
+          final kind = _providerKind(prov);
+          final String target = switch (kind) {
+            'daycare' => '/daycare/home',
+            'petshop' => '/petshop/home',
+            _ => '/pro/home',
+          };
+          if (!mounted) return;
+          context.go(target);
+        } else {
+          if (!mounted) return;
+          context.go('/pro/application/submitted');
+        }
+        return;
+      }
+
+      // Flux particulier
+      if (widget.asRole == 'user') {
+        try {
+          final prov = await _safeMyProvider();
+          if (prov != null) {
+            if (_isRejected(prov)) {
+              await _incorrectAndLogout();
+              return;
+            }
+            await _showDetectedProDialogAndRedirect();
+            return;
+          }
+        } catch (_) {}
+        if (!mounted) return;
+        context.go('/home');
+
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _checkPendingAdoptions();
+          }
+        });
+        return;
+      }
+
+      // fallback
+      if (role == 'PRO') {
+        context.go('/pro/home');
+      } else {
+        context.go('/home');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _authError = 'Erreur lors de la connexion Google: ${e.toString()}';
+      });
+    }
+  }
+
   void _goToRegister() {
     // 🔧 FIX: routes nommées pour éviter 404
     if (widget.asRole == 'pro') {
@@ -409,6 +535,39 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               ),
               onPressed: _loading ? null : _submit,
               child: Text(_loading ? '...' : 'Confirmer'),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: Divider(color: Colors.grey[400])),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('OU', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+              ),
+              Expanded(child: Divider(color: Colors.grey[400])),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          SizedBox(
+            height: 52,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.grey[300]!),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                foregroundColor: Colors.black87,
+              ),
+              onPressed: _loading ? null : _handleGoogleSignIn,
+              icon: Image.network(
+                'https://www.google.com/favicon.ico',
+                height: 24,
+                width: 24,
+                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+              ),
+              label: const Text('Continuer avec Google'),
             ),
           ),
 

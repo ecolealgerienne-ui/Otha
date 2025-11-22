@@ -16,7 +16,7 @@ export class AuthService {
   }
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !user.password) throw new UnauthorizedException('Invalid credentials');
     const ok = await argon2.verify(user.password, password);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
     const tokens = await this.issueTokens(user.id, user.role);
@@ -28,6 +28,49 @@ export class AuthService {
     const tokens = await this.issueTokens(user.id, user.role);
     return tokens;
   }
+
+  async googleAuth(googleId: string, email: string, firstName?: string, lastName?: string, photoUrl?: string) {
+    // Chercher utilisateur par googleId ou email
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ googleId }, { email }] },
+    });
+
+    if (user) {
+      // Si user existe mais n'a pas de googleId, on le met à jour
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId },
+        });
+      }
+    } else {
+      // Créer nouveau user avec Google
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          googleId,
+          password: null, // Pas de password pour Google auth
+          firstName: firstName || null,
+          lastName: lastName || null,
+          photoUrl: photoUrl || null,
+        },
+      });
+    }
+
+    const tokens = await this.issueTokens(user.id, user.role);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        photoUrl: user.photoUrl,
+      },
+      ...tokens,
+    };
+  }
+
   private async issueTokens(userId: string, role: string) {
     const accessTtl = this.config.get<string>('JWT_ACCESS_TTL', '900s');
     const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL', '7d');

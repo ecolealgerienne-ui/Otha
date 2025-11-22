@@ -55,10 +55,13 @@ enum AdoptRequestStatus {
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
-  password  String
+  password  String? // Optionnel si Google OAuth
   role      Role    @default(USER)
   firstName String?
   lastName  String?
+
+  // OAuth
+  googleId  String? @unique // Google OAuth ID
 
   // Contact / profil
   phone    String? @unique
@@ -115,6 +118,10 @@ model ProviderProfile {
   appliedAt       DateTime  @default(now())
   rejectedAt      DateTime?
   rejectionReason String?
+
+  // Documents vétérinaires (carte AVN)
+  avnCardFront    String?   // URL de la carte AVN recto
+  avnCardBack     String?   // URL de la carte AVN verso
 
   user     User                   @relation(fields: [userId], references: [id])
   services Service[]

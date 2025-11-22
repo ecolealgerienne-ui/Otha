@@ -198,6 +198,32 @@ class ApiClient {
     return access;
   }
 
+  Future<Map<String, dynamic>> googleAuth({
+    required String googleId,
+    required String email,
+    String? firstName,
+    String? lastName,
+    String? photoUrl,
+  }) async {
+    final res = await _dio.post('/auth/google', data: {
+      'googleId': googleId,
+      'email': email,
+      if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+      if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+    });
+    final data = _unwrap<Map<String, dynamic>>(res.data);
+
+    final access = (data['accessToken'] ?? data['token'] ?? '') as String;
+    if (access.isEmpty) throw Exception('Token manquant');
+
+    final refresh = (data['refreshToken'] ?? data['refresh_token'] ?? '') as String?;
+    await setToken(access);
+    await setRefreshToken(refresh);
+
+    return data;
+  }
+
   Future<void> logout() async {
     _dio.options.headers.remove('Authorization');
     await _storage.delete(key: _kTokenPrimary);
@@ -524,7 +550,7 @@ class ApiClient {
 
 
   /// Backend-first: on envoie displayName/adresse/specialties (mapsUrl inclus).
-  /// Le back gère l’expansion des liens Google Maps et l’extraction lat/lng.
+  /// Le back gère l'expansion des liens Google Maps et l'extraction lat/lng.
   Future<Map<String, dynamic>> upsertMyProvider({
     required String displayName,
     String? bio,
@@ -534,6 +560,8 @@ class ApiClient {
     Map<String, dynamic>? specialties,
     bool forceReparse = false,
     String? timezone,
+    String? avnCardFront,
+    String? avnCardBack,
   }) async {
     await ensureAuth();
 
@@ -546,9 +574,11 @@ class ApiClient {
       if (timezone != null) 'timezone': timezone,
       if (specialties != null) 'specialties': specialties,
       'forceReparse': forceReparse,
-      // si le front n’envoie pas lat/lng, le back recalcule depuis mapsUrl
+      // si le front n'envoie pas lat/lng, le back recalcule depuis mapsUrl
       if (!forceReparse && _validCoord(lat)) 'lat': lat,
       if (!forceReparse && _validCoord(lng)) 'lng': lng,
+      if (avnCardFront != null) 'avnCardFront': avnCardFront,
+      if (avnCardBack != null) 'avnCardBack': avnCardBack,
     };
 
     final res = await _dio.post(

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
@@ -146,7 +147,7 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   }
 
   Future<void> _finish({required bool skip}) async {
-    // Si l’utilisateur ignore la photo, on passe direct à l’ajout d’un animal
+    // Si l'utilisateur ignore la photo, on passe direct à l'ajout d'un animal
     if (skip || _avatarFile == null) {
       if (!mounted) return;
       context.go('/onboard/pet');
@@ -168,10 +169,51 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload avatar échoué: $e')),
       );
-      // On n’empêche pas la suite : on va quand même vers l’ajout animal
+      // On n'empêche pas la suite : on va quand même vers l'ajout animal
       context.go('/onboard/pet');
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _loading = true);
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        return;
+      }
+
+      final api = ref.read(apiProvider);
+      await api.googleAuth(
+        googleId: account.id,
+        email: account.email,
+        firstName: account.displayName?.split(' ').first,
+        lastName: account.displayName?.split(' ').skip(1).join(' '),
+        photoUrl: account.photoUrl,
+      );
+
+      // Rafraîchir les données utilisateur
+      await ref.read(sessionProvider.notifier).refreshMe();
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // Rediriger vers l'ajout d'un animal
+      context.go('/onboard/pet');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la connexion Google: $e')),
+      );
     }
   }
 
@@ -244,6 +286,37 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
         const SizedBox(height: 12),
         _label('Nom'),
         _input(_lastName, errorText: _errLast),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey[400])),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('OU', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+            ),
+            Expanded(child: Divider(color: Colors.grey[400])),
+          ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 52,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey[300]!),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              foregroundColor: Colors.black87,
+            ),
+            onPressed: _loading ? null : _handleGoogleSignIn,
+            icon: Image.network(
+              'https://www.google.com/favicon.ico',
+              height: 24,
+              width: 24,
+              errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+            ),
+            label: const Text('Continuer avec Google'),
+          ),
+        ),
       ], key: const ValueKey('step0'));
     }
 
