@@ -112,7 +112,25 @@ export class UsersService {
       skip: query?.offset ?? 0,
     });
 
-    return users;
+    // Ajouter le compteur de conversations signalées pour chaque utilisateur
+    const usersWithReportCounts = await Promise.all(
+      users.map(async (user) => {
+        const reportedConversationsCount = await this.prisma.adoptConversation.count({
+          where: {
+            OR: [
+              { ownerId: user.id, reportedByAdopter: true },
+              { adopterId: user.id, reportedByOwner: true },
+            ],
+          },
+        });
+        return {
+          ...user,
+          reportedConversationsCount,
+        };
+      }),
+    );
+
+    return usersWithReportCounts;
   }
 
   // Admin: reset quotas adoption d'un utilisateur

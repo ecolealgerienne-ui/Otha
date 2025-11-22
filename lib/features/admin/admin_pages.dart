@@ -443,6 +443,7 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                         final last = (m['lastName'] ?? '').toString();
                         final phone = (m['phone'] ?? '').toString();
                         final role = (m['role'] ?? '').toString();
+                        final reportedCount = (m['reportedConversationsCount'] ?? 0) as int;
                         final name = [
                           first,
                           last,
@@ -460,9 +461,43 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                               ),
                             ),
                           ),
-                          title: Text(
-                            name.isEmpty ? '(Sans nom)' : name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name.isEmpty ? '(Sans nom)' : name,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              if (reportedCount > 0) ...[
+                                const SizedBox(width: 4),
+                                Tooltip(
+                                  message: '$reportedCount conversation(s) signalée(s)',
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('🚩', style: TextStyle(fontSize: 12)),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '$reportedCount',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           subtitle: Text(
                             [
@@ -485,6 +520,12 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                                 await _showEditUserDialog(context, m);
                               } else if (value == 'reset_quotas') {
                                 await _handleResetQuotas(context, userId, name.isEmpty ? email : name);
+                              } else if (value == 'view_reported') {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => AdminUserDetailScreen(user: m),
+                                  ),
+                                );
                               }
                             },
                             itemBuilder: (context) => [
@@ -508,6 +549,17 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                                   ],
                                 ),
                               ),
+                              if (reportedCount > 0)
+                                const PopupMenuItem(
+                                  value: 'view_reported',
+                                  child: Row(
+                                    children: [
+                                      Text('🚩', style: TextStyle(fontSize: 16)),
+                                      SizedBox(width: 8),
+                                      Text('Voir conversations signalées'),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         );

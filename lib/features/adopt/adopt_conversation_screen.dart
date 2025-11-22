@@ -170,13 +170,29 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   }
 
   Future<void> _showReportDialog(BuildContext context) async {
+    final reasonController = TextEditingController();
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Signaler la conversation'),
-        content: const Text(
-          'Voulez-vous signaler cette conversation à un administrateur ? '
-          'Vous serez redirigé vers la page admin.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Pourquoi signalez-vous cette conversation ?'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Motif du signalement',
+                border: OutlineInputBorder(),
+                hintText: 'Ex: Contenu inapproprié, arnaque, etc.',
+              ),
+              maxLines: 3,
+              maxLength: 500,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -184,7 +200,15 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Veuillez indiquer un motif')),
+                );
+                return;
+              }
+              Navigator.pop(context, true);
+            },
             style: FilledButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('Signaler'),
           ),
@@ -193,9 +217,30 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     );
 
     if (confirmed == true && mounted) {
-      // TODO: Créer endpoint de signalement et rediriger vers admin
-      context.push('/admin/hub');
+      try {
+        final api = ref.read(apiProvider);
+        await api.adoptReportConversation(widget.conversationId, reasonController.text.trim());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Conversation signalée aux administrateurs'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
+
+    reasonController.dispose();
   }
 
   @override

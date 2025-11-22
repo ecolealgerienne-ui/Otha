@@ -347,7 +347,7 @@ class _PostCard extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onEdit,
+          onTap: (isAdopted || status == 'ARCHIVED') ? null : onEdit,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -428,7 +428,8 @@ class _PostCard extends ConsumerWidget {
                     if (value == 'adopted') _handleMarkAsAdopted(context, ref);
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                    if (!isAdopted && status != 'ARCHIVED') // Ne pas permettre d'éditer si adopté ou archivé
+                      const PopupMenuItem(value: 'edit', child: Text('Modifier')),
                     if (!isAdopted) // N'afficher "Adopté" que si pas encore adopté
                       const PopupMenuItem(
                         value: 'adopted',
