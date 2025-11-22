@@ -144,8 +144,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (role == 'petshop') return '/pro/petshop/home';
       }
 
+      // Pages PRO publiques (accessibles sans connexion)
+      final publicProPaths = [
+        '/pro/application/submitted',
+        '/pro/application/rejected',
+      ];
+
       // Si pas connecté et on essaie d'accéder à une page protégée, rediriger intelligemment
       if (!isLoggedIn && protectedPaths.any((p) => currentPath.startsWith(p))) {
+        // Exception : les pages d'application PRO sont publiques
+        if (publicProPaths.any((p) => currentPath == p)) {
+          return null; // Autoriser l'accès
+        }
+
         // Si c'était une page admin, rediriger vers login pro (pour admins)
         if (currentPath.startsWith('/admin')) {
           return '/auth/login?as=pro';
