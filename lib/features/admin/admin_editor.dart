@@ -32,6 +32,9 @@ Future<void> showProviderEditor(
   final avnCardFront = (p['avnCardFront'] ?? '').toString();
   final avnCardBack = (p['avnCardBack'] ?? '').toString();
 
+  // Images garderie
+  final daycareImages = (sp0['images'] is List) ? List<String>.from(sp0['images'] as List) : <String>[];
+
   final nameCtrl = TextEditingController(text: name0);
   final addrCtrl = TextEditingController(text: addr0);
   final mapsCtrl = TextEditingController(text: maps0);
@@ -275,6 +278,62 @@ Future<void> showProviderEditor(
                           ),
                         ])),
                     ]),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Photos de la garderie
+                  if (daycareImages.isNotEmpty) ...[
+                    const Divider(),
+                    label('Photos de la garderie'),
+                    const SizedBox(height: 8),
+                    ...daycareImages.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final imageUrl = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Photo ${index + 1}', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () => _showZoomableImage(context, imageUrl, 'Garderie - Photo ${index + 1}'),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Stack(
+                                  children: [
+                                    Image.network(
+                                      imageUrl,
+                                      height: 180,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        height: 180,
+                                        color: Colors.grey[200],
+                                        child: const Center(child: Icon(Icons.error_outline, color: Colors.red)),
+                                      ),
+                                    ),
+                                    // Icône zoom pour indiquer que c'est cliquable
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                     const SizedBox(height: 12),
                   ],
 
