@@ -96,18 +96,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/gate',
     refreshListenable: notifier,
     redirect: (context, state) {
-      // Relire l'état de session à chaque redirection
       final session = ref.read(sessionProvider);
       final user = session.user;
       final isLoggedIn = user != null;
       final currentPath = state.uri.path;
 
-      // Si on est en train de compléter l'inscription PRO, ne PAS rediriger
+      // IMPORTANT: Bloquer TOUTES les redirections pendant l'inscription PRO
       if (session.isCompletingProRegistration) {
         return null;
       }
 
-      // Pages publiques (pas besoin d'être connecté)
+      // Pages publiques
       final publicPaths = [
         '/gate',
         '/start/user',
@@ -117,75 +116,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/auth/register/pro',
         '/auth/forgot-password',
         '/auth/otp',
+        '/pro/application/submitted',  // Page publique pour les PRO en attente
+        '/pro/application/rejected',    // Page publique pour les PRO rejetés
       ];
 
-      // Pages qui nécessitent d'être connecté
+      // Si on est sur une page publique, laisser passer
+      if (publicPaths.contains(currentPath)) {
+        return null;
+      }
+
+      // Pages protégées : nécessitent d'être connecté
       final protectedPaths = [
         '/home',
-        '/pro/home',
-        '/admin',
-        '/explore',
-        '/adopt',
+        '/pro/',
+        '/admin/',
+        '/explore/',
+        '/adopt/',
         '/profile',
-        '/auth/profile-completion',
+        '/settings',
+        '/pets',
+        '/me/',
+        '/daycare/',
+        '/petshop/',
       ];
 
-      // Si connecté et on est sur une page publique (sauf start/gate), rediriger vers home
-      if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
-        final role = user['role']?.toString() ?? 'user';
-
-        // Admin : toujours rediriger vers admin hub
-        if (role == 'admin') return '/admin/hub';
-
-        // PRO (vet/daycare/petshop) : NE PAS rediriger automatiquement
-        // La logique de redirection (approved ou non) est gérée par login_screen.dart
-        // On laisse l'utilisateur là où il est (sera géré par la page de login)
-        if (role == 'vet' || role == 'daycare' || role == 'petshop') {
-          return null; // Pas de redirection automatique pour les PRO
-        }
-
-        // User normal : rediriger vers home
-        return '/home';
-      }
-
-      // Si connecté et sur /home mais pas le bon rôle, rediriger
-      if (isLoggedIn && currentPath == '/home') {
-        final role = user['role']?.toString() ?? 'user';
-
-        // Admin : rediriger vers admin hub
-        if (role == 'admin') return '/admin/hub';
-
-        // PRO : NE PAS rediriger automatiquement depuis /home
-        // Ils peuvent rester sur /home s'ils y sont (utile pour les non approuvés)
-        // La logique de redirection est gérée par login_screen.dart
-      }
-
-      // Pages PRO publiques (accessibles sans connexion)
-      final publicProPaths = [
-        '/pro/application/submitted',
-        '/pro/application/rejected',
-      ];
-
-      // Si pas connecté et on essaie d'accéder à une page protégée, rediriger intelligemment
+      // Si PAS connecté et on essaie d'accéder à une page protégée → /gate
       if (!isLoggedIn && protectedPaths.any((p) => currentPath.startsWith(p))) {
-        // Exception : les pages d'application PRO sont publiques
-        if (publicProPaths.any((p) => currentPath == p)) {
-          return null; // Autoriser l'accès
-        }
-
-        // Si c'était une page admin, rediriger vers login pro (pour admins)
-        if (currentPath.startsWith('/admin')) {
-          return '/auth/login?as=pro';
-        }
-        // Si c'était une page pro, rediriger vers login pro
-        if (currentPath.startsWith('/pro')) {
-          return '/auth/login?as=pro';
-        }
-        // Sinon (user), rediriger vers gate pour choisir le type de compte
         return '/gate';
       }
 
-      return null; // pas de redirection
+      // Si connecté et sur /gate ou /start → rediriger vers home approprié
+      if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
+        final role = user['role']?.toString() ?? 'user';
+
+        // Admin → admin hub
+        if (role == 'admin') return '/admin/hub';
+
+        // User normal → home
+        // PRO (vet/daycare/petshop) → home aussi (login_screen.dart gérera la redirection)
+        return '/home';
+      }
+
+      return null; // Pas de redirection
     },
     routes: <RouteBase>[
       // -------- Gate / Start --------
