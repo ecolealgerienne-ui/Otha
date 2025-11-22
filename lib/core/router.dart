@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'session_controller.dart';
+import 'router_notifier.dart';
+
 // Gate + Start
 import '../features/gate/splash_screen.dart';
 import '../features/auth/start_screen.dart'; // ✅ chemin correct
@@ -87,8 +90,56 @@ import '../features/pets/vet_scan_pet_screen.dart';
 import 'role_guard.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final notifier = RouterNotifier(ref);
+
   return GoRouter(
     initialLocation: '/gate',
+    refreshListenable: notifier,
+    redirect: (context, state) {
+      // Relire l'état de session à chaque redirection
+      final session = ref.read(sessionProvider);
+      final user = session.user;
+      final isLoggedIn = user != null;
+      final currentPath = state.uri.path;
+
+      // Pages publiques (pas besoin d'être connecté)
+      final publicPaths = [
+        '/gate',
+        '/start/user',
+        '/start/pro',
+        '/auth/login',
+        '/auth/register/user',
+        '/auth/register/pro',
+        '/auth/forgot-password',
+        '/auth/otp',
+      ];
+
+      // Pages qui nécessitent d'être connecté
+      final protectedPaths = [
+        '/home',
+        '/pro/home',
+        '/admin',
+        '/explore',
+        '/adopt',
+        '/profile',
+        '/auth/profile-completion',
+      ];
+
+      // Si connecté et on est sur une page publique (sauf start/gate), rediriger vers home
+      if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
+        final role = user['role']?.toString() ?? 'user';
+        if (role == 'admin') return '/admin/hub';
+        if (role == 'provider') return '/pro/home';
+        return '/home';
+      }
+
+      // Si pas connecté et on essaie d'accéder à une page protégée, rediriger vers gate
+      if (!isLoggedIn && protectedPaths.any((p) => currentPath.startsWith(p))) {
+        return '/gate';
+      }
+
+      return null; // pas de redirection
+    },
     routes: <RouteBase>[
       // -------- Gate / Start --------
       GoRoute(path: '/gate', builder: (_, __) => const RoleGateScreen()),
