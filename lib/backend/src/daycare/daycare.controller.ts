@@ -6,10 +6,10 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
+  Req,
   Query,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { DaycareService } from './daycare.service';
 import { CreateDaycareBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-status.dto';
@@ -24,7 +24,7 @@ export class DaycareController {
    * Créer une réservation garderie (client)
    */
   @Post('bookings')
-  async createBooking(@Request() req, @Body() dto: CreateDaycareBookingDto) {
+  async createBooking(@Req() req: any, @Body() dto: CreateDaycareBookingDto) {
     return this.daycareService.createBooking(req.user.userId, dto);
   }
 
@@ -33,7 +33,7 @@ export class DaycareController {
    * Obtenir mes réservations (client)
    */
   @Get('my/bookings')
-  async getMyBookings(@Request() req) {
+  async getMyBookings(@Req() req: any) {
     return this.daycareService.getMyBookings(req.user.userId);
   }
 
@@ -42,7 +42,7 @@ export class DaycareController {
    * Obtenir les réservations de ma garderie (provider)
    */
   @Get('provider/bookings')
-  async getProviderBookings(@Request() req) {
+  async getProviderBookings(@Req() req: any) {
     return this.daycareService.getProviderBookings(req.user.userId);
   }
 
@@ -52,7 +52,7 @@ export class DaycareController {
    */
   @Patch('bookings/:id/status')
   async updateBookingStatus(
-    @Request() req,
+    @Req() req: any,
     @Param('id') id: string,
     @Body() dto: UpdateBookingStatusDto,
   ) {
@@ -64,7 +64,7 @@ export class DaycareController {
    * Marquer l'animal comme déposé (IN_PROGRESS)
    */
   @Patch('bookings/:id/drop-off')
-  async markDropOff(@Request() req, @Param('id') id: string) {
+  async markDropOff(@Req() req: any, @Param('id') id: string) {
     return this.daycareService.markDropOff(req.user.userId, id);
   }
 
@@ -73,7 +73,7 @@ export class DaycareController {
    * Marquer l'animal comme récupéré (COMPLETED)
    */
   @Patch('bookings/:id/pickup')
-  async markPickup(@Request() req, @Param('id') id: string) {
+  async markPickup(@Req() req: any, @Param('id') id: string) {
     return this.daycareService.markPickup(req.user.userId, id);
   }
 
@@ -82,7 +82,7 @@ export class DaycareController {
    * Obtenir les animaux présents pour une date donnée (calendrier)
    */
   @Get('provider/calendar')
-  async getCalendar(@Request() req, @Query('date') date: string) {
+  async getCalendar(@Req() req: any, @Query('date') date: string) {
     return this.daycareService.getCalendar(req.user.userId, date);
   }
 }

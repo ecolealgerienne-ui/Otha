@@ -10,5 +10,5 @@ export enum DaycareBookingStatus {
 
 export class UpdateBookingStatusDto {
   @IsEnum(DaycareBookingStatus)
-  status: DaycareBookingStatus;
+  status!: DaycareBookingStatus;
 }
