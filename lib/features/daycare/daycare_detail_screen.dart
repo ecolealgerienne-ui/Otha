@@ -48,7 +48,7 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
     final closingTime = daycare['closingTime']?.toString() ?? '20:00';
 
     // Simuler places restantes (dans un vrai système, ça viendrait du backend)
-    final remainingSpots = capacity != null ? (capacity as int) - (capacity as int ~/ 3) : null;
+    final remainingSpots = capacity != null ? (capacity as int) - ((capacity as int) ~/ 3) : null;
 
     return Scaffold(
       backgroundColor: Colors.white,
