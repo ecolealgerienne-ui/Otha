@@ -97,6 +97,7 @@ import '../features/pets/pet_medical_history_screen.dart';
 import '../features/pets/add_medical_record_screen.dart';
 import '../features/pets/pet_qr_code_screen.dart';
 import '../features/pets/vet_scan_pet_screen.dart';
+import '../features/pets/pet_health_stats_screen.dart';
 
 // Guards
 import 'role_guard.dart';
@@ -306,6 +307,12 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       GoRoute(
         path: '/pets/:id/medical/add',
         builder: (ctx, st) => AddMedicalRecordScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/health-stats',
+        builder: (ctx, st) => PetHealthStatsScreen(
           petId: st.pathParameters['id']!,
         ),
       ),
