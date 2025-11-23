@@ -162,6 +162,12 @@ final pendingValidationsProvider = FutureProvider.autoDispose<List<Map<String, d
   }
 });
 
+/// Nombre de validations en attente (plus performant pour le banner)
+final pendingValidationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final api = ref.read(apiProvider);
+  return api.getPendingValidationsCount();
+});
+
 /// Historique normalisé SANS AUCUN overlay local — uniquement backend
 final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   final api = ref.read(apiProvider);
