@@ -73,10 +73,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           var activeBooking = await api.findActiveBookingForPet(petId);
           var bookingType = 'vet';
 
-          if (activeBooking != null) {
-            debugPrint('✅ Booking vétérinaire trouvé: ${activeBooking['id']}');
+          // ✅ FIX: Vérifier si le booking a un ID valide (pas juste un objet vide)
+          final hasValidVetBooking = activeBooking != null &&
+                                      activeBooking['id'] != null &&
+                                      activeBooking['id'].toString().isNotEmpty &&
+                                      activeBooking['id'].toString() != 'null';
+
+          if (hasValidVetBooking) {
+            debugPrint('✅ Booking vétérinaire trouvé: ${activeBooking!['id']}');
           } else {
             debugPrint('❌ Aucun booking vétérinaire trouvé');
+            activeBooking = null; // Reset pour chercher daycare
           }
 
           // Si pas de booking vétérinaire, chercher un booking garderie
@@ -85,10 +92,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             activeBooking = await api.findActiveDaycareBookingForPet(petId);
             bookingType = 'daycare';
 
-            if (activeBooking != null) {
-              debugPrint('✅ Booking garderie trouvé: ${activeBooking['id']}');
+            // ✅ FIX: Vérifier si le booking daycare a un ID valide
+            final hasValidDaycareBooking = activeBooking != null &&
+                                            activeBooking['id'] != null &&
+                                            activeBooking['id'].toString().isNotEmpty &&
+                                            activeBooking['id'].toString() != 'null';
+
+            if (hasValidDaycareBooking) {
+              debugPrint('✅ Booking garderie trouvé: ${activeBooking!['id']}');
             } else {
               debugPrint('❌ Aucun booking garderie trouvé');
+              activeBooking = null; // Reset
             }
           }
 
