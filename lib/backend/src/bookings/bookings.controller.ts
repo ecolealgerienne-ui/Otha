@@ -370,7 +370,7 @@ export class BookingsController {
     return this.svc.myEarnings(req.user.sub, month);
   }
 
-  /** PRO: historique mensuel normalisé (pour l’écran Pro) */
+  /** PRO: historique mensuel normalisé (pour l'écran Pro) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO','ADMIN')
   @Get('provider/me/history/monthly')
@@ -380,5 +380,99 @@ export class BookingsController {
       req.user.sub,
       Number.isFinite(n) ? n : 12,
     );
+  }
+
+  // ==================== NOUVEAU: Endpoints Système de Confirmation ====================
+
+  /**
+   * Chercher un booking actif pour un pet (pour le scan QR vet)
+   * GET /bookings/active-for-pet/:petId
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('active-for-pet/:petId')
+  findActiveBookingForPet(@Param('petId') petId: string) {
+    return this.svc.findActiveBookingForPet(petId);
+  }
+
+  /**
+   * PRO confirme un booking (après scan QR ou manuellement)
+   * POST /bookings/:id/pro-confirm
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-confirm')
+  proConfirmBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.proConfirmBooking(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT demande confirmation (via popup avis)
+   * POST /bookings/:id/client-confirm
+   */
+  @Post(':id/client-confirm')
+  clientRequestConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    if (!body?.rating || body.rating < 1 || body.rating > 5) {
+      throw new BadRequestException('rating must be between 1 and 5');
+    }
+    return this.svc.clientRequestConfirmation(
+      req.user.sub,
+      id,
+      body.rating,
+      body.comment,
+    );
+  }
+
+  /**
+   * CLIENT dit "je n'y suis pas allé"
+   * POST /bookings/:id/client-cancel
+   */
+  @Post(':id/client-cancel')
+  clientCancelBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.clientCancelBooking(req.user.sub, id);
+  }
+
+  /**
+   * PRO valide ou refuse la confirmation client
+   * POST /bookings/:id/pro-validate
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-validate')
+  proValidateClientConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approved: boolean },
+  ) {
+    if (typeof body?.approved !== 'boolean') {
+      throw new BadRequestException('approved must be a boolean');
+    }
+    return this.svc.proValidateClientConfirmation(req.user.sub, id, body.approved);
+  }
+
+  /**
+   * PRO: liste des bookings en attente de validation
+   * GET /bookings/provider/me/pending-validations
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('provider/me/pending-validations')
+  getPendingValidations(@Req() req: any) {
+    return this.svc.getPendingValidations(req.user.sub);
+  }
+
+  /**
+   * ADMIN/CRON: Cron job pour checker les grace periods
+   * POST /bookings/admin/check-grace-periods
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/check-grace-periods')
+  checkGracePeriods() {
+    return this.svc.checkGracePeriods();
   }
 }
