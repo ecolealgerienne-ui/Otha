@@ -1009,6 +1009,13 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
   }
 
+  /// Récupérer les réservations de ma garderie (provider)
+  Future<List<dynamic>> myDaycareProviderBookings() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/provider/bookings'));
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
   /// Annuler une réservation de garderie (client)
   Future<Map<String, dynamic>> cancelDaycareBooking(String bookingId) async {
     await ensureAuth();
