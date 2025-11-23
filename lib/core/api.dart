@@ -1012,7 +1012,7 @@ Future<List<Map<String, dynamic>>> providerAgenda({
   /// Annuler une réservation de garderie (client)
   Future<Map<String, dynamic>> cancelDaycareBooking(String bookingId) async {
     await ensureAuth();
-    final res = await _dio.patch('/daycare/bookings/$bookingId/status', data: {'status': 'CANCELLED'});
+    final res = await _dio.patch('/daycare/my/bookings/$bookingId/cancel');
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 

@@ -24,7 +24,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
   Future<List<dynamic>> _loadBookings() async {
     final api = ref.read(apiProvider);
     try {
-      final res = await api.dio.get('/api/v1/daycare/provider/bookings');
+      final res = await api.dio.get('/daycare/provider/bookings');
       final data = res.data;
 
       // Le backend retourne directement un tableau, pas {data: [...]}
@@ -47,7 +47,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.dio.patch(
-        '/api/v1/daycare/bookings/$bookingId/status',
+        '/daycare/bookings/$bookingId/status',
         data: {'status': newStatus},
       );
 

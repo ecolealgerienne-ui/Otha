@@ -334,4 +334,51 @@ export class DaycareService {
       orderBy: { startDate: 'asc' },
     });
   }
+
+  /**
+   * Annuler une réservation (client uniquement)
+   */
+  async cancelMyBooking(userId: string, bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Réservation non trouvée');
+    }
+
+    // Vérifier que c'est bien la réservation du client
+    if (booking.userId !== userId) {
+      throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    }
+
+    // Vérifier que la réservation peut être annulée
+    if (booking.status === 'CANCELLED') {
+      throw new BadRequestException('Cette réservation est déjà annulée');
+    }
+
+    if (booking.status === 'COMPLETED') {
+      throw new BadRequestException('Impossible d\'annuler une réservation terminée');
+    }
+
+    // Annuler la réservation
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: { status: 'CANCELLED' },
+      include: {
+        pet: true,
+        provider: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
