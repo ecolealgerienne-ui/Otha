@@ -455,6 +455,7 @@ class _ActionGrid extends StatelessWidget {
     final items = [
       _Action('Gérer la page', Icons.edit_location, '/daycare/page', const Color(0xFF3A86FF)),
       _Action('Mes réservations', Icons.calendar_today, '/daycare/bookings', const Color(0xFFFF6D00)),
+      _Action('Calendrier', Icons.date_range, '/daycare/calendar', const Color(0xFF00ACC1)),
     ];
 
     return Padding(
