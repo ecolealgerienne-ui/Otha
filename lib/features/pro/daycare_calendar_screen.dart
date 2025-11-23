@@ -833,7 +833,49 @@ class _AnimalDetailPage extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Boutons d'action
-          if (status == 'CONFIRMED')
+          if (status == 'CONFIRMED') ...[
+            // Bouton Scanner QR Code
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00ACC1), Color(0xFF26C6DA)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00ACC1).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/scan-pet').then((_) {
+                    // Rafraîchir les données après retour du scan
+                    ref.invalidate(daycareCalendarBookingsProvider);
+                    Navigator.of(context).pop(); // Fermer le modal
+                  });
+                },
+                icon: const Icon(Icons.qr_code_scanner, size: 24),
+                label: const Text(
+                  'Scanner QR code',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Bouton manuel "Animal accueilli"
             Container(
               width: double.infinity,
               height: 56,
@@ -854,7 +896,7 @@ class _AnimalDetailPage extends StatelessWidget {
                 onPressed: onMarkDropOff,
                 icon: const Icon(Icons.pets, size: 24),
                 label: const Text(
-                  'Animal accueilli',
+                  'Animal accueilli (manuel)',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -867,6 +909,7 @@ class _AnimalDetailPage extends StatelessWidget {
                 ),
               ),
             ),
+          ],
 
           if (status == 'IN_PROGRESS')
             Container(
