@@ -1033,6 +1033,20 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Marquer l'arrivée de l'animal (drop-off) - provider
+  Future<Map<String, dynamic>> markDaycareDropOff(String bookingId) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/drop-off');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Marquer le départ de l'animal (pickup) - provider
+  Future<Map<String, dynamic>> markDaycarePickup(String bookingId) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/pickup');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   // --------------- Reviews ---------------
   Future<Map<String, dynamic>> createReview({
     required String bookingId,
@@ -2933,5 +2947,72 @@ final hay = [
       }
     }
     throw Exception(_extractMessage(last?.response?.data));
+  }
+
+  // ==================== NOUVEAU: Système de Confirmation ====================
+
+  /// Chercher un booking actif pour un pet (scan QR vet)
+  Future<Map<String, dynamic>?> findActiveBookingForPet(String petId) async {
+    try {
+      final res = await _authRetry(() async => await _dio.get('/bookings/active-for-pet/$petId'));
+      final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+      if (data == null) return null;
+      return Map<String, dynamic>.from(data as Map);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// PRO confirme un booking (après scan QR)
+  Future<Map<String, dynamic>> proConfirmBooking(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/pro-confirm'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT demande confirmation (via popup avis)
+  Future<Map<String, dynamic>> clientRequestConfirmation({
+    required String bookingId,
+    required int rating,
+    String? comment,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/client-confirm',
+      data: {
+        'rating': rating,
+        if (comment != null) 'comment': comment,
+      },
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT dit "je n'y suis pas allé"
+  Future<Map<String, dynamic>> clientCancelBooking(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/client-cancel'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// PRO valide ou refuse la confirmation client
+  Future<Map<String, dynamic>> proValidateClientConfirmation({
+    required String bookingId,
+    required bool approved,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/pro-validate',
+      data: {'approved': approved},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Liste des bookings en attente de validation par le pro
+  Future<List<dynamic>> getPendingValidations() async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/provider/me/pending-validations'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    if (data is List) return data;
+    return [];
   }
 }

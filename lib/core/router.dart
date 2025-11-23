@@ -41,6 +41,7 @@ import '../features/pro/pro_services_screen.dart';
 import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
+import '../features/pro/pro_pending_validations_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
 import '../features/petshop/petshop_product_edit_screen.dart';
@@ -68,6 +69,7 @@ import '../features/daycare/daycare_booking_screen.dart';
 import '../features/pro/daycare_calendar_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
+import '../features/pro/pro_pending_validations_screen.dart';
 
 import '../features/admin/admin_hub_screen.dart';
 import '../features/admin/admin_pages.dart';
@@ -553,6 +555,10 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/patients',
             builder: (_, __) => const ProPatientsScreen(),
+          ),
+          GoRoute(
+            path: '/pro/pending-validations',
+            builder: (_, __) => const ProPendingValidationsScreen(),
           ),
           // ✅ Settings passe sous le shell (protégé, back stack propre)
           GoRoute(

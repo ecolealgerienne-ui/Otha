@@ -71,6 +71,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     final name = (daycare['displayName'] ?? 'Garderie').toString();
     final hourlyRate = daycare['hourlyRate'] as int?;
     final dailyRate = daycare['dailyRate'] as int?;
+    final availableDays = daycare['availableDays'] as List<dynamic>? ?? List.filled(7, true);
 
     final petsAsync = ref.watch(_userPetsProvider);
 
@@ -195,7 +196,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
                               child: _dateCard(
                                 label: _bookingType == 'daily' ? 'Début' : 'Date',
                                 date: _startDate,
-                                onTap: () => _pickStartDate(context),
+                                onTap: () => _pickStartDate(context, availableDays),
                               ),
                             ),
                             if (_bookingType == 'daily') ...[
@@ -204,7 +205,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
                                 child: _dateCard(
                                   label: 'Fin',
                                   date: _endDate,
-                                  onTap: () => _pickEndDate(context),
+                                  onTap: () => _pickEndDate(context, availableDays),
                                 ),
                               ),
                             ],
@@ -534,13 +535,21 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     return null;
   }
 
-  Future<void> _pickStartDate(BuildContext context) async {
+  Future<void> _pickStartDate(BuildContext context, List<dynamic> availableDays) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate ?? now,
       firstDate: now,
       lastDate: DateTime(now.year + 1),
+      selectableDayPredicate: (DateTime date) {
+        // Lun=1, Mar=2, ..., Dim=7
+        // Mais notre tableau est Lun=0, Mar=1, ..., Dim=6
+        final weekday = date.weekday == 7 ? 0 : date.weekday; // Dimanche = 0
+        final adjustedWeekday = weekday == 0 ? 6 : weekday - 1; // Convertir pour notre index (Lun=0, Dim=6)
+        if (adjustedWeekday >= availableDays.length) return true;
+        return availableDays[adjustedWeekday] == true;
+      },
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -562,7 +571,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     }
   }
 
-  Future<void> _pickEndDate(BuildContext context) async {
+  Future<void> _pickEndDate(BuildContext context, List<dynamic> availableDays) async {
     if (_startDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez d\'abord sélectionner la date de début')),
@@ -575,6 +584,14 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       initialDate: _endDate ?? _startDate!,
       firstDate: _startDate!,
       lastDate: DateTime(_startDate!.year + 1),
+      selectableDayPredicate: (DateTime date) {
+        // Lun=1, Mar=2, ..., Dim=7
+        // Mais notre tableau est Lun=0, Mar=1, ..., Dim=6
+        final weekday = date.weekday == 7 ? 0 : date.weekday; // Dimanche = 0
+        final adjustedWeekday = weekday == 0 ? 6 : weekday - 1; // Convertir pour notre index (Lun=0, Dim=6)
+        if (adjustedWeekday >= availableDays.length) return true;
+        return availableDays[adjustedWeekday] == true;
+      },
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -664,7 +681,6 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       final daycare = widget.daycareData ?? {};
       final hourlyRate = daycare['hourlyRate'] as int?;
       final dailyRate = daycare['dailyRate'] as int?;
-      final basePrice = _bookingType == 'hourly' ? (hourlyRate ?? 1000) : (dailyRate ?? 5000);
 
       // Récupérer le nom du premier pet
       final petsAsync = ref.read(_userPetsProvider);
@@ -708,6 +724,22 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
           17,
           0,
         );
+      }
+
+      // Calculer le prix de base selon le type de réservation
+      int basePrice;
+      if (_bookingType == 'hourly' && hourlyRate != null) {
+        // Calculer le nombre d'heures
+        final durationInHours = endDateTime!.difference(startDateTime).inMinutes / 60;
+        final hours = durationInHours.ceil();
+        basePrice = hours * hourlyRate;
+      } else if (_bookingType == 'daily' && dailyRate != null) {
+        // Calculer le nombre de jours
+        final durationInDays = endDateTime!.difference(startDateTime).inDays + 1;
+        basePrice = durationInDays * dailyRate;
+      } else {
+        // Valeur par défaut (ne devrait pas arriver)
+        basePrice = _bookingType == 'hourly' ? 1000 : 5000;
       }
 
       final totalDa = basePrice + kDaycareCommissionDa;
