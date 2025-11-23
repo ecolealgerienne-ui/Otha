@@ -545,7 +545,7 @@ class _PetSwipeCard extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => context.push('/pets/$id/medical'),
+                                onPressed: () => context.push('/pets/$id/health-stats'),
                                 icon: const Icon(Icons.medical_services, size: 18),
                                 label: const Text('Carnet'),
                                 style: OutlinedButton.styleFrom(
