@@ -19,6 +19,11 @@ final _servicesProvider =
   return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
+final _myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final list = await ref.read(apiProvider).myPets();
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+});
+
 @immutable
 class _SlotsArgs {
   final String providerId;
@@ -106,8 +111,9 @@ class BookingFlowScreen extends ConsumerStatefulWidget {
 class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
   String? _selectedServiceId;
   String? _selectedSlotIso;
+  String? _selectedPetId; // Animal sélectionné
 
-  // Infos du service sélectionné (affichées dans l’UI)
+  // Infos du service sélectionné (affichées dans l'UI)
   String _selTitle = '';
   String _selDesc  = '';
   int    _selDurationMin = 30;
@@ -242,6 +248,60 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                         ),
                       const SizedBox(height: 16),
 
+                      // SÉLECTION D'ANIMAL
+                      const Text('Pour quel animal ?', style: TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final petsAsync = ref.watch(_myPetsProvider);
+                          return petsAsync.when(
+                            loading: () => const LinearProgressIndicator(),
+                            error: (e, st) => Text('Erreur: $e', style: TextStyle(color: Colors.red)),
+                            data: (pets) {
+                              if (pets.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.orange.shade200),
+                                  ),
+                                  child: const Text('Vous devez d\'abord ajouter un animal dans votre profil.'),
+                                );
+                              }
+                              // Auto-sélectionner le premier animal si aucun n'est sélectionné
+                              if (_selectedPetId == null && pets.isNotEmpty) {
+                                Future.microtask(() => setState(() => _selectedPetId = pets.first['id'].toString()));
+                              }
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: pets.map((pet) {
+                                    final id = (pet['id'] ?? '').toString();
+                                    final name = (pet['name'] ?? 'Animal').toString();
+                                    final photoUrl = (pet['photoUrl'] ?? '').toString();
+                                    final isSel = id == _selectedPetId;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 10),
+                                      child: FilterChip(
+                                        avatar: photoUrl.isNotEmpty
+                                            ? CircleAvatar(backgroundImage: NetworkImage(photoUrl))
+                                            : const Icon(Icons.pets, size: 18),
+                                        label: Text(name),
+                                        selected: isSel,
+                                        onSelected: (_) => setState(() => _selectedPetId = id),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
                       const Text('Créneaux disponibles', style: TextStyle(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
 
@@ -265,12 +325,14 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: FilledButton(
-            onPressed: (_selectedServiceId != null && _selectedSlotIso != null && !_booking)
+            onPressed: (_selectedServiceId != null && _selectedSlotIso != null && _selectedPetId != null && !_booking)
                 ? () async {
                     setState(()=> _booking = true);
                     try {
                       final res = await ref.read(apiProvider).createBooking(
-                        serviceId: _selectedServiceId!, scheduledAtIso: _selectedSlotIso!,
+                        serviceId: _selectedServiceId!,
+                        scheduledAtIso: _selectedSlotIso!,
+                        petIds: [_selectedPetId!], // Envoyer l'animal sélectionné
                       );
 
                       // ✅ Renvoyer la création au caller (BookingDetailsScreen attend ça)
