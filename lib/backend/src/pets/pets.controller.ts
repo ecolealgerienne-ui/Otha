@@ -225,4 +225,64 @@ export class PetsController {
   getHealthStats(@Req() req: any, @Param('petId') petId: string) {
     return this.pets.getHealthStats(req.user.sub, petId);
   }
+
+  // ============ DISEASE TRACKING ============
+
+  @Get(':petId/diseases')
+  listDiseases(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listDiseaseTrackings(req.user.sub, petId);
+  }
+
+  @Get(':petId/diseases/:diseaseId')
+  getDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.getDiseaseTracking(req.user.sub, petId, diseaseId);
+  }
+
+  @Post(':petId/diseases')
+  createDisease(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createDiseaseTracking(req.user.sub, petId, dto);
+  }
+
+  @Patch(':petId/diseases/:diseaseId')
+  updateDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updateDiseaseTracking(req.user.sub, petId, diseaseId, dto);
+  }
+
+  @Delete(':petId/diseases/:diseaseId')
+  deleteDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.deleteDiseaseTracking(req.user.sub, petId, diseaseId);
+  }
+
+  @Post(':petId/diseases/:diseaseId/progress')
+  addProgress(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.addProgressEntry(req.user.sub, petId, diseaseId, dto);
+  }
+
+  @Delete(':petId/diseases/:diseaseId/progress/:entryId')
+  deleteProgress(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Param('entryId') entryId: string,
+  ) {
+    return this.pets.deleteProgressEntry(req.user.sub, petId, diseaseId, entryId);
+  }
 }

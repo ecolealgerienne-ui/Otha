@@ -616,4 +616,153 @@ export class PetsService {
       },
     };
   }
+
+  // ============ DISEASE TRACKING ============
+
+  async listDiseaseTrackings(ownerId: string, petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    return this.prisma.diseaseTracking.findMany({
+      where: { petId },
+      include: {
+        progressEntries: {
+          orderBy: { date: 'desc' },
+          take: 3, // Les 3 dernières entrées par maladie
+        },
+      },
+      orderBy: [
+        { status: 'asc' }, // ONGOING en premier
+        { diagnosisDate: 'desc' },
+      ],
+    });
+  }
+
+  async getDiseaseTracking(ownerId: string, petId: string, diseaseId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+      include: {
+        progressEntries: {
+          orderBy: { date: 'desc' },
+        },
+      },
+    });
+
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+    return disease;
+  }
+
+  async createDiseaseTracking(ownerId: string, petId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    return this.prisma.diseaseTracking.create({
+      data: {
+        petId,
+        name: dto.name,
+        description: dto.description ?? null,
+        status: dto.status ?? 'ONGOING',
+        severity: dto.severity ?? null,
+        diagnosisDate: new Date(dto.diagnosisDate),
+        curedDate: dto.curedDate ? new Date(dto.curedDate) : null,
+        vetId: dto.vetId ?? null,
+        vetName: dto.vetName ?? null,
+        symptoms: dto.symptoms ?? null,
+        treatment: dto.treatment ?? null,
+        images: dto.images ?? [],
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  async updateDiseaseTracking(ownerId: string, petId: string, diseaseId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseTracking.update({
+      where: { id: diseaseId },
+      data: {
+        name: dto.name ?? disease.name,
+        description: dto.description ?? disease.description,
+        status: dto.status ?? disease.status,
+        severity: dto.severity ?? disease.severity,
+        diagnosisDate: dto.diagnosisDate ? new Date(dto.diagnosisDate) : disease.diagnosisDate,
+        curedDate: dto.curedDate ? new Date(dto.curedDate) : disease.curedDate,
+        vetId: dto.vetId ?? disease.vetId,
+        vetName: dto.vetName ?? disease.vetName,
+        symptoms: dto.symptoms ?? disease.symptoms,
+        treatment: dto.treatment ?? disease.treatment,
+        images: dto.images ?? disease.images,
+        notes: dto.notes ?? disease.notes,
+      },
+    });
+  }
+
+  async deleteDiseaseTracking(ownerId: string, petId: string, diseaseId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseTracking.delete({ where: { id: diseaseId } });
+  }
+
+  // Ajouter une entrée de progression
+  async addProgressEntry(ownerId: string, petId: string, diseaseId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseProgressEntry.create({
+      data: {
+        diseaseId,
+        date: new Date(dto.date ?? new Date()),
+        notes: dto.notes,
+        images: dto.images ?? [],
+        severity: dto.severity ?? null,
+        treatmentUpdate: dto.treatmentUpdate ?? null,
+      },
+    });
+  }
+
+  async deleteProgressEntry(ownerId: string, petId: string, diseaseId: string, entryId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    const entry = await this.prisma.diseaseProgressEntry.findUnique({
+      where: { id: entryId },
+    });
+    if (!entry || entry.diseaseId !== diseaseId) {
+      throw new NotFoundException('Progress entry not found');
+    }
+
+    return this.prisma.diseaseProgressEntry.delete({ where: { id: entryId } });
+  }
 }
