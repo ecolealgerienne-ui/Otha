@@ -173,104 +173,33 @@ export class BookingsController {
 
   /** Client: créer une réservation */
   @Post()
-  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[]; clientNotes?: string; endDate?: any; commissionDa?: number }) {
-    // Debug logs
-    console.log('📥 Booking creation request:', {
-      serviceId: body.serviceId,
-      scheduledAt: body.scheduledAt,
-      petIds: body.petIds,
-      clientNotes: body.clientNotes,
-      endDate: body.endDate,
-      commissionDa: body.commissionDa,
-    });
-
+  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any }) {
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
-    if (!when) {
-      console.error('❌ Invalid scheduledAt:', body.scheduledAt);
-      throw new BadRequestException('Invalid scheduledAt');
-    }
-
-    // Parse endDate si fourni (pour garderies)
-    let endDateParsed: Date | null = null;
-    if (body.endDate) {
-      endDateParsed = this.parseWhen(body.endDate);
-      if (!endDateParsed) {
-        console.error('❌ Invalid endDate:', body.endDate);
-      }
-    }
-
-    console.log('✅ Parsed dates:', { scheduledAt: when, endDate: endDateParsed });
+    if (!when) throw new BadRequestException('Invalid scheduledAt');
 
     // transaction + re-check
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        console.log('🔍 Looking up service:', body.serviceId);
-        const service = await tx.service.findUnique({ where: { id: body.serviceId } });
-        if (!service) {
-          console.error('❌ Service not found:', body.serviceId);
-          throw new NotFoundException('Service not found');
-        }
-        console.log('✅ Service found:', { id: service.id, providerId: service.providerId, durationMin: service.durationMin, title: service.title });
+    return this.prisma.$transaction(async (tx) => {
+      const service = await tx.service.findUnique({ where: { id: body.serviceId } });
+      if (!service) throw new NotFoundException('Service not found');
 
-        // Pour les garderies, on skip la vérification isSlotFree car elles n'ont pas de WeeklyAvailability
-        const isDaycareService = service.title?.toLowerCase().includes('garde');
+      // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
+      const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
+      if (!ok) throw new BadRequestException('Slot not available');
 
-        if (isDaycareService) {
-          console.log('🏠 Service garderie détecté - skip vérification créneaux (pas de WeeklyAvailability requise)');
-        } else {
-          console.log('🔍 Checking slot availability for provider:', service.providerId);
-          // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
-          const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
-          console.log('📊 Slot check result:', ok);
-          if (!ok) {
-            console.error('❌ Slot not available');
-            throw new BadRequestException('Slot not available');
-          }
-        }
-
-        console.log('💾 Creating booking with data:', {
+      return tx.booking.create({
+        data: {
           userId: req.user.sub,
           serviceId: service.id,
           providerId: service.providerId,
-          scheduledAt: when,
-          petIds: body.petIds || [],
-          hasNotes: !!body.clientNotes,
-          hasEndDate: !!endDateParsed,
-          commissionDa: body.commissionDa,
-        });
-
-        const booking = await tx.booking.create({
-          data: {
-            userId: req.user.sub,
-            serviceId: service.id,
-            providerId: service.providerId,
-            scheduledAt: when, // UTC côté DB
-            status: 'PENDING',
-            // Nouveaux champs pour garderies
-            petIds: body.petIds || [],
-            clientNotes: body.clientNotes,
-            endDate: endDateParsed,
-            commissionDa: body.commissionDa,
-          },
-        });
-
-        console.log('✅ Booking created successfully:', booking.id);
-        return booking;
-      }, { isolationLevel: 'Serializable' });
-    } catch (error: any) {
-      console.error('❌ Transaction failed:', error);
-      console.error('Error details:', {
-        name: error?.name,
-        message: error?.message,
-        code: error?.code,
-        meta: error?.meta,
+          scheduledAt: when, // UTC côté DB
+          status: 'PENDING',
+        },
       });
-      throw error;
-    }
+    }, { isolationLevel: 'Serializable' });
   }
 
   /** Client: changer le statut de SA résa (ex. annuler) */

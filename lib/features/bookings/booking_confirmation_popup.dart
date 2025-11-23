@@ -203,7 +203,7 @@ class _BookingConfirmationPopupState
             TextField(
               decoration: const InputDecoration(
                 labelText: 'Commentaire (optionnel)',
-                border: OutlineInputBorder(),
+                border: OutlinedBorder(),
               ),
               maxLines: 3,
               onChanged: (v) => _comment = v,
