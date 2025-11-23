@@ -664,7 +664,6 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       final daycare = widget.daycareData ?? {};
       final hourlyRate = daycare['hourlyRate'] as int?;
       final dailyRate = daycare['dailyRate'] as int?;
-      final basePrice = _bookingType == 'hourly' ? (hourlyRate ?? 1000) : (dailyRate ?? 5000);
 
       // Récupérer le nom du premier pet
       final petsAsync = ref.read(_userPetsProvider);
@@ -708,6 +707,22 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
           17,
           0,
         );
+      }
+
+      // Calculer le prix de base selon le type de réservation
+      int basePrice;
+      if (_bookingType == 'hourly' && hourlyRate != null) {
+        // Calculer le nombre d'heures
+        final durationInHours = endDateTime!.difference(startDateTime).inMinutes / 60;
+        final hours = durationInHours.ceil();
+        basePrice = hours * hourlyRate;
+      } else if (_bookingType == 'daily' && dailyRate != null) {
+        // Calculer le nombre de jours
+        final durationInDays = endDateTime!.difference(startDateTime).inDays + 1;
+        basePrice = durationInDays * dailyRate;
+      } else {
+        // Valeur par défaut (ne devrait pas arriver)
+        basePrice = _bookingType == 'hourly' ? 1000 : 5000;
       }
 
       final totalDa = basePrice + kDaycareCommissionDa;
