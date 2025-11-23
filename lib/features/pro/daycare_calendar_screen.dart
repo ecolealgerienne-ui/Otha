@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 
 final daycareCalendarBookingsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -434,11 +435,13 @@ class _DayAnimalsViewState extends ConsumerState<_DayAnimalsView> {
                       booking: booking,
                       onMarkDropOff: () => _markDropOff(booking['id'] as String),
                       onMarkPickup: () => _markPickup(booking['id'] as String),
-                      onScanQR: () {
-                        Navigator.of(context).pushNamed('/scan-pet').then((_) {
-                          ref.invalidate(daycareCalendarBookingsProvider);
-                          Navigator.of(context).pop();
-                        });
+                      onScanQR: () async {
+                        await context.push('/scan-pet');
+                        // Rafraîchir les données après retour du scan
+                        ref.invalidate(daycareCalendarBookingsProvider);
+                        if (context.mounted) {
+                          Navigator.of(context).pop(); // Fermer le modal
+                        }
                       },
                     );
                   },
