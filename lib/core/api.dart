@@ -1033,6 +1033,20 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Marquer l'arrivée de l'animal (drop-off) - provider
+  Future<Map<String, dynamic>> markDaycareDropOff(String bookingId) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/drop-off');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Marquer le départ de l'animal (pickup) - provider
+  Future<Map<String, dynamic>> markDaycarePickup(String bookingId) async {
+    await ensureAuth();
+    final res = await _dio.patch('/daycare/bookings/$bookingId/pickup');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   // --------------- Reviews ---------------
   Future<Map<String, dynamic>> createReview({
     required String bookingId,
