@@ -772,19 +772,35 @@ export class BookingsService {
     if (!pet) return null;
 
     const now = new Date();
-    const twoHoursBefore = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-    const twoHoursAfter = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    // Chercher RDV du jour (début à 00h00, fin à 23h59)
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // Chercher un RDV aujourd'hui ±2h, non complété
+    // ✅ FIX CRITIQUE : Vérifier que le petId scanné est bien dans le booking
     const booking = await this.prisma.booking.findFirst({
       where: {
         userId: pet.ownerId,
-        scheduledAt: { gte: twoHoursBefore, lte: twoHoursAfter },
+        petIds: { has: petId },  // ✅ Le pet scanné DOIT être dans le booking
+        scheduledAt: { gte: startOfDay, lte: endOfDay },  // ✅ RDV aujourd'hui
         status: { notIn: ['COMPLETED', 'CANCELLED', 'EXPIRED'] },
       },
       orderBy: { scheduledAt: 'asc' },
       include: {
         service: true,
+        provider: {
+          select: {
+            id: true,
+            weekly: {
+              select: {
+                weekday: true,
+                startMin: true,
+                endMin: true,
+              },
+            },
+          },
+        },
         user: {
           select: {
             id: true,
@@ -795,6 +811,29 @@ export class BookingsService {
         },
       },
     });
+
+    if (!booking) return null;
+
+    // ✅ Vérifier si on est dans les heures d'ouverture du provider
+    const currentWeekday = now.getDay(); // 0=dimanche, 1=lundi, ..., 6=samedi
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const todaySchedule = booking.provider?.weekly?.find(
+      (w) => w.weekday === currentWeekday,
+    );
+
+    // Si le provider a des heures d'ouverture définies pour aujourd'hui
+    if (todaySchedule) {
+      const isWithinOpeningHours =
+        currentMinutes >= todaySchedule.startMin &&
+        currentMinutes <= todaySchedule.endMin;
+
+      if (!isWithinOpeningHours) {
+        // Hors heures d'ouverture : refuser le scan
+        return null;
+      }
+    }
+    // Si pas d'horaires définis, on accepte (comportement par défaut)
 
     return booking;
   }

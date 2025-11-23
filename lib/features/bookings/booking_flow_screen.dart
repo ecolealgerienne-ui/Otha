@@ -249,7 +249,15 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                       const SizedBox(height: 16),
 
                       // SÉLECTION D'ANIMAL
-                      const Text('Pour quel animal ?', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Row(
+                        children: [
+                          const Text('Pour quel animal ?', style: TextStyle(fontWeight: FontWeight.w700)),
+                          if (_selectedPetId == null) ...[
+                            const SizedBox(width: 8),
+                            const Text('*', style: TextStyle(color: Colors.red, fontSize: 16)),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       Consumer(
                         builder: (context, ref, _) {
@@ -269,10 +277,7 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                                   child: const Text('Vous devez d\'abord ajouter un animal dans votre profil.'),
                                 );
                               }
-                              // Auto-sélectionner le premier animal si aucun n'est sélectionné
-                              if (_selectedPetId == null && pets.isNotEmpty) {
-                                Future.microtask(() => setState(() => _selectedPetId = pets.first['id'].toString()));
-                              }
+                              // ❌ NE PLUS auto-sélectionner : l'utilisateur DOIT choisir explicitement
                               return SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: Row(
