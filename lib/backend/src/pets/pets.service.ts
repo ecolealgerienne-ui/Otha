@@ -611,7 +611,7 @@ export class PetsService {
         data: heartRateData,
         current: heartRateData.length > 0 ? heartRateData[heartRateData.length - 1].heartRate : null,
         average: heartRateData.length > 0
-          ? Math.round(heartRateData.reduce((sum, d) => sum + d.heartRate, 0) / heartRateData.length)
+          ? Math.round(heartRateData.reduce((sum, d) => sum + d.heartRate!, 0) / heartRateData.length)
           : null,
       },
     };
