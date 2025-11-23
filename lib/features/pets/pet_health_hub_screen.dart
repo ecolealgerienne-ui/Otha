@@ -124,7 +124,7 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Calendrier et rappels de vaccins',
                 color: _purple,
                 gradientColor: _purple.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/medical'),
+                onTap: () => context.push('/pets/$petId/vaccinations'),
               ),
               const SizedBox(height: 16),
 

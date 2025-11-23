@@ -328,6 +328,7 @@ model Treatment {
   endDate     DateTime?
   isActive    Boolean   @default(true)
   notes       String?
+  attachments String[]  // URLs des images d'ordonnances
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

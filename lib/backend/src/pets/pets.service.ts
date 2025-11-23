@@ -367,6 +367,7 @@ export class PetsService {
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         isActive: dto.isActive ?? true,
         notes: dto.notes ?? null,
+        attachments: dto.attachments ?? [],
       },
     });
   }
@@ -389,6 +390,7 @@ export class PetsService {
         endDate: dto.endDate ? new Date(dto.endDate) : treatment.endDate,
         isActive: dto.isActive ?? treatment.isActive,
         notes: dto.notes ?? treatment.notes,
+        attachments: dto.attachments !== undefined ? dto.attachments : treatment.attachments,
       },
     });
   }
