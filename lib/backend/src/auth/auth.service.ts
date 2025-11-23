@@ -29,6 +29,26 @@ export class AuthService {
     return tokens;
   }
 
+  async refreshWithToken(refreshToken: string) {
+    try {
+      const payload = await this.jwt.verifyAsync(refreshToken, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      });
+
+      if (payload.typ !== 'refresh') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user) throw new UnauthorizedException('User not found');
+
+      const tokens = await this.issueTokens(user.id, user.role);
+      return tokens;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+  }
+
   async googleAuth(googleId: string, email: string, firstName?: string, lastName?: string, photoUrl?: string) {
     // Chercher utilisateur par googleId ou email
     let user = await this.prisma.user.findFirst({
