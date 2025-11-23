@@ -320,6 +320,11 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/vet/scan',
         builder: (_, __) => const VetScanPetScreen(),
       ),
+      // Alias pour le scanner (utilisé par daycare)
+      GoRoute(
+        path: '/scan-pet',
+        builder: (_, __) => const VetScanPetScreen(),
+      ),
       GoRoute(
         path: '/vet/add-record/:petId',
         builder: (ctx, st) {
