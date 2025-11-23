@@ -195,8 +195,8 @@ export class AvailabilityService {
     ]);
     if (!prov) throw new NotFoundException('Provider not found');
 
-    // NOTE: on reste côté serveur ; on n’impose rien au front.
-    const tz = prov.timezone || 'Europe/Paris';
+    // NOTE: on reste côté serveur ; on n'impose rien au front.
+    const tz = prov.timezone || 'Africa/Algiers';
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
@@ -283,7 +283,6 @@ export class AvailabilityService {
     ]);
     if (!prov) throw new NotFoundException('Provider not found');
 
-    const tz = prov.timezone || 'Europe/Paris';
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
@@ -313,36 +312,61 @@ export class AvailabilityService {
       }
     >();
 
-    for (let slotStart = this.ceilToStepUtc(from, stepMin);
-         slotStart < to;
-         slotStart = this.addMinutes(slotStart, stepMin)) {
-      const longEnd = this.addMinutes(slotStart, fullDur);
+    // Génération NAIVE : on génère les créneaux directement en UTC "naïf" (5h = 05:00 UTC)
+    // Sans conversion de timezone, les heures stockées = les heures affichées
+    let currentDay = new Date(from);
+    currentDay.setUTCHours(0, 0, 0, 0);
 
-      if (bookingIntervals.some(b => this.overlaps(slotStart, longEnd, b.start, b.end))) continue;
-      if (timeOffIntervals.some(o => this.overlaps(slotStart, longEnd, o.start, o.end))) continue;
+    while (currentDay < to) {
+      const dayEnd = new Date(currentDay);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
-      const p = this.tzParts(slotStart, tz);
-      const wd = this.weekdayToNum(p.weekdayShort);
-      const minuteOfDay = p.hour * 60 + p.minute;
-
+      // Jour de la semaine (1=lundi, 7=dimanche)
+      const wd = ((currentDay.getUTCDay() + 6) % 7) + 1; // 0=dim -> 7, 1=lun -> 1, etc.
       const dayDispos = byDay.get(wd) ?? [];
-      const ok = dayDispos.some(d => minuteOfDay >= d.startMin && (minuteOfDay + fullDur) <= d.endMin);
-      if (!ok) continue;
 
-      const endLocal = this.tzParts(longEnd, tz);
-      const dateKey = `${p.year}-${this.pad2(p.month)}-${this.pad2(p.day)}`;
-      if (!groups.has(dateKey)) {
-        const winStart = dayDispos.length ? Math.min(...dayDispos.map(d => d.startMin)) : undefined;
-        const winEnd   = dayDispos.length ? Math.max(...dayDispos.map(d => d.endMin)) : undefined;
-        groups.set(dateKey, { date: dateKey, weekday: wd, windowStartMin: winStart, windowEndMin: winEnd, slots: [] });
+      if (dayDispos.length > 0) {
+        const dateKey = `${currentDay.getUTCFullYear()}-${this.pad2(currentDay.getUTCMonth() + 1)}-${this.pad2(currentDay.getUTCDate())}`;
+        const winStart = Math.min(...dayDispos.map(d => d.startMin));
+        const winEnd = Math.max(...dayDispos.map(d => d.endMin));
+
+        if (!groups.has(dateKey)) {
+          groups.set(dateKey, { date: dateKey, weekday: wd, windowStartMin: winStart, windowEndMin: winEnd, slots: [] });
+        }
+
+        // Pour chaque plage de disponibilité ce jour-là
+        for (const dispo of dayDispos) {
+          // Générer des créneaux de dispo.startMin à dispo.endMin par pas de stepMin
+          for (let min = dispo.startMin; min + fullDur <= dispo.endMin; min += stepMin) {
+            const slotStart = new Date(currentDay);
+            slotStart.setUTCHours(0, min, 0, 0);
+
+            const longEnd = this.addMinutes(slotStart, fullDur);
+
+            // Vérifier qu'on ne dépasse pas la fin demandée
+            if (slotStart >= to) continue;
+
+            // Vérifier les chevauchements avec bookings et time-offs
+            if (bookingIntervals.some(b => this.overlaps(slotStart, longEnd, b.start, b.end))) continue;
+            if (timeOffIntervals.some(o => this.overlaps(slotStart, longEnd, o.start, o.end))) continue;
+
+            const hourStart = Math.floor(min / 60);
+            const minuteStart = min % 60;
+            const endMin = min + fullDur;
+            const hourEnd = Math.floor(endMin / 60);
+            const minuteEnd = endMin % 60;
+
+            groups.get(dateKey)!.slots.push({
+              minute: min,
+              label: `${this.pad2(hourStart)}:${this.pad2(minuteStart)}`,
+              endLabel: `${this.pad2(hourEnd)}:${this.pad2(minuteEnd)}`,
+              isoUtc: slotStart.toISOString(),
+            });
+          }
+        }
       }
 
-      groups.get(dateKey)!.slots.push({
-        minute: minuteOfDay,
-        label: `${this.pad2(p.hour)}:${this.pad2(p.minute)}`,
-        endLabel: `${this.pad2(endLocal.hour)}:${this.pad2(endLocal.minute)}`,
-        isoUtc: slotStart.toISOString(),
-      });
+      currentDay = dayEnd;
     }
 
     const out = Array.from(groups.values())
@@ -357,7 +381,7 @@ export class AvailabilityService {
     const prov = await this.prisma.providerProfile.findUnique({ where: { id: providerId } });
     if (!prov) throw new NotFoundException('Provider not found');
 
-    const tz = prov.timezone || 'Europe/Paris';
+    const tz = prov.timezone || 'Africa/Algiers';
     const endUTC = this.addMinutes(startUTC, Math.max(15, durationMin || 30));
 
     const offs = await this.prisma.providerTimeOff.findMany({
