@@ -103,6 +103,49 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
     });
   }
 
+  /// Formatte les messages d'erreur pour l'utilisateur
+  String _formatErrorMessage(String error) {
+    final lowerError = error.toLowerCase();
+
+    // Erreurs liées au QR code
+    if (lowerError.contains('404') || lowerError.contains('not found')) {
+      return 'QR code invalide ou expiré.\nVeuillez demander au client de générer un nouveau QR code.';
+    }
+    if (lowerError.contains('expired')) {
+      return 'QR code expiré.\nVeuillez demander au client de générer un nouveau QR code.';
+    }
+
+    // Erreurs d'autorisation
+    if (lowerError.contains('403') || lowerError.contains('forbidden')) {
+      return 'Accès refusé.\nVous n\'êtes pas autorisé à scanner ce QR code.';
+    }
+
+    // Erreurs de booking
+    if (lowerError.contains('no active booking') || lowerError.contains('aucun rendez-vous')) {
+      return 'Aucun rendez-vous actif trouvé pour cet animal aujourd\'hui.\nVérifiez les horaires ou le planning.';
+    }
+    if (lowerError.contains('wrong pet') || lowerError.contains('mauvais animal')) {
+      return 'Cet animal ne correspond pas au rendez-vous.\nVérifiez quel animal est prévu pour ce rendez-vous.';
+    }
+    if (lowerError.contains('outside opening hours') || lowerError.contains('hors heures d\'ouverture')) {
+      return 'Vous êtes actuellement fermé.\nLe scan n\'est possible que pendant vos heures d\'ouverture.';
+    }
+    if (lowerError.contains('already confirmed') || lowerError.contains('déjà confirmé')) {
+      return 'Ce rendez-vous a déjà été confirmé.';
+    }
+
+    // Erreurs réseau
+    if (lowerError.contains('network') || lowerError.contains('connection')) {
+      return 'Erreur de connexion.\nVérifiez votre connexion internet.';
+    }
+    if (lowerError.contains('timeout')) {
+      return 'Délai d\'attente dépassé.\nRéessayez dans quelques instants.';
+    }
+
+    // Message par défaut plus convivial
+    return 'Une erreur est survenue.\nVeuillez réessayer ou contacter le support si le problème persiste.';
+  }
+
   Future<void> _confirmBooking() async {
     if (_activeBooking == null || _isConfirmingBooking) return;
 
@@ -132,8 +175,9 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Erreur: ${e.toString()}'),
+          content: Text('❌ ${_formatErrorMessage(e.toString())}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
 
@@ -231,10 +275,10 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              const Text('Erreur', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text('Erreur de scan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Text(
-                _error!.contains('expired') ? 'QR code expire' : 'QR code invalide',
+                _formatErrorMessage(_error!),
                 style: TextStyle(color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
