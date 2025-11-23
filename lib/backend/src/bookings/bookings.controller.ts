@@ -173,13 +173,16 @@ export class BookingsController {
 
   /** Client: créer une réservation */
   @Post()
-  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any }) {
+  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[] }) {
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
+
+    // Valider les petIds si fournis
+    const petIds = Array.isArray(body.petIds) ? body.petIds.filter(id => typeof id === 'string' && id.length > 0) : [];
 
     // transaction + re-check
     return this.prisma.$transaction(async (tx) => {
@@ -197,6 +200,7 @@ export class BookingsController {
           providerId: service.providerId,
           scheduledAt: when, // UTC côté DB
           status: 'PENDING',
+          petIds, // IDs des animaux concernés
         },
       });
     }, { isolationLevel: 'Serializable' });
