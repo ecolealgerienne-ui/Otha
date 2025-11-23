@@ -284,6 +284,7 @@ export class AvailabilityService {
     if (!prov) throw new NotFoundException('Provider not found');
 
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
+    const now = new Date(); // ✅ Pour filtrer les créneaux passés
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
     for (const w of weekly) {
@@ -345,6 +346,9 @@ export class AvailabilityService {
 
             // Vérifier qu'on ne dépasse pas la fin demandée
             if (slotStart >= to) continue;
+
+            // ✅ Filtrer les créneaux passés (ne pas afficher 8h00 quand il est 10h16)
+            if (slotStart < now) continue;
 
             // Vérifier les chevauchements avec bookings et time-offs
             if (bookingIntervals.some(b => this.overlaps(slotStart, longEnd, b.start, b.end))) continue;

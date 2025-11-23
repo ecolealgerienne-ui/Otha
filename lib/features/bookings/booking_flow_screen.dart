@@ -46,7 +46,7 @@ class _SlotsArgs {
 /// On demande au back des slots « naïfs » déjà prêts (labels HH:mm sans TZ côté app)
 final _naiveSlotsProvider =
     FutureProvider.family.autoDispose<List<Map<String, dynamic>>, _SlotsArgs>((ref, args) async {
-  ref.keepAlive();
+  // ❌ Supprimé ref.keepAlive() pour rafraîchir les créneaux après chaque booking
   final res = await ref.read(apiProvider).providerSlotsNaive(
         providerId: args.providerId,
         durationMin: args.durationMin,
