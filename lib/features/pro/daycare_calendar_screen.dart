@@ -513,15 +513,18 @@ class _AnimalDetailPage extends StatelessWidget {
     final petPhotoUrl = pet?['photoUrl'] as String? ?? '';
 
     final user = booking['user'] as Map<String, dynamic>?;
-    final userName = user != null
-        ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-        : 'Client';
+    final userName = user?['firstName'] as String? ?? 'Client';  // Seulement le prénom
     final userPhone = user?['phone'] as String? ?? '';
 
     final status = booking['status'] as String;
     final startDate = DateTime.parse(booking['startDate'] as String);
     final endDate = DateTime.parse(booking['endDate'] as String);
     final notes = booking['notes'] as String? ?? '';
+
+    // Prix
+    final priceDa = booking['priceDa'] as int? ?? 0;
+    final commissionDa = booking['commissionDa'] as int? ?? 0;
+    final totalDa = booking['totalDa'] as int? ?? 0;
 
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm');
     final timeFormat = DateFormat('HH:mm');
@@ -534,236 +537,461 @@ class _AnimalDetailPage extends StatelessWidget {
         : null;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photo de l'animal
-          Center(
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF00ACC1).withOpacity(0.1),
-                border: Border.all(
-                  color: const Color(0xFF00ACC1),
-                  width: 3,
-                ),
+          // Header avec photo de l'animal
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF00ACC1).withOpacity(0.1),
+                  Colors.white,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              child: ClipOval(
-                child: petPhotoUrl.isNotEmpty
-                    ? Image.network(
-                        petPhotoUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) {
-                          return const Icon(
-                            Icons.pets,
-                            size: 60,
-                            color: Color(0xFF00ACC1),
-                          );
-                        },
-                      )
-                    : const Icon(
-                        Icons.pets,
-                        size: 60,
-                        color: Color(0xFF00ACC1),
-                      ),
-              ),
+              borderRadius: BorderRadius.circular(20),
             ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                // Photo
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00ACC1).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: petPhotoUrl.isNotEmpty
+                        ? Image.network(
+                            petPhotoUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) {
+                              return Container(
+                                color: const Color(0xFF00ACC1).withOpacity(0.1),
+                                child: const Icon(
+                                  Icons.pets,
+                                  size: 50,
+                                  color: Color(0xFF00ACC1),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: const Color(0xFF00ACC1).withOpacity(0.1),
+                            child: const Icon(
+                              Icons.pets,
+                              size: 50,
+                              color: Color(0xFF00ACC1),
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Nom
+                Text(
+                  petName,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF222222),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                if (petBreed.isNotEmpty || petType.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    [petBreed, petType].where((s) => s.isNotEmpty).join(' • '),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                // Statut
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getStatusColor(status).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _getStatusLabel(status),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Carte Client
+          _InfoCard(
+            title: 'Client',
+            icon: Icons.person_outline,
+            color: const Color(0xFF00ACC1),
+            children: [
+              _InfoTile(
+                icon: Icons.person,
+                label: 'Prénom',
+                value: userName,
+              ),
+              if (userPhone.isNotEmpty && (status == 'CONFIRMED' || status == 'IN_PROGRESS' || status == 'COMPLETED'))
+                _InfoTile(
+                  icon: Icons.phone,
+                  label: 'Téléphone',
+                  value: userPhone,
+                ),
+            ],
           ),
 
           const SizedBox(height: 16),
 
-          // Nom de l'animal
-          Center(
-            child: Text(
-              petName,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF222222),
-              ),
-            ),
-          ),
-
-          if (petBreed.isNotEmpty || petType.isNotEmpty)
-            Center(
-              child: Text(
-                [petBreed, petType].where((s) => s.isNotEmpty).join(' • '),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
+          // Carte Prix
+          _InfoCard(
+            title: 'Tarif',
+            icon: Icons.payments_outlined,
+            color: const Color(0xFFFF6D00),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6D00).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Service',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          '$priceDa DA',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF222222),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (commissionDa > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Commission',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          Text(
+                            '$commissionDa DA',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total à payer',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF222222),
+                          ),
+                        ),
+                        Text(
+                          '$totalDa DA',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFFF6D00),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
 
-          // Statut
-          Center(
-            child: Chip(
-              label: Text(
-                _getStatusLabel(status),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          // Carte Horaires
+          _InfoCard(
+            title: 'Horaires',
+            icon: Icons.schedule_outlined,
+            color: const Color(0xFF3A86FF),
+            children: [
+              _InfoTile(
+                icon: Icons.login,
+                label: 'Arrivée prévue',
+                value: dateFormat.format(startDate),
               ),
-              backgroundColor: _getStatusColor(status),
-            ),
+              _InfoTile(
+                icon: Icons.logout,
+                label: 'Départ prévu',
+                value: dateFormat.format(endDate),
+              ),
+              if (actualDropOff != null)
+                _InfoTile(
+                  icon: Icons.check_circle,
+                  label: 'Arrivée réelle',
+                  value: 'À ${timeFormat.format(actualDropOff)}',
+                  valueColor: const Color(0xFF4CAF50),
+                ),
+              if (actualPickup != null)
+                _InfoTile(
+                  icon: Icons.done_all,
+                  label: 'Départ réel',
+                  value: 'À ${timeFormat.format(actualPickup)}',
+                  valueColor: const Color(0xFF2196F3),
+                ),
+            ],
           ),
-
-          const SizedBox(height: 24),
-
-          // Informations client
-          _SectionHeader(title: 'Informations client'),
-          const SizedBox(height: 12),
-          _InfoRow(
-            icon: Icons.person,
-            label: 'Client',
-            value: userName,
-          ),
-          if (userPhone.isNotEmpty && (status == 'CONFIRMED' || status == 'IN_PROGRESS' || status == 'COMPLETED'))
-            _InfoRow(
-              icon: Icons.phone,
-              label: 'Téléphone',
-              value: userPhone,
-            ),
-
-          const SizedBox(height: 24),
-
-          // Horaires
-          _SectionHeader(title: 'Horaires'),
-          const SizedBox(height: 12),
-          _InfoRow(
-            icon: Icons.login,
-            label: 'Arrivée prévue',
-            value: dateFormat.format(startDate),
-          ),
-          _InfoRow(
-            icon: Icons.logout,
-            label: 'Départ prévu',
-            value: dateFormat.format(endDate),
-          ),
-
-          if (actualDropOff != null)
-            _InfoRow(
-              icon: Icons.check_circle,
-              label: 'Arrivée réelle',
-              value: 'À ${timeFormat.format(actualDropOff)}',
-              valueColor: Colors.green,
-            ),
-
-          if (actualPickup != null)
-            _InfoRow(
-              icon: Icons.done_all,
-              label: 'Départ réel',
-              value: 'À ${timeFormat.format(actualPickup)}',
-              valueColor: Colors.blue,
-            ),
 
           if (notes.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _SectionHeader(title: 'Notes'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.note, size: 20, color: Colors.blue[700]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      notes,
-                      style: const TextStyle(fontSize: 14),
-                    ),
+            const SizedBox(height: 16),
+            _InfoCard(
+              title: 'Notes',
+              icon: Icons.sticky_note_2_outlined,
+              color: const Color(0xFF8E44AD),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8E44AD).withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
-              ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.format_quote, size: 20, color: Colors.purple[300]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          notes,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Boutons d'action
           if (status == 'CONFIRMED')
-            SizedBox(
+            Container(
               width: double.infinity,
-              height: 50,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4CAF50).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
               child: ElevatedButton.icon(
                 onPressed: onMarkDropOff,
-                icon: const Icon(Icons.login, size: 24),
+                icon: const Icon(Icons.pets, size: 24),
                 label: const Text(
                   'Animal accueilli',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
+                  backgroundColor: Colors.transparent,
                   foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
             ),
 
           if (status == 'IN_PROGRESS')
-            SizedBox(
+            Container(
               width: double.infinity,
-              height: 50,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2196F3), Color(0xFF42A5F5)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2196F3).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
               child: ElevatedButton.icon(
                 onPressed: onMarkPickup,
-                icon: const Icon(Icons.logout, size: 24),
+                icon: const Icon(Icons.check_circle, size: 24),
                 label: const Text(
                   'Animal récupéré',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2196F3),
+                  backgroundColor: Colors.transparent,
                   foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
             ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
+// Widget pour les cartes d'information
+class _InfoCard extends StatelessWidget {
   final String title;
+  final IconData icon;
+  final Color color;
+  final List<Widget> children;
 
-  const _SectionHeader({required this.title});
+  const _InfoCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF222222),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.08),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 20, color: color),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
+// Widget pour les lignes d'information
+class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final Color? valueColor;
 
-  const _InfoRow({
+  const _InfoTile({
     required this.icon,
     required this.label,
     required this.value,
@@ -775,8 +1003,16 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Colors.grey[600]),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -787,9 +1023,10 @@ class _InfoRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
                   style: TextStyle(
