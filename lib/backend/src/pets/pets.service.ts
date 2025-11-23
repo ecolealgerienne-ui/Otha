@@ -504,4 +504,116 @@ export class PetsService {
 
     return this.prisma.preventiveCare.delete({ where: { id: careId } });
   }
+
+  // ============ HEALTH STATISTICS ============
+
+  /**
+   * Obtenir les statistiques de santé d'un animal
+   * Agrège les données de poids, température, fréquence cardiaque depuis:
+   * - MedicalRecord (enregistrées lors des visites)
+   * - WeightRecord (pesées dédiées)
+   */
+  async getHealthStats(ownerId: string, petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    // Récupérer les données de santé depuis MedicalRecord (visites vétérinaires)
+    const medicalRecords = await this.prisma.medicalRecord.findMany({
+      where: {
+        petId,
+        OR: [
+          { weightKg: { not: null } },
+          { temperatureC: { not: null } },
+          { heartRate: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        date: true,
+        type: true,
+        title: true,
+        vetName: true,
+        weightKg: true,
+        temperatureC: true,
+        heartRate: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Récupérer les pesées dédiées
+    const weightRecords = await this.prisma.weightRecord.findMany({
+      where: { petId },
+      select: {
+        id: true,
+        date: true,
+        weightKg: true,
+        notes: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Fusionner les données de poids (MedicalRecord + WeightRecord)
+    const weightData = [
+      ...medicalRecords
+        .filter((r) => r.weightKg != null)
+        .map((r) => ({
+          date: r.date,
+          weightKg: Number(r.weightKg),
+          source: 'visit',
+          context: r.title,
+          vetName: r.vetName,
+        })),
+      ...weightRecords.map((r) => ({
+        date: r.date,
+        weightKg: Number(r.weightKg),
+        source: 'manual',
+        notes: r.notes,
+      })),
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Données de température (uniquement depuis MedicalRecord)
+    const temperatureData = medicalRecords
+      .filter((r) => r.temperatureC != null)
+      .map((r) => ({
+        date: r.date,
+        temperatureC: Number(r.temperatureC),
+        context: r.title,
+        vetName: r.vetName,
+      }));
+
+    // Données de fréquence cardiaque (uniquement depuis MedicalRecord)
+    const heartRateData = medicalRecords
+      .filter((r) => r.heartRate != null)
+      .map((r) => ({
+        date: r.date,
+        heartRate: r.heartRate,
+        context: r.title,
+        vetName: r.vetName,
+      }));
+
+    return {
+      petId,
+      weight: {
+        data: weightData,
+        current: weightData.length > 0 ? weightData[weightData.length - 1].weightKg : null,
+        min: weightData.length > 0 ? Math.min(...weightData.map((d) => d.weightKg)) : null,
+        max: weightData.length > 0 ? Math.max(...weightData.map((d) => d.weightKg)) : null,
+      },
+      temperature: {
+        data: temperatureData,
+        current: temperatureData.length > 0 ? temperatureData[temperatureData.length - 1].temperatureC : null,
+        average: temperatureData.length > 0
+          ? temperatureData.reduce((sum, d) => sum + d.temperatureC, 0) / temperatureData.length
+          : null,
+      },
+      heartRate: {
+        data: heartRateData,
+        current: heartRateData.length > 0 ? heartRateData[heartRateData.length - 1].heartRate : null,
+        average: heartRateData.length > 0
+          ? Math.round(heartRateData.reduce((sum, d) => sum + d.heartRate, 0) / heartRateData.length)
+          : null,
+      },
+    };
+  }
 }

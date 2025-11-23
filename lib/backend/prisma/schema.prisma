@@ -357,14 +357,26 @@ model PreventiveCare {
 model MedicalRecord {
   id          String   @id @default(cuid())
   petId       String
-  type        String   // VACCINATION, SURGERY, CHECKUP, TREATMENT, MEDICATION, OTHER
+  type        String   // VACCINATION, SURGERY, CHECKUP, TREATMENT, MEDICATION, VET_VISIT, DAYCARE_VISIT, OTHER
   title       String
   description String?
   date        DateTime
   vetId       String?  // Provider ID du vétérinaire (optionnel)
-  vetName     String?  // Nom du vétérinaire
+  vetName     String?  // Nom du vétérinaire/garderie
   notes       String?
   images      String[] // URLs des images (radios, ordonnances, etc.)
+
+  // 🔗 Lien avec les bookings (pour historique automatique)
+  bookingId         String? // ID du booking vétérinaire (si créé par scan QR)
+  daycareBookingId  String? // ID du booking garderie (si créé par scan QR)
+  providerType      String? // VET ou DAYCARE (pour différencier l'origine)
+  durationMinutes   Int?    // Durée de la visite en minutes
+
+  // 🏥 Données de santé enregistrées lors de la visite
+  weightKg      Decimal? @db.Decimal(5, 2) // Poids en kg (ex: 12.50)
+  temperatureC  Decimal? @db.Decimal(4, 2) // Température en °C (ex: 38.50)
+  heartRate     Int?     // Fréquence cardiaque (battements/min)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -372,6 +384,8 @@ model MedicalRecord {
 
   @@index([petId, date])
   @@index([petId, type])
+  @@index([bookingId])
+  @@index([daycareBookingId])
 }
 
 model PetAccessToken {

@@ -218,4 +218,11 @@ export class PetsController {
   ) {
     return this.pets.deletePreventiveCare(req.user.sub, petId, careId);
   }
+
+  // ============ HEALTH STATISTICS ============
+
+  @Get(':petId/health-stats')
+  getHealthStats(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.getHealthStats(req.user.sub, petId);
+  }
 }
