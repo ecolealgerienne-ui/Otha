@@ -763,7 +763,7 @@ class _NextAppointment extends StatelessWidget {
     final iso = next!['scheduledAt']?.toString() ?? '';
     DateTime? dt;
     try {
-      dt = DateTime.parse(iso).toLocal();
+      dt = DateTime.parse(iso).toUtc(); // UTC naïf : 8h UTC = 8h réel
     } catch (_) {}
     final when = dt != null
         ? DateFormat('EEEE d MMMM • HH:mm', 'fr_FR')
@@ -1154,7 +1154,7 @@ class _GeneratedWithBookings extends StatelessWidget {
                 final title = (e['serviceTitle'] ?? 'Service').toString();
                 final price = _asInt(e['totalPriceDa'] ?? 0);
                 final whenIso = (e['scheduledAt'] ?? '').toString();
-                final when = DateTime.tryParse(whenIso)?.toLocal();
+                final when = DateTime.tryParse(whenIso)?.toUtc(); // UTC naïf : 8h UTC = 8h réel
                 final label = when == null
                     ? title
                     : '${DateFormat('dd/MM • HH:mm').format(when)} — $title';
