@@ -91,7 +91,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           }
         }
       } catch (e) {
-        // Pas de booking actif trouvé, c'est normal
+        // Logger l'erreur pour debugging
+        debugPrint('⚠️ Erreur lors de la recherche de booking: $e');
+        // Si erreur autre que 404, on doit l'afficher
+        if (!e.toString().toLowerCase().contains('404')) {
+          setState(() {
+            _error = 'Erreur lors de la vérification du rendez-vous: ${_formatErrorMessage(e.toString())}';
+            _isLoading = false;
+          });
+          return;
+        }
+        // Sinon, c'est juste qu'il n'y a pas de booking, on continue
       }
 
       setState(() {
@@ -439,56 +449,63 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Add record button
-          FilledButton.icon(
-            onPressed: () => context.push('/vet/add-record/${_petData!['id']}?token=$_scannedToken'),
-            icon: const Icon(Icons.add),
-            label: const Text('Ajouter un acte medical'),
-            style: FilledButton.styleFrom(
-              backgroundColor: _coral,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Medical history
-          const Text(
-            'Historique medical',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          if (medicalRecords.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+          // ⚠️ Le dossier médical n'est accessible QUE pour les vétérinaires
+          // Les garderies n'ont pas accès au dossier médical
+          if (_bookingType != 'daycare') ...[
+            // Add record button
+            FilledButton.icon(
+              onPressed: () => context.push('/vet/add-record/${_petData!['id']}?token=$_scannedToken'),
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter un acte medical'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _coral,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.medical_services, size: 32, color: Colors.grey.shade300),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Aucun historique',
-                      style: TextStyle(color: Colors.grey.shade500),
-                    ),
-                  ],
+            ),
+            const SizedBox(height: 24),
+
+            // Medical history
+            const Text(
+              'Historique medical',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: _ink,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Afficher les dossiers médicaux seulement pour les vétérinaires
+          if (_bookingType != 'daycare') ...[
+            if (medicalRecords.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-              ),
-            )
-          else
-            ...medicalRecords.map((record) => _buildRecordCard(record)),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.medical_services, size: 32, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Aucun historique',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...medicalRecords.map((record) => _buildRecordCard(record)),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
           // Scan again
           OutlinedButton.icon(
