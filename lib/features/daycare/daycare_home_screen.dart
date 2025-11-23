@@ -62,7 +62,7 @@ final myDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<String, dy
   try {
     final api = ref.read(apiProvider);
     // Récupère les réservations via l'endpoint daycare
-    return await api.dio.get('/api/v1/daycare/bookings/provider').then((r) {
+    return await api.dio.get('/daycare/provider/bookings').then((r) {
       final data = r.data;
       if (data is List) return List<Map<String, dynamic>>.from(data);
       return [];

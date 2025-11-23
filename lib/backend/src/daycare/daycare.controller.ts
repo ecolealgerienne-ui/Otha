@@ -85,4 +85,13 @@ export class DaycareController {
   async getCalendar(@Req() req: any, @Query('date') date: string) {
     return this.daycareService.getCalendar(req.user.sub, date);
   }
+
+  /**
+   * DELETE /api/v1/daycare/my/bookings/:id
+   * Annuler une réservation (client)
+   */
+  @Patch('my/bookings/:id/cancel')
+  async cancelMyBooking(@Req() req: any, @Param('id') id: string) {
+    return this.daycareService.cancelMyBooking(req.user.sub, id);
+  }
 }
