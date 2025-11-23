@@ -173,104 +173,33 @@ export class BookingsController {
 
   /** Client: créer une réservation */
   @Post()
-  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[]; clientNotes?: string; endDate?: any; commissionDa?: number }) {
-    // Debug logs
-    console.log('📥 Booking creation request:', {
-      serviceId: body.serviceId,
-      scheduledAt: body.scheduledAt,
-      petIds: body.petIds,
-      clientNotes: body.clientNotes,
-      endDate: body.endDate,
-      commissionDa: body.commissionDa,
-    });
-
+  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any }) {
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
-    if (!when) {
-      console.error('❌ Invalid scheduledAt:', body.scheduledAt);
-      throw new BadRequestException('Invalid scheduledAt');
-    }
-
-    // Parse endDate si fourni (pour garderies)
-    let endDateParsed: Date | null = null;
-    if (body.endDate) {
-      endDateParsed = this.parseWhen(body.endDate);
-      if (!endDateParsed) {
-        console.error('❌ Invalid endDate:', body.endDate);
-      }
-    }
-
-    console.log('✅ Parsed dates:', { scheduledAt: when, endDate: endDateParsed });
+    if (!when) throw new BadRequestException('Invalid scheduledAt');
 
     // transaction + re-check
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        console.log('🔍 Looking up service:', body.serviceId);
-        const service = await tx.service.findUnique({ where: { id: body.serviceId } });
-        if (!service) {
-          console.error('❌ Service not found:', body.serviceId);
-          throw new NotFoundException('Service not found');
-        }
-        console.log('✅ Service found:', { id: service.id, providerId: service.providerId, durationMin: service.durationMin, title: service.title });
+    return this.prisma.$transaction(async (tx) => {
+      const service = await tx.service.findUnique({ where: { id: body.serviceId } });
+      if (!service) throw new NotFoundException('Service not found');
 
-        // Pour les garderies, on skip la vérification isSlotFree car elles n'ont pas de WeeklyAvailability
-        const isDaycareService = service.title?.toLowerCase().includes('garde');
+      // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
+      const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
+      if (!ok) throw new BadRequestException('Slot not available');
 
-        if (isDaycareService) {
-          console.log('🏠 Service garderie détecté - skip vérification créneaux (pas de WeeklyAvailability requise)');
-        } else {
-          console.log('🔍 Checking slot availability for provider:', service.providerId);
-          // Re-vérifie que le slot est dispo (weekly + time-offs + bookings), côté serveur
-          const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
-          console.log('📊 Slot check result:', ok);
-          if (!ok) {
-            console.error('❌ Slot not available');
-            throw new BadRequestException('Slot not available');
-          }
-        }
-
-        console.log('💾 Creating booking with data:', {
+      return tx.booking.create({
+        data: {
           userId: req.user.sub,
           serviceId: service.id,
           providerId: service.providerId,
-          scheduledAt: when,
-          petIds: body.petIds || [],
-          hasNotes: !!body.clientNotes,
-          hasEndDate: !!endDateParsed,
-          commissionDa: body.commissionDa,
-        });
-
-        const booking = await tx.booking.create({
-          data: {
-            userId: req.user.sub,
-            serviceId: service.id,
-            providerId: service.providerId,
-            scheduledAt: when, // UTC côté DB
-            status: 'PENDING',
-            // Nouveaux champs pour garderies
-            petIds: body.petIds || [],
-            clientNotes: body.clientNotes,
-            endDate: endDateParsed,
-            commissionDa: body.commissionDa,
-          },
-        });
-
-        console.log('✅ Booking created successfully:', booking.id);
-        return booking;
-      }, { isolationLevel: 'Serializable' });
-    } catch (error: any) {
-      console.error('❌ Transaction failed:', error);
-      console.error('Error details:', {
-        name: error?.name,
-        message: error?.message,
-        code: error?.code,
-        meta: error?.meta,
+          scheduledAt: when, // UTC côté DB
+          status: 'PENDING',
+        },
       });
-      throw error;
-    }
+    }, { isolationLevel: 'Serializable' });
   }
 
   /** Client: changer le statut de SA résa (ex. annuler) */
@@ -370,7 +299,7 @@ export class BookingsController {
     return this.svc.myEarnings(req.user.sub, month);
   }
 
-  /** PRO: historique mensuel normalisé (pour l’écran Pro) */
+  /** PRO: historique mensuel normalisé (pour l'écran Pro) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO','ADMIN')
   @Get('provider/me/history/monthly')
@@ -380,5 +309,99 @@ export class BookingsController {
       req.user.sub,
       Number.isFinite(n) ? n : 12,
     );
+  }
+
+  // ==================== NOUVEAU: Endpoints Système de Confirmation ====================
+
+  /**
+   * Chercher un booking actif pour un pet (pour le scan QR vet)
+   * GET /bookings/active-for-pet/:petId
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('active-for-pet/:petId')
+  findActiveBookingForPet(@Param('petId') petId: string) {
+    return this.svc.findActiveBookingForPet(petId);
+  }
+
+  /**
+   * PRO confirme un booking (après scan QR ou manuellement)
+   * POST /bookings/:id/pro-confirm
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-confirm')
+  proConfirmBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.proConfirmBooking(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT demande confirmation (via popup avis)
+   * POST /bookings/:id/client-confirm
+   */
+  @Post(':id/client-confirm')
+  clientRequestConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    if (!body?.rating || body.rating < 1 || body.rating > 5) {
+      throw new BadRequestException('rating must be between 1 and 5');
+    }
+    return this.svc.clientRequestConfirmation(
+      req.user.sub,
+      id,
+      body.rating,
+      body.comment,
+    );
+  }
+
+  /**
+   * CLIENT dit "je n'y suis pas allé"
+   * POST /bookings/:id/client-cancel
+   */
+  @Post(':id/client-cancel')
+  clientCancelBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.clientCancelBooking(req.user.sub, id);
+  }
+
+  /**
+   * PRO valide ou refuse la confirmation client
+   * POST /bookings/:id/pro-validate
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-validate')
+  proValidateClientConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approved: boolean },
+  ) {
+    if (typeof body?.approved !== 'boolean') {
+      throw new BadRequestException('approved must be a boolean');
+    }
+    return this.svc.proValidateClientConfirmation(req.user.sub, id, body.approved);
+  }
+
+  /**
+   * PRO: liste des bookings en attente de validation
+   * GET /bookings/provider/me/pending-validations
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('provider/me/pending-validations')
+  getPendingValidations(@Req() req: any) {
+    return this.svc.getPendingValidations(req.user.sub);
+  }
+
+  /**
+   * ADMIN/CRON: Cron job pour checker les grace periods
+   * POST /bookings/admin/check-grace-periods
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/check-grace-periods')
+  checkGracePeriods() {
+    return this.svc.checkGracePeriods();
   }
 }
