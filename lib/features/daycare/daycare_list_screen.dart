@@ -126,6 +126,7 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     final is24_7 = availability?['is24_7'] == true;
     final openingTime = availability?['openingTime']?.toString() ?? '08:00';
     final closingTime = availability?['closingTime']?.toString() ?? '20:00';
+    final availableDays = availability?['availableDays'] as List? ?? List.filled(7, true);
 
     double? dKm = _toDouble(m['distance_km']);
     if (dKm == null) {
@@ -148,6 +149,7 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       'is24_7': is24_7,
       'openingTime': openingTime,
       'closingTime': closingTime,
+      'availableDays': availableDays,
     };
   }).toList();
 
