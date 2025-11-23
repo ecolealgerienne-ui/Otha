@@ -857,6 +857,7 @@ export class BookingsService {
   async proConfirmBooking(userId: string, bookingId: string) {
     const prov = await this.prisma.providerProfile.findUnique({
       where: { userId },
+      include: { user: { select: { firstName: true, lastName: true } } },
     });
     if (!prov) throw new ForbiddenException('No provider profile');
 
@@ -892,6 +893,28 @@ export class BookingsService {
         netToProviderDa: net,
       },
     });
+
+    // 🏥 NOUVEAU: Créer automatiquement un acte médical pour chaque animal
+    const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
+    const petIds = Array.isArray(b.petIds) ? b.petIds : [];
+
+    for (const petId of petIds) {
+      await this.prisma.medicalRecord.create({
+        data: {
+          petId: petId,
+          type: 'VET_VISIT',
+          title: `Visite vétérinaire - ${b.service.name}`,
+          description: `Rendez-vous confirmé chez ${providerName}`,
+          date: b.scheduledAt,
+          vetId: prov.id,
+          vetName: providerName,
+          providerType: 'VET',
+          bookingId: b.id,
+          durationMinutes: b.service.durationMin || 30,
+          notes: `Service: ${b.service.name}\nDurée: ${b.service.durationMin || 30} minutes`,
+        },
+      });
+    }
 
     return { success: true };
   }

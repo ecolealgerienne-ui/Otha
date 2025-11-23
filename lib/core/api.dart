@@ -1329,6 +1329,14 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     await _dio.delete('/pets/$petId/weight-records/$recordId');
   }
 
+  // --------------- Health Statistics ---------------
+
+  Future<Map<String, dynamic>> getHealthStats(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/health-stats');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   // --------------- Vaccinations ---------------
 
   Future<List<dynamic>> getVaccinations(String petId) async {

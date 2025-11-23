@@ -199,6 +199,7 @@ export class DaycareService {
   async markDropOff(userId: string, bookingId: string) {
     const provider = await this.prisma.providerProfile.findUnique({
       where: { userId },
+      include: { user: { select: { firstName: true, lastName: true } } },
     });
 
     if (!provider) {
@@ -221,7 +222,7 @@ export class DaycareService {
       throw new BadRequestException('La réservation doit être confirmée pour marquer le dépôt');
     }
 
-    return this.prisma.daycareBooking.update({
+    const updatedBooking = await this.prisma.daycareBooking.update({
       where: { id: bookingId },
       data: {
         status: 'IN_PROGRESS',
@@ -240,6 +241,28 @@ export class DaycareService {
         },
       },
     });
+
+    // 🏥 NOUVEAU: Créer automatiquement un acte médical pour l'animal
+    const providerName = `${provider.user.firstName || ''} ${provider.user.lastName || ''}`.trim() || provider.displayName || 'Garderie';
+    const durationDays = Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24));
+
+    await this.prisma.medicalRecord.create({
+      data: {
+        petId: booking.petId,
+        type: 'DAYCARE_VISIT',
+        title: `Séjour en garderie - ${providerName}`,
+        description: `Séjour confirmé en garderie`,
+        date: new Date(booking.startDate),
+        vetId: provider.id,
+        vetName: providerName,
+        providerType: 'DAYCARE',
+        daycareBookingId: booking.id,
+        durationMinutes: durationDays * 24 * 60, // Convertir jours en minutes
+        notes: `Séjour du ${new Date(booking.startDate).toLocaleDateString('fr-FR')} au ${new Date(booking.endDate).toLocaleDateString('fr-FR')}\nDurée: ${durationDays} jour(s)`,
+      },
+    });
+
+    return updatedBooking;
   }
 
   /**
