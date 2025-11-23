@@ -1521,6 +1521,120 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     await _dio.delete('/pets/$petId/preventive-care/$careId');
   }
 
+  // --------------- Disease Tracking ---------------
+
+  Future<List<dynamic>> getDiseases(String petId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/diseases');
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  Future<Map<String, dynamic>> getDisease(String petId, String diseaseId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/$petId/diseases/$diseaseId');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> createDisease(
+    String petId, {
+    required String name,
+    required String diagnosisDateIso,
+    String? description,
+    String status = 'ONGOING',
+    String? severity,
+    String? curedDateIso,
+    String? vetId,
+    String? vetName,
+    String? symptoms,
+    String? treatment,
+    List<String>? images,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'diagnosisDate': diagnosisDateIso,
+      'status': status,
+      if (description != null) 'description': description,
+      if (severity != null) 'severity': severity,
+      if (curedDateIso != null) 'curedDate': curedDateIso,
+      if (vetId != null) 'vetId': vetId,
+      if (vetName != null) 'vetName': vetName,
+      if (symptoms != null) 'symptoms': symptoms,
+      if (treatment != null) 'treatment': treatment,
+      if (images != null) 'images': images,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/$petId/diseases', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<Map<String, dynamic>> updateDisease(
+    String petId,
+    String diseaseId, {
+    String? name,
+    String? description,
+    String? status,
+    String? severity,
+    String? diagnosisDateIso,
+    String? curedDateIso,
+    String? vetId,
+    String? vetName,
+    String? symptoms,
+    String? treatment,
+    List<String>? images,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (severity != null) 'severity': severity,
+      if (diagnosisDateIso != null) 'diagnosisDate': diagnosisDateIso,
+      if (curedDateIso != null) 'curedDate': curedDateIso,
+      if (vetId != null) 'vetId': vetId,
+      if (vetName != null) 'vetName': vetName,
+      if (symptoms != null) 'symptoms': symptoms,
+      if (treatment != null) 'treatment': treatment,
+      if (images != null) 'images': images,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.patch('/pets/$petId/diseases/$diseaseId', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteDisease(String petId, String diseaseId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/diseases/$diseaseId');
+  }
+
+  Future<Map<String, dynamic>> addDiseaseProgress(
+    String petId,
+    String diseaseId, {
+    required String notes,
+    String? dateIso,
+    List<String>? images,
+    String? severity,
+    String? treatmentUpdate,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'notes': notes,
+      if (dateIso != null) 'date': dateIso,
+      if (images != null) 'images': images,
+      if (severity != null) 'severity': severity,
+      if (treatmentUpdate != null) 'treatmentUpdate': treatmentUpdate,
+    };
+    final res = await _dio.post('/pets/$petId/diseases/$diseaseId/progress', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  Future<void> deleteDiseaseProgress(String petId, String diseaseId, String entryId) async {
+    await ensureAuth();
+    await _dio.delete('/pets/$petId/diseases/$diseaseId/progress/$entryId');
+  }
+
   // --------------- Adoption (Tinder-like) ---------------
 
 // PUBLIC feed (auth facultative)

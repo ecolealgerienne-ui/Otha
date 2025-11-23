@@ -100,6 +100,9 @@ import '../features/pets/vet_scan_pet_screen.dart';
 import '../features/pets/pet_health_hub_screen.dart';
 import '../features/pets/pet_health_stats_screen.dart';
 import '../features/pets/pet_prescriptions_screen.dart';
+import '../features/pets/pet_diseases_screen.dart';
+import '../features/pets/pet_disease_detail_screen.dart';
+import '../features/pets/pet_disease_form_screen.dart';
 
 // Guards
 import 'role_guard.dart';
@@ -328,6 +331,32 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/prescriptions',
         builder: (ctx, st) => PetPrescriptionsScreen(
           petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/diseases',
+        builder: (ctx, st) => PetDiseasesScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/diseases/new',
+        builder: (ctx, st) => PetDiseaseFormScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/diseases/:diseaseId',
+        builder: (ctx, st) => PetDiseaseDetailScreen(
+          petId: st.pathParameters['id']!,
+          diseaseId: st.pathParameters['diseaseId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/diseases/:diseaseId/edit',
+        builder: (ctx, st) => PetDiseaseFormScreen(
+          petId: st.pathParameters['id']!,
+          diseaseId: st.pathParameters['diseaseId'],
         ),
       ),
       GoRoute(

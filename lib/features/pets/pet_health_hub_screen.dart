@@ -135,15 +135,7 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Photos, évolution, notes',
                 color: _orange,
                 gradientColor: _orange.withOpacity(0.7),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fonctionnalité bientôt disponible'),
-                      backgroundColor: _orange,
-                    ),
-                  );
-                },
-                badge: 'Bientôt',
+                onTap: () => context.push('/pets/$petId/diseases'),
               ),
             ],
           ),

@@ -269,15 +269,16 @@ model Pet {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  owner           User              @relation(fields: [ownerId], references: [id])
-  medicalRecords  MedicalRecord[]
-  accessTokens    PetAccessToken[]
-  weightRecords   WeightRecord[]
-  vaccinations    Vaccination[]
-  treatments      Treatment[]
-  allergies       Allergy[]
-  preventiveCare  PreventiveCare[]
-  daycareBookings DaycareBooking[]
+  owner            User                @relation(fields: [ownerId], references: [id])
+  medicalRecords   MedicalRecord[]
+  accessTokens     PetAccessToken[]
+  weightRecords    WeightRecord[]
+  vaccinations     Vaccination[]
+  treatments       Treatment[]
+  allergies        Allergy[]
+  preventiveCare   PreventiveCare[]
+  diseaseTrackings DiseaseTracking[]
+  daycareBookings  DaycareBooking[]
 
   @@index([ownerId])
 }
@@ -367,6 +368,59 @@ model PreventiveCare {
 
   @@index([petId, type])
   @@index([petId, nextDueDate])
+}
+
+// Suivi de maladie avec photos et évolution
+model DiseaseTracking {
+  id          String   @id @default(cuid())
+  petId       String
+  name        String   // Nom de la maladie (ex: "Allergie cutanée", "Otite")
+  description String?  // Description de la maladie
+  status      String   // ONGOING (en cours), CURED (guérie), CHRONIC (chronique), MONITORING (surveillance)
+  severity    String?  // MILD (légère), MODERATE (modérée), SEVERE (sévère)
+
+  // Dates importantes
+  diagnosisDate DateTime  // Date du diagnostic
+  curedDate     DateTime? // Date de guérison (si applicable)
+
+  // Informations médicales
+  vetId       String?  // Vétérinaire qui a diagnostiqué
+  vetName     String?
+  symptoms    String?  // Symptômes observés
+  treatment   String?  // Traitement en cours
+
+  // Suivi avec photos
+  images      String[] // URLs des photos (échographies, radios, photos progression)
+
+  // Notes d'évolution
+  notes       String?  @db.Text // Notes détaillées sur l'évolution
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  // Entrées d'évolution (timeline)
+  progressEntries DiseaseProgressEntry[]
+
+  @@index([petId, status])
+  @@index([petId, diagnosisDate])
+}
+
+// Entrées de progression pour une maladie (timeline)
+model DiseaseProgressEntry {
+  id              String   @id @default(cuid())
+  diseaseId       String
+  date            DateTime
+  notes           String   @db.Text // Notes sur l'évolution à cette date
+  images          String[] // Photos spécifiques à cette entrée
+  severity        String?  // Sévérité à ce moment (peut changer)
+  treatmentUpdate String?  // Mise à jour du traitement
+  createdAt       DateTime @default(now())
+
+  disease DiseaseTracking @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+
+  @@index([diseaseId, date])
 }
 
 model MedicalRecord {
