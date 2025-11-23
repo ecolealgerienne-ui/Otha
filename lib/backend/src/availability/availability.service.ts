@@ -195,8 +195,8 @@ export class AvailabilityService {
     ]);
     if (!prov) throw new NotFoundException('Provider not found');
 
-    // NOTE: on reste côté serveur ; on n’impose rien au front.
-    const tz = prov.timezone || 'Europe/Paris';
+    // NOTE: on reste côté serveur ; on n'impose rien au front.
+    const tz = prov.timezone || 'Africa/Algiers';
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
@@ -283,7 +283,7 @@ export class AvailabilityService {
     ]);
     if (!prov) throw new NotFoundException('Provider not found');
 
-    const tz = prov.timezone || 'Europe/Paris';
+    const tz = prov.timezone || 'Africa/Algiers';
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
@@ -357,7 +357,7 @@ export class AvailabilityService {
     const prov = await this.prisma.providerProfile.findUnique({ where: { id: providerId } });
     if (!prov) throw new NotFoundException('Provider not found');
 
-    const tz = prov.timezone || 'Europe/Paris';
+    const tz = prov.timezone || 'Africa/Algiers';
     const endUTC = this.addMinutes(startUTC, Math.max(15, durationMin || 30));
 
     const offs = await this.prisma.providerTimeOff.findMany({
