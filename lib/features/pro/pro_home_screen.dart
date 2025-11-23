@@ -92,6 +92,10 @@ final nextAppointmentProvider =
 
   Map<String, dynamic>? next;
   DateTime? nextDate;
+
+  // Accepte les RDV futurs + ceux qui ont commencé dans l'heure précédente (RDV en cours)
+  final cutoff = now.subtract(const Duration(hours: 1));
+
   for (final raw in list) {
     final m = Map<String, dynamic>.from(raw as Map);
     final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
@@ -104,7 +108,7 @@ final nextAppointmentProvider =
     }
     final st = (m['status'] ?? '').toString();
     if (st != 'PENDING' && st != 'CONFIRMED') continue;
-    if (t.isBefore(now)) continue;
+    if (t.isBefore(cutoff)) continue; // Garde les RDV qui ont commencé il y a moins d'1h
     if (nextDate == null || t.isBefore(nextDate!)) {
       nextDate = t;
       next = m;
