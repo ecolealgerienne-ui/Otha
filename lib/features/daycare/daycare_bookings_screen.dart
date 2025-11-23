@@ -15,7 +15,7 @@ final daycareBookingsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   try {
     final api = ref.read(apiProvider);
-    return await api.dio.get('/api/v1/daycare/bookings/provider').then((r) {
+    return await api.dio.get('/daycare/provider/bookings').then((r) {
       final data = r.data;
       if (data is List) return List<Map<String, dynamic>>.from(data.map((e) => Map<String, dynamic>.from(e)));
       return [];
@@ -635,7 +635,7 @@ class _BookingCard extends ConsumerWidget {
 
     try {
       await api.dio.patch(
-        '/api/v1/daycare/bookings/$bookingId/status',
+        '/daycare/bookings/$bookingId/status',
         data: {'status': newStatus},
       );
       onStatusUpdate();

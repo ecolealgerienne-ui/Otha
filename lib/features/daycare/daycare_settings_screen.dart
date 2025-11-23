@@ -119,7 +119,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
 
     // STATS RESERVATIONS
     try {
-      final bookings = await api.dio.get('/api/v1/daycare/bookings/provider').then((r) {
+      final bookings = await api.dio.get('/daycare/provider/bookings').then((r) {
         final data = r.data;
         if (data is List) return List<Map<String, dynamic>>.from(data.map((e) => Map<String, dynamic>.from(e)));
         return <Map<String, dynamic>>[];
