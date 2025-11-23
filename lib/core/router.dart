@@ -41,6 +41,7 @@ import '../features/pro/pro_services_screen.dart';
 import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
+import '../features/pro/pro_pending_validations_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
 import '../features/petshop/petshop_product_edit_screen.dart';

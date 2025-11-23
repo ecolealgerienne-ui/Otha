@@ -101,9 +101,6 @@ model User {
   lastSwipeDate   DateTime?
   lastPostDate    DateTime?
 
-  // Signalements admin
-  adminFlags AdminFlag[]
-
   @@index([email])
   @@index([city])
   @@index([lat, lng])
@@ -199,14 +196,6 @@ model Booking {
   status      BookingStatus @default(PENDING)
   scheduledAt DateTime
   createdAt   DateTime      @default(now())
-
-  // Nouveaux champs pour le système de confirmation
-  gracePeriodEndsAt    DateTime? // Date limite de confirmation (scheduledAt + 7 jours)
-  clientConfirmedAt    DateTime? // Quand le client a confirmé
-  proConfirmedAt       DateTime? // Quand le pro a confirmé (scan QR ou manuel)
-  proResponseDeadline  DateTime? // Si client confirme en premier, pro a 1 semaine pour répondre
-  cancellationReason   String?   // Motif d'annulation
-  disputeNote          String?   // Note si désaccord
 
   // Nouveaux champs pour le système de confirmation
   gracePeriodEndsAt    DateTime? // Date limite de confirmation (scheduledAt + 7 jours)

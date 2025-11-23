@@ -147,6 +147,16 @@ class _ProLedger {
   });
 }
 
+/// Provider pour récupérer les bookings en attente de validation par le pro
+final pendingValidationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    return await api.getPendingValidations();
+  } catch (e) {
+    return [];
+  }
+});
+
 /// Historique normalisé SANS AUCUN overlay local — uniquement backend
 final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   final api = ref.read(apiProvider);
@@ -415,6 +425,65 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
+
+                // ------- Banner rouge : Validations pendantes -------
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final pendingAsync = ref.watch(pendingValidationsProvider);
+                      return pendingAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (validations) {
+                          if (validations.isEmpty) return const SizedBox.shrink();
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning, color: Colors.red),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    '⚠️ ${validations.length} rendez-vous ${validations.length > 1 ? 'nécessitent' : 'nécessite'} votre validation',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => context.push('/pro/pending-validations'),
+                                  child: const Text('Voir', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                // Espacement conditionnel après le banner
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final pendingAsync = ref.watch(pendingValidationsProvider);
+                      final hasValidations = pendingAsync.maybeWhen(
+                        data: (v) => v.isNotEmpty,
+                        orElse: () => false,
+                      );
+                      return SizedBox(height: hasValidations ? 14 : 0);
+                    },
+                  ),
+                ),
 
                 // ------- Prochain rendez-vous -------
                 SliverToBoxAdapter(

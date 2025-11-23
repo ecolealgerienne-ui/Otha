@@ -25,6 +25,8 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
   Map<String, dynamic>? _petData;
   bool _isLoading = false;
   String? _error;
+  Map<String, dynamic>? _activeBooking; // Booking actif trouvé après scan
+  bool _isConfirmingBooking = false; // Loading pour le bouton de confirmation
 
   @override
   void initState() {
@@ -59,6 +61,22 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
       setState(() {
         _petData = petData;
+      });
+
+      // Chercher un booking actif pour ce pet
+      try {
+        final petId = petData['id']?.toString();
+        if (petId != null && petId.isNotEmpty) {
+          final activeBooking = await api.findActiveBookingForPet(petId);
+          setState(() {
+            _activeBooking = activeBooking;
+          });
+        }
+      } catch (e) {
+        // Pas de booking actif trouvé, c'est normal
+      }
+
+      setState(() {
         _isLoading = false;
       });
     } catch (e) {
@@ -75,7 +93,47 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
       _scannedToken = null;
       _petData = null;
       _error = null;
+      _activeBooking = null;
+      _isConfirmingBooking = false;
     });
+  }
+
+  Future<void> _confirmBooking() async {
+    if (_activeBooking == null || _isConfirmingBooking) return;
+
+    setState(() => _isConfirmingBooking = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      final bookingId = _activeBooking!['id'].toString();
+      await api.proConfirmBooking(bookingId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Rendez-vous confirmé avec succès'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Réinitialiser l'état après succès
+      setState(() {
+        _activeBooking = null;
+        _isConfirmingBooking = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erreur: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      setState(() => _isConfirmingBooking = false);
+    }
   }
 
   @override
@@ -357,6 +415,27 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             ...medicalRecords.map((record) => _buildRecordCard(record)),
 
           const SizedBox(height: 24),
+
+          // Confirm booking button (if active booking found)
+          if (_activeBooking != null) ...[
+            FilledButton.icon(
+              onPressed: _isConfirmingBooking ? null : _confirmBooking,
+              icon: _isConfirmingBooking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle),
+              label: Text(_isConfirmingBooking ? 'Confirmation...' : 'Confirmer le rendez-vous'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Scan again
           OutlinedButton.icon(

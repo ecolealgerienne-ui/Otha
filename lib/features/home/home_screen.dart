@@ -17,6 +17,7 @@ import '../../core/session_controller.dart';
 import '../../core/api.dart';
 // 👇 pour le bouton "Modifier" (pending)
 import '../bookings/booking_flow_screen.dart';
+import '../bookings/booking_confirmation_popup.dart';
 import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
 import '../adopt/adoption_pet_creation_dialog.dart';
 
@@ -44,6 +45,9 @@ class _Notif {
 
 // Provider pour tracker si on a déjà vérifié les adoptions pendantes (une fois par session)
 bool _adoptionCheckDone = false;
+
+// Tracker si on a déjà vérifié les confirmations de bookings (une fois par session)
+bool _bookingConfirmationCheckDone = false;
 
 // Provider pour charger les notifications depuis le backend
 final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
@@ -543,6 +547,33 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _checkPendingBookingConfirmations(BuildContext context, WidgetRef ref) async {
+    // Ne vérifier qu'une seule fois par session
+    if (_bookingConfirmationCheckDone) return;
+    _bookingConfirmationCheckDone = true;
+
+    try {
+      final bookings = await ref.read(awaitingConfirmationBookingsProvider.future);
+
+      // S'il y a au moins un booking en attente, afficher le popup pour le premier
+      if (bookings.isNotEmpty && context.mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => BookingConfirmationPopup(
+            booking: bookings.first,
+            onDismiss: () {
+              // Rafraîchir la liste après confirmation
+              ref.invalidate(awaitingConfirmationBookingsProvider);
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
+    }
+  }
+
   Future<void> _refreshAll(WidgetRef ref) async {
     // Invalide les providers pour forcer un vrai refresh
     ref.invalidate(topVetsProvider);
@@ -588,6 +619,7 @@ class HomeScreen extends ConsumerWidget {
       _loadNotifications(ref);
       if (!isPro) {
         _checkPendingAdoptions(context, ref);
+        _checkPendingBookingConfirmations(context, ref);
       }
     });
 
