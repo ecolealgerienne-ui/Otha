@@ -25,7 +25,7 @@ export class DaycareController {
    */
   @Post('bookings')
   async createBooking(@Req() req: any, @Body() dto: CreateDaycareBookingDto) {
-    return this.daycareService.createBooking(req.user.userId, dto);
+    return this.daycareService.createBooking(req.user.sub, dto);
   }
 
   /**
@@ -34,7 +34,7 @@ export class DaycareController {
    */
   @Get('my/bookings')
   async getMyBookings(@Req() req: any) {
-    return this.daycareService.getMyBookings(req.user.userId);
+    return this.daycareService.getMyBookings(req.user.sub);
   }
 
   /**
@@ -43,7 +43,7 @@ export class DaycareController {
    */
   @Get('provider/bookings')
   async getProviderBookings(@Req() req: any) {
-    return this.daycareService.getProviderBookings(req.user.userId);
+    return this.daycareService.getProviderBookings(req.user.sub);
   }
 
   /**
@@ -56,7 +56,7 @@ export class DaycareController {
     @Param('id') id: string,
     @Body() dto: UpdateBookingStatusDto,
   ) {
-    return this.daycareService.updateBookingStatus(req.user.userId, id, dto.status);
+    return this.daycareService.updateBookingStatus(req.user.sub, id, dto.status);
   }
 
   /**
@@ -65,7 +65,7 @@ export class DaycareController {
    */
   @Patch('bookings/:id/drop-off')
   async markDropOff(@Req() req: any, @Param('id') id: string) {
-    return this.daycareService.markDropOff(req.user.userId, id);
+    return this.daycareService.markDropOff(req.user.sub, id);
   }
 
   /**
@@ -74,7 +74,7 @@ export class DaycareController {
    */
   @Patch('bookings/:id/pickup')
   async markPickup(@Req() req: any, @Param('id') id: string) {
-    return this.daycareService.markPickup(req.user.userId, id);
+    return this.daycareService.markPickup(req.user.sub, id);
   }
 
   /**
@@ -83,6 +83,6 @@ export class DaycareController {
    */
   @Get('provider/calendar')
   async getCalendar(@Req() req: any, @Query('date') date: string) {
-    return this.daycareService.getCalendar(req.user.userId, date);
+    return this.daycareService.getCalendar(req.user.sub, date);
   }
 }
