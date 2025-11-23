@@ -82,7 +82,7 @@ class PetPrescriptionsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   ...active.map((t) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildTreatmentCard(t, isActive: true),
+                    child: _buildTreatmentCard(context, ref, t, isActive: true),
                   )),
                   const SizedBox(height: 32),
                 ],
@@ -96,7 +96,7 @@ class PetPrescriptionsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   ...inactive.map((t) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildTreatmentCard(t, isActive: false),
+                    child: _buildTreatmentCard(context, ref, t, isActive: false),
                   )),
                 ],
               ],
@@ -105,13 +105,9 @@ class PetPrescriptionsScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ajout d\'ordonnance bientôt disponible'),
-              backgroundColor: _coral,
-            ),
-          );
+        onPressed: () async {
+          await context.push('/pets/$petId/treatments/new');
+          ref.invalidate(activeTreatmentsProvider(petId));
         },
         backgroundColor: _mint,
         icon: const Icon(Icons.add, color: Colors.white),
@@ -161,7 +157,12 @@ class PetPrescriptionsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTreatmentCard(Map<String, dynamic> treatment, {required bool isActive}) {
+  Widget _buildTreatmentCard(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> treatment,
+    {required bool isActive}
+  ) {
     final name = treatment['name']?.toString() ?? 'Médicament';
     final dosage = treatment['dosage']?.toString();
     final frequency = treatment['frequency']?.toString();
@@ -172,8 +173,15 @@ class PetPrescriptionsScreen extends ConsumerWidget {
         ? DateTime.parse(treatment['endDate'].toString())
         : null;
     final notes = treatment['notes']?.toString();
+    final attachments = (treatment['attachments'] as List?)?.cast<String>() ?? [];
 
-    return Container(
+    return InkWell(
+      onTap: () async {
+        await context.push('/pets/$petId/treatments/${treatment['id']}/edit');
+        ref.invalidate(activeTreatmentsProvider(petId));
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -270,6 +278,39 @@ class PetPrescriptionsScreen extends ConsumerWidget {
               'Fin',
               DateFormat('dd/MM/yyyy').format(endDate),
             ),
+          if (attachments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(8),
+                itemCount: attachments.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(
+                      attachments[index],
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 64,
+                        height: 64,
+                        color: Colors.grey.shade200,
+                        child: Icon(Icons.broken_image, color: Colors.grey.shade400, size: 20),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           if (notes != null) ...[
             const SizedBox(height: 8),
             Container(
@@ -297,6 +338,7 @@ class PetPrescriptionsScreen extends ConsumerWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }
