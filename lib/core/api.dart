@@ -1212,6 +1212,9 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? vetName,
     String? notes,
     List<String>? images,
+    double? weightKg,
+    double? temperatureC,
+    int? heartRate,
   }) async {
     await ensureAuth();
     final body = <String, dynamic>{
@@ -1222,6 +1225,9 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (vetName != null) 'vetName': vetName,
       if (notes != null) 'notes': notes,
       if (images != null) 'images': images,
+      if (weightKg != null) 'weightKg': weightKg,
+      if (temperatureC != null) 'temperatureC': temperatureC,
+      if (heartRate != null) 'heartRate': heartRate,
     };
     final res = await _dio.post('/pets/$petId/medical-records', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
