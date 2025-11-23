@@ -23,7 +23,9 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
   bool _isScanning = true;
   String? _scannedToken;
   Map<String, dynamic>? _petData;
+  Map<String, dynamic>? _activeBooking; // 🆕 Booking actif trouvé
   bool _isLoading = false;
+  bool _isConfirming = false; // 🆕 Confirmation en cours
   String? _error;
 
   @override
@@ -57,8 +59,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
       final api = ref.read(apiProvider);
       final petData = await api.getPetByToken(token);
 
+      // 🆕 Chercher un booking actif pour ce pet
+      Map<String, dynamic>? activeBooking;
+      try {
+        activeBooking = await api.findActiveBookingForPet(petData['id']);
+      } catch (_) {
+        // Pas de booking actif, ce n'est pas grave
+      }
+
       setState(() {
         _petData = petData;
+        _activeBooking = activeBooking;
         _isLoading = false;
       });
     } catch (e) {
@@ -306,6 +317,80 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // 🆕 Bouton confirmer rendez-vous (si booking actif trouvé)
+          if (_activeBooking != null && _activeBooking!['status'] != 'COMPLETED') ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.event_available, color: Colors.green.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Rendez-vous trouvé pour ce patient',
+                      style: TextStyle(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _isConfirming ? null : () async {
+                setState(() => _isConfirming = true);
+                try {
+                  final api = ref.read(apiProvider);
+                  await api.proConfirmBooking(_activeBooking!['id']);
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Rendez-vous confirmé avec succès'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+
+                  setState(() {
+                    _activeBooking = null;
+                    _isConfirming = false;
+                  });
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur: $e')),
+                  );
+                  setState(() => _isConfirming = false);
+                }
+              },
+              icon: _isConfirming
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.check_circle),
+              label: Text(_isConfirming ? 'Confirmation...' : 'Confirmer le rendez-vous'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Add record button
           FilledButton.icon(

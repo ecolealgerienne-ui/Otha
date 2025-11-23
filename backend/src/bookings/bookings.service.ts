@@ -22,8 +22,22 @@ export class BookingsService {
 
   /** --------- Client: mes réservations --------- */
   async listMine(userId: string) {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     const rows = await this.prisma.booking.findMany({
-      where: { userId },
+      where: {
+        userId,
+        // ✅ Ne cacher que les RDV terminés/annulés/expirés de plus de 7 jours
+        // OU garder visibles tous les RDV en attente de confirmation
+        OR: [
+          { status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] } },
+          {
+            status: { in: ['COMPLETED', 'CANCELLED', 'EXPIRED', 'DISPUTED'] },
+            scheduledAt: { gte: sevenDaysAgo }
+          }
+        ]
+      },
       orderBy: { scheduledAt: 'desc' },
       select: {
         id: true,
@@ -690,5 +704,359 @@ export class BookingsService {
     );
 
     return { month: month ?? null, totals, items };
+  }
+
+  // ==================== NOUVEAU: Système de Confirmation ====================
+
+  /**
+   * Cron job: Passer les RDV en AWAITING_CONFIRMATION 24h après l'heure prévue
+   * À appeler toutes les heures
+   */
+  async checkGracePeriods() {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneHourMargin = new Date(twentyFourHoursAgo.getTime() - 1 * 60 * 60 * 1000);
+
+    // 1️⃣ Trouver les RDV passés depuis 24h sans confirmation
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        scheduledAt: {
+          gte: oneHourMargin,
+          lte: twentyFourHoursAgo,
+        },
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        gracePeriodEndsAt: null,
+      },
+    });
+
+    // 2️⃣ Passer en AWAITING_CONFIRMATION avec grace period de 7 jours
+    for (const b of bookings) {
+      await this.prisma.booking.update({
+        where: { id: b.id },
+        data: {
+          status: 'AWAITING_CONFIRMATION',
+          gracePeriodEndsAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+
+    // 3️⃣ Expirer les RDV sans réponse après grace period
+    const expired = await this.prisma.booking.findMany({
+      where: {
+        status: { in: ['AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+        gracePeriodEndsAt: { lte: now },
+      },
+    });
+
+    for (const b of expired) {
+      await this.prisma.booking.update({
+        where: { id: b.id },
+        data: { status: 'EXPIRED' },
+      });
+    }
+
+    return {
+      awaitingConfirmation: bookings.length,
+      expired: expired.length,
+    };
+  }
+
+  /**
+   * Chercher un booking actif pour un pet (pour le scan QR vet)
+   */
+  async findActiveBookingForPet(petId: string) {
+    const pet = await this.prisma.pet.findUnique({
+      where: { id: petId },
+      select: { ownerId: true },
+    });
+    if (!pet) return null;
+
+    const now = new Date();
+    const twoHoursBefore = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const twoHoursAfter = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+    // Chercher un RDV aujourd'hui ±2h, non complété
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        userId: pet.ownerId,
+        scheduledAt: { gte: twoHoursBefore, lte: twoHoursAfter },
+        status: { notIn: ['COMPLETED', 'CANCELLED', 'EXPIRED'] },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      include: {
+        service: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return booking;
+  }
+
+  /**
+   * PRO confirme le booking (après scan QR ou manuellement)
+   */
+  async proConfirmBooking(userId: string, bookingId: string) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    const b = await this.prisma.booking.findFirst({
+      where: { id: bookingId, providerId: prov.id },
+      include: { service: true },
+    });
+    if (!b) throw new NotFoundException('Booking not found');
+
+    // ✅ Marquer comme confirmé par le pro
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        proConfirmedAt: new Date(),
+        status: 'COMPLETED',
+      },
+    });
+
+    // ✅ Créer la commission
+    const gross = Number((b.service.price as Prisma.Decimal).toNumber());
+    const commission = COMMISSION_DA;
+    const net = Math.max(gross - commission, 0);
+
+    await this.prisma.providerEarning.upsert({
+      where: { bookingId: b.id },
+      update: {},
+      create: {
+        providerId: prov.id,
+        bookingId: b.id,
+        serviceId: b.serviceId,
+        grossPriceDa: gross,
+        commissionDa: commission,
+        netToProviderDa: net,
+      },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * CLIENT demande confirmation (via popup avis)
+   * ⚠️ NE CRÉE PAS la commission directement
+   */
+  async clientRequestConfirmation(
+    userId: string,
+    bookingId: string,
+    rating: number,
+    comment?: string,
+  ) {
+    const b = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+      include: { provider: true },
+    });
+    if (!b) throw new NotFoundException('Booking not found');
+
+    // 1️⃣ Créer la review (en attente validation pro)
+    await this.prisma.review.upsert({
+      where: { bookingId },
+      update: {
+        rating,
+        comment,
+        isPending: true,
+      },
+      create: {
+        bookingId,
+        userId,
+        rating,
+        comment,
+        isPending: true,
+      },
+    });
+
+    // 2️⃣ Marquer la confirmation client
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        clientConfirmedAt: new Date(),
+        status: 'PENDING_PRO_VALIDATION',
+        proResponseDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // 3️⃣ Créer notification pour le pro
+    try {
+      await this.notificationsService.createNotification(
+        b.provider.userId,
+        NotificationType.BOOKING_NEEDS_VALIDATION,
+        '⚠️ Validation requise',
+        'Un client a confirmé son rendez-vous. Validez-vous ?',
+        { bookingId: b.id },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * CLIENT dit "je n'y suis pas allé"
+   */
+  async clientCancelBooking(userId: string, bookingId: string) {
+    const b = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+    });
+    if (!b) throw new NotFoundException('Booking not found');
+
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'CANCELLED',
+        cancellationReason: 'Client did not attend',
+      },
+    });
+
+    // Supprimer l'earning éventuel
+    await this.prisma.providerEarning.deleteMany({
+      where: { bookingId },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * PRO valide ou refuse la confirmation client
+   */
+  async proValidateClientConfirmation(
+    userId: string,
+    bookingId: string,
+    approved: boolean,
+  ) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    const b = await this.prisma.booking.findFirst({
+      where: { id: bookingId, providerId: prov.id },
+      include: { service: true },
+    });
+    if (!b) throw new NotFoundException('Booking not found');
+
+    if (approved) {
+      // ✅ PRO APPROUVE
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          proConfirmedAt: new Date(),
+          status: 'COMPLETED',
+        },
+      });
+
+      // ✅ Créer la commission
+      const gross = Number((b.service.price as Prisma.Decimal).toNumber());
+      const commission = COMMISSION_DA;
+      const net = Math.max(gross - commission, 0);
+
+      await this.prisma.providerEarning.upsert({
+        where: { bookingId: b.id },
+        update: {},
+        create: {
+          providerId: prov.id,
+          bookingId: b.id,
+          serviceId: b.serviceId,
+          grossPriceDa: gross,
+          commissionDa: commission,
+          netToProviderDa: net,
+        },
+      });
+
+      // ✅ Publier la review
+      await this.prisma.review.updateMany({
+        where: { bookingId: b.id },
+        data: { isPending: false },
+      });
+    } else {
+      // ❌ PRO REFUSE = CLIENT MENT
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'DISPUTED',
+          disputeNote: 'Pro claims client did not attend',
+        },
+      });
+
+      // ❌ Créer signalement admin contre le CLIENT
+      await this.prisma.adminFlag.create({
+        data: {
+          userId: b.userId,
+          type: 'FALSE_ATTENDANCE_CLAIM',
+          bookingId: b.id,
+          note: 'Client claimed to attend but provider denied',
+        },
+      });
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Liste des bookings en attente de validation pro
+   */
+  async getPendingValidations(userId: string) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        providerId: prov.id,
+        status: 'PENDING_PRO_VALIDATION',
+      },
+      orderBy: { proResponseDeadline: 'asc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+          },
+        },
+      },
+    });
+
+    return bookings.map((b) => ({
+      id: b.id,
+      scheduledAt: b.scheduledAt.toISOString(),
+      proResponseDeadline: b.proResponseDeadline?.toISOString(),
+      user: {
+        id: b.user.id,
+        displayName:
+          [b.user.firstName, b.user.lastName].filter(Boolean).join(' ').trim() ||
+          'Client',
+        phone: b.user.phone,
+      },
+      service: {
+        id: b.service.id,
+        title: b.service.title,
+        price:
+          b.service.price == null
+            ? null
+            : (b.service.price as Prisma.Decimal).toNumber(),
+      },
+    }));
   }
 }
