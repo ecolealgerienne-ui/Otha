@@ -3015,4 +3015,28 @@ final hay = [
     if (data is List) return data;
     return [];
   }
+
+  /// Alias: Client confirme le RDV (avec optionnellement un avis)
+  Future<Map<String, dynamic>> clientConfirmBooking({
+    required String bookingId,
+    int? rating,
+    String? comment,
+  }) async {
+    return clientRequestConfirmation(
+      bookingId: bookingId,
+      rating: rating ?? 5,
+      comment: comment,
+    );
+  }
+
+  /// Alias: Pro valide manuellement le RDV (approuve la confirmation client)
+  Future<Map<String, dynamic>> proValidateBooking(String bookingId) async {
+    return proValidateClientConfirmation(bookingId: bookingId, approved: true);
+  }
+
+  /// Récupère le nombre de RDV en attente de validation
+  Future<int> getPendingValidationsCount() async {
+    final list = await getPendingValidations();
+    return list.length;
+  }
 }
