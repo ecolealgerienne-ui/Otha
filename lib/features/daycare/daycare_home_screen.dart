@@ -59,26 +59,19 @@ final myDaycareProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>
 );
 
 final myDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final api = ref.read(apiProvider);
-    // Récupère les réservations via l'endpoint daycare
-    return await api.dio.get('/daycare/provider/bookings').then((r) {
-      final data = r.data;
-      if (data is List) return List<Map<String, dynamic>>.from(data);
-      return [];
-    });
-  } catch (_) {
-    return [];
+  final api = ref.read(apiProvider);
+  // Récupère les réservations via l'endpoint daycare
+  final r = await api.dio.get('/daycare/provider/bookings');
+  final data = r.data;
+  if (data is List) {
+    return List<Map<String, dynamic>>.from(data.map((e) => Map<String, dynamic>.from(e)));
   }
+  return [];
 });
 
 final pendingDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final bookings = await ref.watch(myDaycareBookingsProvider.future);
-    return bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').toList();
-  } catch (_) {
-    return [];
-  }
+  final bookings = await ref.watch(myDaycareBookingsProvider.future);
+  return bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').toList();
 });
 
 // Commission for daycare: 100 DA per reservation

@@ -13,16 +13,13 @@ const kDaycareCommissionDa = 100;
 
 final daycareBookingsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final api = ref.read(apiProvider);
-    return await api.dio.get('/daycare/provider/bookings').then((r) {
-      final data = r.data;
-      if (data is List) return List<Map<String, dynamic>>.from(data.map((e) => Map<String, dynamic>.from(e)));
-      return [];
-    });
-  } catch (e) {
-    return [];
+  final api = ref.read(apiProvider);
+  final r = await api.dio.get('/daycare/provider/bookings');
+  final data = r.data;
+  if (data is List) {
+    return List<Map<String, dynamic>>.from(data.map((e) => Map<String, dynamic>.from(e)));
   }
+  return [];
 });
 
 class DaycareBookingsScreen extends ConsumerStatefulWidget {
