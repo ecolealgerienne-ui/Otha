@@ -127,6 +127,16 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
+            onPressed: () => context.push('/pets/$petId/health-stats'),
+            icon: const Icon(Icons.analytics_outlined),
+            tooltip: 'Statistiques de santé',
+            style: IconButton.styleFrom(
+              backgroundColor: _coralSoft,
+              foregroundColor: _coral,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
             onPressed: () => ref.invalidate(medicalRecordsProvider(petId)),
             icon: const Icon(Icons.refresh),
             style: IconButton.styleFrom(
