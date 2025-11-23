@@ -247,18 +247,7 @@ final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   );
 });
 
-/// 🆕 Bookings en attente de validation par le pro
-final proValidationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final api = ref.read(apiProvider);
-  try {
-    final validations = await api.getPendingValidations();
-    return validations.length;
-  } catch (_) {
-    return 0;
-  }
-});
-
-/// Détails RDV complétés sur une fenêtre (pour "Générées avec ses rendez-vous" — Mois)
+/// Détails RDV complétés sur une fenêtre (pour “Générées avec ses rendez-vous” — Mois)
 final completedBookingsForRangeProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, ({String fromIso, String toIso})>(
         (ref, range) async {
@@ -381,7 +370,6 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
 
     final nextAsync = ref.watch(nextAppointmentProvider);
     final ledgerAsync = ref.watch(proLedgerProvider);
-    final validationsCountAsync = ref.watch(proValidationsCountProvider); // 🆕
 
     final monthBounds = _boundsForScopeMonth();
     final monthBookingsAsync = (monthBounds == null)
@@ -426,63 +414,6 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                     onAvatarTap: () => context.push('/pro/settings'),
                   ),
                 ),
-
-                // 🆕 Banner rouge si validations en attente
-                validationsCountAsync.when(
-                  data: (count) {
-                    if (count == 0) return const SliverToBoxAdapter(child: SizedBox.shrink());
-                    return SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade200, width: 2),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_amber, color: Colors.red.shade700, size: 28),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    '⚠️ Validation requise',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.red,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  Text(
-                                    '$count rendez-vous ${count > 1 ? 'nécessitent' : 'nécessite'} votre validation',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.push('/pro/pending-validations'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red.shade700,
-                                backgroundColor: Colors.white,
-                              ),
-                              child: const Text('Voir'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
-                  error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-                ),
-
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
 
                 // ------- Prochain rendez-vous -------

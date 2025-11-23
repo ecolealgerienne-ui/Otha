@@ -41,7 +41,6 @@ import '../features/pro/pro_services_screen.dart';
 import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
-import '../features/pro/pro_pending_validations_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
 import '../features/petshop/petshop_product_edit_screen.dart';
@@ -564,11 +563,6 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/settings',
             builder: (ctx, st) => const ProSettingsScreen(),
-          ),
-          // 🆕 Validations en attente
-          GoRoute(
-            path: '/pro/pending-validations',
-            builder: (_, __) => const ProPendingValidationsScreen(),
           ),
         ],
       ),
