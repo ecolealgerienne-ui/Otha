@@ -1391,6 +1391,7 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? endDateIso,
     bool isActive = true,
     String? notes,
+    List<String>? attachments,
   }) async {
     await ensureAuth();
     final body = <String, dynamic>{
@@ -1401,6 +1402,7 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (frequency != null) 'frequency': frequency,
       if (endDateIso != null) 'endDate': endDateIso,
       if (notes != null) 'notes': notes,
+      if (attachments != null) 'attachments': attachments,
     };
     final res = await _dio.post('/pets/$petId/treatments', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
@@ -1416,6 +1418,7 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? endDateIso,
     bool? isActive,
     String? notes,
+    List<String>? attachments,
   }) async {
     await ensureAuth();
     final body = <String, dynamic>{
@@ -1426,6 +1429,7 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (endDateIso != null) 'endDate': endDateIso,
       if (isActive != null) 'isActive': isActive,
       if (notes != null) 'notes': notes,
+      if (attachments != null) 'attachments': attachments,
     };
     final res = await _dio.patch('/pets/$petId/treatments/$treatmentId', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
