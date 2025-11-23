@@ -19,6 +19,10 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+  AWAITING_CONFIRMATION  // 24h après l'heure, en attente confirmation
+  PENDING_PRO_VALIDATION // Client a confirmé, pro doit valider
+  DISPUTED               // Désaccord entre client et pro
+  EXPIRED                // Délai dépassé sans confirmation
 }
 
 enum Gender {
@@ -98,6 +102,9 @@ model User {
   dailyPostCount  Int      @default(0)
   lastSwipeDate   DateTime?
   lastPostDate    DateTime?
+
+  // Signalements admin
+  adminFlags AdminFlag[]
 
   @@index([email])
   @@index([city])
@@ -206,6 +213,14 @@ model Booking {
   endDate      DateTime?               // Date de fin (pour réservations journalières)
   commissionDa Int?                    // Commission en DA
 
+  // Nouveaux champs pour le système de confirmation
+  gracePeriodEndsAt    DateTime? // Date limite de confirmation (scheduledAt + 7 jours)
+  clientConfirmedAt    DateTime? // Quand le client a confirmé
+  proConfirmedAt       DateTime? // Quand le pro a confirmé (scan QR ou manuel)
+  proResponseDeadline  DateTime? // Si client confirme en premier, pro a 1 semaine pour répondre
+  cancellationReason   String?   // Motif d'annulation
+  disputeNote          String?   // Note si désaccord
+
   user     User            @relation(fields: [userId], references: [id])
   provider ProviderProfile @relation(fields: [providerId], references: [id])
   service  Service         @relation(fields: [serviceId], references: [id])
@@ -216,6 +231,7 @@ model Booking {
 
   @@index([providerId, scheduledAt])
   @@index([userId, scheduledAt])
+  @@index([status, gracePeriodEndsAt])
 }
 
 model Review {
@@ -224,6 +240,7 @@ model Review {
   userId    String
   rating    Int
   comment   String?
+  isPending Boolean  @default(false) // true si en attente validation pro
   createdAt DateTime @default(now())
 
   booking Booking @relation(fields: [bookingId], references: [id])
@@ -723,6 +740,7 @@ enum NotificationType {
   ADOPT_POST_REJECTED    // Annonce d'adoption rejetée par admin
   BOOKING_CONFIRMED      // Rendez-vous vétérinaire confirmé
   BOOKING_CANCELLED      // Rendez-vous vétérinaire annulé
+  BOOKING_NEEDS_VALIDATION // Client a confirmé, pro doit valider
   ORDER_SHIPPED          // Commande PetShop expédiée
   ORDER_DELIVERED        // Commande PetShop livrée
   GENERAL                // Notification générale
@@ -743,4 +761,19 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+model AdminFlag {
+  id        String   @id @default(cuid())
+  userId    String   // User signalé
+  type      String   // FALSE_ATTENDANCE_CLAIM, NO_SHOW, etc.
+  bookingId String?  // Booking concerné
+  note      String?
+  createdAt DateTime @default(now())
+  resolved  Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, resolved])
+  @@index([createdAt])
 }
