@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { DaycareService } from './daycare.service';
 import { CreateDaycareBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-status.dto';
@@ -93,5 +95,16 @@ export class DaycareController {
   @Patch('my/bookings/:id/cancel')
   async cancelMyBooking(@Req() req: any, @Param('id') id: string) {
     return this.daycareService.cancelMyBooking(req.user.sub, id);
+  }
+
+  /**
+   * GET /api/v1/daycare/active-for-pet/:petId
+   * Chercher un booking daycare actif pour un pet (pour le scan QR)
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('active-for-pet/:petId')
+  async findActiveDaycareBookingForPet(@Param('petId') petId: string) {
+    return this.daycareService.findActiveDaycareBookingForPet(petId);
   }
 }
