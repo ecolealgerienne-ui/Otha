@@ -325,7 +325,8 @@ class _BookingCard extends ConsumerWidget {
     final baseTotal = _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
     final startDate = booking['startDate'];
     final endDate = booking['endDate'];
-    final pets = booking['pets'] as List? ?? [];
+    final pet = booking['pet'] as Map<String, dynamic>?;
+    final pets = pet != null ? [pet] : [];
     final notes = (booking['notes'] ?? '').toString();
 
     // Commission: 100 DA per reservation (fixed)
