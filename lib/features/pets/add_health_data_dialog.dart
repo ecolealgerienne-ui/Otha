@@ -173,7 +173,7 @@ void showAddHealthDataDialog(BuildContext context, WidgetRef ref, String petId) 
                           petId,
                           type: 'HEALTH_CHECK',
                           title: 'Contrôle de santé',
-                          date: selectedDate.toIso8601String(),
+                          dateIso: selectedDate.toIso8601String(),
                           description: 'Données de santé enregistrées manuellement',
                           temperatureC: temperature,
                           heartRate: heartRate,
