@@ -709,30 +709,43 @@ export class BookingsService {
   // ==================== NOUVEAU: Système de Confirmation ====================
 
   /**
-   * Cron job: Passer les RDV en AWAITING_CONFIRMATION 24h après l'heure prévue
+   * Cron job: Passer les RDV en AWAITING_CONFIRMATION 4h après la FIN du RDV
    * À appeler toutes les heures
    */
   async checkGracePeriods() {
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const oneHourMargin = new Date(twentyFourHoursAgo.getTime() - 1 * 60 * 60 * 1000);
 
-    // 1️⃣ Trouver les RDV passés depuis 24h sans confirmation
+    // 1️⃣ Trouver les RDV passés (sans confirmation) avec leur durée
     const bookings = await this.prisma.booking.findMany({
       where: {
-        scheduledAt: {
-          gte: oneHourMargin,
-          lte: twentyFourHoursAgo,
-        },
+        scheduledAt: { lte: now }, // RDV déjà commencé
         status: { in: ['PENDING', 'CONFIRMED'] },
         gracePeriodEndsAt: null,
       },
+      include: {
+        service: {
+          select: { durationMin: true },
+        },
+      },
     });
 
-    // 2️⃣ Passer en AWAITING_CONFIRMATION avec grace period de 7 jours
+    // 2️⃣ Filtrer ceux qui sont passés depuis 4h après la FIN du RDV
+    const toUpdate = [];
     for (const b of bookings) {
+      const durationMin = b.service?.durationMin ?? 30;
+      const endTime = new Date(b.scheduledAt.getTime() + durationMin * 60 * 1000);
+      const fourHoursAfterEnd = new Date(endTime.getTime() + 4 * 60 * 60 * 1000);
+
+      // Si 4h se sont écoulées après la fin du RDV
+      if (now >= fourHoursAfterEnd) {
+        toUpdate.push(b.id);
+      }
+    }
+
+    // 3️⃣ Passer en AWAITING_CONFIRMATION avec grace period de 7 jours
+    for (const id of toUpdate) {
       await this.prisma.booking.update({
-        where: { id: b.id },
+        where: { id },
         data: {
           status: 'AWAITING_CONFIRMATION',
           gracePeriodEndsAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
@@ -740,7 +753,7 @@ export class BookingsService {
       });
     }
 
-    // 3️⃣ Expirer les RDV sans réponse après grace period
+    // 4️⃣ Expirer les RDV sans réponse après grace period
     const expired = await this.prisma.booking.findMany({
       where: {
         status: { in: ['AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
@@ -756,7 +769,7 @@ export class BookingsService {
     }
 
     return {
-      awaitingConfirmation: bookings.length,
+      awaitingConfirmation: toUpdate.length,
       expired: expired.length,
     };
   }
