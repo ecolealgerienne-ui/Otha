@@ -990,13 +990,11 @@ export class BookingsService {
         },
       });
 
-      // ❌ Créer signalement admin contre le CLIENT
+      // ❌ Créer signalement admin
       await this.prisma.adminFlag.create({
         data: {
-          userId: b.userId,
-          type: 'FALSE_ATTENDANCE_CLAIM',
           bookingId: b.id,
-          note: 'Client claimed to attend but provider denied',
+          reason: 'Pro claims client did not attend (DISPUTED)',
         },
       });
     }

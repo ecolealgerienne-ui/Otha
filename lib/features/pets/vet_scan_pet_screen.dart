@@ -70,7 +70,12 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           final activeBooking = await api.findActiveBookingForPet(petId);
           setState(() {
             _activeBooking = activeBooking;
+            _isLoading = false;
           });
+
+          // Auto-confirmer le booking immédiatement
+          await _confirmBooking();
+          return; // Sortir de la fonction après confirmation
         }
       } catch (e) {
         // Pas de booking actif trouvé, c'est normal
@@ -415,27 +420,6 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             ...medicalRecords.map((record) => _buildRecordCard(record)),
 
           const SizedBox(height: 24),
-
-          // Confirm booking button (if active booking found)
-          if (_activeBooking != null) ...[
-            FilledButton.icon(
-              onPressed: _isConfirmingBooking ? null : _confirmBooking,
-              icon: _isConfirmingBooking
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check_circle),
-              label: Text(_isConfirmingBooking ? 'Confirmation...' : 'Confirmer le rendez-vous'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 48),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
 
           // Scan again
           OutlinedButton.icon(
