@@ -69,16 +69,31 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
         final petId = petData['id']?.toString();
         if (petId != null && petId.isNotEmpty) {
           // Essayer d'abord de trouver un booking vétérinaire
+          debugPrint('🔍 Recherche booking vétérinaire pour pet: $petId');
           var activeBooking = await api.findActiveBookingForPet(petId);
           var bookingType = 'vet';
 
+          if (activeBooking != null) {
+            debugPrint('✅ Booking vétérinaire trouvé: ${activeBooking['id']}');
+          } else {
+            debugPrint('❌ Aucun booking vétérinaire trouvé');
+          }
+
           // Si pas de booking vétérinaire, chercher un booking garderie
           if (activeBooking == null) {
+            debugPrint('🔍 Recherche booking garderie pour pet: $petId');
             activeBooking = await api.findActiveDaycareBookingForPet(petId);
             bookingType = 'daycare';
+
+            if (activeBooking != null) {
+              debugPrint('✅ Booking garderie trouvé: ${activeBooking['id']}');
+            } else {
+              debugPrint('❌ Aucun booking garderie trouvé');
+            }
           }
 
           if (activeBooking != null) {
+            debugPrint('📝 Type de booking: $bookingType');
             setState(() {
               _activeBooking = activeBooking;
               _bookingType = bookingType;
@@ -88,6 +103,8 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
             // Auto-confirmer le booking immédiatement
             await _confirmBooking();
             return; // Sortir de la fonction après confirmation
+          } else {
+            debugPrint('⚠️ Aucun booking actif trouvé (ni vet ni daycare)');
           }
         }
       } catch (e) {
@@ -173,11 +190,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
   Future<void> _confirmBooking() async {
     if (_activeBooking == null || _isConfirmingBooking) return;
 
+    // Vérifier que le booking a bien un ID valide
+    final bookingId = _activeBooking!['id']?.toString();
+    if (bookingId == null || bookingId.isEmpty || bookingId == 'null') {
+      debugPrint('⚠️ Booking ID invalide: $bookingId');
+      return;
+    }
+
     setState(() => _isConfirmingBooking = true);
 
     try {
       final api = ref.read(apiProvider);
-      final bookingId = _activeBooking!['id'].toString();
 
       // Appeler la méthode appropriée selon le type de booking
       if (_bookingType == 'daycare') {
@@ -450,8 +473,8 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           const SizedBox(height: 16),
 
           // ⚠️ Le dossier médical n'est accessible QUE pour les vétérinaires
-          // Les garderies n'ont pas accès au dossier médical
-          if (_bookingType != 'daycare') ...[
+          // Les garderies et les scans sans booking n'ont pas accès au dossier médical
+          if (_bookingType == 'vet') ...[
             // Add record button
             FilledButton.icon(
               onPressed: () => context.push('/vet/add-record/${_petData!['id']}?token=$_scannedToken'),
@@ -479,7 +502,7 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
           ],
 
           // Afficher les dossiers médicaux seulement pour les vétérinaires
-          if (_bookingType != 'daycare') ...[
+          if (_bookingType == 'vet') ...[
             if (medicalRecords.isEmpty)
               Container(
                 padding: const EdgeInsets.all(24),
