@@ -315,15 +315,14 @@ class _BookingCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final id = (booking['id'] ?? '').toString();
     final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
-    final baseTotal = _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
+    final totalDa = _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
+    final priceDa = _asInt(booking['priceDa'] ?? 0);
+    final commissionDa = _asInt(booking['commissionDa'] ?? kDaycareCommissionDa);
     final startDate = booking['startDate'];
     final endDate = booking['endDate'];
     final pet = booking['pet'] as Map<String, dynamic>?;
     final pets = pet != null ? [pet] : [];
     final notes = (booking['notes'] ?? '').toString();
-
-    // Commission: 100 DA per reservation (fixed)
-    final commissionDa = kDaycareCommissionDa;
 
     DateTime? start, end;
     if (startDate != null) {
@@ -401,24 +400,33 @@ class _BookingCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            _da(baseTotal),
+                            _da(priceDa),
                             style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color: _primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: _ink,
                             ),
                           ),
                           if (commissionDa > 0) ...[
                             const SizedBox(height: 2),
                             Text(
-                              '+${_da(commissionDa)} com.',
+                              '+${_da(commissionDa)} commission',
                               style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green.shade700,
+                                fontSize: 11,
+                                color: Colors.orange.shade700,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
+                          const SizedBox(height: 2),
+                          Text(
+                            '= ${_da(totalDa)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              color: _primary,
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -483,32 +491,39 @@ class _BookingCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pets
+                  // Animal
                   const Text(
-                    'Animaux',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    'Animal',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   ...pets.map((pet) {
                     final petData = pet is Map ? Map<String, dynamic>.from(pet) : <String, dynamic>{};
                     final petName = (petData['name'] ?? 'Animal').toString();
                     final petType = (petData['type'] ?? petData['species'] ?? '').toString();
                     final petBreed = (petData['breed'] ?? '').toString();
                     final petSize = (petData['size'] ?? '').toString();
+                    final petPhotoUrl = (petData['photoUrl'] ?? '').toString();
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _primarySoft.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _primary.withOpacity(0.2)),
+                      ),
                       child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: _primarySoft,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.pets, color: _primary, size: 16),
+                          // Grande image de l'animal
+                          CircleAvatar(
+                            radius: 35,
+                            backgroundColor: _primary.withOpacity(0.1),
+                            backgroundImage: petPhotoUrl.isNotEmpty ? NetworkImage(petPhotoUrl) : null,
+                            child: petPhotoUrl.isEmpty
+                                ? Icon(Icons.pets, color: _primary, size: 32)
+                                : null,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,18 +531,31 @@ class _BookingCard extends ConsumerWidget {
                                 Text(
                                   petName,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 17,
+                                    color: _ink,
                                   ),
                                 ),
-                                if (petType.isNotEmpty || petBreed.isNotEmpty || petSize.isNotEmpty)
+                                const SizedBox(height: 4),
+                                if (petBreed.isNotEmpty)
                                   Text(
-                                    [petType, petBreed, petSize].where((s) => s.isNotEmpty).join(' • '),
+                                    petBreed,
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 11,
+                                      color: Colors.grey.shade700,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
+                                if (petType.isNotEmpty || petSize.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    [petType, petSize].where((s) => s.isNotEmpty).join(' • '),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -536,7 +564,8 @@ class _BookingCard extends ConsumerWidget {
                     );
                   }),
 
-                  if (userPhone.isNotEmpty) ...[
+                  // Afficher le téléphone seulement si confirmé ou après
+                  if (userPhone.isNotEmpty && (status == 'CONFIRMED' || status == 'IN_PROGRESS' || status == 'COMPLETED')) ...[
                     const SizedBox(height: 12),
                     Row(
                       children: [
