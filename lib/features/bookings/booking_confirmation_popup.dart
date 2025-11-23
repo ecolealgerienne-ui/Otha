@@ -16,7 +16,7 @@ final awaitingConfirmationBookingsProvider = FutureProvider.autoDispose<List<Map
     return bookings.where((b) {
       final status = b['status']?.toString() ?? '';
       return status == 'AWAITING_CONFIRMATION';
-    }).toList();
+    }).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   } catch (e) {
     return [];
   }

@@ -151,7 +151,8 @@ class _ProLedger {
 final pendingValidationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   try {
     final api = ref.read(apiProvider);
-    return await api.getPendingValidations();
+    final result = await api.getPendingValidations();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   } catch (e) {
     return [];
   }
