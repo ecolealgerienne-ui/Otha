@@ -246,7 +246,7 @@ class _PatientTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lastTxt = row.lastAt == null
         ? '—'
-        : DateFormat('EEE d MMM yyyy', 'fr_FR').format(row.lastAt!.toLocal());
+        : DateFormat('EEE d MMM yyyy', 'fr_FR').format(row.lastAt!.toUtc()); // UTC naïf : 8h UTC = 8h réel
 
     final subtitleParts = <String>[
       if (row.lastPet.isNotEmpty) row.lastPet,
@@ -340,7 +340,7 @@ class _PatientHistorySheet extends ConsumerWidget {
           final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
           DateTime? dt;
           try {
-            dt = DateTime.parse(iso).toLocal();
+            dt = DateTime.parse(iso).toUtc(); // UTC naïf : 8h UTC = 8h réel
           } catch (_) {}
           final when =
               dt != null ? DateFormat('dd/MM/yyyy • HH:mm', 'fr_FR').format(dt) : '—';

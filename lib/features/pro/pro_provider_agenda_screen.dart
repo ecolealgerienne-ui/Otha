@@ -408,7 +408,7 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
     final iso = (m['scheduledAt'] ?? m['scheduled_at']).toString();
     DateTime? dt;
     try {
-      dt = DateTime.parse(iso).toLocal();
+      dt = DateTime.parse(iso).toUtc(); // UTC naïf : 8h UTC = 8h réel
     } catch (_) {}
     final time = dt != null ? DateFormat('HH:mm', 'fr_FR').format(dt) : '--:--';
     final dayTxt = dt != null ? DateFormat('EEE d MMM', 'fr_FR').format(dt) : '—';
