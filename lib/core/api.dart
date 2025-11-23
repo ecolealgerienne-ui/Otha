@@ -1047,6 +1047,25 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Chercher un booking daycare actif pour un pet (scan QR garderie)
+  Future<Map<String, dynamic>?> findActiveDaycareBookingForPet(String petId) async {
+    try {
+      final res = await _authRetry(() async => await _dio.get('/daycare/active-for-pet/$petId'));
+      final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+      if (data == null) return null;
+      return Map<String, dynamic>.from(data as Map);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Confirmer la réception de l'animal à la garderie (après scan QR)
+  /// Alias pour markDaycareDropOff
+  Future<Map<String, dynamic>> confirmDaycareDropOff(String bookingId) async {
+    return markDaycareDropOff(bookingId);
+  }
+
   // --------------- Reviews ---------------
   Future<Map<String, dynamic>> createReview({
     required String bookingId,

@@ -381,4 +381,83 @@ export class DaycareService {
       },
     });
   }
+
+  /**
+   * Chercher un booking daycare actif pour un pet (pour le scan QR)
+   * Utilisé par la garderie pour trouver si un animal a un RDV aujourd'hui
+   */
+  async findActiveDaycareBookingForPet(petId: string) {
+    const pet = await this.prisma.pet.findUnique({
+      where: { id: petId },
+      select: { ownerId: true },
+    });
+    if (!pet) return null;
+
+    const now = new Date();
+    // Chercher RDV du jour (début à 00h00, fin à 23h59)
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Chercher un daycare booking qui commence aujourd'hui ou est en cours
+    const booking = await this.prisma.daycareBooking.findFirst({
+      where: {
+        userId: pet.ownerId,
+        petId: petId, // ✅ Le pet scanné DOIT correspondre
+        startDate: { gte: startOfDay, lte: endOfDay }, // ✅ Commence aujourd'hui
+        status: { in: ['PENDING', 'CONFIRMED'] }, // Pas encore déposé
+      },
+      orderBy: { startDate: 'asc' },
+      include: {
+        pet: true,
+        provider: {
+          select: {
+            id: true,
+            displayName: true,
+            weekly: {
+              select: {
+                weekday: true,
+                startMin: true,
+                endMin: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) return null;
+
+    // ✅ Vérifier si on est dans les heures d'ouverture du provider
+    const currentWeekday = now.getDay(); // 0=dimanche, 1=lundi, ..., 6=samedi
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const todaySchedule = booking.provider?.weekly?.find(
+      (w) => w.weekday === currentWeekday,
+    );
+
+    // Si le provider a des heures d'ouverture définies pour aujourd'hui
+    if (todaySchedule) {
+      const isWithinOpeningHours =
+        currentMinutes >= todaySchedule.startMin &&
+        currentMinutes <= todaySchedule.endMin;
+
+      if (!isWithinOpeningHours) {
+        // Hors heures d'ouverture : refuser le scan
+        return null;
+      }
+    }
+    // Si pas d'horaires définis, on accepte (comportement par défaut)
+
+    return booking;
+  }
 }

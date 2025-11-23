@@ -27,6 +27,7 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
   String? _error;
   Map<String, dynamic>? _activeBooking; // Booking actif trouvé après scan
   bool _isConfirmingBooking = false; // Loading pour le bouton de confirmation
+  String? _bookingType; // Type de booking: 'vet' ou 'daycare'
 
   @override
   void initState() {
@@ -63,19 +64,31 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
         _petData = petData;
       });
 
-      // Chercher un booking actif pour ce pet
+      // Chercher un booking actif pour ce pet (vet ou daycare)
       try {
         final petId = petData['id']?.toString();
         if (petId != null && petId.isNotEmpty) {
-          final activeBooking = await api.findActiveBookingForPet(petId);
-          setState(() {
-            _activeBooking = activeBooking;
-            _isLoading = false;
-          });
+          // Essayer d'abord de trouver un booking vétérinaire
+          var activeBooking = await api.findActiveBookingForPet(petId);
+          var bookingType = 'vet';
 
-          // Auto-confirmer le booking immédiatement
-          await _confirmBooking();
-          return; // Sortir de la fonction après confirmation
+          // Si pas de booking vétérinaire, chercher un booking garderie
+          if (activeBooking == null) {
+            activeBooking = await api.findActiveDaycareBookingForPet(petId);
+            bookingType = 'daycare';
+          }
+
+          if (activeBooking != null) {
+            setState(() {
+              _activeBooking = activeBooking;
+              _bookingType = bookingType;
+              _isLoading = false;
+            });
+
+            // Auto-confirmer le booking immédiatement
+            await _confirmBooking();
+            return; // Sortir de la fonction après confirmation
+          }
         }
       } catch (e) {
         // Pas de booking actif trouvé, c'est normal
@@ -99,6 +112,7 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
       _petData = null;
       _error = null;
       _activeBooking = null;
+      _bookingType = null;
       _isConfirmingBooking = false;
     });
   }
@@ -154,13 +168,23 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
     try {
       final api = ref.read(apiProvider);
       final bookingId = _activeBooking!['id'].toString();
-      await api.proConfirmBooking(bookingId);
+
+      // Appeler la méthode appropriée selon le type de booking
+      if (_bookingType == 'daycare') {
+        await api.confirmDaycareDropOff(bookingId);
+      } else {
+        await api.proConfirmBooking(bookingId);
+      }
 
       if (!mounted) return;
 
+      final message = _bookingType == 'daycare'
+          ? '✅ Réception de l\'animal confirmée avec succès'
+          : '✅ Rendez-vous confirmé avec succès';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Rendez-vous confirmé avec succès'),
+        SnackBar(
+          content: Text(message),
           backgroundColor: Colors.green,
         ),
       );
@@ -168,6 +192,7 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
       // Réinitialiser l'état après succès
       setState(() {
         _activeBooking = null;
+        _bookingType = null;
         _isConfirmingBooking = false;
       });
     } catch (e) {
