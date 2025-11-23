@@ -9,7 +9,7 @@ import '../../core/api.dart';
 const _coral = Color(0xFFF36C6C);
 const _mint = Color(0xFF4ECDC4);
 
-void showAddWeightDialog(BuildContext context, WidgetRef ref, String petId, {Map<String, dynamic>? record}) {
+Future<void> showAddWeightDialog(BuildContext context, WidgetRef ref, String petId, {Map<String, dynamic>? record}) async {
   final isEdit = record != null;
   final weightController = TextEditingController(
     text: record != null ? record['weightKg']?.toString() ?? '' : '',
@@ -174,9 +174,5 @@ void showAddWeightDialog(BuildContext context, WidgetRef ref, String petId, {Map
         );
       },
     ),
-  ).then((result) {
-    if (result == true) {
-      // Refresh will be handled by caller
-    }
-  });
+  );
 }

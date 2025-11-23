@@ -1,8 +1,10 @@
 // lib/features/pets/pet_disease_form_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api.dart';
 
@@ -34,12 +36,13 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
   final _treatmentController = TextEditingController();
   final _notesController = TextEditingController();
   final _vetNameController = TextEditingController();
-  final _imagesController = TextEditingController();
 
   String _status = 'ONGOING';
   String? _severity;
   DateTime _diagnosisDate = DateTime.now();
   DateTime? _curedDate;
+  List<String> _imageUrls = [];
+  bool _isUploading = false;
 
   bool _isLoading = false;
   bool _isLoadingInitial = false;
@@ -74,8 +77,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
         if (disease['curedDate'] != null) {
           _curedDate = DateTime.parse(disease['curedDate'].toString());
         }
-        final images = (disease['images'] as List?)?.cast<String>() ?? [];
-        _imagesController.text = images.join('\n');
+        _imageUrls = (disease['images'] as List?)?.cast<String>() ?? [];
       });
     } catch (e) {
       if (mounted) {
@@ -96,8 +98,48 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
     _treatmentController.dispose();
     _notesController.dispose();
     _vetNameController.dispose();
-    _imagesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      final url = await api.uploadLocalFile(File(pickedFile.path), folder: 'diseases');
+
+      setState(() {
+        _imageUrls.add(url);
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image ajoutée'),
+            backgroundColor: _mint,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur upload: $e'), backgroundColor: _coral),
+        );
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _imageUrls.removeAt(index);
+    });
   }
 
   Future<void> _submit() async {
@@ -107,13 +149,6 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
 
     try {
       final api = ref.read(apiProvider);
-
-      // Parse image URLs from text (one per line)
-      final imageLines = _imagesController.text
-          .split('\n')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
 
       if (widget.diseaseId == null) {
         // Create
@@ -139,7 +174,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
               : null,
-          images: imageLines.isNotEmpty ? imageLines : null,
+          images: _imageUrls.isNotEmpty ? _imageUrls : null,
         );
 
         if (mounted) {
@@ -176,7 +211,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
               : null,
-          images: imageLines.isNotEmpty ? imageLines : null,
+          images: _imageUrls.isNotEmpty ? _imageUrls : null,
         );
 
         if (mounted) {
@@ -462,39 +497,105 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                     const SizedBox(height: 24),
 
                     // Section: Photos
-                    const Text(
-                      'Photos',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          'Photos',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _ink,
+                          ),
+                        ),
+                        const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: _isUploading ? null : _pickAndUploadImage,
+                          icon: _isUploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.add_photo_alternate),
+                          label: Text(_isUploading ? 'Upload...' : 'Ajouter'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _orange,
+                            side: BorderSide(color: _orange),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'URLs des images (une par ligne)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                    // Images (URLs)
-                    TextFormField(
-                      controller: _imagesController,
-                      decoration: InputDecoration(
-                        labelText: 'URLs des images',
-                        hintText: 'https://example.com/image1.jpg\nhttps://example.com/image2.jpg',
-                        border: OutlineInputBorder(
+                    // Prévisualisation des images
+                    if (_imageUrls.isNotEmpty)
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _imageUrls.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    _imageUrls[index],
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey.shade200,
+                                      child: Icon(Icons.broken_image, color: Colors.grey.shade400),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: InkWell(
+                                    onTap: () => _removeImage(index),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: _coral,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        alignLabelWithHint: true,
+                        child: Center(
+                          child: Text(
+                            'Aucune image',
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        ),
                       ),
-                      maxLines: 4,
-                    ),
                     const SizedBox(height: 32),
 
                     // Submit Button
