@@ -12,379 +12,439 @@ class DaycareCalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _DaycareCalendarScreenState extends ConsumerState<DaycareCalendarScreen> {
-  DateTime _selectedDate = DateTime.now();
-  Future<List<dynamic>>? _animalsFuture;
+  DateTime _focusedMonth = DateTime.now();
+  Map<String, List<dynamic>> _bookingsByDate = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _animalsFuture = _loadAnimalsForDate(_selectedDate);
+    _loadMonthBookings();
   }
 
-  Future<List<dynamic>> _loadAnimalsForDate(DateTime date) async {
+  Future<void> _loadMonthBookings() async {
+    setState(() => _isLoading = true);
+
     final api = ref.read(apiProvider);
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
-      final res = await api.dio.get('/daycare/provider/calendar?date=$dateStr');
-      final data = res.data;
-      if (data is Map && data['data'] is List) {
-        return data['data'] as List;
+      // Charger toutes les réservations du provider
+      final bookings = await api.myDaycareProviderBookings();
+
+      // Grouper par date
+      final Map<String, List<dynamic>> byDate = {};
+      for (final booking in bookings) {
+        final b = Map<String, dynamic>.from(booking as Map);
+        final status = (b['status'] ?? '').toString().toUpperCase();
+
+        // Seulement les réservations confirmées ou en cours
+        if (status != 'CONFIRMED' && status != 'IN_PROGRESS') continue;
+
+        final startDate = DateTime.tryParse((b['startDate'] ?? '').toString());
+        final endDate = DateTime.tryParse((b['endDate'] ?? '').toString());
+
+        if (startDate == null || endDate == null) continue;
+
+        // Ajouter le booking à chaque jour de la période
+        DateTime current = startDate;
+        while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
+          final key = DateFormat('yyyy-MM-dd').format(current);
+          byDate.putIfAbsent(key, () => []);
+          byDate[key]!.add(b);
+          current = current.add(const Duration(days: 1));
+        }
       }
-      return [];
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  void _changeDate(int days) {
-    setState(() {
-      _selectedDate = _selectedDate.add(Duration(days: days));
-      _animalsFuture = _loadAnimalsForDate(_selectedDate);
-    });
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (picked != null && picked != _selectedDate) {
       setState(() {
-        _selectedDate = picked;
-        _animalsFuture = _loadAnimalsForDate(_selectedDate);
+        _bookingsByDate = byDate;
+        _isLoading = false;
       });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
+  }
+
+  void _showDayAnimals(DateTime date, List<dynamic> bookings) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DayAnimalsModal(
+        date: date,
+        bookings: bookings,
+        onUpdate: () {
+          Navigator.pop(context);
+          _loadMonthBookings();
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isToday = DateFormat('yyyy-MM-dd').format(_selectedDate) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final daysInMonth = DateUtils.getDaysInMonth(_focusedMonth.year, _focusedMonth.month);
+    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final startingWeekday = firstDayOfMonth.weekday;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendrier garderie'),
-        actions: [
-          if (!isToday)
-            IconButton(
-              icon: const Icon(Icons.today),
-              tooltip: 'Aujourd\'hui',
-              onPressed: () {
-                setState(() {
-                  _selectedDate = DateTime.now();
-                  _animalsFuture = _loadAnimalsForDate(_selectedDate);
-                });
-              },
-            ),
-        ],
+        title: const Text('Calendrier'),
+        backgroundColor: const Color(0xFF00ACC1),
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // Sélecteur de date
+          // Sélecteur de mois
           Container(
             padding: const EdgeInsets.all(16),
-            color: const Color(0xFFF36C6C).withOpacity(0.1),
+            color: const Color(0xFF00ACC1).withOpacity(0.1),
             child: Row(
               children: [
                 IconButton(
                   icon: const Icon(Icons.chevron_left),
-                  onPressed: () => _changeDate(-1),
+                  onPressed: () {
+                    setState(() {
+                      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+                      _loadMonthBookings();
+                    });
+                  },
                 ),
                 Expanded(
-                  child: GestureDetector(
-                    onTap: _pickDate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.calendar_today, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(_selectedDate),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: Text(
+                    DateFormat('MMMM yyyy', 'fr_FR').format(_focusedMonth),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
-                  onPressed: () => _changeDate(1),
+                  onPressed: () {
+                    setState(() {
+                      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+                      _loadMonthBookings();
+                    });
+                  },
                 ),
               ],
             ),
           ),
 
-          // Liste des animaux
-          Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: _animalsFuture,
-              builder: (ctx, snap) {
-                if (snap.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snap.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Erreur: ${snap.error}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => setState(
-                            () => _animalsFuture = _loadAnimalsForDate(_selectedDate),
-                          ),
-                          child: const Text('Réessayer'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final animals = snap.data ?? [];
-
-                if (animals.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.pets, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun animal ce jour',
-                          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async => setState(
-                    () => _animalsFuture = _loadAnimalsForDate(_selectedDate),
+          // Jours de la semaine
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day) {
+                return Expanded(
+                  child: Text(
+                    day,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey),
                   ),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: animals.length,
-                    itemBuilder: (ctx, index) {
-                      final booking = animals[index];
-                      return _AnimalCard(booking: booking);
-                    },
+                );
+              }).toList(),
+            ),
+          ),
+
+          // Grille du calendrier
+          if (_isLoading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(8),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  childAspectRatio: 1.0,
+                  crossAxisSpacing: 4,
+                  mainAxisSpacing: 4,
+                ),
+                itemCount: startingWeekday - 1 + daysInMonth,
+                itemBuilder: (context, index) {
+                  if (index < startingWeekday - 1) {
+                    return const SizedBox();
+                  }
+
+                  final day = index - (startingWeekday - 1) + 1;
+                  final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                  final dateKey = DateFormat('yyyy-MM-dd').format(date);
+                  final hasAnimals = _bookingsByDate.containsKey(dateKey) &&
+                                    _bookingsByDate[dateKey]!.isNotEmpty;
+                  final animalCount = hasAnimals ? _bookingsByDate[dateKey]!.length : 0;
+                  final isToday = DateFormat('yyyy-MM-dd').format(date) ==
+                                 DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+                  return InkWell(
+                    onTap: hasAnimals
+                        ? () => _showDayAnimals(date, _bookingsByDate[dateKey]!)
+                        : null,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: hasAnimals
+                            ? const Color(0xFF00ACC1).withOpacity(0.15)
+                            : null,
+                        borderRadius: BorderRadius.circular(8),
+                        border: isToday
+                            ? Border.all(color: const Color(0xFFF36C6C), width: 2)
+                            : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Text(
+                              '$day',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: hasAnimals ? FontWeight.w700 : FontWeight.normal,
+                                color: hasAnimals ? const Color(0xFF00ACC1) : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          if (hasAnimals)
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF36C6C),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  '$animalCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayAnimalsModal extends ConsumerWidget {
+  final DateTime date;
+  final List<dynamic> bookings;
+  final VoidCallback onUpdate;
+
+  const _DayAnimalsModal({
+    required this.date,
+    required this.bookings,
+    required this.onUpdate,
+  });
+
+  Future<void> _markDropOff(BuildContext context, WidgetRef ref, String bookingId) async {
+    final api = ref.read(apiProvider);
+    try {
+      await api.dio.patch('/daycare/bookings/$bookingId/drop-off');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Animal marqué comme déposé'), backgroundColor: Colors.green),
+        );
+      }
+      onUpdate();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _markPickup(BuildContext context, WidgetRef ref, String bookingId) async {
+    final api = ref.read(apiProvider);
+    try {
+      await api.dio.patch('/daycare/bookings/$bookingId/pickup');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Animal marqué comme récupéré'), backgroundColor: Colors.green),
+        );
+      }
+      onUpdate();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: Color(0xFF00ACC1)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('EEEE d MMMM', 'fr_FR').format(date),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        '${bookings.length} animal${bookings.length > 1 ? 'ux' : ''}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Liste des animaux
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(16),
+              itemCount: bookings.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final booking = Map<String, dynamic>.from(bookings[index] as Map);
+                final pet = booking['pet'] as Map<String, dynamic>?;
+                final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
+                final bookingId = (booking['id'] ?? '').toString();
+
+                final petName = (pet?['name'] ?? 'Animal').toString();
+                final petBreed = (pet?['breed'] ?? '').toString();
+                final petPhotoUrl = (pet?['photoUrl'] ?? '').toString();
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F7FA).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF00ACC1).withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      // Image de l'animal
+                      ClipRRect(
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          color: const Color(0xFF00ACC1).withOpacity(0.1),
+                          child: petPhotoUrl.isNotEmpty
+                              ? Image.network(petPhotoUrl, fit: BoxFit.cover)
+                              : const Icon(Icons.pets, size: 40, color: Color(0xFF00ACC1)),
+                        ),
+                      ),
+
+                      // Infos et boutons
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                petName,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF222222),
+                                ),
+                              ),
+                              if (petBreed.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  petBreed,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+
+                              // Boutons d'action
+                              if (status == 'CONFIRMED')
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _markDropOff(context, ref, bookingId),
+                                    icon: const Icon(Icons.login, size: 18),
+                                    label: const Text('Confirmer réception'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4CAF50),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                  ),
+                                ),
+
+                              if (status == 'IN_PROGRESS')
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _markPickup(context, ref, bookingId),
+                                    icon: const Icon(Icons.logout, size: 18),
+                                    label: const Text('Animal récupéré'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2196F3),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
 
-class _AnimalCard extends StatelessWidget {
-  final Map<String, dynamic> booking;
-
-  const _AnimalCard({required this.booking});
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'CONFIRMED':
-        return Colors.blue;
-      case 'IN_PROGRESS':
-        return Colors.green;
-      case 'COMPLETED':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'Confirmé';
-      case 'IN_PROGRESS':
-        return 'Présent';
-      case 'COMPLETED':
-        return 'Parti';
-      default:
-        return status;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pet = booking['pet'] as Map<String, dynamic>?;
-    final user = booking['user'] as Map<String, dynamic>?;
-    final status = booking['status'] as String;
-    final startDate = DateTime.parse(booking['startDate']);
-    final endDate = DateTime.parse(booking['endDate']);
-    final actualDropOff = booking['actualDropOff'] != null
-        ? DateTime.parse(booking['actualDropOff'])
-        : null;
-    final actualPickup = booking['actualPickup'] != null
-        ? DateTime.parse(booking['actualPickup'])
-        : null;
-
-    final timeFormat = DateFormat('HH:mm');
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _getStatusColor(status).withOpacity(0.2),
-              child: Icon(Icons.pets, color: _getStatusColor(status)),
-            ),
-            title: Text(
-              pet?['name'] ?? 'Animal',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            subtitle: Text(
-              '${pet?['species'] ?? ''} • ${user?['firstName']} ${user?['lastName']}',
-            ),
-            trailing: Chip(
-              label: Text(
-                _getStatusLabel(status),
-                style: const TextStyle(color: Colors.white, fontSize: 11),
-              ),
-              backgroundColor: _getStatusColor(status),
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _TimeInfo(
-                        icon: Icons.login,
-                        label: 'Arrivée prévue',
-                        time: timeFormat.format(startDate),
-                        actual: actualDropOff != null ? timeFormat.format(actualDropOff) : null,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _TimeInfo(
-                        icon: Icons.logout,
-                        label: 'Départ prévu',
-                        time: timeFormat.format(endDate),
-                        actual: actualPickup != null ? timeFormat.format(actualPickup) : null,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-                if (user?['phone'] != null) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Icon(Icons.phone, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        user!['phone'],
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimeInfo extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String time;
-  final String? actual;
-  final Color color;
-
-  const _TimeInfo({
-    required this.icon,
-    required this.label,
-    required this.time,
-    this.actual,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          if (actual != null) ...[
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Icon(Icons.check_circle, size: 12, color: Colors.green[700]),
-                const SizedBox(width: 4),
-                Text(
-                  'Réel: $actual',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.green[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
+          const SizedBox(height: 16),
         ],
       ),
     );
