@@ -9,7 +9,7 @@ import '../../core/api.dart';
 const _coral = Color(0xFFF36C6C);
 const _mint = Color(0xFF4ECDC4);
 
-void showAddHealthDataDialog(BuildContext context, WidgetRef ref, String petId) {
+Future<void> showAddHealthDataDialog(BuildContext context, WidgetRef ref, String petId) async {
   final temperatureController = TextEditingController();
   final heartRateController = TextEditingController();
   final notesController = TextEditingController();
@@ -217,9 +217,5 @@ void showAddHealthDataDialog(BuildContext context, WidgetRef ref, String petId) 
         );
       },
     ),
-  ).then((result) {
-    if (result == true) {
-      // Refresh will be handled by caller
-    }
-  });
+  );
 }

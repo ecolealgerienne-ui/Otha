@@ -84,8 +84,9 @@ class PetHealthStatsScreen extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                showAddWeightDialog(context, ref, petId);
-                ref.invalidate(healthStatsProvider(petId));
+                showAddWeightDialog(context, ref, petId).then((_) {
+                  ref.invalidate(healthStatsProvider(petId));
+                });
               },
               icon: const Icon(Icons.monitor_weight),
               label: const Text('Ajouter un poids'),
@@ -101,8 +102,9 @@ class PetHealthStatsScreen extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                showAddHealthDataDialog(context, ref, petId);
-                ref.invalidate(healthStatsProvider(petId));
+                showAddHealthDataDialog(context, ref, petId).then((_) {
+                  ref.invalidate(healthStatsProvider(petId));
+                });
               },
               icon: const Icon(Icons.favorite),
               label: const Text('Ajouter température / rythme'),

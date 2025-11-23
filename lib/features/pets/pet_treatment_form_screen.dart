@@ -1,4 +1,4 @@
-// lib/features/pets/pet_disease_form_screen.dart
+// lib/features/pets/pet_treatment_form_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,37 +11,32 @@ import '../../core/api.dart';
 const _coral = Color(0xFFF36C6C);
 const _mint = Color(0xFF4ECDC4);
 const _ink = Color(0xFF222222);
-const _orange = Color(0xFFF39C12);
-const _purple = Color(0xFF9B59B6);
 
-class PetDiseaseFormScreen extends ConsumerStatefulWidget {
+class PetTreatmentFormScreen extends ConsumerStatefulWidget {
   final String petId;
-  final String? diseaseId; // null = create, non-null = edit
+  final String? treatmentId; // null = create, non-null = edit
 
-  const PetDiseaseFormScreen({
+  const PetTreatmentFormScreen({
     super.key,
     required this.petId,
-    this.diseaseId,
+    this.treatmentId,
   });
 
   @override
-  ConsumerState<PetDiseaseFormScreen> createState() => _PetDiseaseFormScreenState();
+  ConsumerState<PetTreatmentFormScreen> createState() => _PetTreatmentFormScreenState();
 }
 
-class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
+class _PetTreatmentFormScreenState extends ConsumerState<PetTreatmentFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _symptomsController = TextEditingController();
-  final _treatmentController = TextEditingController();
+  final _dosageController = TextEditingController();
+  final _frequencyController = TextEditingController();
   final _notesController = TextEditingController();
-  final _vetNameController = TextEditingController();
 
-  String _status = 'ONGOING';
-  String? _severity;
-  DateTime _diagnosisDate = DateTime.now();
-  DateTime? _curedDate;
-  List<String> _imageUrls = [];
+  DateTime _startDate = DateTime.now();
+  DateTime? _endDate;
+  bool _isActive = true;
+  List<String> _attachmentUrls = [];
   bool _isUploading = false;
 
   bool _isLoading = false;
@@ -50,34 +45,35 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.diseaseId != null) {
-      _loadDisease();
+    if (widget.treatmentId != null) {
+      _loadTreatment();
     }
   }
 
-  Future<void> _loadDisease() async {
+  Future<void> _loadTreatment() async {
     setState(() => _isLoadingInitial = true);
     try {
       final api = ref.read(apiProvider);
-      final disease = await api.getDisease(widget.petId, widget.diseaseId!);
+      final treatments = await api.getTreatments(widget.petId);
+      final treatment = treatments.firstWhere(
+        (t) => t['id'] == widget.treatmentId,
+        orElse: () => throw Exception('Traitement non trouvé'),
+      );
 
-      _nameController.text = disease['name']?.toString() ?? '';
-      _descriptionController.text = disease['description']?.toString() ?? '';
-      _symptomsController.text = disease['symptoms']?.toString() ?? '';
-      _treatmentController.text = disease['treatment']?.toString() ?? '';
-      _notesController.text = disease['notes']?.toString() ?? '';
-      _vetNameController.text = disease['vetName']?.toString() ?? '';
+      _nameController.text = treatment['name']?.toString() ?? '';
+      _dosageController.text = treatment['dosage']?.toString() ?? '';
+      _frequencyController.text = treatment['frequency']?.toString() ?? '';
+      _notesController.text = treatment['notes']?.toString() ?? '';
 
       setState(() {
-        _status = disease['status']?.toString() ?? 'ONGOING';
-        _severity = disease['severity']?.toString();
-        if (disease['diagnosisDate'] != null) {
-          _diagnosisDate = DateTime.parse(disease['diagnosisDate'].toString());
+        if (treatment['startDate'] != null) {
+          _startDate = DateTime.parse(treatment['startDate'].toString());
         }
-        if (disease['curedDate'] != null) {
-          _curedDate = DateTime.parse(disease['curedDate'].toString());
+        if (treatment['endDate'] != null) {
+          _endDate = DateTime.parse(treatment['endDate'].toString());
         }
-        _imageUrls = (disease['images'] as List?)?.cast<String>() ?? [];
+        _isActive = treatment['isActive'] == true;
+        _attachmentUrls = (treatment['attachments'] as List?)?.cast<String>() ?? [];
       });
     } catch (e) {
       if (mounted) {
@@ -93,11 +89,9 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _descriptionController.dispose();
-    _symptomsController.dispose();
-    _treatmentController.dispose();
+    _dosageController.dispose();
+    _frequencyController.dispose();
     _notesController.dispose();
-    _vetNameController.dispose();
     super.dispose();
   }
 
@@ -111,10 +105,10 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
 
     try {
       final api = ref.read(apiProvider);
-      final url = await api.uploadLocalFile(File(pickedFile.path), folder: 'diseases');
+      final url = await api.uploadLocalFile(File(pickedFile.path), folder: 'prescriptions');
 
       setState(() {
-        _imageUrls.add(url);
+        _attachmentUrls.add(url);
         _isUploading = false;
       });
 
@@ -138,7 +132,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
 
   void _removeImage(int index) {
     setState(() {
-      _imageUrls.removeAt(index);
+      _attachmentUrls.removeAt(index);
     });
   }
 
@@ -150,75 +144,61 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
     try {
       final api = ref.read(apiProvider);
 
-      if (widget.diseaseId == null) {
+      if (widget.treatmentId == null) {
         // Create
-        await api.createDisease(
+        await api.createTreatment(
           widget.petId,
           name: _nameController.text.trim(),
-          diagnosisDateIso: _diagnosisDate.toIso8601String(),
-          description: _descriptionController.text.trim().isNotEmpty
-              ? _descriptionController.text.trim()
+          startDateIso: _startDate.toIso8601String(),
+          dosage: _dosageController.text.trim().isNotEmpty
+              ? _dosageController.text.trim()
               : null,
-          status: _status,
-          severity: _severity,
-          curedDateIso: _curedDate?.toIso8601String(),
-          vetName: _vetNameController.text.trim().isNotEmpty
-              ? _vetNameController.text.trim()
+          frequency: _frequencyController.text.trim().isNotEmpty
+              ? _frequencyController.text.trim()
               : null,
-          symptoms: _symptomsController.text.trim().isNotEmpty
-              ? _symptomsController.text.trim()
-              : null,
-          treatment: _treatmentController.text.trim().isNotEmpty
-              ? _treatmentController.text.trim()
-              : null,
+          endDateIso: _endDate?.toIso8601String(),
+          isActive: _isActive,
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
               : null,
-          images: _imageUrls.isNotEmpty ? _imageUrls : null,
+          attachments: _attachmentUrls.isNotEmpty ? _attachmentUrls : null,
         );
 
         if (mounted) {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Maladie ajoutée'),
+              content: Text('Ordonnance ajoutée'),
               backgroundColor: _mint,
             ),
           );
         }
       } else {
         // Update
-        await api.updateDisease(
+        await api.updateTreatment(
           widget.petId,
-          widget.diseaseId!,
+          widget.treatmentId!,
           name: _nameController.text.trim(),
-          diagnosisDateIso: _diagnosisDate.toIso8601String(),
-          description: _descriptionController.text.trim().isNotEmpty
-              ? _descriptionController.text.trim()
+          startDateIso: _startDate.toIso8601String(),
+          dosage: _dosageController.text.trim().isNotEmpty
+              ? _dosageController.text.trim()
               : null,
-          status: _status,
-          severity: _severity,
-          curedDateIso: _curedDate?.toIso8601String(),
-          vetName: _vetNameController.text.trim().isNotEmpty
-              ? _vetNameController.text.trim()
+          frequency: _frequencyController.text.trim().isNotEmpty
+              ? _frequencyController.text.trim()
               : null,
-          symptoms: _symptomsController.text.trim().isNotEmpty
-              ? _symptomsController.text.trim()
-              : null,
-          treatment: _treatmentController.text.trim().isNotEmpty
-              ? _treatmentController.text.trim()
-              : null,
+          endDateIso: _endDate?.toIso8601String(),
+          isActive: _isActive,
           notes: _notesController.text.trim().isNotEmpty
               ? _notesController.text.trim()
               : null,
-          images: _imageUrls.isNotEmpty ? _imageUrls : null,
+          attachments: _attachmentUrls.isNotEmpty ? _attachmentUrls : null,
         );
 
         if (mounted) {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Maladie mise à jour'),
+              content: Text('Ordonnance mise à jour'),
               backgroundColor: _mint,
             ),
           );
@@ -237,7 +217,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.diseaseId != null;
+    final isEdit = widget.treatmentId != null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -250,7 +230,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          isEdit ? 'Modifier la maladie' : 'Nouvelle maladie',
+          isEdit ? 'Modifier l\'ordonnance' : 'Nouvelle ordonnance',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -263,17 +243,18 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Name
+                    // Nom du médicament
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Nom de la maladie *',
-                        hintText: 'Ex: Allergie cutanée, Otite...',
+                        labelText: 'Nom du médicament *',
+                        hintText: 'Ex: Amoxicilline, Metacam...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
                         fillColor: Colors.white,
+                        prefixIcon: const Icon(Icons.medication),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -284,198 +265,121 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Description
+                    // Dosage
                     TextFormField(
-                      controller: _descriptionController,
+                      controller: _dosageController,
                       decoration: InputDecoration(
-                        labelText: 'Description',
-                        hintText: 'Description brève de la maladie',
+                        labelText: 'Dosage',
+                        hintText: 'Ex: 1 comprimé, 5ml...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
-                      maxLines: 2,
                     ),
                     const SizedBox(height: 16),
 
-                    // Status
-                    DropdownButtonFormField<String>(
-                      value: _status,
+                    // Fréquence
+                    TextFormField(
+                      controller: _frequencyController,
                       decoration: InputDecoration(
-                        labelText: 'Statut *',
+                        labelText: 'Fréquence',
+                        hintText: 'Ex: 2x/jour, Matin et soir...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'ONGOING', child: Text('En cours')),
-                        DropdownMenuItem(value: 'CURED', child: Text('Guérie')),
-                        DropdownMenuItem(value: 'CHRONIC', child: Text('Chronique')),
-                        DropdownMenuItem(value: 'MONITORING', child: Text('Sous surveillance')),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _status = value ?? 'ONGOING';
-                          if (_status != 'CURED') {
-                            _curedDate = null;
-                          }
-                        });
-                      },
                     ),
                     const SizedBox(height: 16),
 
-                    // Severity
-                    DropdownButtonFormField<String?>(
-                      value: _severity,
-                      decoration: InputDecoration(
-                        labelText: 'Sévérité',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: null, child: Text('Non spécifié')),
-                        DropdownMenuItem(value: 'MILD', child: Text('Légère')),
-                        DropdownMenuItem(value: 'MODERATE', child: Text('Modérée')),
-                        DropdownMenuItem(value: 'SEVERE', child: Text('Sévère')),
-                      ],
-                      onChanged: (value) => setState(() => _severity = value),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Diagnosis Date
+                    // Date de début
                     InkWell(
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: _diagnosisDate,
+                          initialDate: _startDate,
                           firstDate: DateTime(2000),
-                          lastDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null) {
-                          setState(() => _diagnosisDate = picked);
+                          setState(() => _startDate = picked);
                         }
                       },
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: 'Date de diagnostic *',
+                          labelText: 'Date de début *',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           filled: true,
                           fillColor: Colors.white,
-                          suffixIcon: const Icon(Icons.calendar_today),
+                          prefixIcon: const Icon(Icons.calendar_today),
                         ),
                         child: Text(
-                          DateFormat('dd/MM/yyyy').format(_diagnosisDate),
+                          DateFormat('dd/MM/yyyy').format(_startDate),
                           style: const TextStyle(fontSize: 16),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Cured Date (only if status is CURED)
-                    if (_status == 'CURED') ...[
-                      InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _curedDate ?? DateTime.now(),
-                            firstDate: _diagnosisDate,
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setState(() => _curedDate = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Date de guérison',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            suffixIcon: const Icon(Icons.calendar_today),
+                    // Date de fin
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? _startDate.add(const Duration(days: 7)),
+                          firstDate: _startDate,
+                          lastDate: DateTime.now().add(const Duration(days: 730)),
+                        );
+                        if (picked != null) {
+                          setState(() => _endDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Date de fin',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
-                            _curedDate != null
-                                ? DateFormat('dd/MM/yyyy').format(_curedDate!)
-                                : 'Non spécifié',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _curedDate != null ? _ink : Colors.grey.shade600,
-                            ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          prefixIcon: const Icon(Icons.event),
+                          suffixIcon: _endDate != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setState(() => _endDate = null),
+                                )
+                              : null,
+                        ),
+                        child: Text(
+                          _endDate != null
+                              ? DateFormat('dd/MM/yyyy').format(_endDate!)
+                              : 'Non définie',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _endDate != null ? _ink : Colors.grey.shade600,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Vet Name
-                    TextFormField(
-                      controller: _vetNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Nom du vétérinaire',
-                        hintText: 'Dr. Martin',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        prefixIcon: const Icon(Icons.medical_services),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Section: Détails médicaux
-                    const Text(
-                      'Détails médicaux',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Symptoms
-                    TextFormField(
-                      controller: _symptomsController,
-                      decoration: InputDecoration(
-                        labelText: 'Symptômes',
-                        hintText: 'Toux, éternuements, perte d\'appétit...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        alignLabelWithHint: true,
+                    // Actif
+                    SwitchListTile(
+                      value: _isActive,
+                      onChanged: (value) => setState(() => _isActive = value),
+                      title: const Text('Traitement actif'),
+                      subtitle: Text(_isActive ? 'En cours' : 'Terminé'),
+                      activeColor: _mint,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300),
                       ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Treatment
-                    TextFormField(
-                      controller: _treatmentController,
-                      decoration: InputDecoration(
-                        labelText: 'Traitement',
-                        hintText: 'Antibiotiques, pommade...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 3,
+                      tileColor: Colors.white,
                     ),
                     const SizedBox(height: 16),
 
@@ -496,11 +400,11 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Section: Photos
+                    // Section: Images d'ordonnances
                     Row(
                       children: [
                         const Text(
-                          'Photos',
+                          'Images d\'ordonnances',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -519,8 +423,8 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                               : const Icon(Icons.add_photo_alternate),
                           label: Text(_isUploading ? 'Upload...' : 'Ajouter'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _orange,
-                            side: BorderSide(color: _orange),
+                            foregroundColor: _mint,
+                            side: BorderSide(color: _mint),
                           ),
                         ),
                       ],
@@ -528,7 +432,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                     const SizedBox(height: 16),
 
                     // Prévisualisation des images
-                    if (_imageUrls.isNotEmpty)
+                    if (_attachmentUrls.isNotEmpty)
                       Container(
                         height: 120,
                         decoration: BoxDecoration(
@@ -538,7 +442,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.all(8),
-                          itemCount: _imageUrls.length,
+                          itemCount: _attachmentUrls.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             return Stack(
@@ -546,7 +450,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(
-                                    _imageUrls[index],
+                                    _attachmentUrls[index],
                                     width: 100,
                                     height: 100,
                                     fit: BoxFit.cover,
@@ -586,7 +490,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                          border: Border.all(color: Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
@@ -602,7 +506,7 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
                     FilledButton(
                       onPressed: _isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
-                        backgroundColor: _orange,
+                        backgroundColor: _mint,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
