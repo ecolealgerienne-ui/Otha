@@ -903,7 +903,7 @@ export class BookingsService {
         data: {
           petId: petId,
           type: 'VET_VISIT',
-          title: `Visite vétérinaire - ${b.service.name}`,
+          title: `Visite vétérinaire - ${b.service.title}`,
           description: `Rendez-vous confirmé chez ${providerName}`,
           date: b.scheduledAt,
           vetId: prov.id,
@@ -911,7 +911,7 @@ export class BookingsService {
           providerType: 'VET',
           bookingId: b.id,
           durationMinutes: b.service.durationMin || 30,
-          notes: `Service: ${b.service.name}\nDurée: ${b.service.durationMin || 30} minutes`,
+          notes: `Service: ${b.service.title}\nDurée: ${b.service.durationMin || 30} minutes`,
         },
       });
     }
@@ -1068,8 +1068,10 @@ export class BookingsService {
       // ❌ Créer signalement admin
       await this.prisma.adminFlag.create({
         data: {
+          userId: b.userId,
+          type: 'BOOKING_DISPUTE',
           bookingId: b.id,
-          reason: 'Pro claims client did not attend (DISPUTED)',
+          note: 'Pro claims client did not attend (DISPUTED)',
         },
       });
     }
