@@ -49,6 +49,7 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
     final is24_7 = daycare['is24_7'] == true;
     final openingTime = daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = daycare['closingTime']?.toString() ?? '20:00';
+    final availableDays = daycare['availableDays'] as List<dynamic>? ?? List.filled(7, true);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -230,6 +231,24 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
 
                   const SizedBox(height: 24),
 
+                  // Jours de disponibilité
+                  _sectionTitle('Jours de disponibilité'),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _dayBadge('Lun', availableDays.length > 0 && availableDays[0] == true),
+                      _dayBadge('Mar', availableDays.length > 1 && availableDays[1] == true),
+                      _dayBadge('Mer', availableDays.length > 2 && availableDays[2] == true),
+                      _dayBadge('Jeu', availableDays.length > 3 && availableDays[3] == true),
+                      _dayBadge('Ven', availableDays.length > 4 && availableDays[4] == true),
+                      _dayBadge('Sam', availableDays.length > 5 && availableDays[5] == true),
+                      _dayBadge('Dim', availableDays.length > 6 && availableDays[6] == true),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
                   // Pricing
                   if (hourlyRate != null || dailyRate != null) ...[
                     _sectionTitle('Tarifs'),
@@ -401,6 +420,30 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _dayBadge(String label, bool isAvailable) {
+    return Container(
+      width: 45,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: isAvailable ? _primary : Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isAvailable ? _primary : Colors.grey.shade400,
+          width: 1.5,
+        ),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: isAvailable ? Colors.white : Colors.grey.shade600,
+        ),
       ),
     );
   }

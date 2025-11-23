@@ -57,6 +57,9 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   String _openingTime = '08:00';
   String _closingTime = '20:00';
 
+  // Jours de disponibilité (Lun=0, Dim=6)
+  final List<bool> _availableDays = List.filled(7, true); // Par défaut tous les jours
+
   String? _errCapacity;
   String? _errHourlyRate;
   String? _errDailyRate;
@@ -141,6 +144,14 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
         _is24_7 = availability['is24_7'] == true;
         _openingTime = (availability['openingTime'] ?? '08:00').toString();
         _closingTime = (availability['closingTime'] ?? '20:00').toString();
+
+        // Charger les jours disponibles
+        final availableDays = availability['availableDays'];
+        if (availableDays is List && availableDays.length == 7) {
+          for (int i = 0; i < 7; i++) {
+            _availableDays[i] = availableDays[i] == true;
+          }
+        }
       }
 
       if (mounted) setState(() {});
@@ -284,6 +295,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
         'is24_7': _is24_7,
         'openingTime': _openingTime,
         'closingTime': _closingTime,
+        'availableDays': _availableDays,
       };
 
       // Fusionner avec les nouvelles données
@@ -981,7 +993,65 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
               ],
             ),
           ],
+
+          // Jours de disponibilité
+          const SizedBox(height: 24),
+          const Text('Jours de disponibilité', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          const Text(
+            'Cochez les jours où vous êtes disponible',
+            style: TextStyle(fontSize: 12, color: _muted),
+          ),
+          const SizedBox(height: 12),
+
+          // Grille des jours de la semaine
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _dayButton('Lun', 0),
+              _dayButton('Mar', 1),
+              _dayButton('Mer', 2),
+              _dayButton('Jeu', 3),
+              _dayButton('Ven', 4),
+              _dayButton('Sam', 5),
+              _dayButton('Dim', 6),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _dayButton(String label, int dayIndex) {
+    final isAvailable = _availableDays[dayIndex];
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _availableDays[dayIndex] = !_availableDays[dayIndex];
+          });
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isAvailable ? _primary : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isAvailable ? _primary : Colors.grey.shade400,
+              width: 2,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isAvailable ? Colors.white : Colors.grey.shade600,
+            ),
+          ),
+        ),
       ),
     );
   }
