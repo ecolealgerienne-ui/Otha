@@ -65,6 +65,7 @@ import '../features/daycare/daycare_booking_confirmation_screen.dart';
 import '../features/daycare/daycare_list_screen.dart';
 import '../features/daycare/daycare_detail_screen.dart';
 import '../features/daycare/daycare_booking_screen.dart';
+import '../features/pro/daycare_calendar_screen.dart';
 import '../features/pro/pro_settings_screen.dart';
 import '../features/pro/pro_patients_screen.dart';
 
@@ -413,6 +414,10 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       GoRoute(
         path: '/daycare/bookings',
         builder: (ctx, st) => const DaycareBookingsScreen(),
+      ),
+      GoRoute(
+        path: '/daycare/calendar',
+        builder: (ctx, st) => const DaycareCalendarScreen(),
       ),
       GoRoute(
         path: '/daycare/my-bookings',
