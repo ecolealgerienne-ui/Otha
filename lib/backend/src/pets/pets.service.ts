@@ -139,6 +139,9 @@ export class PetsService {
         vetName: dto.vetName ?? null,
         notes: dto.notes ?? null,
         images: dto.images ?? [],
+        weightKg: dto.weightKg ?? null,
+        temperatureC: dto.temperatureC ?? null,
+        heartRate: dto.heartRate ?? null,
       },
     });
   }
