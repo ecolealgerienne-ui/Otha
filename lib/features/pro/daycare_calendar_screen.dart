@@ -434,6 +434,12 @@ class _DayAnimalsViewState extends ConsumerState<_DayAnimalsView> {
                       booking: booking,
                       onMarkDropOff: () => _markDropOff(booking['id'] as String),
                       onMarkPickup: () => _markPickup(booking['id'] as String),
+                      onScanQR: () {
+                        Navigator.of(context).pushNamed('/scan-pet').then((_) {
+                          ref.invalidate(daycareCalendarBookingsProvider);
+                          Navigator.of(context).pop();
+                        });
+                      },
                     );
                   },
                 ),
@@ -471,11 +477,13 @@ class _AnimalDetailPage extends StatelessWidget {
   final Map<String, dynamic> booking;
   final VoidCallback onMarkDropOff;
   final VoidCallback onMarkPickup;
+  final VoidCallback onScanQR;
 
   const _AnimalDetailPage({
     required this.booking,
     required this.onMarkDropOff,
     required this.onMarkPickup,
+    required this.onScanQR,
   });
 
   Color _getStatusColor(String status) {
@@ -852,13 +860,7 @@ class _AnimalDetailPage extends StatelessWidget {
                 ],
               ),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pushNamed('/scan-pet').then((_) {
-                    // Rafraîchir les données après retour du scan
-                    ref.invalidate(daycareCalendarBookingsProvider);
-                    Navigator.of(context).pop(); // Fermer le modal
-                  });
-                },
+                onPressed: onScanQR,
                 icon: const Icon(Icons.qr_code_scanner, size: 24),
                 label: const Text(
                   'Scanner QR code',
