@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import 'add_weight_dialog.dart';
+import 'add_health_data_dialog.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -46,9 +48,80 @@ class PetHealthStatsScreen extends ConsumerWidget {
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
         error: (error, stack) => _buildError(error.toString(), ref),
-        data: (stats) => _buildStats(stats),
+        data: (stats) => _buildStats(context, ref, stats),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddDataMenu(context, ref),
+        backgroundColor: _coral,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
+  }
+
+  void _showAddDataMenu(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Ajouter des données',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                showAddWeightDialog(context, ref, petId);
+                ref.invalidate(healthStatsProvider(petId));
+              },
+              icon: const Icon(Icons.monitor_weight),
+              label: const Text('Ajouter un poids'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _coral,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                showAddHealthDataDialog(context, ref, petId);
+                ref.invalidate(healthStatsProvider(petId));
+              },
+              icon: const Icon(Icons.favorite),
+              label: const Text('Ajouter température / rythme'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _mint,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+          ],
+        ),
+      ),
+    ).then((_) {
+      // Refresh après fermeture du bottom sheet
+      ref.invalidate(healthStatsProvider(petId));
+    });
   }
 
   Widget _buildError(String error, WidgetRef ref) {
@@ -75,7 +148,7 @@ class PetHealthStatsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStats(Map<String, dynamic> stats) {
+  Widget _buildStats(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) {
     final weightData = stats['weight'] as Map<String, dynamic>?;
     final tempData = stats['temperature'] as Map<String, dynamic>?;
     final heartData = stats['heartRate'] as Map<String, dynamic>?;

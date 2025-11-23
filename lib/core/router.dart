@@ -103,6 +103,8 @@ import '../features/pets/pet_prescriptions_screen.dart';
 import '../features/pets/pet_diseases_screen.dart';
 import '../features/pets/pet_disease_detail_screen.dart';
 import '../features/pets/pet_disease_form_screen.dart';
+import '../features/pets/pet_vaccinations_screen.dart';
+import '../features/pets/pet_vaccination_form_screen.dart';
 
 // Guards
 import 'role_guard.dart';
@@ -357,6 +359,25 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => PetDiseaseFormScreen(
           petId: st.pathParameters['id']!,
           diseaseId: st.pathParameters['diseaseId'],
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/vaccinations',
+        builder: (ctx, st) => PetVaccinationsScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/vaccinations/new',
+        builder: (ctx, st) => PetVaccinationFormScreen(
+          petId: st.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/pets/:id/vaccinations/:vaccinationId/edit',
+        builder: (ctx, st) => PetVaccinationFormScreen(
+          petId: st.pathParameters['id']!,
+          vaccinationId: st.pathParameters['vaccinationId'],
         ),
       ),
       GoRoute(
