@@ -318,7 +318,8 @@ final nextConfirmedBookingProvider =
   for (final raw in rows) {
     final m = Map<String, dynamic>.from(raw as Map);
     final st = (m['status'] ?? '').toString().toUpperCase();
-    if (st != 'CONFIRMED') continue;
+    // ✅ Exclure les RDV terminés/annulés
+    if (!['CONFIRMED', 'PENDING'].contains(st)) continue;
 
     final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
     if (iso.isEmpty) continue;
@@ -329,7 +330,11 @@ final nextConfirmedBookingProvider =
     } catch (_) {
       continue;
     }
-    if (at.isBefore(now)) continue;
+
+    // ✅ Prendre en compte la durée du RDV (ne disparaît pas pile au début)
+    final durationMin = (m['service']?['durationMin'] as num?)?.toInt() ?? 30;
+    final endTime = at.add(Duration(minutes: durationMin));
+    if (endTime.isBefore(now)) continue; // RDV complètement terminé
 
     if (bestAt == null || at.isBefore(bestAt)) {
       bestAt = at;
@@ -363,7 +368,11 @@ final nextPendingBookingProvider =
     } catch (_) {
       continue;
     }
-    if (at.isBefore(now)) continue;
+
+    // ✅ Prendre en compte la durée du RDV
+    final durationMin = (m['service']?['durationMin'] as num?)?.toInt() ?? 30;
+    final endTime = at.add(Duration(minutes: durationMin));
+    if (endTime.isBefore(now)) continue; // RDV terminé
 
     if (bestAt == null || at.isBefore(bestAt)) {
       bestAt = at;
@@ -387,7 +396,8 @@ final nextConfirmedDaycareBookingProvider =
     for (final raw in rows) {
       final m = Map<String, dynamic>.from(raw as Map);
       final st = (m['status'] ?? '').toString().toUpperCase();
-      if (st != 'CONFIRMED') continue;
+      // ✅ Exclure les réservations terminées/annulées
+      if (!['CONFIRMED', 'PENDING'].contains(st)) continue;
 
       final iso = (m['startDate'] ?? '').toString(); // daycare utilise startDate au lieu de scheduledAt
       if (iso.isEmpty) continue;
@@ -398,7 +408,20 @@ final nextConfirmedDaycareBookingProvider =
       } catch (_) {
         continue;
       }
-      if (at.isBefore(now)) continue;
+
+      // ✅ Pour garderie, vérifier endDate au lieu de durée
+      final endIso = (m['endDate'] ?? '').toString();
+      DateTime endAt;
+      if (endIso.isNotEmpty) {
+        try {
+          endAt = DateTime.parse(endIso).toUtc().add(const Duration(hours: 23, minutes: 59));
+        } catch (_) {
+          endAt = at.add(const Duration(days: 1)); // Par défaut 1 jour
+        }
+      } else {
+        endAt = at.add(const Duration(days: 1));
+      }
+      if (endAt.isBefore(now)) continue; // Réservation terminée
 
       if (bestAt == null || at.isBefore(bestAt)) {
         bestAt = at;
@@ -436,7 +459,20 @@ final nextPendingDaycareBookingProvider =
       } catch (_) {
         continue;
       }
-      if (at.isBefore(now)) continue;
+
+      // ✅ Pour garderie, vérifier endDate au lieu de durée
+      final endIso = (m['endDate'] ?? '').toString();
+      DateTime endAt;
+      if (endIso.isNotEmpty) {
+        try {
+          endAt = DateTime.parse(endIso).toUtc().add(const Duration(hours: 23, minutes: 59));
+        } catch (_) {
+          endAt = at.add(const Duration(days: 1));
+        }
+      } else {
+        endAt = at.add(const Duration(days: 1));
+      }
+      if (endAt.isBefore(now)) continue; // Réservation terminée
 
       if (bestAt == null || at.isBefore(bestAt)) {
         bestAt = at;
