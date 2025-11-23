@@ -587,7 +587,7 @@ export class PetsService {
       .filter((r) => r.heartRate != null)
       .map((r) => ({
         date: r.date,
-        heartRate: r.heartRate,
+        heartRate: r.heartRate!,
         context: r.title,
         vetName: r.vetName,
       }));
