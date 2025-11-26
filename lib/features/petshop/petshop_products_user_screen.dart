@@ -32,7 +32,8 @@ final _petshopProductsProvider =
 
 class PetshopProductsUserScreen extends ConsumerStatefulWidget {
   final String providerId;
-  const PetshopProductsUserScreen({super.key, required this.providerId});
+  final bool preview;
+  const PetshopProductsUserScreen({super.key, required this.providerId, this.preview = false});
 
   @override
   ConsumerState<PetshopProductsUserScreen> createState() => _PetshopProductsUserScreenState();
@@ -71,6 +72,33 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
               children: [
                 CustomScrollView(
                   slivers: [
+                    // Preview banner
+                    if (widget.preview)
+                      SliverToBoxAdapter(
+                        child: Container(
+                          color: Colors.orange,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: SafeArea(
+                            bottom: false,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.visibility, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Mode aperçu - Les clients verront cette page',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Fermer', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     // Custom App Bar with shop info
                     SliverAppBar(
                       expandedHeight: 180,
@@ -330,6 +358,7 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                 return _ProductCard(
                                   product: filtered[index],
                                   providerId: widget.providerId,
+                                  preview: widget.preview,
                                 );
                               },
                               childCount: filtered.length,
@@ -341,8 +370,8 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                   ],
                 ),
 
-                // Cart summary bottom bar
-                if (!cart.isEmpty)
+                // Cart summary bottom bar (hidden in preview mode)
+                if (!cart.isEmpty && !widget.preview)
                   Positioned(
                     left: 0,
                     right: 0,
@@ -679,7 +708,8 @@ class _CartItemTile extends ConsumerWidget {
 class _ProductCard extends ConsumerWidget {
   final Map<String, dynamic> product;
   final String providerId;
-  const _ProductCard({required this.product, required this.providerId});
+  final bool preview;
+  const _ProductCard({required this.product, required this.providerId, this.preview = false});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
@@ -841,22 +871,23 @@ class _ProductCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      InkWell(
-                        onTap: inStock ? addToCart : null,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: inStock ? _coral : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            inCart ? Icons.add : Icons.add_shopping_cart,
-                            color: Colors.white,
-                            size: 18,
+                      if (!preview)
+                        InkWell(
+                          onTap: inStock ? addToCart : null,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: inStock ? _coral : Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              inCart ? Icons.add : Icons.add_shopping_cart,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ],
