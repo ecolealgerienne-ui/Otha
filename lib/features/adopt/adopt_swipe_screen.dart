@@ -417,6 +417,7 @@ class _PostCard extends StatefulWidget {
 
 class _PostCardState extends State<_PostCard> {
   int _currentImageIndex = 0;
+  Offset? _pointerDownPosition;
 
   @override
   Widget build(BuildContext context) {
@@ -474,35 +475,39 @@ class _PostCardState extends State<_PostCard> {
               ),
 
             // Zones de tap gauche/droite pour naviguer entre images
+            // Utilise Listener au lieu de GestureDetector pour éviter le conflit avec le swipe parent
             if (images.length > 1)
               Positioned.fill(
-                child: Row(
-                  children: [
-                    // Zone gauche - image précédente
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (event) {
+                    _pointerDownPosition = event.position;
+                  },
+                  onPointerUp: (event) {
+                    // Ne réagir que si c'est un tap (pas un swipe)
+                    if (_pointerDownPosition != null) {
+                      final distance = (event.position - _pointerDownPosition!).distance;
+                      if (distance < 20) {
+                        // C'est un tap, pas un swipe
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final tapX = event.position.dx;
+
+                        if (tapX < screenWidth / 2) {
+                          // Tap à gauche - image précédente
                           if (_currentImageIndex > 0) {
                             setState(() => _currentImageIndex--);
                           }
-                        },
-                        child: Container(color: Colors.transparent),
-                      ),
-                    ),
-                    // Zone droite - image suivante
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
+                        } else {
+                          // Tap à droite - image suivante
                           if (_currentImageIndex < images.length - 1) {
                             setState(() => _currentImageIndex++);
                           }
-                        },
-                        child: Container(color: Colors.transparent),
-                      ),
-                    ),
-                  ],
+                        }
+                      }
+                    }
+                    _pointerDownPosition = null;
+                  },
+                  child: Container(color: Colors.transparent),
                 ),
               ),
 
