@@ -254,6 +254,14 @@ export class ProvidersController {
   }
 
   @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch('admin/:id')
+  async adminUpdateProvider(@Param('id') providerId: string, @Body() dto: any) {
+    return this.providers.adminUpdateProvider(providerId, dto);
+  }
+
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('me/reapply')
   async reapplyMy(@Req() req: any) {
