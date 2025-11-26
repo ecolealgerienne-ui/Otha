@@ -41,14 +41,14 @@ class BookingThanksScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Merci d'avoir pris rendez-vous',
+                  'Merci d\'avoir pris rendez-vous',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Veuillez patienter la confirmation du vétérinaire.\n'
-                  'Nous vous notifierons dès qu'il confirme.',
+                  'Nous vous notifierons dès qu\'il confirme.',
                   textAlign: TextAlign.center,
                 ),
                 if (id.isNotEmpty) ...[
