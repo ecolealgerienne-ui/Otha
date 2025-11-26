@@ -496,6 +496,13 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           providerId: st.pathParameters['id']!,
         ),
       ),
+      GoRoute(
+        path: '/petshop/store/:id',
+        builder: (ctx, st) => PetshopProductsUserScreen(
+          providerId: st.pathParameters['id']!,
+          preview: st.uri.queryParameters['preview'] == 'true',
+        ),
+      ),
 
       // -------- Garderie / Petshop --------
       GoRoute(

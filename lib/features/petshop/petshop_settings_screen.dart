@@ -1,10 +1,12 @@
 // lib/features/petshop/petshop_settings_screen.dart
+import 'dart:io';
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
@@ -49,6 +51,11 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
   int _countCancelled = 0;
   int _countTotal = 0;
   int _productCount = 0;
+
+  // Avatar upload
+  File? _avatarFile;
+  final _picker = ImagePicker();
+  bool _uploadingAvatar = false;
 
   bool _loading = false;
   bool _bootstrapped = false;
@@ -252,6 +259,50 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label copie')));
   }
 
+  Future<void> _pickAvatar() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (image == null) return;
+
+    setState(() {
+      _avatarFile = File(image.path);
+      _uploadingAvatar = true;
+    });
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.ensureAuth();
+      final url = await api.uploadLocalFile(_avatarFile!, folder: 'avatar');
+      _photoUrl.text = url;
+      _avatarFile = null;
+
+      // Sauvegarder immédiatement
+      await api.updateMe(photoUrl: url);
+      await ref.read(sessionProvider.notifier).refreshMe();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo mise à jour')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur upload: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  void _openPreviewPage() {
+    if (_providerId == null || _providerId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil non encore créé')),
+      );
+      return;
+    }
+    context.push('/petshop/store/$_providerId?preview=true');
+  }
+
   void _showPreviewDialog() {
     final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
     final display = fullName.isEmpty ? 'Ma Boutique' : fullName;
@@ -444,6 +495,14 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
     final display = fullName.isEmpty ? 'Ma Boutique' : fullName;
     final initial = display.isNotEmpty ? display[0].toUpperCase() : 'B';
 
+    // Détermine l'image à afficher
+    ImageProvider? avatarImage;
+    if (_avatarFile != null) {
+      avatarImage = FileImage(_avatarFile!);
+    } else if (_photoUrl.text.trim().isNotEmpty) {
+      avatarImage = NetworkImage(_photoUrl.text.trim());
+    }
+
     return _card(
       child: Row(
         children: [
@@ -453,13 +512,18 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
               CircleAvatar(
                 radius: 34,
                 backgroundColor: _primarySoft,
-                backgroundImage:
-                    _photoUrl.text.trim().isEmpty ? null : NetworkImage(_photoUrl.text.trim()),
-                child: _photoUrl.text.trim().isEmpty
-                    ? Text(initial,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w800, color: _primary))
-                    : null,
+                backgroundImage: avatarImage,
+                child: _uploadingAvatar
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
+                      )
+                    : (avatarImage == null
+                        ? Text(initial,
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.w800, color: _primary))
+                        : null),
               ),
               Positioned(
                 right: -4,
@@ -468,34 +532,10 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
                   color: _ink,
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
-                    onTap: () async {
-                      final ctrl = TextEditingController(text: _photoUrl.text.trim());
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Modifier la photo'),
-                          content: TextField(
-                            controller: ctrl,
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'URL de la photo',
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Annuler')),
-                            FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Valider')),
-                          ],
-                        ),
-                      );
-                      if (ok == true) setState(() => _photoUrl.text = ctrl.text.trim());
-                    },
+                    onTap: _uploadingAvatar ? null : _pickAvatar,
                     child: const Padding(
                       padding: EdgeInsets.all(6),
-                      child: Icon(Icons.edit, size: 14, color: Colors.white),
+                      child: Icon(Icons.camera_alt, size: 14, color: Colors.white),
                     ),
                   ),
                 ),
@@ -582,15 +622,22 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
                   onChanged: _toggleVisibility,
                 ),
               ),
-              const SizedBox(width: 8),
-              if (_providerId != null && _providerId!.isNotEmpty)
-                OutlinedButton.icon(
-                  onPressed: () => _showPreviewDialog(),
-                  icon: const Icon(Icons.visibility),
-                  label: const Text('Apercu'),
-                ),
             ],
           ),
+          const SizedBox(height: 8),
+          if (_providerId != null && _providerId!.isNotEmpty)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openPreviewPage,
+                icon: const Icon(Icons.storefront),
+                label: const Text('Voir ma boutique (aperçu client)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primary,
+                  side: const BorderSide(color: _primary),
+                ),
+              ),
+            ),
         ],
       ),
     );
