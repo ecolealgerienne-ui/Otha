@@ -318,8 +318,8 @@ final nextConfirmedBookingProvider =
   for (final raw in rows) {
     final m = Map<String, dynamic>.from(raw as Map);
     final st = (m['status'] ?? '').toString().toUpperCase();
-    // ✅ Exclure les RDV terminés/annulés
-    if (!['CONFIRMED', 'PENDING'].contains(st)) continue;
+    // ✅ Seulement les RDV confirmés (les pending ont leur propre bannière)
+    if (st != 'CONFIRMED') continue;
 
     final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
     if (iso.isEmpty) continue;
@@ -396,8 +396,8 @@ final nextConfirmedDaycareBookingProvider =
     for (final raw in rows) {
       final m = Map<String, dynamic>.from(raw as Map);
       final st = (m['status'] ?? '').toString().toUpperCase();
-      // ✅ Exclure les réservations terminées/annulées
-      if (!['CONFIRMED', 'PENDING'].contains(st)) continue;
+      // ✅ Seulement les réservations confirmées (les pending ont leur propre bannière)
+      if (st != 'CONFIRMED') continue;
 
       final iso = (m['startDate'] ?? '').toString(); // daycare utilise startDate au lieu de scheduledAt
       if (iso.isEmpty) continue;
