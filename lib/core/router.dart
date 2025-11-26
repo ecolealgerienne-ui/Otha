@@ -24,6 +24,7 @@ import '../features/home/home_screen.dart';
 import '../features/providers/provider_details_screen.dart';
 import '../features/bookings/booking_flow_screen.dart';
 import '../features/bookings/booking_details_screen.dart';
+import '../features/bookings/booking_thanks_screen.dart';
 
 import '../features/bookings/my_bookings_screen.dart';
 
@@ -211,6 +212,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   path: '/booking-details',
   builder: (_, state) => BookingDetailsScreen(
     booking: (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{},
+  ),
+),
+GoRoute(
+  path: '/booking/thanks',
+  builder: (_, state) => BookingThanksScreen(
+    createdBooking: (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{},
   ),
 ),
 

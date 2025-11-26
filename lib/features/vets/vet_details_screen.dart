@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
@@ -314,14 +315,15 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                         petIds: [_selectedPetId!], // Envoyer l'animal sélectionné
                       );
 
-                      // ✅ Renvoyer la création au caller pour qu’il annule l’ancien RDV
+                      // ✅ Naviguer vers l'écran de remerciement via GoRouter
                       if (mounted) {
                         final m = (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
-                        final id = (m['id'] ?? '').toString();
-                        Navigator.of(context).pop(<String, dynamic>{
-                          'id': id,
+                        final bookingData = <String, dynamic>{
+                          'id': (m['id'] ?? '').toString(),
                           ...m,
-                        });
+                        };
+
+                        context.go('/booking/thanks', extra: bookingData);
                       }
                     } catch (e) {
                       if (mounted) {

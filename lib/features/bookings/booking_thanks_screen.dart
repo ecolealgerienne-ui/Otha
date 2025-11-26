@@ -1,10 +1,10 @@
 // lib/features/bookings/booking_thanks_screen.dart
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class BookingThanksScreen extends StatelessWidget {
   const BookingThanksScreen({super.key, required this.createdBooking});
 
-  // On renvoie cette map au parent quand on termine
   final Map<String, dynamic> createdBooking;
 
   static const coral = Color(0xFFF36C6C);
@@ -26,7 +26,7 @@ class BookingThanksScreen extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-              border: Border.all(color: Color(0xFFFFD6DA)),
+              border: Border.all(color: const Color(0xFFFFD6DA)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -41,14 +41,14 @@ class BookingThanksScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Merci d’avoir pris rendez-vous',
+                  'Merci d'avoir pris rendez-vous',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Veuillez patienter la confirmation du vétérinaire.\n'
-                  'Nous vous notifierons dès qu’il confirme.',
+                  'Nous vous notifierons dès qu'il confirme.',
                   textAlign: TextAlign.center,
                 ),
                 if (id.isNotEmpty) ...[
@@ -59,7 +59,7 @@ class BookingThanksScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => Navigator.pop(context, createdBooking),
+                    onPressed: () => context.go('/home'),
                     style: FilledButton.styleFrom(
                       backgroundColor: coral,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
