@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { JwtOptionalGuard } from '../auth/guards/jwt-optional.guard';
 import { AdoptService } from './adopt.service';
 import { CreateAdoptPostDto } from './dto/create-adopt-post.dto';
 import { UpdateAdoptPostDto } from './dto/update-adopt-post.dto';
@@ -25,12 +24,12 @@ import { SendMessageDto } from './dto/send-message.dto';
 export class AdoptController {
   constructor(private readonly service: AdoptService) {}
 
-  // ====== Feed public (avec auth optionnelle pour personnaliser) ======
-  @UseGuards(JwtOptionalGuard)
+  // ====== Feed (authentifié pour exclure ses propres posts) ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Get('feed')
   async feed(@Query() q: FeedQueryDto, @Req() req: any) {
-    const user = req.user ?? null;
-    return this.service.feed(user, q);
+    return this.service.feed(req.user, q);
   }
 
   @Get('posts/:id')
