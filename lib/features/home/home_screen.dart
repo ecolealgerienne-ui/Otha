@@ -636,14 +636,10 @@ class HomeScreen extends ConsumerWidget {
     final isPro = role == 'PRO';
 
     final first = (user['firstName'] as String?)?.trim();
-    final last = (user['lastName'] as String?)?.trim();
     final email = (user['email'] as String?) ?? '';
     final fallback = email.isNotEmpty ? email.split('@').first : 'Utilisateur';
-    final displayName = [
-      if (first != null && first.isNotEmpty) first,
-      if (last != null && last.isNotEmpty) last,
-    ].join(' ').trim();
-    final greetingName = displayName.isEmpty ? fallback : displayName;
+    // Affiche uniquement le prénom dans le header
+    final greetingName = (first != null && first.isNotEmpty) ? first : fallback;
 
     final avatarUrl = ref.watch(avatarUrlProvider).maybeWhen(
           data: (v) => v,
