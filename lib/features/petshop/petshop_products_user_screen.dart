@@ -67,6 +67,8 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
             final name = (petshop['displayName'] ?? 'Animalerie').toString();
             final address = (petshop['address'] ?? '').toString();
             final bio = (petshop['bio'] ?? '').toString();
+            final avatarUrl = (petshop['avatarUrl'] ?? petshop['photoUrl'] ?? '').toString();
+            final hasAvatar = avatarUrl.isNotEmpty && avatarUrl.startsWith('http');
 
             return Stack(
               children: [
@@ -101,42 +103,64 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                       ),
                     // Custom App Bar with shop info
                     SliverAppBar(
-                      expandedHeight: 180,
+                      expandedHeight: 220,
                       pinned: true,
-                      backgroundColor: Colors.white,
-                      foregroundColor: _ink,
+                      backgroundColor: _coral,
+                      foregroundColor: Colors.white,
                       surfaceTintColor: Colors.transparent,
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
                       flexibleSpace: FlexibleSpaceBar(
+                        collapseMode: CollapseMode.parallax,
                         background: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
                               colors: [_coral, Color(0xFFFF8A80)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
+                            image: hasAvatar
+                                ? DecorationImage(
+                                    image: NetworkImage(avatarUrl),
+                                    fit: BoxFit.cover,
+                                    colorFilter: ColorFilter.mode(
+                                      _coral.withOpacity(0.3),
+                                      BlendMode.srcOver,
+                                    ),
+                                  )
+                                : null,
                           ),
                           child: SafeArea(
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 56, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Row(
                                     children: [
+                                      // Avatar circle
                                       CircleAvatar(
-                                        radius: 28,
+                                        radius: 36,
                                         backgroundColor: Colors.white,
-                                        child: Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                                          style: const TextStyle(
-                                            color: _coral,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 24,
-                                          ),
-                                        ),
+                                        backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+                                        child: !hasAvatar
+                                            ? Text(
+                                                name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                                                style: const TextStyle(
+                                                  color: _coral,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 28,
+                                                ),
+                                              )
+                                            : null,
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +170,13 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w800,
-                                                fontSize: 20,
+                                                fontSize: 22,
+                                                shadows: [
+                                                  Shadow(
+                                                    color: Colors.black38,
+                                                    blurRadius: 4,
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             if (address.isNotEmpty) ...[
@@ -160,8 +190,14 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                                     child: Text(
                                                       address,
                                                       style: const TextStyle(
-                                                        color: Colors.white70,
+                                                        color: Colors.white,
                                                         fontSize: 12,
+                                                        shadows: [
+                                                          Shadow(
+                                                            color: Colors.black38,
+                                                            blurRadius: 2,
+                                                          ),
+                                                        ],
                                                       ),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
@@ -176,12 +212,18 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                     ],
                                   ),
                                   if (bio.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 10),
                                     Text(
                                       bio,
                                       style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black38,
+                                            blurRadius: 2,
+                                          ),
+                                        ],
                                       ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,

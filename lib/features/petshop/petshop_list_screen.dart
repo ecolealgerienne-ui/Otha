@@ -131,6 +131,7 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
       'address': address,
       'distanceKm': dKm,
       'categories': categories,
+      'avatarUrl': (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString(),
     };
   }).toList();
 
@@ -234,6 +235,7 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
                               bio: (m['bio'] ?? '').toString(),
                               address: (m['address'] ?? '').toString(),
                               categories: (m['categories'] as List<String>?) ?? [],
+                              avatarUrl: (m['avatarUrl'] ?? '').toString(),
                             ),
                           );
                         },
@@ -395,6 +397,7 @@ class _PetshopCard extends StatelessWidget {
     required this.address,
     this.distanceKm,
     this.categories = const [],
+    this.avatarUrl = '',
   });
 
   final String id;
@@ -403,6 +406,7 @@ class _PetshopCard extends StatelessWidget {
   final String address;
   final double? distanceKm;
   final List<String> categories;
+  final String avatarUrl;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -436,24 +440,32 @@ class _PetshopCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar with icon
+                  // Avatar avec image ou initiales
                   Container(
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
                       color: _coralSoft,
                       borderRadius: BorderRadius.circular(12),
+                      image: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                          ? DecorationImage(
+                              image: NetworkImage(avatarUrl),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: Center(
-                      child: Text(
-                        _initials(name),
-                        style: const TextStyle(
-                          color: _coral,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
+                    child: avatarUrl.isEmpty || !avatarUrl.startsWith('http')
+                        ? Center(
+                            child: Text(
+                              _initials(name),
+                              style: const TextStyle(
+                                color: _coral,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
