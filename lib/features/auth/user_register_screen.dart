@@ -103,8 +103,8 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
         final phone = _phone.text.trim();
         if (phone.isEmpty) {
           _errPhone = 'Téléphone requis';
-        } else if (!phone.startsWith('0')) {
-          _errPhone = 'Le numéro doit commencer par 0';
+        } else if (!phone.startsWith('05') && !phone.startsWith('06') && !phone.startsWith('07')) {
+          _errPhone = 'Le numéro doit commencer par 05, 06 ou 07';
         } else if (phone.length != 10) {
           _errPhone = 'Le numéro doit contenir 10 chiffres';
         } else {
