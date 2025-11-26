@@ -2304,8 +2304,6 @@ Future<Map<String, dynamic>> adminUpdateProvider(
 
   final paths = <String>[
     '/providers/admin/$providerId',
-    '/admin/providers/$providerId',
-    '/providers/$providerId',
   ];
 
   DioException? lastErr;

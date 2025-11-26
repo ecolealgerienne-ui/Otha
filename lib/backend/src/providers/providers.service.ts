@@ -587,6 +587,39 @@ async upsertMyProvider(userId: string, dto: any) {
     return { success: true, provider: updated };
   }
 
+  /** Admin: met à jour un provider (displayName, address, lat, lng, mapsUrl) */
+  async adminUpdateProvider(providerId: string, dto: any) {
+    const exists = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { id: true, specialties: true },
+    });
+    if (!exists) throw new NotFoundException('Provider not found');
+
+    const currentSpecialties = (exists.specialties as Record<string, any>) ?? {};
+
+    const data: any = {};
+    if (dto.displayName !== undefined) data.displayName = dto.displayName;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+
+    // Gérer mapsUrl dans specialties
+    if (dto.mapsUrl !== undefined || dto.specialties?.mapsUrl !== undefined) {
+      const mapsUrl = dto.mapsUrl ?? dto.specialties?.mapsUrl;
+      data.specialties = {
+        ...currentSpecialties,
+        mapsUrl: mapsUrl,
+      };
+    }
+
+    const updated = await this.prisma.providerProfile.update({
+      where: { id: providerId },
+      data,
+    });
+
+    return updated;
+  }
+
   /** Backfill admin : étend maps.app.goo.gl → parse coords → met à jour lat/lng + mapsUrl */
   async backfillLatLngAndExpandShortUrls(limit = 500) {
     const candidates = await this.prisma.providerProfile.findMany({
