@@ -173,6 +173,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _passConfirm = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _mapsUrl = TextEditingController();
@@ -180,6 +181,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   int _step = 0;
   bool _loading = false;
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _registered = false;
 
   // Carte AVN (recto-verso)
@@ -194,7 +196,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
 
   final _picker = ImagePicker();
 
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errAddress, _errMapsUrl, _errAvn;
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone, _errAddress, _errMapsUrl, _errAvn;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
@@ -209,6 +211,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     _lastName.dispose();
     _email.dispose();
     _pass.dispose();
+    _passConfirm.dispose();
     _phone.dispose();
     _address.dispose();
     _mapsUrl.dispose();
@@ -218,12 +221,46 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   bool _validateStep(int step) {
     setState(() {
       if (step == 0) {
-        _errFirst = _firstName.text.trim().isEmpty ? 'Prénom requis' : null;
-        _errLast = _lastName.text.trim().isEmpty ? 'Nom requis' : null;
+        final first = _firstName.text.trim();
+        final last = _lastName.text.trim();
+        if (first.isEmpty) {
+          _errFirst = 'Prénom requis';
+        } else if (first.length < 3) {
+          _errFirst = 'Prénom: minimum 3 caractères';
+        } else if (first.length > 15) {
+          _errFirst = 'Prénom: maximum 15 caractères';
+        } else {
+          _errFirst = null;
+        }
+        if (last.isEmpty) {
+          _errLast = 'Nom requis';
+        } else if (last.length < 3) {
+          _errLast = 'Nom: minimum 3 caractères';
+        } else if (last.length > 15) {
+          _errLast = 'Nom: maximum 15 caractères';
+        } else {
+          _errLast = null;
+        }
       } else if (step == 1) {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        _errPhone = _phone.text.trim().isEmpty ? 'Téléphone requis' : (_isValidPhone(_phone.text) ? null : 'Téléphone invalide');
+        if (_passConfirm.text.isEmpty) {
+          _errPassConfirm = 'Confirmation requise';
+        } else if (_passConfirm.text != _pass.text) {
+          _errPassConfirm = 'Les mots de passe ne correspondent pas';
+        } else {
+          _errPassConfirm = null;
+        }
+        final phone = _phone.text.trim();
+        if (phone.isEmpty) {
+          _errPhone = 'Téléphone requis';
+        } else if (!phone.startsWith('0')) {
+          _errPhone = 'Le numéro doit commencer par 0';
+        } else if (phone.length < 9 || phone.length > 10) {
+          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
+        } else {
+          _errPhone = null;
+        }
       } else if (step == 2) {
         _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
         final mapsOk = _isValidHttpUrl(_mapsUrl.text);
@@ -236,7 +273,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
-    if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
+    if (step == 1) return _errEmail == null && _errPass == null && _errPassConfirm == null && _errPhone == null;
     if (step == 2) return _errAddress == null && _errMapsUrl == null;
     if (step == 3) return _errAvn == null;
     return false;
@@ -442,10 +479,10 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         ),
         const SizedBox(height: 16),
         _label('Prénom'),
-        _input(_firstName, errorText: _errFirst),
+        _input(_firstName, errorText: _errFirst, maxLength: 15),
         const SizedBox(height: 12),
         _label('Nom'),
-        _input(_lastName, errorText: _errLast),
+        _input(_lastName, errorText: _errLast, maxLength: 15),
       ], key: const ValueKey('vet0'));
     }
 
@@ -467,8 +504,20 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
           ),
         ),
         const SizedBox(height: 12),
+        _label('Confirmer le mot de passe'),
+        TextField(
+          controller: _passConfirm,
+          obscureText: _obscureConfirm,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errPassConfirm,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
+          ),
+        ),
+        const SizedBox(height: 12),
         _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone),
+        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
       ], key: const ValueKey('vet1'));
     }
 
@@ -625,16 +674,19 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     TextInputType? keyboard,
     String? errorText,
     String? hintText,
+    int? maxLength,
   }) {
     return TextField(
       controller: c,
       obscureText: obscure,
       keyboardType: keyboard,
+      maxLength: maxLength,
       decoration: InputDecoration(
         border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
         isDense: true,
         errorText: errorText,
         hintText: hintText,
+        counterText: '',
       ),
     );
   }
@@ -653,6 +705,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _passConfirm = TextEditingController();
   final _phone = TextEditingController();
 
   final _shopName = TextEditingController();
@@ -662,12 +715,13 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   int _step = 0;
   bool _loading = false;
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _registered = false;
 
   final List<File> _daycareImages = [];
   final _picker = ImagePicker();
 
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errShop, _errAddress, _errMapsUrl, _errImages;
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone, _errShop, _errAddress, _errMapsUrl, _errImages;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
@@ -682,6 +736,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     _lastName.dispose();
     _email.dispose();
     _pass.dispose();
+    _passConfirm.dispose();
     _phone.dispose();
     _shopName.dispose();
     _address.dispose();
@@ -692,12 +747,46 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   bool _validateStep(int step) {
     setState(() {
       if (step == 0) {
-        _errFirst = _firstName.text.trim().isEmpty ? 'Prénom requis' : null;
-        _errLast = _lastName.text.trim().isEmpty ? 'Nom requis' : null;
+        final first = _firstName.text.trim();
+        final last = _lastName.text.trim();
+        if (first.isEmpty) {
+          _errFirst = 'Prénom requis';
+        } else if (first.length < 3) {
+          _errFirst = 'Prénom: minimum 3 caractères';
+        } else if (first.length > 15) {
+          _errFirst = 'Prénom: maximum 15 caractères';
+        } else {
+          _errFirst = null;
+        }
+        if (last.isEmpty) {
+          _errLast = 'Nom requis';
+        } else if (last.length < 3) {
+          _errLast = 'Nom: minimum 3 caractères';
+        } else if (last.length > 15) {
+          _errLast = 'Nom: maximum 15 caractères';
+        } else {
+          _errLast = null;
+        }
       } else if (step == 1) {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        _errPhone = _phone.text.trim().isEmpty ? 'Téléphone requis' : (_isValidPhone(_phone.text) ? null : 'Téléphone invalide');
+        if (_passConfirm.text.isEmpty) {
+          _errPassConfirm = 'Confirmation requise';
+        } else if (_passConfirm.text != _pass.text) {
+          _errPassConfirm = 'Les mots de passe ne correspondent pas';
+        } else {
+          _errPassConfirm = null;
+        }
+        final phone = _phone.text.trim();
+        if (phone.isEmpty) {
+          _errPhone = 'Téléphone requis';
+        } else if (!phone.startsWith('0')) {
+          _errPhone = 'Le numéro doit commencer par 0';
+        } else if (phone.length < 9 || phone.length > 10) {
+          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
+        } else {
+          _errPhone = null;
+        }
       } else {
         _errShop = _shopName.text.trim().isEmpty ? 'Nom de la boutique requis' : null;
         _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
@@ -709,7 +798,7 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
-    if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
+    if (step == 1) return _errEmail == null && _errPass == null && _errPassConfirm == null && _errPhone == null;
     return _errShop == null && _errAddress == null && _errMapsUrl == null && _errImages == null;
   }
 
@@ -919,10 +1008,10 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     if (_step == 0) {
       return _centeredForm([
         _label('Prénom'),
-        _input(_firstName, errorText: _errFirst),
+        _input(_firstName, errorText: _errFirst, maxLength: 15),
         const SizedBox(height: 12),
         _label('Nom'),
-        _input(_lastName, errorText: _errLast),
+        _input(_lastName, errorText: _errLast, maxLength: 15),
       ], key: const ValueKey('day0'));
     }
 
@@ -944,8 +1033,20 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
           ),
         ),
         const SizedBox(height: 12),
+        _label('Confirmer le mot de passe'),
+        TextField(
+          controller: _passConfirm,
+          obscureText: _obscureConfirm,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errPassConfirm,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
+          ),
+        ),
+        const SizedBox(height: 12),
         _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone),
+        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
       ], key: const ValueKey('day1'));
     }
 
@@ -1040,16 +1141,19 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     TextInputType? keyboard,
     String? errorText,
     String? hintText,
+    int? maxLength,
   }) {
     return TextField(
       controller: c,
       obscureText: obscure,
       keyboardType: keyboard,
+      maxLength: maxLength,
       decoration: InputDecoration(
         border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
         isDense: true,
         errorText: errorText,
         hintText: hintText,
+        counterText: '',
       ),
     );
   }
@@ -1068,6 +1172,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _passConfirm = TextEditingController();
   final _phone = TextEditingController();
 
   final _shopName = TextEditingController();
@@ -1077,9 +1182,10 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
   int _step = 0;
   bool _loading = false;
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _registered = false;
 
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone, _errShop, _errAddress, _errMapsUrl;
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone, _errShop, _errAddress, _errMapsUrl;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
@@ -1094,6 +1200,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     _lastName.dispose();
     _email.dispose();
     _pass.dispose();
+    _passConfirm.dispose();
     _phone.dispose();
     _shopName.dispose();
     _address.dispose();
@@ -1104,12 +1211,46 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
   bool _validateStep(int step) {
     setState(() {
       if (step == 0) {
-        _errFirst = _firstName.text.trim().isEmpty ? 'Prénom requis' : null;
-        _errLast = _lastName.text.trim().isEmpty ? 'Nom requis' : null;
+        final first = _firstName.text.trim();
+        final last = _lastName.text.trim();
+        if (first.isEmpty) {
+          _errFirst = 'Prénom requis';
+        } else if (first.length < 3) {
+          _errFirst = 'Prénom: minimum 3 caractères';
+        } else if (first.length > 15) {
+          _errFirst = 'Prénom: maximum 15 caractères';
+        } else {
+          _errFirst = null;
+        }
+        if (last.isEmpty) {
+          _errLast = 'Nom requis';
+        } else if (last.length < 3) {
+          _errLast = 'Nom: minimum 3 caractères';
+        } else if (last.length > 15) {
+          _errLast = 'Nom: maximum 15 caractères';
+        } else {
+          _errLast = null;
+        }
       } else if (step == 1) {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        _errPhone = _phone.text.trim().isEmpty ? 'Téléphone requis' : (_isValidPhone(_phone.text) ? null : 'Téléphone invalide');
+        if (_passConfirm.text.isEmpty) {
+          _errPassConfirm = 'Confirmation requise';
+        } else if (_passConfirm.text != _pass.text) {
+          _errPassConfirm = 'Les mots de passe ne correspondent pas';
+        } else {
+          _errPassConfirm = null;
+        }
+        final phone = _phone.text.trim();
+        if (phone.isEmpty) {
+          _errPhone = 'Téléphone requis';
+        } else if (!phone.startsWith('0')) {
+          _errPhone = 'Le numéro doit commencer par 0';
+        } else if (phone.length < 9 || phone.length > 10) {
+          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
+        } else {
+          _errPhone = null;
+        }
       } else {
         _errShop = _shopName.text.trim().isEmpty ? 'Nom de la boutique requis' : null;
         _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
@@ -1120,7 +1261,7 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
-    if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
+    if (step == 1) return _errEmail == null && _errPass == null && _errPassConfirm == null && _errPhone == null;
     return _errShop == null && _errAddress == null && _errMapsUrl == null;
   }
 
@@ -1277,10 +1418,10 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     if (_step == 0) {
       return _centeredForm([
         _label('Prénom'),
-        _input(_firstName, errorText: _errFirst),
+        _input(_firstName, errorText: _errFirst, maxLength: 15),
         const SizedBox(height: 12),
         _label('Nom'),
-        _input(_lastName, errorText: _errLast),
+        _input(_lastName, errorText: _errLast, maxLength: 15),
       ], key: const ValueKey('pet0'));
     }
 
@@ -1302,8 +1443,20 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
           ),
         ),
         const SizedBox(height: 12),
+        _label('Confirmer le mot de passe'),
+        TextField(
+          controller: _passConfirm,
+          obscureText: _obscureConfirm,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errPassConfirm,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
+          ),
+        ),
+        const SizedBox(height: 12),
         _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone),
+        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
       ], key: const ValueKey('pet1'));
     }
 
@@ -1348,16 +1501,19 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
     TextInputType? keyboard,
     String? errorText,
     String? hintText,
+    int? maxLength,
   }) {
     return TextField(
       controller: c,
       obscureText: obscure,
       keyboardType: keyboard,
+      maxLength: maxLength,
       decoration: InputDecoration(
         border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
         isDense: true,
         errorText: errorText,
         hintText: hintText,
+        counterText: '',
       ),
     );
   }

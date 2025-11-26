@@ -29,16 +29,18 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   final _lastName  = TextEditingController();
   final _email     = TextEditingController();
   final _pass      = TextEditingController();
+  final _passConfirm = TextEditingController();
   final _phone     = TextEditingController();
 
   // UI
   int _step = 0; // 0: noms, 1: email/mdp/tel (register), 2: avatar (optionnel)
   bool _loading = false;
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _registered = false; // éviter de double-register
 
   // Erreurs
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone;
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone;
 
   // Avatar (étape 3)
   File? _avatarFile;
@@ -50,6 +52,7 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
     _lastName.dispose();
     _email.dispose();
     _pass.dispose();
+    _passConfirm.dispose();
     _phone.dispose();
     super.dispose();
   }
@@ -67,18 +70,50 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   bool _validateStep(int step) {
     setState(() {
       if (step == 0) {
-        _errFirst = _firstName.text.trim().isEmpty ? 'Prénom requis' : null;
-        _errLast  = _lastName.text.trim().isEmpty ? 'Nom requis' : null;
+        final first = _firstName.text.trim();
+        final last = _lastName.text.trim();
+        if (first.isEmpty) {
+          _errFirst = 'Prénom requis';
+        } else if (first.length < 3) {
+          _errFirst = 'Prénom: minimum 3 caractères';
+        } else if (first.length > 15) {
+          _errFirst = 'Prénom: maximum 15 caractères';
+        } else {
+          _errFirst = null;
+        }
+        if (last.isEmpty) {
+          _errLast = 'Nom requis';
+        } else if (last.length < 3) {
+          _errLast = 'Nom: minimum 3 caractères';
+        } else if (last.length > 15) {
+          _errLast = 'Nom: maximum 15 caractères';
+        } else {
+          _errLast = null;
+        }
       } else if (step == 1) {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass  = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        _errPhone = _phone.text.trim().isEmpty
-            ? 'Téléphone requis'
-            : (_isValidPhone(_phone.text) ? null : 'Téléphone invalide');
+        if (_passConfirm.text.isEmpty) {
+          _errPassConfirm = 'Confirmation requise';
+        } else if (_passConfirm.text != _pass.text) {
+          _errPassConfirm = 'Les mots de passe ne correspondent pas';
+        } else {
+          _errPassConfirm = null;
+        }
+        final phone = _phone.text.trim();
+        if (phone.isEmpty) {
+          _errPhone = 'Téléphone requis';
+        } else if (!phone.startsWith('0')) {
+          _errPhone = 'Le numéro doit commencer par 0';
+        } else if (phone.length != 10) {
+          _errPhone = 'Le numéro doit contenir 10 chiffres';
+        } else {
+          _errPhone = null;
+        }
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
-    if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
+    if (step == 1) return _errEmail == null && _errPass == null && _errPassConfirm == null && _errPhone == null;
     return true;
   }
 
@@ -293,10 +328,10 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
     if (_step == 0) {
       return _centeredForm([
         _label('Prénom'),
-        _input(_firstName, errorText: _errFirst),
+        _input(_firstName, errorText: _errFirst, maxLength: 15),
         const SizedBox(height: 12),
         _label('Nom'),
-        _input(_lastName, errorText: _errLast),
+        _input(_lastName, errorText: _errLast, maxLength: 15),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -352,8 +387,23 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        _label('Confirmer le mot de passe'),
+        TextField(
+          controller: _passConfirm,
+          obscureText: _obscureConfirm,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errPassConfirm,
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone),
+        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
         const SizedBox(height: 6),
         Text(
           'Nous vérifions l’email et créons le compte à cette étape.',
@@ -454,14 +504,17 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
     TextEditingController c, {
     TextInputType? keyboard,
     String? errorText,
+    int? maxLength,
   }) {
     return TextField(
       controller: c,
       keyboardType: keyboard,
+      maxLength: maxLength,
       decoration: InputDecoration(
         border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
         isDense: true,
         errorText: errorText,
+        counterText: '', // Cache le compteur de caractères
       ),
     );
   }
