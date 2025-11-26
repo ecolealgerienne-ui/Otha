@@ -406,25 +406,32 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> {
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
 
   const _PostCard({required this.post});
 
   @override
+  State<_PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<_PostCard> {
+  int _currentImageIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final images = (post['images'] as List<dynamic>?)
+    final images = (widget.post['images'] as List<dynamic>?)
         ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
         .where((url) => url != null && url.isNotEmpty)
         .cast<String>()
         .toList() ?? [];
 
-    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
-    final species = (post['species'] ?? '').toString();
-    final city = (post['city'] ?? '').toString();
-    final ageMonths = post['ageMonths'] as int?;
-    final description = (post['description'] ?? '').toString();
-    final adoptedAt = post['adoptedAt'];
+    final animalName = (widget.post['animalName'] ?? widget.post['title'] ?? 'Animal').toString();
+    final species = (widget.post['species'] ?? '').toString();
+    final city = (widget.post['city'] ?? '').toString();
+    final ageMonths = widget.post['ageMonths'] as int?;
+    final description = (widget.post['description'] ?? '').toString();
+    final adoptedAt = widget.post['adoptedAt'];
 
     final ageText = ageMonths != null
         ? ageMonths < 12
@@ -450,10 +457,10 @@ class _PostCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Image (full screen)
+            // Image courante
             if (images.isNotEmpty)
               Image.network(
-                images.first,
+                images[_currentImageIndex.clamp(0, images.length - 1)],
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[300],
@@ -466,22 +473,80 @@ class _PostCard extends StatelessWidget {
                 child: const Icon(Icons.pets, size: 100, color: Colors.grey),
               ),
 
+            // Zones de tap gauche/droite pour naviguer entre images
+            if (images.length > 1)
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    // Zone gauche - image précédente
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (_currentImageIndex > 0) {
+                            setState(() => _currentImageIndex--);
+                          }
+                        },
+                        child: Container(color: Colors.transparent),
+                      ),
+                    ),
+                    // Zone droite - image suivante
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (_currentImageIndex < images.length - 1) {
+                            setState(() => _currentImageIndex++);
+                          }
+                        },
+                        child: Container(color: Colors.transparent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Indicateurs de points (en haut)
+            if (images.length > 1)
+              Positioned(
+                top: 16,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(images.length, (index) {
+                    final isActive = index == _currentImageIndex;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: isActive ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
             // Gradient overlay
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.9),
-                    ],
+              child: IgnorePointer(
+                child: Container(
+                  height: 300,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                        Colors.black.withOpacity(0.9),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -492,66 +557,68 @@ class _PostCard extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            animalName,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (adoptedAt != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'ADOPTÉ',
-                              style: TextStyle(
-                                color: Colors.white,
+              child: IgnorePointer(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              animalName,
+                              style: const TextStyle(
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (adoptedAt != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'ADOPTÉ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if ([species, ageText, city].where((s) => s.isNotEmpty).isNotEmpty)
+                        Text(
+                          [species, ageText, city].where((s) => s.isNotEmpty).join(' • '),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white70,
                           ),
+                        ),
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.white,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    if ([species, ageText, city].where((s) => s.isNotEmpty).isNotEmpty)
-                      Text(
-                        [species, ageText, city].where((s) => s.isNotEmpty).join(' • '),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        description,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white,
-                        ),
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
