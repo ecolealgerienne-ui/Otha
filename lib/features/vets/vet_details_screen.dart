@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
-import '../bookings/booking_thanks_screen.dart';
 
 final _providerDetailsProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
@@ -315,7 +315,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                         petIds: [_selectedPetId!], // Envoyer l'animal sélectionné
                       );
 
-                      // ✅ Naviguer vers l'écran de remerciement
+                      // ✅ Naviguer vers l'écran de remerciement via GoRouter
                       if (mounted) {
                         final m = (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
                         final bookingData = <String, dynamic>{
@@ -323,12 +323,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                           ...m,
                         };
 
-                        // Remplacer cet écran par BookingThanksScreen
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => BookingThanksScreen(createdBooking: bookingData),
-                          ),
-                        );
+                        context.go('/booking/thanks', extra: bookingData);
                       }
                     } catch (e) {
                       if (mounted) {
