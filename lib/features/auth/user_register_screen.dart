@@ -29,16 +29,18 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   final _lastName  = TextEditingController();
   final _email     = TextEditingController();
   final _pass      = TextEditingController();
+  final _passConfirm = TextEditingController();
   final _phone     = TextEditingController();
 
   // UI
   int _step = 0; // 0: noms, 1: email/mdp/tel (register), 2: avatar (optionnel)
   bool _loading = false;
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _registered = false; // éviter de double-register
 
   // Erreurs
-  String? _errFirst, _errLast, _errEmail, _errPass, _errPhone;
+  String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone;
 
   // Avatar (étape 3)
   File? _avatarFile;
@@ -50,6 +52,7 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
     _lastName.dispose();
     _email.dispose();
     _pass.dispose();
+    _passConfirm.dispose();
     _phone.dispose();
     super.dispose();
   }
@@ -90,6 +93,13 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       } else if (step == 1) {
         _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
         _errPass  = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
+        if (_passConfirm.text.isEmpty) {
+          _errPassConfirm = 'Confirmation requise';
+        } else if (_passConfirm.text != _pass.text) {
+          _errPassConfirm = 'Les mots de passe ne correspondent pas';
+        } else {
+          _errPassConfirm = null;
+        }
         final phone = _phone.text.trim();
         if (phone.isEmpty) {
           _errPhone = 'Téléphone requis';
@@ -103,7 +113,7 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
-    if (step == 1) return _errEmail == null && _errPass == null && _errPhone == null;
+    if (step == 1) return _errEmail == null && _errPass == null && _errPassConfirm == null && _errPhone == null;
     return true;
   }
 
@@ -374,6 +384,21 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
               icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
             ),
             helperText: 'Min. 8 caractères, avec MAJUSCULE et minuscule',
+          ),
+        ),
+        const SizedBox(height: 12),
+        _label('Confirmer le mot de passe'),
+        TextField(
+          controller: _passConfirm,
+          obscureText: _obscureConfirm,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            isDense: true,
+            errorText: _errPassConfirm,
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+            ),
           ),
         ),
         const SizedBox(height: 12),
