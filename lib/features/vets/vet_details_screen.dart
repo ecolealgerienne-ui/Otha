@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
+import '../bookings/booking_thanks_screen.dart';
 
 final _providerDetailsProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
@@ -314,14 +315,20 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                         petIds: [_selectedPetId!], // Envoyer l'animal sélectionné
                       );
 
-                      // ✅ Renvoyer la création au caller pour qu’il annule l’ancien RDV
+                      // ✅ Naviguer vers l'écran de remerciement
                       if (mounted) {
                         final m = (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
-                        final id = (m['id'] ?? '').toString();
-                        Navigator.of(context).pop(<String, dynamic>{
-                          'id': id,
+                        final bookingData = <String, dynamic>{
+                          'id': (m['id'] ?? '').toString(),
                           ...m,
-                        });
+                        };
+
+                        // Remplacer cet écran par BookingThanksScreen
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => BookingThanksScreen(createdBooking: bookingData),
+                          ),
+                        );
                       }
                     } catch (e) {
                       if (mounted) {
