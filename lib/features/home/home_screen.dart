@@ -1717,6 +1717,7 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerStatefulWidget {
 class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirmedDaycareBookingBanner> {
   bool _isNearby = false;
   bool _checkingProximity = false;
+  bool _hasNotifiedPro = false; // Pour éviter de notifier plusieurs fois
   double? _distanceMeters;
   Timer? _proximityTimer;
   Map<String, dynamic>? _lastBooking;
@@ -1796,12 +1797,18 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
       _lastPosition = pos;
 
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
+      final isNearby = distance < 500; // Moins de 500m
 
       if (mounted) {
         setState(() {
           _distanceMeters = distance;
-          _isNearby = distance < 500; // Moins de 500m
+          _isNearby = isNearby;
         });
+
+        // ✅ Notifier automatiquement le pro quand le client est à proximité
+        if (isNearby && !_hasNotifiedPro) {
+          _notifyProOfProximity(booking, pos.latitude, pos.longitude);
+        }
       }
     } catch (e) {
       // Ignorer les erreurs de géolocalisation
@@ -1809,6 +1816,22 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
       if (mounted) {
         setState(() => _checkingProximity = false);
       }
+    }
+  }
+
+  /// Notifie le pro que le client est à proximité (appelé automatiquement)
+  Future<void> _notifyProOfProximity(Map<String, dynamic> booking, double lat, double lng) async {
+    final id = (booking['id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.notifyDaycareClientNearby(id, lat: lat, lng: lng);
+      if (mounted) {
+        setState(() => _hasNotifiedPro = true);
+      }
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
     }
   }
 
@@ -2114,6 +2137,7 @@ class _InProgressDaycareBookingBanner extends ConsumerStatefulWidget {
 class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDaycareBookingBanner> {
   bool _isNearby = false;
   bool _checkingProximity = false;
+  bool _hasNotifiedPro = false; // Pour éviter de notifier plusieurs fois
   double? _distanceMeters;
   Timer? _proximityTimer;
   Map<String, dynamic>? _lastBooking;
@@ -2177,12 +2201,18 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
       _lastPosition = pos;
 
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
+      final isNearby = distance < 500; // Moins de 500m
 
       if (mounted) {
         setState(() {
           _distanceMeters = distance;
-          _isNearby = distance < 500; // Moins de 500m
+          _isNearby = isNearby;
         });
+
+        // ✅ Notifier automatiquement le pro quand le client est à proximité pour le retrait
+        if (isNearby && !_hasNotifiedPro) {
+          _notifyProOfProximity(booking, pos.latitude, pos.longitude);
+        }
       }
     } catch (e) {
       // Ignorer les erreurs de géolocalisation
@@ -2190,6 +2220,22 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
       if (mounted) {
         setState(() => _checkingProximity = false);
       }
+    }
+  }
+
+  /// Notifie le pro que le client est à proximité pour le retrait (appelé automatiquement)
+  Future<void> _notifyProOfProximity(Map<String, dynamic> booking, double lat, double lng) async {
+    final id = (booking['id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.notifyDaycareClientNearby(id, lat: lat, lng: lng);
+      if (mounted) {
+        setState(() => _hasNotifiedPro = true);
+      }
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
     }
   }
 
