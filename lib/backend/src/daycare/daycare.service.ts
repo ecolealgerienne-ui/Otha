@@ -858,7 +858,6 @@ export class DaycareService {
           status: 'IN_PROGRESS',
           actualDropOff: now,
           dropConfirmationMethod: 'OTP',
-          proDropValidatedAt: now,
           dropOtpCode: null, // Effacer l'OTP utilisé
           dropOtpExpiresAt: null,
         },
@@ -890,7 +889,6 @@ export class DaycareService {
           status: 'COMPLETED',
           actualPickup: now,
           pickupConfirmationMethod: 'OTP',
-          proPickupValidatedAt: now,
           pickupOtpCode: null, // Effacer l'OTP utilisé
           pickupOtpExpiresAt: null,
         },
