@@ -144,6 +144,7 @@ export class ProvidersService {
         lng: true,
         specialties: true,
         bio: true,
+        avatarUrl: true,
       },
     });
 
