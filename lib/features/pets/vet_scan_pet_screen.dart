@@ -226,6 +226,17 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
       if (!mounted) return;
 
+      // ✅ Pour les bookings vétérinaires, naviguer vers le carnet médical
+      if (_bookingType == 'vet' && _petData != null && _scannedToken != null) {
+        final petId = _petData!['id']?.toString() ?? '';
+        if (petId.isNotEmpty) {
+          // Naviguer vers le carnet médical avec le flag de confirmation
+          context.go('/vet/pet/$petId/medical?token=$_scannedToken&confirmed=true');
+          return;
+        }
+      }
+
+      // Pour les daycare ou si pas de données pet, afficher un snackbar
       final message = _bookingType == 'daycare'
           ? '✅ Réception de l\'animal confirmée avec succès'
           : '✅ Rendez-vous confirmé avec succès';

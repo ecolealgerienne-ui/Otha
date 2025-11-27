@@ -1,4 +1,5 @@
 // lib/features/pets/pet_qr_code_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,11 +11,13 @@ import 'pet_medical_history_screen.dart';
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+const _green = Color(0xFF43AA8B);
 
 class PetQrCodeScreen extends ConsumerStatefulWidget {
   final String petId;
+  final String? bookingId; // Optionnel: si on veut suivre un booking spécifique
 
-  const PetQrCodeScreen({super.key, required this.petId});
+  const PetQrCodeScreen({super.key, required this.petId, this.bookingId});
 
   @override
   ConsumerState<PetQrCodeScreen> createState() => _PetQrCodeScreenState();
@@ -25,11 +28,106 @@ class _PetQrCodeScreenState extends ConsumerState<PetQrCodeScreen> {
   DateTime? _expiresAt;
   bool _isLoading = true;
   String? _error;
+  Timer? _pollTimer;
+  bool _bookingConfirmed = false;
 
   @override
   void initState() {
     super.initState();
     _generateToken();
+    // Démarrer le polling pour vérifier si le booking a été confirmé
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    // Vérifier toutes les 3 secondes si le booking a été confirmé
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _checkBookingStatus();
+    });
+  }
+
+  Future<void> _checkBookingStatus() async {
+    if (_bookingConfirmed) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      // Chercher un booking récemment complété pour ce pet
+      final booking = await api.findActiveBookingForPet(widget.petId);
+
+      // Si le booking est COMPLETED, ça veut dire que le vet vient de scanner
+      if (booking != null && booking['status'] == 'COMPLETED') {
+        setState(() => _bookingConfirmed = true);
+        _pollTimer?.cancel();
+        _showSuccessAndGoHome();
+      }
+    } catch (e) {
+      // Ignorer les erreurs de polling silencieusement
+      debugPrint('Polling error: $e');
+    }
+  }
+
+  void _showSuccessAndGoHome() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F5E9),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle, color: _green, size: 48),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Rendez-vous confirmé !',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Votre visite a été enregistrée avec succès',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                // Retourner au home et rafraîchir
+                context.go('/home');
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: _green,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('Retour à l\'accueil'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _generateToken() async {

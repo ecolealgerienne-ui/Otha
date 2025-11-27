@@ -652,6 +652,9 @@ class HomeScreen extends ConsumerWidget {
       if (!isPro) {
         _checkPendingAdoptions(context, ref);
         _checkPendingBookingConfirmations(context, ref);
+        // ✅ Rafraîchir les bookings à chaque affichage du home pour détecter les confirmations
+        ref.invalidate(nextConfirmedBookingProvider);
+        ref.invalidate(nextPendingBookingProvider);
       }
     });
 
@@ -984,10 +987,15 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
   @override
   void initState() {
     super.initState();
-    // Timer qui vérifie la proximité toutes les 30 secondes
+    // Timer qui vérifie la proximité et rafraîchit les données toutes les 30 secondes
     _proximityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_lastBooking != null && mounted && !_locationPermissionDenied) {
-        _checkProximity(_lastBooking!, forceRefresh: true);
+      if (mounted) {
+        // ✅ Rafraîchir les données de booking pour détecter les changements de statut
+        ref.invalidate(nextConfirmedBookingProvider);
+
+        if (_lastBooking != null && !_locationPermissionDenied) {
+          _checkProximity(_lastBooking!, forceRefresh: true);
+        }
       }
     });
   }

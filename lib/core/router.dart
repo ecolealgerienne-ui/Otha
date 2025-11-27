@@ -100,6 +100,7 @@ import '../features/pets/pet_medical_history_screen.dart';
 import '../features/pets/add_medical_record_screen.dart';
 import '../features/pets/pet_qr_code_screen.dart';
 import '../features/pets/vet_scan_pet_screen.dart';
+import '../features/pets/vet_pet_medical_screen.dart';
 import '../features/pets/pet_health_hub_screen.dart';
 import '../features/pets/pet_health_stats_screen.dart';
 import '../features/pets/pet_prescriptions_screen.dart';
@@ -437,6 +438,19 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           return AddMedicalRecordScreen(
             petId: st.pathParameters['petId']!,
             token: token,
+          );
+        },
+      ),
+      // Vet: voir le carnet médical d'un patient après scan QR
+      GoRoute(
+        path: '/vet/pet/:petId/medical',
+        builder: (ctx, st) {
+          final token = st.uri.queryParameters['token'] ?? '';
+          final confirmed = st.uri.queryParameters['confirmed'] == 'true';
+          return VetPetMedicalScreen(
+            petId: st.pathParameters['petId']!,
+            token: token,
+            bookingConfirmed: confirmed,
           );
         },
       ),
