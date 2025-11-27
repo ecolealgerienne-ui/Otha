@@ -874,8 +874,9 @@ export class BookingsService {
 
   /**
    * PRO confirme le booking (après scan QR ou manuellement)
+   * @param method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
    */
-  async proConfirmBooking(userId: string, bookingId: string) {
+  async proConfirmBooking(userId: string, bookingId: string, method: string = 'AUTO') {
     const prov = await this.prisma.providerProfile.findUnique({
       where: { userId },
       include: { user: { select: { firstName: true, lastName: true } } },
@@ -888,12 +889,13 @@ export class BookingsService {
     });
     if (!b) throw new NotFoundException('Booking not found');
 
-    // ✅ Marquer comme confirmé par le pro
+    // ✅ Marquer comme confirmé par le pro avec la méthode de confirmation
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
         proConfirmedAt: new Date(),
         status: 'COMPLETED',
+        confirmationMethod: method, // 'QR_SCAN', 'SIMPLE', 'AUTO', etc.
       },
     });
 
@@ -1506,5 +1508,193 @@ export class BookingsService {
       message: 'Votre confirmation a été envoyée au professionnel',
       status: 'PENDING_PRO_VALIDATION',
     };
+  }
+
+  // ============ ADMIN: Traçabilité par provider ============
+
+  /**
+   * Statistiques de traçabilité pour détecter les fraudes potentielles
+   * Calcule les taux d'annulation, confirmation, no-show par provider
+   */
+  async adminTraceabilityStats(opts: { from?: Date; to?: Date } = {}) {
+    const { from, to } = opts;
+
+    // Récupérer tous les providers approuvés
+    const providers = await this.prisma.providerProfile.findMany({
+      where: { isApproved: true },
+      select: {
+        id: true,
+        displayName: true,
+        userId: true,
+        user: { select: { email: true } },
+      },
+    });
+
+    // Pour chaque provider, calculer les stats de booking
+    const stats = await Promise.all(
+      providers.map(async (provider) => {
+        const where: Prisma.BookingWhereInput = {
+          providerId: provider.id,
+          ...(from || to
+            ? { scheduledAt: { gte: from ?? undefined, lt: to ?? undefined } }
+            : {}),
+        };
+
+        // Compter les bookings par statut
+        const [
+          totalBookings,
+          pending,
+          confirmed,
+          completed,
+          cancelledByPro,
+          cancelledByUser,
+          cancelled,
+          expired,
+          disputed,
+          pendingProValidation,
+          awaitingConfirmation,
+        ] = await Promise.all([
+          this.prisma.booking.count({ where }),
+          this.prisma.booking.count({ where: { ...where, status: 'PENDING' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'CONFIRMED' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'COMPLETED' } }),
+          // Annulés par le pro (après confirmation client)
+          this.prisma.booking.count({
+            where: {
+              ...where,
+              status: 'CANCELLED',
+              clientConfirmedAt: { not: null },
+              proConfirmedAt: null,
+            },
+          }),
+          // Annulés par l'utilisateur
+          this.prisma.booking.count({
+            where: {
+              ...where,
+              status: 'CANCELLED',
+              clientConfirmedAt: null,
+            },
+          }),
+          this.prisma.booking.count({ where: { ...where, status: 'CANCELLED' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'EXPIRED' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'DISPUTED' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'PENDING_PRO_VALIDATION' } }),
+          this.prisma.booking.count({ where: { ...where, status: 'AWAITING_CONFIRMATION' } }),
+        ]);
+
+        // Calculer les bookings avec OTP vérifié vs non vérifié
+        const otpVerified = await this.prisma.booking.count({
+          where: {
+            ...where,
+            status: 'COMPLETED',
+            confirmationMethod: 'OTP',
+          },
+        });
+
+        const qrVerified = await this.prisma.booking.count({
+          where: {
+            ...where,
+            status: 'COMPLETED',
+            confirmationMethod: 'QR_SCAN',
+          },
+        });
+
+        const simpleConfirm = await this.prisma.booking.count({
+          where: {
+            ...where,
+            status: 'COMPLETED',
+            confirmationMethod: 'SIMPLE',
+          },
+        });
+
+        // Bookings complétés SANS méthode de confirmation (suspect)
+        const completedWithoutConfirmation = await this.prisma.booking.count({
+          where: {
+            ...where,
+            status: 'COMPLETED',
+            confirmationMethod: null,
+          },
+        });
+
+        // Calcul des taux
+        const cancellationRate = totalBookings > 0
+          ? Math.round((cancelled / totalBookings) * 100)
+          : 0;
+
+        const completionRate = totalBookings > 0
+          ? Math.round((completed / totalBookings) * 100)
+          : 0;
+
+        const proCancellationRate = totalBookings > 0
+          ? Math.round((cancelledByPro / totalBookings) * 100)
+          : 0;
+
+        const verificationRate = completed > 0
+          ? Math.round(((otpVerified + qrVerified) / completed) * 100)
+          : 0;
+
+        // Alerte si taux d'annulation pro > 15% ou completion < 50%
+        const isSuspicious = proCancellationRate > 15 ||
+          (totalBookings > 5 && completionRate < 50) ||
+          completedWithoutConfirmation > 3;
+
+        return {
+          providerId: provider.id,
+          providerName: provider.displayName,
+          email: provider.user.email,
+
+          // Compteurs bruts
+          totalBookings,
+          pending,
+          confirmed,
+          completed,
+          cancelled,
+          cancelledByPro,
+          cancelledByUser,
+          expired,
+          disputed,
+          pendingProValidation,
+          awaitingConfirmation,
+
+          // Méthodes de confirmation
+          otpVerified,
+          qrVerified,
+          simpleConfirm,
+          completedWithoutConfirmation,
+
+          // Taux en %
+          cancellationRate,
+          completionRate,
+          proCancellationRate,
+          verificationRate,
+
+          // Alerte
+          isSuspicious,
+        };
+      }),
+    );
+
+    // Trier par taux d'annulation pro décroissant (les plus suspects en premier)
+    stats.sort((a, b) => b.proCancellationRate - a.proCancellationRate);
+
+    // Calculs globaux
+    const global = {
+      totalProviders: stats.length,
+      suspiciousCount: stats.filter((s) => s.isSuspicious).length,
+      totalBookings: stats.reduce((sum, s) => sum + s.totalBookings, 0),
+      totalCompleted: stats.reduce((sum, s) => sum + s.completed, 0),
+      totalCancelled: stats.reduce((sum, s) => sum + s.cancelled, 0),
+      totalCancelledByPro: stats.reduce((sum, s) => sum + s.cancelledByPro, 0),
+      totalOtpVerified: stats.reduce((sum, s) => sum + s.otpVerified, 0),
+      totalQrVerified: stats.reduce((sum, s) => sum + s.qrVerified, 0),
+      avgCancellationRate: stats.length > 0
+        ? Math.round(stats.reduce((sum, s) => sum + s.cancellationRate, 0) / stats.length)
+        : 0,
+      avgCompletionRate: stats.length > 0
+        ? Math.round(stats.reduce((sum, s) => sum + s.completionRate, 0) / stats.length)
+        : 0,
+    };
+
+    return { global, providers: stats };
   }
 }

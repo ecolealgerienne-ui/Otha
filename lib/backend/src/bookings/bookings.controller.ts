@@ -261,7 +261,23 @@ export class BookingsController {
     return this.svc.adminUncollectMonth(body.month, body.providerId);
   }
 
-  /** PRO/ADMIN: changer le statut d’une résa qui m’appartient */
+  /**
+   * ADMIN: Statistiques de traçabilité par provider
+   * Calcule les taux d'annulation, confirmation, vérification OTP/QR
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/traceability')
+  adminTraceability(
+    @Query('from') fromQ?: string,
+    @Query('to') toQ?: string,
+  ) {
+    const from = fromQ ? this.parseWhen(fromQ) ?? undefined : undefined;
+    const to = toQ ? this.parseWhen(toQ) ?? undefined : undefined;
+    return this.svc.adminTraceabilityStats({ from, to });
+  }
+
+  /** PRO/ADMIN: changer le statut d'une résa qui m'appartient */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO', 'ADMIN')
   @Patch(':id/provider-status')
@@ -331,12 +347,18 @@ export class BookingsController {
   /**
    * PRO confirme un booking (après scan QR ou manuellement)
    * POST /bookings/:id/pro-confirm
+   * @body method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO', 'ADMIN')
   @Post(':id/pro-confirm')
-  proConfirmBooking(@Req() req: any, @Param('id') id: string) {
-    return this.svc.proConfirmBooking(req.user.sub, id);
+  proConfirmBooking(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body?: { method?: string },
+  ) {
+    const method = body?.method || 'AUTO';
+    return this.svc.proConfirmBooking(req.user.sub, id, method);
   }
 
   /**

@@ -282,6 +282,17 @@ class _AdminHubScreenState extends ConsumerState<AdminHubScreen> {
                             MaterialPageRoute(builder: (_) => const AdminAdoptPostsPage()),
                           ),
                         ),
+                        const SizedBox(height: 12),
+
+                        // Traçabilité (anti-fraude)
+                        StatBox(
+                          label: 'Traçabilité',
+                          value: null,
+                          icon: Icons.security,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AdminTraceabilityPage()),
+                          ),
+                        ),
                         const SizedBox(height: 20),
 
                         // Statistiques globales

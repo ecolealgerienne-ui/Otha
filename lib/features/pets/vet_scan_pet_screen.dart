@@ -220,7 +220,8 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
       if (_bookingType == 'daycare') {
         await api.confirmDaycareDropOff(bookingId);
       } else {
-        await api.proConfirmBooking(bookingId);
+        // ✅ Passer method='QR_SCAN' pour la traçabilité
+        await api.proConfirmBooking(bookingId, method: 'QR_SCAN');
       }
 
       if (!mounted) return;

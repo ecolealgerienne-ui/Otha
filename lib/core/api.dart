@@ -2490,6 +2490,19 @@ Future<Map<String, dynamic>> adminCommissionSummary() async {
   return {'totalDueMonthDa': due, 'totalCollectedMonthDa': coll};
 }
 
+/// Admin: Statistiques de traçabilité par provider (taux d'annulation, confirmation, etc.)
+Future<Map<String, dynamic>> adminTraceabilityStats({String? from, String? to}) async {
+  await ensureAuth();
+  final params = <String, String>{};
+  if (from != null) params['from'] = from;
+  if (to != null) params['to'] = to;
+  final res = await _authRetry(() async => await _dio.get(
+    '/bookings/admin/traceability',
+    queryParameters: params.isEmpty ? null : params,
+  ));
+  return _unwrap<Map<String, dynamic>>(res.data, map: (d) => Map<String, dynamic>.from(d as Map));
+}
+
 // ---------------- Re-soumettre candidature (PRO) ----------------
 Future<Map<String, dynamic>> reapplyMyProvider() async {
   await ensureAuth();
@@ -3115,9 +3128,13 @@ final hay = [
     }
   }
 
-  /// PRO confirme un booking (après scan QR)
-  Future<Map<String, dynamic>> proConfirmBooking(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/pro-confirm'));
+  /// PRO confirme un booking (après scan QR ou manuellement)
+  /// @param method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
+  Future<Map<String, dynamic>> proConfirmBooking(String bookingId, {String method = 'AUTO'}) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/pro-confirm',
+      data: {'method': method},
+    ));
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return Map<String, dynamic>.from(data as Map);
   }
