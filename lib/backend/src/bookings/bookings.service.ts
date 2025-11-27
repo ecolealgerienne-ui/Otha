@@ -43,7 +43,8 @@ export class BookingsService {
         id: true,
         status: true,
         scheduledAt: true,
-        providerId: true, // ✅ important pour activer “Modifier”
+        providerId: true, // ✅ important pour activer "Modifier"
+        petIds: true, // ✅ IDs des animaux associés au RDV
         provider: {
           select: {
             id: true,
@@ -66,30 +67,50 @@ export class BookingsService {
       },
     });
 
-    return rows.map((b) => ({
-      id: b.id,
-      status: b.status,
-      scheduledAt: b.scheduledAt.toISOString(),
-      providerId: b.providerId, // ✅ top-level direct
-      provider: {
-        id: b.provider?.id ?? b.providerId,
-        displayName: b.provider?.displayName ?? '',
-        address: b.provider?.address ?? null,
-        lat: b.provider?.lat ?? null,
-        lng: b.provider?.lng ?? null,
-        specialties: b.provider?.specialties ?? null,
-      },
-      service: {
-        id: b.service.id,
-        title: b.service.title,
-        durationMin: b.service.durationMin,
-        price:
-          b.service.price == null
-            ? null
-            : (b.service.price as Prisma.Decimal).toNumber(),
-        providerId: b.service.providerId,
-      },
-    }));
+    // ✅ Récupérer les infos des animaux pour chaque booking
+    const allPetIds = [...new Set(rows.flatMap(b => b.petIds || []))];
+    const pets = allPetIds.length > 0
+      ? await this.prisma.pet.findMany({
+          where: { id: { in: allPetIds } },
+          select: { id: true, name: true, species: true, breed: true },
+        })
+      : [];
+    const petsMap = new Map(pets.map(p => [p.id, p]));
+
+    return rows.map((b) => {
+      // Récupérer les infos des animaux de ce booking
+      const bookingPets = (b.petIds || [])
+        .map(id => petsMap.get(id))
+        .filter(Boolean);
+
+      return {
+        id: b.id,
+        status: b.status,
+        scheduledAt: b.scheduledAt.toISOString(),
+        providerId: b.providerId, // ✅ top-level direct
+        petIds: b.petIds || [], // ✅ Liste des IDs d'animaux
+        pet: bookingPets[0] || null, // ✅ Premier animal (rétro-compatibilité)
+        pets: bookingPets, // ✅ Tous les animaux
+        provider: {
+          id: b.provider?.id ?? b.providerId,
+          displayName: b.provider?.displayName ?? '',
+          address: b.provider?.address ?? null,
+          lat: b.provider?.lat ?? null,
+          lng: b.provider?.lng ?? null,
+          specialties: b.provider?.specialties ?? null,
+        },
+        service: {
+          id: b.service.id,
+          title: b.service.title,
+          durationMin: b.service.durationMin,
+          price:
+            b.service.price == null
+              ? null
+              : (b.service.price as Prisma.Decimal).toNumber(),
+          providerId: b.service.providerId,
+        },
+      };
+    });
   }
 
   /** --------- Client: changer mon statut (ex: annuler) --------- */

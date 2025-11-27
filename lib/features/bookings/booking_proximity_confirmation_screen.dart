@@ -187,9 +187,28 @@ class _BookingProximityConfirmationScreenState
   /// Aller au scan QR
   void _goToQrScan() {
     // Naviguer vers l'écran de QR code de l'animal
+    // Essayer plusieurs chemins possibles pour trouver le petId
+    String? petId;
+
+    // 1. petIds (nouveau format - liste)
     final petIds = widget.bookingData?['petIds'] as List?;
     if (petIds != null && petIds.isNotEmpty) {
-      context.push('/pets/${petIds.first}/qr');
+      petId = petIds.first?.toString();
+    }
+
+    // 2. pet.id (format avec objet pet)
+    if (petId == null) {
+      final pet = widget.bookingData?['pet'] as Map<String, dynamic>?;
+      petId = pet?['id']?.toString();
+    }
+
+    // 3. petId (format simple)
+    if (petId == null) {
+      petId = widget.bookingData?['petId']?.toString();
+    }
+
+    if (petId != null && petId.isNotEmpty) {
+      context.push('/pets/$petId/qr');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

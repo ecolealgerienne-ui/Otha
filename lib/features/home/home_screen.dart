@@ -964,6 +964,7 @@ class _OscillatingCategoriesState extends State<_OscillatingCategories> {
 
 /// -------------------- Bandeau RDV confirmé (tap => page détails) --------------------
 /// Affiche aussi un bouton "Confirmer ma présence" si le client est à proximité
+/// Vérifie la proximité automatiquement toutes les 30 secondes
 class _NextConfirmedBanner extends ConsumerStatefulWidget {
   const _NextConfirmedBanner({super.key});
   @override
@@ -974,6 +975,26 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
   bool _isNearby = false;
   bool _checkingProximity = false;
   double? _distanceMeters;
+  Timer? _proximityTimer;
+  Map<String, dynamic>? _lastBooking;
+  Position? _lastPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    // Timer qui vérifie la proximité toutes les 30 secondes
+    _proximityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_lastBooking != null && mounted) {
+        _checkProximity(_lastBooking!, forceRefresh: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _proximityTimer?.cancel();
+    super.dispose();
+  }
 
   String _serviceName(Map<String, dynamic> m) {
     final s = m['service'];
@@ -984,24 +1005,8 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
     return 'Rendez-vous';
   }
 
-  /// Calcule la distance entre deux points GPS (formule Haversine)
-  double _haversineDistance(double lat1, double lng1, double lat2, double lng2) {
-    const R = 6371000.0; // Rayon de la Terre en mètres
-    final dLat = (lat2 - lat1) * 3.141592653589793 / 180;
-    final dLng = (lng2 - lng1) * 3.141592653589793 / 180;
-    final a = (1 - (dLat).abs().clamp(0, 1) > 0 ? 1 : 0) *
-            (dLat / 2).abs() *
-            (dLat / 2).abs() +
-        (lat1 * 3.141592653589793 / 180).abs().clamp(0, 1) *
-            (lat2 * 3.141592653589793 / 180).abs().clamp(0, 1) *
-            (dLng / 2).abs() *
-            (dLng / 2).abs();
-    // Simplified: use Geolocator.distanceBetween instead
-    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
-  }
-
   /// Vérifie si l'utilisateur est à proximité du cabinet (< 500m)
-  Future<void> _checkProximity(Map<String, dynamic> booking) async {
+  Future<void> _checkProximity(Map<String, dynamic> booking, {bool forceRefresh = false}) async {
     if (_checkingProximity) return;
 
     // Vérifier si le RDV est dans les prochaines 2h ou commencé depuis moins de 1h
@@ -1046,16 +1051,25 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
         desiredAccuracy: LocationAccuracy.medium,
       );
 
+      _lastPosition = position;
+
       final distance = Geolocator.distanceBetween(
         position.latitude, position.longitude,
         provLat, provLng,
       );
 
+      final wasNearby = _isNearby;
+      final isNowNearby = distance <= 500;
+
       if (mounted) {
         setState(() {
           _distanceMeters = distance;
-          _isNearby = distance <= 500; // 500 mètres
+          _isNearby = isNowNearby;
         });
+
+        // TODO: Intégrer Firebase pour envoyer une notification push quand
+        // l'utilisateur entre dans la zone de proximité (wasNearby = false, isNowNearby = true)
+        // Pour l'instant, le bandeau se met à jour automatiquement
       }
     } catch (e) {
       // Ignorer les erreurs de géolocalisation
@@ -1080,8 +1094,18 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
       data: (m) {
         if (m == null) return const SizedBox.shrink();
 
+        // Sauvegarder le booking pour les vérifications périodiques
+        _lastBooking = m;
+
         // Vérifier la proximité si on a la position de l'utilisateur
-        if (userPos != null && !_checkingProximity && _distanceMeters == null) {
+        // Ou si la position a changé significativement
+        final posChanged = userPos != null && _lastPosition != null &&
+            Geolocator.distanceBetween(
+              userPos.latitude, userPos.longitude,
+              _lastPosition!.latitude, _lastPosition!.longitude,
+            ) > 50; // Plus de 50m de différence
+
+        if (userPos != null && !_checkingProximity && (_distanceMeters == null || posChanged)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _checkProximity(m);
           });
