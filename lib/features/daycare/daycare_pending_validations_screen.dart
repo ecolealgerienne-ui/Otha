@@ -1,17 +1,17 @@
-// lib/features/pro/pro_daycare_pending_validations_screen.dart
+// lib/features/daycare/daycare_pending_validations_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
-import 'pro_home_screen.dart'; // Pour accéder au pendingDaycareValidationsProvider
+import 'daycare_home_screen.dart'; // Pour accéder au pendingDaycareValidationsProvider
 
 const _green = Color(0xFF22C55E);
 const _greenSoft = Color(0xFFE8F5E9);
 
-class ProDaycarePendingValidationsScreen extends ConsumerWidget {
-  const ProDaycarePendingValidationsScreen({super.key});
+class DaycarePendingValidationsScreen extends ConsumerWidget {
+  const DaycarePendingValidationsScreen({super.key});
 
   Future<void> _validateBooking(
     BuildContext context,

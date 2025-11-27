@@ -44,8 +44,8 @@ import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
 import '../features/pro/pro_pending_validations_screen.dart';
-import '../features/pro/pro_daycare_pending_validations_screen.dart';
 import '../features/pro/pro_verify_otp_screen.dart';
+import '../features/daycare/daycare_pending_validations_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
 import '../features/petshop/petshop_product_edit_screen.dart';
@@ -560,6 +560,10 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => const MyDaycareBookingsScreen(),
       ),
       GoRoute(
+        path: '/daycare/pending-validations',
+        builder: (ctx, st) => const DaycarePendingValidationsScreen(),
+      ),
+      GoRoute(
         path: '/daycare/booking-details',
         builder: (ctx, st) {
           final booking = st.extra as Map<String, dynamic>;
@@ -719,10 +723,6 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/pending-validations',
             builder: (_, __) => const ProPendingValidationsScreen(),
-          ),
-          GoRoute(
-            path: '/pro/daycare-pending-validations',
-            builder: (_, __) => const ProDaycarePendingValidationsScreen(),
           ),
           GoRoute(
             path: '/pro/verify-otp/:bookingId',
