@@ -173,13 +173,16 @@ export class BookingsController {
 
   /** Client: créer une réservation */
   @Post()
-  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any }) {
+  async create(@Req() req: any, @Body() body: { serviceId: string; scheduledAt: any; petIds?: string[] }) {
     if (!body?.serviceId || body?.scheduledAt == null) {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
+
+    // Valider les petIds si fournis
+    const petIds = Array.isArray(body.petIds) ? body.petIds.filter(id => typeof id === 'string' && id.length > 0) : [];
 
     // transaction + re-check
     return this.prisma.$transaction(async (tx) => {
@@ -197,6 +200,7 @@ export class BookingsController {
           providerId: service.providerId,
           scheduledAt: when, // UTC côté DB
           status: 'PENDING',
+          petIds, // IDs des animaux concernés
         },
       });
     }, { isolationLevel: 'Serializable' });
@@ -257,7 +261,23 @@ export class BookingsController {
     return this.svc.adminUncollectMonth(body.month, body.providerId);
   }
 
-  /** PRO/ADMIN: changer le statut d’une résa qui m’appartient */
+  /**
+   * ADMIN: Statistiques de traçabilité par provider
+   * Calcule les taux d'annulation, confirmation, vérification OTP/QR
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/traceability')
+  adminTraceability(
+    @Query('from') fromQ?: string,
+    @Query('to') toQ?: string,
+  ) {
+    const from = fromQ ? this.parseWhen(fromQ) ?? undefined : undefined;
+    const to = toQ ? this.parseWhen(toQ) ?? undefined : undefined;
+    return this.svc.adminTraceabilityStats({ from, to });
+  }
+
+  /** PRO/ADMIN: changer le statut d'une résa qui m'appartient */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO', 'ADMIN')
   @Patch(':id/provider-status')
@@ -299,7 +319,7 @@ export class BookingsController {
     return this.svc.myEarnings(req.user.sub, month);
   }
 
-  /** PRO: historique mensuel normalisé (pour l’écran Pro) */
+  /** PRO: historique mensuel normalisé (pour l'écran Pro) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO','ADMIN')
   @Get('provider/me/history/monthly')
@@ -308,6 +328,201 @@ export class BookingsController {
     return this.svc.providerHistoryMonthly(
       req.user.sub,
       Number.isFinite(n) ? n : 12,
+    );
+  }
+
+  // ==================== NOUVEAU: Endpoints Système de Confirmation ====================
+
+  /**
+   * Chercher un booking actif pour un pet (pour le scan QR vet)
+   * GET /bookings/active-for-pet/:petId
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('active-for-pet/:petId')
+  findActiveBookingForPet(@Param('petId') petId: string) {
+    return this.svc.findActiveBookingForPet(petId);
+  }
+
+  /**
+   * PRO confirme un booking (après scan QR ou manuellement)
+   * POST /bookings/:id/pro-confirm
+   * @body method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-confirm')
+  proConfirmBooking(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body?: { method?: string },
+  ) {
+    const method = body?.method || 'AUTO';
+    return this.svc.proConfirmBooking(req.user.sub, id, method);
+  }
+
+  /**
+   * CLIENT demande confirmation (via popup avis)
+   * POST /bookings/:id/client-confirm
+   */
+  @Post(':id/client-confirm')
+  clientRequestConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    if (!body?.rating || body.rating < 1 || body.rating > 5) {
+      throw new BadRequestException('rating must be between 1 and 5');
+    }
+    return this.svc.clientRequestConfirmation(
+      req.user.sub,
+      id,
+      body.rating,
+      body.comment,
+    );
+  }
+
+  /**
+   * CLIENT dit "je n'y suis pas allé"
+   * POST /bookings/:id/client-cancel
+   */
+  @Post(':id/client-cancel')
+  clientCancelBooking(@Req() req: any, @Param('id') id: string) {
+    return this.svc.clientCancelBooking(req.user.sub, id);
+  }
+
+  /**
+   * PRO valide ou refuse la confirmation client
+   * POST /bookings/:id/pro-validate
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/pro-validate')
+  proValidateClientConfirmation(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approved: boolean },
+  ) {
+    if (typeof body?.approved !== 'boolean') {
+      throw new BadRequestException('approved must be a boolean');
+    }
+    return this.svc.proValidateClientConfirmation(req.user.sub, id, body.approved);
+  }
+
+  /**
+   * PRO: liste des bookings en attente de validation
+   * GET /bookings/provider/me/pending-validations
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('provider/me/pending-validations')
+  getPendingValidations(@Req() req: any) {
+    return this.svc.getPendingValidations(req.user.sub);
+  }
+
+  /**
+   * ADMIN/CRON: Cron job pour checker les grace periods
+   * POST /bookings/admin/check-grace-periods
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/check-grace-periods')
+  checkGracePeriods() {
+    return this.svc.checkGracePeriods();
+  }
+
+  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
+
+  /**
+   * CLIENT: Récupérer son code OTP (le génère si nécessaire)
+   * GET /bookings/:id/otp
+   */
+  @Get(':id/otp')
+  getBookingOtp(@Req() req: any, @Param('id') id: string) {
+    return this.svc.getBookingOtp(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT: Générer un nouveau code OTP
+   * POST /bookings/:id/otp/generate
+   */
+  @Post(':id/otp/generate')
+  generateBookingOtp(@Req() req: any, @Param('id') id: string) {
+    return this.svc.generateBookingOtp(req.user.sub, id);
+  }
+
+  /**
+   * PRO: Vérifier le code OTP donné par le client
+   * POST /bookings/:id/otp/verify
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/otp/verify')
+  verifyBookingOtp(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { otp: string },
+  ) {
+    if (!body?.otp || typeof body.otp !== 'string') {
+      throw new BadRequestException('otp is required');
+    }
+    return this.svc.verifyBookingOtpByPro(req.user.sub, id, body.otp);
+  }
+
+  // ==================== CHECK-IN GÉOLOCALISÉ ====================
+
+  /**
+   * CLIENT: Vérifier s'il est proche du cabinet (pour afficher page confirmation)
+   * POST /bookings/:id/check-proximity
+   */
+  @Post(':id/check-proximity')
+  checkProximity(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number },
+  ) {
+    if (typeof body?.lat !== 'number' || typeof body?.lng !== 'number') {
+      throw new BadRequestException('lat and lng are required');
+    }
+    return this.svc.checkProximity(req.user.sub, id, body.lat, body.lng);
+  }
+
+  /**
+   * CLIENT: Faire check-in (enregistre position GPS)
+   * POST /bookings/:id/checkin
+   */
+  @Post(':id/checkin')
+  clientCheckin(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number },
+  ) {
+    if (typeof body?.lat !== 'number' || typeof body?.lng !== 'number') {
+      throw new BadRequestException('lat and lng are required');
+    }
+    return this.svc.clientCheckin(req.user.sub, id, body.lat, body.lng);
+  }
+
+  /**
+   * CLIENT: Confirmer avec une méthode spécifique
+   * POST /bookings/:id/confirm-with-method
+   */
+  @Post(':id/confirm-with-method')
+  clientConfirmWithMethod(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { method: 'SIMPLE' | 'OTP' | 'QR_SCAN'; rating?: number; comment?: string },
+  ) {
+    const validMethods = ['SIMPLE', 'OTP', 'QR_SCAN'];
+    if (!body?.method || !validMethods.includes(body.method)) {
+      throw new BadRequestException('method must be SIMPLE, OTP, or QR_SCAN');
+    }
+    return this.svc.clientConfirmWithMethod(
+      req.user.sub,
+      id,
+      body.method,
+      body.rating,
+      body.comment,
     );
   }
 }

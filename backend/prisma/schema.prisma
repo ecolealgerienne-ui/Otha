@@ -19,6 +19,10 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+  AWAITING_CONFIRMATION
+  PENDING_PRO_VALIDATION
+  DISPUTED
+  EXPIRED
 }
 
 enum Gender {
@@ -38,6 +42,7 @@ enum AdoptStatus {
   APPROVED
   REJECTED
   ARCHIVED
+  ADOPTED
 }
 
 enum AdoptAction {
@@ -54,10 +59,13 @@ enum AdoptRequestStatus {
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
-  password  String
+  password  String? // Optionnel si Google OAuth
   role      Role    @default(USER)
   firstName String?
   lastName  String?
+
+  // OAuth
+  googleId  String? @unique // Google OAuth ID
 
   // Contact / profil
   phone    String? @unique
@@ -75,6 +83,7 @@ model User {
   refreshTokens   RefreshToken[]
   pets            Pet[]
   orders          Order[]
+  daycareBookings DaycareBooking[]
 
   // Adoption (nouvelle implémentation)
   adoptPosts             AdoptPost[]
@@ -109,11 +118,16 @@ model ProviderProfile {
   address     String?
   specialties Json?
   timezone    String?
+  avatarUrl   String?   // Photo de profil du provider
 
   isApproved      Boolean   @default(false)
   appliedAt       DateTime  @default(now())
   rejectedAt      DateTime?
   rejectionReason String?
+
+  // Documents vétérinaires (carte AVN)
+  avnCardFront    String?   // URL de la carte AVN recto
+  avnCardBack     String?   // URL de la carte AVN verso
 
   user     User                   @relation(fields: [userId], references: [id])
   services Service[]
@@ -122,10 +136,11 @@ model ProviderProfile {
   timeOffs ProviderTimeOff[]
 
   // Back-relations
-  earnings    ProviderEarning[]
-  collections AdminCollection[]
-  products    Product[]
-  orders      Order[]
+  earnings        ProviderEarning[]
+  collections     AdminCollection[]
+  products        Product[]
+  orders          Order[]
+  daycareBookings DaycareBooking[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -190,6 +205,33 @@ model Booking {
   scheduledAt DateTime
   createdAt   DateTime      @default(now())
 
+  // Champs spécifiques pour les garderies
+  petIds       String[]  @default([])  // IDs des animaux concernés
+  clientNotes  String?                 // Notes du client
+  endDate      DateTime?               // Date de fin (pour réservations journalières)
+  commissionDa Int?                    // Commission en DA
+
+  // Système de confirmation RDV
+  gracePeriodEndsAt    DateTime? // Fin de la période de grâce (48h après scheduledAt)
+  clientConfirmedAt    DateTime? // Quand le client a confirmé
+  proConfirmedAt       DateTime? // Quand le pro a confirmé (scan QR ou validation manuelle)
+  proResponseDeadline  DateTime? // Deadline pour validation pro (72h après clientConfirmedAt)
+  cancellationReason   String?   // Raison d'annulation
+  disputeNote          String?   // Note du litige (si DISPUTED)
+
+  // Système OTP de confirmation (code 6 chiffres)
+  confirmationOtp          String?   // Code OTP 6 chiffres
+  confirmationOtpExpiresAt DateTime? // Expiration de l'OTP (10 min après génération)
+  confirmationOtpAttempts  Int       @default(0) // Nombre de tentatives
+
+  // Check-in géolocalisé (preuve que le client était au cabinet)
+  checkinAt  DateTime? // Quand le client a fait check-in
+  checkinLat Float?    // Latitude du check-in
+  checkinLng Float?    // Longitude du check-in
+
+  // Méthode de confirmation utilisée
+  confirmationMethod String? // 'SIMPLE' | 'OTP' | 'QR_SCAN' | 'AUTO'
+
   user     User            @relation(fields: [userId], references: [id])
   provider ProviderProfile @relation(fields: [providerId], references: [id])
   service  Service         @relation(fields: [serviceId], references: [id])
@@ -200,6 +242,7 @@ model Booking {
 
   @@index([providerId, scheduledAt])
   @@index([userId, scheduledAt])
+  @@index([status, gracePeriodEndsAt])
 }
 
 model Review {
@@ -208,12 +251,14 @@ model Review {
   userId    String
   rating    Int
   comment   String?
+  isPending Boolean  @default(false) // Avis en attente (créé lors de la confirmation client)
   createdAt DateTime @default(now())
 
   booking Booking @relation(fields: [bookingId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([isPending])
 }
 
 model Pet {
@@ -238,14 +283,16 @@ model Pet {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  owner          User              @relation(fields: [ownerId], references: [id])
-  medicalRecords MedicalRecord[]
-  accessTokens   PetAccessToken[]
-  weightRecords  WeightRecord[]
-  vaccinations   Vaccination[]
-  treatments     Treatment[]
-  allergies      Allergy[]
-  preventiveCare PreventiveCare[]
+  owner            User                @relation(fields: [ownerId], references: [id])
+  medicalRecords   MedicalRecord[]
+  accessTokens     PetAccessToken[]
+  weightRecords    WeightRecord[]
+  vaccinations     Vaccination[]
+  treatments       Treatment[]
+  allergies        Allergy[]
+  preventiveCare   PreventiveCare[]
+  diseaseTrackings DiseaseTracking[]
+  daycareBookings  DaycareBooking[]
 
   @@index([ownerId])
 }
@@ -295,6 +342,7 @@ model Treatment {
   endDate     DateTime?
   isActive    Boolean   @default(true)
   notes       String?
+  attachments String[]  // URLs des images d'ordonnances
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -337,17 +385,82 @@ model PreventiveCare {
   @@index([petId, nextDueDate])
 }
 
+// Suivi de maladie avec photos et évolution
+model DiseaseTracking {
+  id          String   @id @default(cuid())
+  petId       String
+  name        String   // Nom de la maladie (ex: "Allergie cutanée", "Otite")
+  description String?  // Description de la maladie
+  status      String   // ONGOING (en cours), CURED (guérie), CHRONIC (chronique), MONITORING (surveillance)
+  severity    String?  // MILD (légère), MODERATE (modérée), SEVERE (sévère)
+
+  // Dates importantes
+  diagnosisDate DateTime  // Date du diagnostic
+  curedDate     DateTime? // Date de guérison (si applicable)
+
+  // Informations médicales
+  vetId       String?  // Vétérinaire qui a diagnostiqué
+  vetName     String?
+  symptoms    String?  // Symptômes observés
+  treatment   String?  // Traitement en cours
+
+  // Suivi avec photos
+  images      String[] // URLs des photos (échographies, radios, photos progression)
+
+  // Notes d'évolution
+  notes       String?  @db.Text // Notes détaillées sur l'évolution
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  // Entrées d'évolution (timeline)
+  progressEntries DiseaseProgressEntry[]
+
+  @@index([petId, status])
+  @@index([petId, diagnosisDate])
+}
+
+// Entrées de progression pour une maladie (timeline)
+model DiseaseProgressEntry {
+  id              String   @id @default(cuid())
+  diseaseId       String
+  date            DateTime
+  notes           String   @db.Text // Notes sur l'évolution à cette date
+  images          String[] // Photos spécifiques à cette entrée
+  severity        String?  // Sévérité à ce moment (peut changer)
+  treatmentUpdate String?  // Mise à jour du traitement
+  createdAt       DateTime @default(now())
+
+  disease DiseaseTracking @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+
+  @@index([diseaseId, date])
+}
+
 model MedicalRecord {
   id          String   @id @default(cuid())
   petId       String
-  type        String   // VACCINATION, SURGERY, CHECKUP, TREATMENT, MEDICATION, OTHER
+  type        String   // VACCINATION, SURGERY, CHECKUP, TREATMENT, MEDICATION, VET_VISIT, DAYCARE_VISIT, OTHER
   title       String
   description String?
   date        DateTime
   vetId       String?  // Provider ID du vétérinaire (optionnel)
-  vetName     String?  // Nom du vétérinaire
+  vetName     String?  // Nom du vétérinaire/garderie
   notes       String?
   images      String[] // URLs des images (radios, ordonnances, etc.)
+
+  // 🔗 Lien avec les bookings (pour historique automatique)
+  bookingId         String? // ID du booking vétérinaire (si créé par scan QR)
+  daycareBookingId  String? // ID du booking garderie (si créé par scan QR)
+  providerType      String? // VET ou DAYCARE (pour différencier l'origine)
+  durationMinutes   Int?    // Durée de la visite en minutes
+
+  // 🏥 Données de santé enregistrées lors de la visite
+  weightKg      Decimal? @db.Decimal(5, 2) // Poids en kg (ex: 12.50)
+  temperatureC  Decimal? @db.Decimal(4, 2) // Température en °C (ex: 38.50)
+  heartRate     Int?     // Fréquence cardiaque (battements/min)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -355,6 +468,8 @@ model MedicalRecord {
 
   @@index([petId, date])
   @@index([petId, type])
+  @@index([bookingId])
+  @@index([daycareBookingId])
 }
 
 model PetAccessToken {
@@ -505,6 +620,18 @@ model AdoptConversation {
   pendingAdoptionConfirmation Boolean   @default(false)
   pendingAdoptionRequestedAt  DateTime?
 
+  // Soft delete : masquage par user sans suppression DB
+  hiddenByOwner   Boolean @default(false)
+  hiddenByAdopter Boolean @default(false)
+
+  // Signalement de conversation
+  reportedByOwner       Boolean   @default(false)
+  reportReasonByOwner   String?
+  reportedAtByOwner     DateTime?
+  reportedByAdopter     Boolean   @default(false)
+  reportReasonByAdopter String?
+  reportedAtByAdopter   DateTime?
+
   messages      AdoptMessage[]
   adoptRequests AdoptRequest[]
 
@@ -567,6 +694,20 @@ model AdminCollection {
 
   @@unique([providerId, month])
   @@index([providerId, month])
+}
+
+// Flag admin pour signaler les comptes/RDV suspects
+model AdminFlag {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  bookingId String?
+  note      String?
+  createdAt DateTime @default(now())
+  resolved  Boolean  @default(false)
+
+  @@index([userId, resolved])
+  @@index([createdAt])
 }
 
 // =========================
@@ -638,6 +779,53 @@ model OrderItem {
   @@index([productId])
 }
 
+// =========================
+// Daycare (Garderie)
+// =========================
+
+enum DaycareBookingStatus {
+  PENDING       // En attente de confirmation
+  CONFIRMED     // Confirmé par la garderie
+  IN_PROGRESS   // Animal déposé (heure d'arrivée enregistrée)
+  COMPLETED     // Animal récupéré (heure de départ enregistrée)
+  CANCELLED     // Annulé
+}
+
+model DaycareBooking {
+  id              String                @id @default(cuid())
+  userId          String                // Propriétaire de l'animal
+  providerId      String                // Garderie
+  petId           String                // Animal concerné
+  status          DaycareBookingStatus  @default(PENDING)
+
+  // Dates prévues
+  startDate       DateTime              // Date/heure de dépôt prévue
+  endDate         DateTime              // Date/heure de récupération prévue
+
+  // Heures réelles
+  actualDropOff   DateTime?             // Heure réelle de dépôt
+  actualPickup    DateTime?             // Heure réelle de récupération
+
+  // Tarification
+  priceDa         Int                   // Prix de base
+  commissionDa    Int       @default(100)  // Commission fixe 100 DA
+  totalDa         Int                   // Prix total payé par client
+
+  notes           String?               // Notes du client
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id])
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+  pet      Pet             @relation(fields: [petId], references: [id])
+
+  @@index([userId])
+  @@index([providerId])
+  @@index([petId])
+  @@index([providerId, startDate])
+  @@index([status])
+}
+
 enum NotificationType {
   NEW_ADOPT_MESSAGE      // Nouveau message dans une conversation d'adoption
   ADOPT_REQUEST_RECEIVED // Nouvelle demande d'adoption reçue
@@ -650,6 +838,7 @@ enum NotificationType {
   ORDER_SHIPPED          // Commande PetShop expédiée
   ORDER_DELIVERED        // Commande PetShop livrée
   GENERAL                // Notification générale
+  BOOKING_NEEDS_VALIDATION
 }
 
 model Notification {
