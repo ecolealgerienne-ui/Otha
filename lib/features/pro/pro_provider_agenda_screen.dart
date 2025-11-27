@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
+import 'pro_verify_otp_screen.dart';
 
 /// ---------- Args immuables pour le provider family ----------
 class _AgendaArgs {
@@ -553,6 +554,32 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
                           onPressed: _busy ? null : () => _setStatus('COMPLETED'),
                           child: const Text('Terminer'),
                         ),
+                      // Bouton OTP pour PENDING ou CONFIRMED
+                      if (status == 'PENDING' || status == 'CONFIRMED') ...[
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: _busy ? null : () async {
+                            final result = await showDialog<bool>(
+                              context: context,
+                              builder: (_) => ProVerifyOtpDialog(
+                                bookingId: (m['id'] ?? '').toString(),
+                                clientName: displayName,
+                                serviceTitle: serviceTitle,
+                              ),
+                            );
+                            if (result == true) {
+                              await widget.refresh();
+                            }
+                          },
+                          icon: const Icon(Icons.pin, size: 16),
+                          label: const Text('OTP'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFF36C6C),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       if (status == 'PENDING' || status == 'CONFIRMED')
                         TextButton(

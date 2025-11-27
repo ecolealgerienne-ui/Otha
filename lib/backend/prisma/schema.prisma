@@ -219,6 +219,19 @@ model Booking {
   cancellationReason   String?   // Raison d'annulation
   disputeNote          String?   // Note du litige (si DISPUTED)
 
+  // Système OTP de confirmation (code 6 chiffres)
+  confirmationOtp          String?   // Code OTP 6 chiffres
+  confirmationOtpExpiresAt DateTime? // Expiration de l'OTP (10 min après génération)
+  confirmationOtpAttempts  Int       @default(0) // Nombre de tentatives
+
+  // Check-in géolocalisé (preuve que le client était au cabinet)
+  checkinAt  DateTime? // Quand le client a fait check-in
+  checkinLat Float?    // Latitude du check-in
+  checkinLng Float?    // Longitude du check-in
+
+  // Méthode de confirmation utilisée
+  confirmationMethod String? // 'SIMPLE' | 'OTP' | 'QR_SCAN' | 'AUTO'
+
   user     User            @relation(fields: [userId], references: [id])
   provider ProviderProfile @relation(fields: [providerId], references: [id])
   service  Service         @relation(fields: [serviceId], references: [id])

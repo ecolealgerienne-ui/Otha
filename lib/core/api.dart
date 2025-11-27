@@ -3190,4 +3190,82 @@ final hay = [
     final list = await getPendingValidations();
     return list.length;
   }
+
+  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
+
+  /// CLIENT: Récupérer le code OTP pour un booking (le génère si nécessaire)
+  Future<Map<String, dynamic>> getBookingOtp(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/$bookingId/otp'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT: Générer un nouveau code OTP pour un booking
+  Future<Map<String, dynamic>> generateBookingOtp(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/otp/generate'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// PRO: Vérifier le code OTP donné par le client
+  Future<Map<String, dynamic>> verifyBookingOtp({
+    required String bookingId,
+    required String otp,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/otp/verify',
+      data: {'otp': otp},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  // ==================== CHECK-IN GÉOLOCALISÉ ====================
+
+  /// CLIENT: Vérifier si proche du cabinet (pour afficher page confirmation)
+  Future<Map<String, dynamic>> checkBookingProximity({
+    required String bookingId,
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/check-proximity',
+      data: {'lat': lat, 'lng': lng},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT: Faire check-in (enregistre la position GPS)
+  Future<Map<String, dynamic>> clientCheckin({
+    required String bookingId,
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/checkin',
+      data: {'lat': lat, 'lng': lng},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT: Confirmer avec une méthode spécifique (SIMPLE, OTP, QR_SCAN)
+  Future<Map<String, dynamic>> clientConfirmWithMethod({
+    required String bookingId,
+    required String method, // 'SIMPLE' | 'OTP' | 'QR_SCAN'
+    int? rating,
+    String? comment,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/confirm-with-method',
+      data: {
+        'method': method,
+        if (rating != null) 'rating': rating,
+        if (comment != null && comment.isNotEmpty) 'comment': comment,
+      },
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
 }

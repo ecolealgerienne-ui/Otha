@@ -1134,4 +1134,356 @@ export class BookingsService {
       },
     }));
   }
+
+  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
+
+  /**
+   * Génère un code OTP 6 chiffres pour un booking
+   * Le client peut demander ce code pour le montrer au pro
+   */
+  async generateBookingOtp(userId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+      include: { provider: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Vérifier que le RDV n'est pas déjà terminé/annulé
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
+    }
+
+    // Générer un code 6 chiffres
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        confirmationOtp: otp,
+        confirmationOtpExpiresAt: expiresAt,
+        confirmationOtpAttempts: 0,
+      },
+    });
+
+    return {
+      otp,
+      expiresAt: expiresAt.toISOString(),
+      expiresInSeconds: 600,
+    };
+  }
+
+  /**
+   * Récupère l'OTP actif pour un booking (côté client)
+   * Si l'OTP est expiré, en génère un nouveau
+   */
+  async getBookingOtp(userId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Vérifier si un OTP valide existe
+    if (
+      booking.confirmationOtp &&
+      booking.confirmationOtpExpiresAt &&
+      booking.confirmationOtpExpiresAt > new Date()
+    ) {
+      const remainingMs = booking.confirmationOtpExpiresAt.getTime() - Date.now();
+      return {
+        otp: booking.confirmationOtp,
+        expiresAt: booking.confirmationOtpExpiresAt.toISOString(),
+        expiresInSeconds: Math.floor(remainingMs / 1000),
+      };
+    }
+
+    // Sinon, générer un nouveau
+    return this.generateBookingOtp(userId, bookingId);
+  }
+
+  /**
+   * Le PRO vérifie l'OTP donné par le client
+   * Si valide → confirme le booking et crée la commission
+   */
+  async verifyBookingOtpByPro(proUserId: string, bookingId: string, otp: string) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId: proUserId },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, providerId: prov.id },
+      include: { service: true, user: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Vérifier le statut
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
+    }
+
+    // Vérifier le nombre de tentatives
+    if (booking.confirmationOtpAttempts >= 5) {
+      throw new BadRequestException('Trop de tentatives. Demandez au client de régénérer le code.');
+    }
+
+    // Vérifier l'expiration
+    if (!booking.confirmationOtp || !booking.confirmationOtpExpiresAt) {
+      throw new BadRequestException('Aucun code OTP actif. Le client doit en générer un.');
+    }
+    if (booking.confirmationOtpExpiresAt < new Date()) {
+      throw new BadRequestException('Code OTP expiré. Le client doit en régénérer un.');
+    }
+
+    // Vérifier le code
+    if (booking.confirmationOtp !== otp) {
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { confirmationOtpAttempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Code OTP invalide');
+    }
+
+    // ✅ OTP valide → Confirmer le booking
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'COMPLETED',
+        proConfirmedAt: new Date(),
+        clientConfirmedAt: new Date(), // Les deux confirment via OTP
+        confirmationMethod: 'OTP',
+        confirmationOtp: null, // Nettoyer l'OTP
+        confirmationOtpExpiresAt: null,
+      },
+    });
+
+    // Créer la commission
+    const gross = Number((booking.service.price as any)?.toNumber?.() ?? 0);
+    const commission = COMMISSION_DA;
+    const net = Math.max(gross - commission, 0);
+
+    await this.prisma.providerEarning.upsert({
+      where: { bookingId: booking.id },
+      update: {},
+      create: {
+        providerId: prov.id,
+        bookingId: booking.id,
+        serviceId: booking.serviceId,
+        grossPriceDa: gross,
+        commissionDa: commission,
+        netToProviderDa: net,
+      },
+    });
+
+    // Créer l'acte médical pour chaque animal
+    const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
+    for (const petId of petIds) {
+      await this.prisma.medicalRecord.create({
+        data: {
+          petId,
+          type: 'VET_VISIT',
+          title: `Visite vétérinaire - ${booking.service.title}`,
+          description: `Rendez-vous confirmé par OTP`,
+          date: booking.scheduledAt,
+          vetId: prov.id,
+          vetName: prov.displayName,
+          providerType: 'VET',
+          bookingId: booking.id,
+          durationMinutes: booking.service.durationMin || 30,
+        },
+      });
+    }
+
+    return { success: true, message: 'Rendez-vous confirmé avec succès' };
+  }
+
+  // ==================== CHECK-IN GÉOLOCALISÉ ====================
+
+  /**
+   * Le client fait check-in quand il arrive au cabinet
+   * Vérifie qu'il est bien à proximité (< 500m)
+   */
+  async clientCheckin(
+    userId: string,
+    bookingId: string,
+    clientLat: number,
+    clientLng: number,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+      include: { provider: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Vérifier que le RDV n'est pas déjà terminé
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous ne peut plus faire l\'objet d\'un check-in');
+    }
+
+    // Vérifier la proximité avec le cabinet
+    const providerLat = booking.provider?.lat;
+    const providerLng = booking.provider?.lng;
+
+    if (providerLat == null || providerLng == null) {
+      // Si le provider n'a pas de coordonnées, on accepte quand même
+      // mais on ne peut pas vérifier la distance
+    } else {
+      const distance = this.haversineDistance(
+        clientLat,
+        clientLng,
+        providerLat,
+        providerLng,
+      );
+
+      if (distance > 0.5) {
+        // > 500m
+        throw new BadRequestException(
+          `Vous êtes trop loin du cabinet (${distance.toFixed(2)} km). Rapprochez-vous pour faire le check-in.`,
+        );
+      }
+    }
+
+    // Enregistrer le check-in
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        checkinAt: new Date(),
+        checkinLat: clientLat,
+        checkinLng: clientLng,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Check-in enregistré',
+      checkinAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Calcul de distance Haversine (en km)
+   */
+  private haversineDistance(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number {
+    const R = 6371; // Rayon de la Terre en km
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Vérifier si le client est proche du cabinet (pour afficher la page de confirmation)
+   */
+  async checkProximity(userId: string, bookingId: string, clientLat: number, clientLng: number) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+      include: { provider: true, service: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const providerLat = booking.provider?.lat;
+    const providerLng = booking.provider?.lng;
+
+    let isNearby = false;
+    let distanceKm: number | null = null;
+
+    if (providerLat != null && providerLng != null) {
+      distanceKm = this.haversineDistance(clientLat, clientLng, providerLat, providerLng);
+      isNearby = distanceKm <= 0.5; // <= 500m
+    }
+
+    return {
+      bookingId: booking.id,
+      isNearby,
+      distanceKm,
+      hasCheckedIn: !!booking.checkinAt,
+      status: booking.status,
+      provider: {
+        id: booking.provider?.id,
+        displayName: booking.provider?.displayName,
+        address: booking.provider?.address,
+      },
+      service: {
+        title: booking.service?.title,
+      },
+      scheduledAt: booking.scheduledAt.toISOString(),
+    };
+  }
+
+  /**
+   * Confirmation simplifiée par le client (avec méthode spécifiée)
+   * Utilisé pour le bouton "Confirmer ma visite" simple
+   */
+  async clientConfirmWithMethod(
+    userId: string,
+    bookingId: string,
+    method: 'SIMPLE' | 'OTP' | 'QR_SCAN',
+    rating?: number,
+    comment?: string,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+      include: { provider: true, service: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    // Vérifier que le RDV n'est pas déjà terminé
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous est déjà terminé');
+    }
+
+    // Créer la review si rating fourni
+    if (rating) {
+      await this.prisma.review.upsert({
+        where: { bookingId },
+        update: { rating, comment, isPending: true },
+        create: { bookingId, userId, rating, comment, isPending: true },
+      });
+    }
+
+    // Mettre à jour le booking
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        clientConfirmedAt: new Date(),
+        confirmationMethod: method,
+        status: 'PENDING_PRO_VALIDATION',
+        proResponseDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h pour répondre
+      },
+    });
+
+    // Notifier le pro
+    try {
+      await this.notificationsService.createNotification(
+        booking.provider.userId,
+        'BOOKING_NEEDS_VALIDATION' as any,
+        '⚠️ Confirmation client reçue',
+        `Un client a confirmé son rendez-vous (${method}). Validez-vous ?`,
+        { bookingId: booking.id, method },
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
+    }
+
+    return {
+      success: true,
+      message: 'Votre confirmation a été envoyée au professionnel',
+      status: 'PENDING_PRO_VALIDATION',
+    };
+  }
 }
