@@ -69,6 +69,39 @@ final pendingDaycareBookingsProvider = FutureProvider.autoDispose<List<Map<Strin
   return bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').toList();
 });
 
+/// Provider pour récupérer les validations en attente (PENDING_DROP_VALIDATION ou PENDING_PICKUP_VALIDATION)
+final pendingDaycareValidationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final result = await api.getDaycarePendingValidations();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Provider pour récupérer les clients à proximité
+final nearbyDaycareClientsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final result = await api.getDaycareNearbyClients();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Provider pour récupérer les frais de retard en attente
+final pendingLateFeesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final result = await api.getDaycarePendingLateFees();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
 // Commission for daycare: 100 DA per reservation
 const kDaycareCommissionDa = 100;
 
@@ -225,6 +258,155 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                         );
                       },
                     ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                // ✅ Banner bleu : Clients à proximité
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final nearbyAsync = ref.watch(nearbyDaycareClientsProvider);
+                      return nearbyAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (clients) {
+                          if (clients.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF3B82F6)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          '${clients.length} client${clients.length > 1 ? 's' : ''} à proximité',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF3B82F6),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ...clients.take(3).map((c) {
+                                    final user = c['user'] as Map<String, dynamic>?;
+                                    final pet = c['pet'] as Map<String, dynamic>?;
+                                    final clientName = user != null
+                                        ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
+                                        : 'Client';
+                                    final petName = pet?['name'] ?? 'Animal';
+                                    final status = (c['status'] ?? '').toString().toUpperCase();
+                                    final isForPickup = status == 'IN_PROGRESS';
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isForPickup ? Icons.logout : Icons.login,
+                                            size: 16,
+                                            color: isForPickup ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '$clientName - $petName (${isForPickup ? 'Retrait' : 'Dépôt'})',
+                                              style: const TextStyle(fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                // ✅ Banner vert : Validations en attente (dépôts/retraits)
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final validationsAsync = ref.watch(pendingDaycareValidationsProvider);
+                      return validationsAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (validations) {
+                          if (validations.isEmpty) return const SizedBox.shrink();
+
+                          int dropCount = 0;
+                          int pickupCount = 0;
+                          for (final v in validations) {
+                            final st = (v['status'] ?? '').toString().toUpperCase();
+                            if (st == 'PENDING_DROP_VALIDATION') {
+                              dropCount++;
+                            } else if (st == 'PENDING_PICKUP_VALIDATION') {
+                              pickupCount++;
+                            }
+                          }
+
+                          String message;
+                          if (dropCount > 0 && pickupCount > 0) {
+                            message = '$dropCount dépôt${dropCount > 1 ? 's' : ''} et $pickupCount retrait${pickupCount > 1 ? 's' : ''} à valider';
+                          } else if (dropCount > 0) {
+                            message = '$dropCount dépôt${dropCount > 1 ? 's' : ''} d\'animal à valider';
+                          } else {
+                            message = '$pickupCount retrait${pickupCount > 1 ? 's' : ''} d\'animal à valider';
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GestureDetector(
+                              onTap: () => context.push('/daycare/pending-validations'),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E9),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFF22C55E)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.pets, color: Color(0xFF22C55E)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        message,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF22C55E),
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF22C55E)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
 
