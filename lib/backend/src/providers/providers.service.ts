@@ -260,7 +260,7 @@ export class ProvidersService {
   }
 
 async upsertMyProvider(userId: string, dto: any) {
-  const { displayName, bio, address, specialties, timezone, avnCardFront, avnCardBack } = dto ?? {};
+  const { displayName, bio, address, specialties, timezone, avnCardFront, avnCardBack, avatarUrl } = dto ?? {};
   if (!displayName || String(displayName).trim().length === 0) {
     throw new ForbiddenException('displayName is required');
   }
@@ -360,6 +360,7 @@ async upsertMyProvider(userId: string, dto: any) {
     if (normalized) data.specialties = normalized as Prisma.InputJsonValue;
     if (avnCardFront) data.avnCardFront = avnCardFront;
     if (avnCardBack) data.avnCardBack = avnCardBack;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
 
     return this.prisma.providerProfile.update({ where: { userId }, data });
   }
@@ -376,6 +377,7 @@ async upsertMyProvider(userId: string, dto: any) {
   if (normalized) createData.specialties = normalized as Prisma.InputJsonValue;
   if (avnCardFront) createData.avnCardFront = avnCardFront;
   if (avnCardBack) createData.avnCardBack = avnCardBack;
+  if (avatarUrl !== undefined) createData.avatarUrl = avatarUrl;
 
   // Créer le provider profile
   const profile = await this.prisma.providerProfile.create({ data: createData });
