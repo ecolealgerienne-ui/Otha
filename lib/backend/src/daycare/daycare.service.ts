@@ -427,7 +427,7 @@ export class DaycareService {
     if (!booking) throw new NotFoundException('Réservation non trouvée');
     if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
     if (booking.status !== 'CONFIRMED') {
-      throw new BadRequestException('La réservation doit être confirmée pour le dépôt');
+      throw new BadRequestException(`La réservation doit être confirmée pour le dépôt (statut actuel: ${booking.status})`);
     }
 
     // Vérifier la date (doit être le jour du dépôt ou proche)
@@ -435,9 +435,9 @@ export class DaycareService {
     const startDate = new Date(booking.startDate);
     const diffHours = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Autoriser confirmation 2h avant jusqu'à 2h après le début prévu
-    if (diffHours > 2 || diffHours < -2) {
-      throw new BadRequestException('Vous ne pouvez confirmer que le jour du dépôt');
+    // Autoriser confirmation 24h avant jusqu'à 24h après le début prévu
+    if (diffHours > 24 || diffHours < -24) {
+      throw new BadRequestException('Vous ne pouvez confirmer que le jour du dépôt (24h avant/après)');
     }
 
     // Générer un code OTP pour le dépôt
@@ -838,5 +838,226 @@ export class DaycareService {
     // Si pas d'horaires définis, on accepte (comportement par défaut)
 
     return booking;
+  }
+
+  // ============================================
+  // NOTIFICATION CLIENT À PROXIMITÉ
+  // ============================================
+
+  /**
+   * Client: Notifier qu'il est à proximité (pour alerter le pro)
+   */
+  async notifyClientNearby(userId: string, bookingId: string, lat?: number, lng?: number) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true, pet: true },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+
+    // Mise à jour pour indiquer que le client est à proximité
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        clientNearbyAt: new Date(),
+        dropCheckinLat: lat,
+        dropCheckinLng: lng,
+      },
+      include: {
+        pet: true,
+        provider: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+    });
+  }
+
+  /**
+   * Pro: Obtenir les clients à proximité (pour le jour actuel)
+   */
+  async getNearbyClients(userId: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new NotFoundException('Profil professionnel non trouvé');
+
+    // Chercher les bookings où le client est à proximité (dernières 30 minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+    return this.prisma.daycareBooking.findMany({
+      where: {
+        providerId: provider.id,
+        clientNearbyAt: { gte: thirtyMinutesAgo },
+        status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+      },
+      include: {
+        pet: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+      orderBy: { clientNearbyAt: 'desc' },
+    });
+  }
+
+  // ============================================
+  // CALCUL FRAIS DE RETARD
+  // ============================================
+
+  /**
+   * Calculer les frais de retard lors du retrait
+   * Appelé automatiquement lors du pickup
+   */
+  async calculateLateFee(bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+
+    const now = new Date();
+    const endDate = new Date(booking.endDate);
+
+    // Si pas de retard, pas de frais
+    if (now <= endDate) {
+      return { lateFeeDa: 0, lateFeeHours: 0 };
+    }
+
+    // Calculer le retard en heures
+    const lateMs = now.getTime() - endDate.getTime();
+    const lateHours = lateMs / (1000 * 60 * 60);
+
+    // Récupérer le tarif horaire du provider (dans specialties.hourlyRateDa)
+    const specialties = booking.provider?.specialties as any;
+    const hourlyRate = specialties?.hourlyRateDa || specialties?.pricePerHourDa || 200; // 200 DA par défaut
+
+    // Calculer les frais (arrondi à l'heure supérieure)
+    const roundedHours = Math.ceil(lateHours);
+    const lateFeeDa = roundedHours * hourlyRate;
+
+    return {
+      lateFeeDa,
+      lateFeeHours: lateHours,
+      roundedHours,
+      hourlyRate,
+    };
+  }
+
+  /**
+   * Client: Confirmer le retrait avec calcul automatique des frais de retard
+   */
+  async clientConfirmPickupWithLateFee(
+    userId: string,
+    bookingId: string,
+    method: string = 'PROXIMITY',
+    lat?: number,
+    lng?: number,
+  ) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    if (booking.status !== 'IN_PROGRESS') {
+      throw new BadRequestException('L\'animal doit d\'abord être déposé');
+    }
+
+    // Calculer les frais de retard
+    const lateFee = await this.calculateLateFee(bookingId);
+
+    // Générer un code OTP pour le retrait
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'PENDING_PICKUP_VALIDATION',
+        clientPickupConfirmedAt: new Date(),
+        pickupConfirmationMethod: method,
+        pickupCheckinLat: lat,
+        pickupCheckinLng: lng,
+        pickupOtpCode: otpCode,
+        pickupOtpExpiresAt: otpExpiresAt,
+        // Frais de retard
+        lateFeeDa: lateFee.lateFeeDa > 0 ? lateFee.lateFeeDa : null,
+        lateFeeHours: lateFee.lateFeeHours > 0 ? lateFee.lateFeeHours : null,
+        lateFeeStatus: lateFee.lateFeeDa > 0 ? 'PENDING' : null,
+      },
+      include: {
+        pet: true,
+        provider: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+    });
+  }
+
+  /**
+   * Pro: Accepter ou refuser les frais de retard
+   */
+  async handleLateFee(userId: string, bookingId: string, accept: boolean, note?: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new NotFoundException('Profil professionnel non trouvé');
+
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.providerId !== provider.id) {
+      throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    }
+
+    if (!booking.lateFeeDa || booking.lateFeeStatus !== 'PENDING') {
+      throw new BadRequestException('Pas de frais de retard en attente');
+    }
+
+    const newStatus = accept ? 'ACCEPTED' : 'REJECTED';
+    const finalLateFeeDa = accept ? booking.lateFeeDa : 0;
+
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        lateFeeStatus: newStatus,
+        lateFeeAcceptedAt: new Date(),
+        lateFeeNote: note,
+        lateFeeDa: finalLateFeeDa,
+        // Mettre à jour le total si accepté
+        totalDa: accept ? booking.totalDa + finalLateFeeDa : booking.totalDa,
+      },
+      include: {
+        pet: true,
+        user: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+
+  /**
+   * Pro: Obtenir les bookings avec frais de retard en attente
+   */
+  async getPendingLateFees(userId: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new NotFoundException('Profil professionnel non trouvé');
+
+    return this.prisma.daycareBooking.findMany({
+      where: {
+        providerId: provider.id,
+        lateFeeStatus: 'PENDING',
+        lateFeeDa: { gt: 0 },
+      },
+      include: {
+        pet: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+      orderBy: { clientPickupConfirmedAt: 'desc' },
+    });
   }
 }

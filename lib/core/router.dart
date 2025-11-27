@@ -67,6 +67,8 @@ import '../features/daycare/daycare_bookings_screen.dart';
 import '../features/daycare/my_daycare_bookings_screen.dart';
 import '../features/daycare/daycare_booking_details_screen.dart';
 import '../features/daycare/daycare_booking_confirmation_screen.dart';
+import '../features/daycare/daycare_dropoff_confirmation_screen.dart';
+import '../features/daycare/daycare_pickup_confirmation_screen.dart';
 import '../features/daycare/daycare_list_screen.dart';
 import '../features/daycare/daycare_detail_screen.dart';
 import '../features/daycare/daycare_booking_screen.dart';
@@ -574,6 +576,32 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
             petName: data['petName'] as String?,
             startDate: data['startDate'] != null ? DateTime.parse(data['startDate']) : null,
             endDate: data['endDate'] != null ? DateTime.parse(data['endDate']) : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/daycare/dropoff-confirmation/:bookingId',
+        builder: (ctx, st) {
+          final bookingId = st.pathParameters['bookingId'] ?? '';
+          final data = st.extra as Map<String, dynamic>? ?? {};
+          return DaycareDropOffConfirmationScreen(
+            bookingId: bookingId,
+            bookingData: data['booking'] as Map<String, dynamic>?,
+            lat: (data['lat'] as num?)?.toDouble(),
+            lng: (data['lng'] as num?)?.toDouble(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/daycare/pickup-confirmation/:bookingId',
+        builder: (ctx, st) {
+          final bookingId = st.pathParameters['bookingId'] ?? '';
+          final data = st.extra as Map<String, dynamic>? ?? {};
+          return DaycarePickupConfirmationScreen(
+            bookingId: bookingId,
+            bookingData: data['booking'] as Map<String, dynamic>?,
+            lat: (data['lat'] as num?)?.toDouble(),
+            lng: (data['lng'] as num?)?.toDouble(),
           );
         },
       ),

@@ -833,6 +833,16 @@ model DaycareBooking {
   commissionDa    Int       @default(100)  // Commission fixe 100 DA
   totalDa         Int                   // Prix total payé par client
 
+  // ✅ Frais de retard
+  lateFeeDa           Int?              // Frais de retard calculés
+  lateFeeHours        Float?            // Heures de retard
+  lateFeeStatus       String?           // 'PENDING', 'ACCEPTED', 'REJECTED'
+  lateFeeAcceptedAt   DateTime?         // Quand le pro a accepté/refusé
+  lateFeeNote         String?           // Note sur les frais
+
+  // ✅ Notification proximité client
+  clientNearbyAt      DateTime?         // Quand le client est arrivé à proximité
+
   notes           String?               // Notes du client
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt

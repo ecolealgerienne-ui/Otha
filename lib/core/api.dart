@@ -1163,6 +1163,70 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Client: Notifier qu'il est à proximité de la garderie
+  Future<Map<String, dynamic>> notifyDaycareClientNearby(
+    String bookingId, {
+    double? lat,
+    double? lng,
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/client-nearby',
+          data: {'lat': lat, 'lng': lng},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Obtenir les clients à proximité
+  Future<List<dynamic>> getDaycareNearbyClients() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/provider/nearby-clients'));
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  /// Client: Confirmer le retrait avec calcul frais de retard
+  Future<Map<String, dynamic>> clientConfirmDaycarePickupWithLateFee(
+    String bookingId, {
+    String method = 'PROXIMITY',
+    double? lat,
+    double? lng,
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/client-confirm-pickup-late',
+          data: {'method': method, 'lat': lat, 'lng': lng},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Calculer les frais de retard pour une réservation
+  Future<Map<String, dynamic>> calculateDaycareLateFee(String bookingId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/bookings/$bookingId/late-fee'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Accepter ou refuser les frais de retard
+  Future<Map<String, dynamic>> handleDaycareLateFee(
+    String bookingId, {
+    required bool accept,
+    String? note,
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/handle-late-fee',
+          data: {'accept': accept, 'note': note},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Obtenir les bookings avec frais de retard en attente
+  Future<List<dynamic>> getDaycarePendingLateFees() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/provider/pending-late-fees'));
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
   // --------------- Reviews ---------------
   Future<Map<String, dynamic>> createReview({
     required String bookingId,
