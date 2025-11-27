@@ -489,9 +489,35 @@ export class DaycareService {
       throw new BadRequestException('Vous ne pouvez confirmer que le jour du dépôt (24h avant/après)');
     }
 
-    // Générer un code OTP pour le dépôt
+    // Si méthode OTP, on génère juste le code SANS changer le statut
+    // Le statut changera quand le pro validera
+    if (method === 'OTP') {
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      return this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          // NE PAS changer le statut ici !
+          clientDropConfirmedAt: now,
+          dropConfirmationMethod: 'OTP',
+          dropCheckinLat: lat,
+          dropCheckinLng: lng,
+          dropOtpCode: otpCode,
+          dropOtpExpiresAt: otpExpiresAt,
+          clientNearbyAt: now,
+        },
+        include: {
+          pet: true,
+          provider: true,
+          user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+      });
+    }
+
+    // Pour les autres méthodes (PROXIMITY, MANUAL), on met en attente de validation pro
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expire dans 10 minutes
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     return this.prisma.daycareBooking.update({
       where: { id: bookingId },
@@ -533,15 +559,38 @@ export class DaycareService {
       throw new BadRequestException('L\'animal doit d\'abord être déposé');
     }
 
-    // Générer un code OTP pour le retrait
+    const now = new Date();
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+    // Si méthode OTP, on génère juste le code SANS changer le statut
+    if (method === 'OTP') {
+      return this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          // NE PAS changer le statut ici !
+          clientPickupConfirmedAt: now,
+          pickupConfirmationMethod: 'OTP',
+          pickupCheckinLat: lat,
+          pickupCheckinLng: lng,
+          pickupOtpCode: otpCode,
+          pickupOtpExpiresAt: otpExpiresAt,
+          clientNearbyAt: now,
+        },
+        include: {
+          pet: true,
+          provider: true,
+          user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+      });
+    }
+
+    // Pour les autres méthodes, on met en attente de validation pro
     return this.prisma.daycareBooking.update({
       where: { id: bookingId },
       data: {
         status: 'PENDING_PICKUP_VALIDATION',
-        clientPickupConfirmedAt: new Date(),
+        clientPickupConfirmedAt: now,
         pickupConfirmationMethod: method,
         pickupCheckinLat: lat,
         pickupCheckinLng: lng,
@@ -785,28 +834,72 @@ export class DaycareService {
       throw new ForbiddenException('Cette réservation ne vous appartient pas');
     }
 
+    const now = new Date();
+
     if (phase === 'drop') {
-      if (booking.status !== 'PENDING_DROP_VALIDATION') {
-        throw new BadRequestException('Le client doit d\'abord confirmer son arrivée');
+      // Accepter CONFIRMED (avec OTP généré) ou PENDING_DROP_VALIDATION
+      if (booking.status !== 'CONFIRMED' && booking.status !== 'PENDING_DROP_VALIDATION') {
+        throw new BadRequestException('Le booking doit être en statut confirmé pour valider le dépôt');
+      }
+      if (!booking.dropOtpCode) {
+        throw new BadRequestException('Le client n\'a pas encore généré de code OTP');
       }
       if (booking.dropOtpCode !== otpCode) {
         throw new BadRequestException('Code OTP incorrect');
       }
-      if (!booking.dropOtpExpiresAt || new Date() > new Date(booking.dropOtpExpiresAt)) {
+      if (!booking.dropOtpExpiresAt || now > new Date(booking.dropOtpExpiresAt)) {
         throw new BadRequestException('Le code OTP a expiré');
       }
-      return this.proValidateDropOff(userId, bookingId, true, 'OTP');
+
+      // Valider directement en changeant le statut à IN_PROGRESS
+      return this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'IN_PROGRESS',
+          actualDropOff: now,
+          dropConfirmationMethod: 'OTP',
+          proDropValidatedAt: now,
+          dropOtpCode: null, // Effacer l'OTP utilisé
+          dropOtpExpiresAt: null,
+        },
+        include: {
+          pet: true,
+          provider: true,
+          user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+      });
     } else {
-      if (booking.status !== 'PENDING_PICKUP_VALIDATION') {
-        throw new BadRequestException('Le client doit d\'abord confirmer le retrait');
+      // Accepter IN_PROGRESS (avec OTP généré) ou PENDING_PICKUP_VALIDATION
+      if (booking.status !== 'IN_PROGRESS' && booking.status !== 'PENDING_PICKUP_VALIDATION') {
+        throw new BadRequestException('L\'animal doit être déposé avant le retrait');
+      }
+      if (!booking.pickupOtpCode) {
+        throw new BadRequestException('Le client n\'a pas encore généré de code OTP');
       }
       if (booking.pickupOtpCode !== otpCode) {
         throw new BadRequestException('Code OTP incorrect');
       }
-      if (!booking.pickupOtpExpiresAt || new Date() > new Date(booking.pickupOtpExpiresAt)) {
+      if (!booking.pickupOtpExpiresAt || now > new Date(booking.pickupOtpExpiresAt)) {
         throw new BadRequestException('Le code OTP a expiré');
       }
-      return this.proValidatePickup(userId, bookingId, true, 'OTP');
+
+      // Valider directement en changeant le statut à COMPLETED
+      return this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'COMPLETED',
+          actualPickup: now,
+          pickupConfirmationMethod: 'OTP',
+          proPickupValidatedAt: now,
+          pickupOtpCode: null, // Effacer l'OTP utilisé
+          pickupOtpExpiresAt: null,
+        },
+        include: {
+          pet: true,
+          provider: true,
+          user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        },
+      });
     }
   }
 
@@ -931,14 +1024,32 @@ export class DaycareService {
 
     if (!provider) throw new NotFoundException('Profil professionnel non trouvé');
 
-    // Chercher les bookings où le client est à proximité (dernières 30 minutes)
+    // Chercher les bookings où:
+    // 1. Le client est à proximité (dernières 30 minutes) OU
+    // 2. Le client a un code OTP actif (non expiré)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const now = new Date();
 
     return this.prisma.daycareBooking.findMany({
       where: {
         providerId: provider.id,
-        clientNearbyAt: { gte: thirtyMinutesAgo },
         status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+        OR: [
+          // Client à proximité récemment
+          { clientNearbyAt: { gte: thirtyMinutesAgo } },
+          // OTP de dépôt actif et non expiré
+          {
+            dropOtpCode: { not: null },
+            dropOtpExpiresAt: { gte: now },
+            status: 'CONFIRMED',
+          },
+          // OTP de retrait actif et non expiré
+          {
+            pickupOtpCode: { not: null },
+            pickupOtpExpiresAt: { gte: now },
+            status: 'IN_PROGRESS',
+          },
+        ],
       },
       include: {
         pet: true,

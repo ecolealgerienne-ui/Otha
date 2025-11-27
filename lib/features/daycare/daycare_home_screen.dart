@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
@@ -195,6 +196,26 @@ class DaycareHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
+  Timer? _autoRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh toutes les 10 secondes pour voir les clients à proximité
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        ref.invalidate(nearbyDaycareClientsProvider);
+        ref.invalidate(pendingDaycareValidationsProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
   /// Afficher le dialogue de validation pour un client à proximité
   Future<void> _showClientValidationDialog(
     Map<String, dynamic> booking,
