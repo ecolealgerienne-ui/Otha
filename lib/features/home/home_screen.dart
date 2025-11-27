@@ -978,13 +978,15 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
   Timer? _proximityTimer;
   Map<String, dynamic>? _lastBooking;
   Position? _lastPosition;
+  bool _locationPermissionDenied = false;
+  bool _locationServiceDisabled = false;
 
   @override
   void initState() {
     super.initState();
     // Timer qui vérifie la proximité toutes les 30 secondes
     _proximityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_lastBooking != null && mounted) {
+      if (_lastBooking != null && mounted && !_locationPermissionDenied) {
         _checkProximity(_lastBooking!, forceRefresh: true);
       }
     });
@@ -1003,6 +1005,34 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
       if (t.isNotEmpty) return t;
     }
     return 'Rendez-vous';
+  }
+
+  /// Ouvre les paramètres de l'application pour activer la localisation
+  Future<void> _openLocationSettings() async {
+    final opened = await Geolocator.openAppSettings();
+    if (opened && mounted) {
+      // Réessayer après retour des paramètres
+      setState(() {
+        _locationPermissionDenied = false;
+        _locationServiceDisabled = false;
+      });
+      if (_lastBooking != null) {
+        _checkProximity(_lastBooking!, forceRefresh: true);
+      }
+    }
+  }
+
+  /// Ouvre les paramètres système de localisation
+  Future<void> _openSystemLocationSettings() async {
+    final opened = await Geolocator.openLocationSettings();
+    if (opened && mounted) {
+      setState(() {
+        _locationServiceDisabled = false;
+      });
+      if (_lastBooking != null) {
+        _checkProximity(_lastBooking!, forceRefresh: true);
+      }
+    }
   }
 
   /// Vérifie si l'utilisateur est à proximité du cabinet (< 500m)
@@ -1040,13 +1070,38 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
     setState(() => _checkingProximity = true);
 
     try {
-      // Obtenir la position de l'utilisateur
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      // Vérifier si le service de localisation est activé
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          setState(() {
+            _locationServiceDisabled = true;
+            _checkingProximity = false;
+          });
+        }
         return;
       }
 
+      // Vérifier la permission
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        // Demander la permission
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          setState(() {
+            _locationPermissionDenied = true;
+            _checkingProximity = false;
+          });
+        }
+        return;
+      }
+
+      // Permission accordée, récupérer la position
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
       );
@@ -1065,6 +1120,8 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
         setState(() {
           _distanceMeters = distance;
           _isNearby = isNowNearby;
+          _locationPermissionDenied = false;
+          _locationServiceDisabled = false;
         });
 
         // TODO: Intégrer Firebase pour envoyer une notification push quand
@@ -1244,6 +1301,157 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       ),
                     ],
+                  ),
+                ] else if (isTimeClose && _locationServiceDisabled) ...[
+                  // Service de localisation désactivé
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.location_off, color: Colors.orange.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Localisation désactivée',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orange.shade800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Activez la localisation pour détecter automatiquement votre arrivée au cabinet.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openSystemLocationSettings,
+                                icon: const Icon(Icons.settings, size: 16),
+                                label: const Text('Activer'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange.shade700,
+                                  side: BorderSide(color: Colors.orange.shade300),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF36C6C),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                child: const Text('Confirmer', style: TextStyle(fontSize: 13)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (isTimeClose && _locationPermissionDenied) ...[
+                  // Permission refusée
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.location_disabled, color: Colors.red.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Permission localisation refusée',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.red.shade800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Autorisez la localisation pour détecter automatiquement votre arrivée. Sinon, confirmez manuellement.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openLocationSettings,
+                                icon: const Icon(Icons.settings, size: 16),
+                                label: const Text('Paramètres'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red.shade700,
+                                  side: BorderSide(color: Colors.red.shade300),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF36C6C),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                child: const Text('Confirmer', style: TextStyle(fontSize: 13)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (isTimeClose && _distanceMeters == null && !_checkingProximity) ...[
+                  // En attente de vérification ou première charge
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Confirmer ma présence'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF36C6C),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ],
               ],
