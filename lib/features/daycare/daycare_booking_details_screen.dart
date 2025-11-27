@@ -121,10 +121,10 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
     final notes = booking['notes']?.toString();
 
     final actualDropOff = booking['actualDropOff'] != null
-        ? DateTime.parse(booking['actualDropOff'])
+        ? DateTime.parse(booking['actualDropOff']).toLocal()
         : null;
     final actualPickup = booking['actualPickup'] != null
-        ? DateTime.parse(booking['actualPickup'])
+        ? DateTime.parse(booking['actualPickup']).toLocal()
         : null;
 
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');

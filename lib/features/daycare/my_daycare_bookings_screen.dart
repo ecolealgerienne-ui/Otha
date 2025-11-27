@@ -267,10 +267,10 @@ class _BookingCard extends StatelessWidget {
     final startDate = DateTime.parse(booking['startDate']);
     final endDate = DateTime.parse(booking['endDate']);
     final actualDropOff = booking['actualDropOff'] != null
-        ? DateTime.parse(booking['actualDropOff'])
+        ? DateTime.parse(booking['actualDropOff']).toLocal()
         : null;
     final actualPickup = booking['actualPickup'] != null
-        ? DateTime.parse(booking['actualPickup'])
+        ? DateTime.parse(booking['actualPickup']).toLocal()
         : null;
 
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm');
