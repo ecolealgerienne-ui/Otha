@@ -124,6 +124,11 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
       dKm = _haversineKm(lat, lng);
     }
 
+    final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
+
+    // DEBUG: Print avatar info
+    print('DEBUG Petshop $name: avatarUrl from API = ${m['avatarUrl']}, photoUrl = ${m['photoUrl']}, final = $avatarUrl');
+
     return <String, dynamic>{
       'id': id,
       'displayName': name,
@@ -131,7 +136,7 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
       'address': address,
       'distanceKm': dKm,
       'categories': categories,
-      'avatarUrl': (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString(),
+      'avatarUrl': avatarUrl,
     };
   }).toList();
 
