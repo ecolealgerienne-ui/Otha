@@ -654,10 +654,10 @@ class _AnimalDetailPage extends StatelessWidget {
     final timeFormat = DateFormat('HH:mm');
 
     final actualDropOff = booking['actualDropOff'] != null
-        ? DateTime.parse(booking['actualDropOff'] as String)
+        ? DateTime.parse(booking['actualDropOff'] as String).toLocal()
         : null;
     final actualPickup = booking['actualPickup'] != null
-        ? DateTime.parse(booking['actualPickup'] as String)
+        ? DateTime.parse(booking['actualPickup'] as String).toLocal()
         : null;
 
     return SingleChildScrollView(
