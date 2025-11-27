@@ -42,7 +42,9 @@ class _DaycareDropOffConfirmationScreenState
   String? _otpCode;
   int _otpExpiresInSeconds = 0;
   Timer? _otpTimer;
+  Timer? _statusCheckTimer;
   bool _showOtpSection = false;
+  bool _isValidated = false;
 
   @override
   void initState() {
@@ -54,7 +56,113 @@ class _DaycareDropOffConfirmationScreenState
   @override
   void dispose() {
     _otpTimer?.cancel();
+    _statusCheckTimer?.cancel();
     super.dispose();
+  }
+
+  /// Démarrer le polling pour vérifier si le pro a validé
+  void _startStatusPolling() {
+    _statusCheckTimer?.cancel();
+    _statusCheckTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      await _checkBookingStatus();
+    });
+  }
+
+  /// Vérifier le statut de la réservation
+  Future<void> _checkBookingStatus() async {
+    try {
+      final api = ref.read(apiProvider);
+      final booking = await api.getDaycareBooking(widget.bookingId);
+      final status = (booking['status'] ?? '').toString().toUpperCase();
+
+      if (!mounted) return;
+
+      // Si le statut est passé à IN_PROGRESS, le pro a validé le dépôt
+      if (status == 'IN_PROGRESS') {
+        _statusCheckTimer?.cancel();
+        _otpTimer?.cancel();
+        setState(() => _isValidated = true);
+
+        // Afficher la page de succès après un court délai
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          _showSuccessAndGoHome();
+        }
+      }
+    } catch (e) {
+      // Ignorer les erreurs de polling silencieusement
+    }
+  }
+
+  /// Afficher le succès et retourner à l'accueil
+  void _showSuccessAndGoHome() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _greenSoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: _green,
+                size: 60,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Dépôt confirmé !',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Votre animal a été déposé avec succès à la garderie.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  context.go('/home');
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: _green,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Retourner à l\'accueil',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Notifier le pro que le client est à proximité
@@ -148,6 +256,8 @@ class _DaycareDropOffConfirmationScreenState
       });
 
       _startOtpTimer();
+      // Démarrer le polling pour détecter quand le pro valide l'OTP
+      _startStatusPolling();
     } catch (e) {
       if (!mounted) return;
       setState(() {

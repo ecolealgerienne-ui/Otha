@@ -1135,6 +1135,13 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
   }
 
+  /// Récupérer les détails d'une réservation daycare
+  Future<Map<String, dynamic>> getDaycareBooking(String bookingId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/bookings/$bookingId'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   /// Client: Obtenir le code OTP pour le dépôt
   Future<Map<String, dynamic>> getDaycareDropOtp(String bookingId) async {
     await ensureAuth();

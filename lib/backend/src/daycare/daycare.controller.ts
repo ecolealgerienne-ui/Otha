@@ -98,6 +98,15 @@ export class DaycareController {
   }
 
   /**
+   * GET /api/v1/daycare/bookings/:id
+   * Obtenir les détails d'une réservation (pour polling statut)
+   */
+  @Get('bookings/:id')
+  async getBookingById(@Req() req: any, @Param('id') id: string) {
+    return this.daycareService.getBookingById(req.user.sub, id);
+  }
+
+  /**
    * GET /api/v1/daycare/active-for-pet/:petId
    * Chercher un booking daycare actif pour un pet (pour le scan QR)
    */

@@ -115,6 +115,55 @@ export class DaycareService {
   }
 
   /**
+   * Obtenir les détails d'une réservation par ID
+   */
+  async getBookingById(userId: string, bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        pet: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        provider: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Réservation non trouvée');
+    }
+
+    // Vérifier que l'utilisateur a accès à cette réservation
+    // (soit c'est le client, soit c'est le provider)
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    const isClient = booking.userId === userId;
+    const isProvider = provider && booking.providerId === provider.id;
+
+    if (!isClient && !isProvider) {
+      throw new ForbiddenException('Accès non autorisé à cette réservation');
+    }
+
+    return booking;
+  }
+
+  /**
    * Obtenir les réservations de ma garderie (provider)
    */
   async getProviderBookings(userId: string) {
