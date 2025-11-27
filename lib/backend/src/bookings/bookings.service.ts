@@ -874,8 +874,9 @@ export class BookingsService {
 
   /**
    * PRO confirme le booking (après scan QR ou manuellement)
+   * @param method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
    */
-  async proConfirmBooking(userId: string, bookingId: string) {
+  async proConfirmBooking(userId: string, bookingId: string, method: string = 'AUTO') {
     const prov = await this.prisma.providerProfile.findUnique({
       where: { userId },
       include: { user: { select: { firstName: true, lastName: true } } },
@@ -888,12 +889,13 @@ export class BookingsService {
     });
     if (!b) throw new NotFoundException('Booking not found');
 
-    // ✅ Marquer comme confirmé par le pro
+    // ✅ Marquer comme confirmé par le pro avec la méthode de confirmation
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
         proConfirmedAt: new Date(),
         status: 'COMPLETED',
+        confirmationMethod: method, // 'QR_SCAN', 'SIMPLE', 'AUTO', etc.
       },
     });
 

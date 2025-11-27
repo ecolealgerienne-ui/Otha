@@ -347,12 +347,18 @@ export class BookingsController {
   /**
    * PRO confirme un booking (après scan QR ou manuellement)
    * POST /bookings/:id/pro-confirm
+   * @body method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO', 'ADMIN')
   @Post(':id/pro-confirm')
-  proConfirmBooking(@Req() req: any, @Param('id') id: string) {
-    return this.svc.proConfirmBooking(req.user.sub, id);
+  proConfirmBooking(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body?: { method?: string },
+  ) {
+    const method = body?.method || 'AUTO';
+    return this.svc.proConfirmBooking(req.user.sub, id, method);
   }
 
   /**

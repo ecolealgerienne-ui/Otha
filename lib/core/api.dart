@@ -3128,9 +3128,13 @@ final hay = [
     }
   }
 
-  /// PRO confirme un booking (après scan QR)
-  Future<Map<String, dynamic>> proConfirmBooking(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/pro-confirm'));
+  /// PRO confirme un booking (après scan QR ou manuellement)
+  /// @param method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
+  Future<Map<String, dynamic>> proConfirmBooking(String bookingId, {String method = 'AUTO'}) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/bookings/$bookingId/pro-confirm',
+      data: {'method': method},
+    ));
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return Map<String, dynamic>.from(data as Map);
   }
