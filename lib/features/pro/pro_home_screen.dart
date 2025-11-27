@@ -179,6 +179,17 @@ final pendingDaycareValidationsProvider = FutureProvider.autoDispose<List<Map<St
   }
 });
 
+/// Provider pour récupérer les clients à proximité (daycare)
+final nearbyDaycareClientsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final result = await api.getDaycareNearbyClients();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
 /// Historique normalisé SANS AUCUN overlay local — uniquement backend
 final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   final api = ref.read(apiProvider);
@@ -583,6 +594,112 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                         orElse: () => false,
                       );
                       return SizedBox(height: hasValidations ? 14 : 0);
+                    },
+                  ),
+                ),
+
+                // ------- Banner bleu : Clients à proximité (garderie) -------
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final nearbyAsync = ref.watch(nearbyDaycareClientsProvider);
+                      return nearbyAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (clients) {
+                          if (clients.isEmpty) return const SizedBox.shrink();
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF3B82F6)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        '${clients.length} client${clients.length > 1 ? 's' : ''} à proximité',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF3B82F6),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                ...clients.take(3).map((c) {
+                                  final user = c['user'] as Map<String, dynamic>?;
+                                  final pet = c['pet'] as Map<String, dynamic>?;
+                                  final clientName = user != null
+                                      ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
+                                      : 'Client';
+                                  final petName = pet?['name'] ?? 'Animal';
+                                  final status = (c['status'] ?? '').toString().toUpperCase();
+                                  final isForPickup = status == 'IN_PROGRESS';
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isForPickup ? Icons.logout : Icons.login,
+                                          size: 16,
+                                          color: isForPickup ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '$clientName - $petName (${isForPickup ? 'Retrait' : 'Dépôt'})',
+                                            style: const TextStyle(fontSize: 13),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => context.push('/pro/daycare-pending-validations'),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: const Text(
+                                            'Valider',
+                                            style: TextStyle(
+                                              color: Color(0xFF3B82F6),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                // Espacement conditionnel après le banner clients à proximité
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final nearbyAsync = ref.watch(nearbyDaycareClientsProvider);
+                      final hasClients = nearbyAsync.maybeWhen(
+                        data: (v) => v.isNotEmpty,
+                        orElse: () => false,
+                      );
+                      return SizedBox(height: hasClients ? 14 : 0);
                     },
                   ),
                 ),

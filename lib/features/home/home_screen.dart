@@ -1812,35 +1812,15 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
     }
   }
 
-  Future<void> _confirmDropOff(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
+  void _goToDropOffConfirmation(BuildContext context, Map<String, dynamic> m) {
     final id = (m['id'] ?? '').toString();
     if (id.isEmpty) return;
 
-    try {
-      final api = ref.read(apiProvider);
-      await api.clientConfirmDaycareDropOff(
-        id,
-        method: 'PROXIMITY',
-        lat: _lastPosition?.latitude,
-        lng: _lastPosition?.longitude,
-      );
-
-      if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Arrivée confirmée ! La garderie va valider le dépôt.'),
-          backgroundColor: Color(0xFF22C55E),
-        ),
-      );
-
-      ref.invalidate(nextConfirmedDaycareBookingProvider);
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
-    }
+    context.push('/daycare/dropoff-confirmation/$id', extra: {
+      'booking': m,
+      'lat': _lastPosition?.latitude,
+      'lng': _lastPosition?.longitude,
+    });
   }
 
   @override
@@ -1959,7 +1939,7 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
-                            onPressed: () => _confirmDropOff(context, ref, m),
+                            onPressed: () => _goToDropOffConfirmation(context, m),
                             icon: const Icon(Icons.pets, size: 18),
                             label: const Text('Confirmer le dépôt de l\'animal'),
                             style: FilledButton.styleFrom(
@@ -2213,36 +2193,15 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
     }
   }
 
-  Future<void> _confirmPickup(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
+  void _goToPickupConfirmation(BuildContext context, Map<String, dynamic> m) {
     final id = (m['id'] ?? '').toString();
     if (id.isEmpty) return;
 
-    try {
-      final api = ref.read(apiProvider);
-      await api.clientConfirmDaycarePickup(
-        id,
-        method: 'PROXIMITY',
-        lat: _lastPosition?.latitude,
-        lng: _lastPosition?.longitude,
-      );
-
-      if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Retrait confirmé ! La garderie va valider.'),
-          backgroundColor: Color(0xFF22C55E),
-        ),
-      );
-
-      ref.invalidate(inProgressDaycareBookingProvider);
-      ref.invalidate(nextConfirmedDaycareBookingProvider);
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
-    }
+    context.push('/daycare/pickup-confirmation/$id', extra: {
+      'booking': m,
+      'lat': _lastPosition?.latitude,
+      'lng': _lastPosition?.longitude,
+    });
   }
 
   @override
@@ -2370,7 +2329,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
-                            onPressed: () => _confirmPickup(context, ref, m),
+                            onPressed: () => _goToPickupConfirmation(context, m),
                             icon: const Icon(Icons.check_circle, size: 18),
                             label: const Text('Confirmer le retrait de l\'animal'),
                             style: FilledButton.styleFrom(

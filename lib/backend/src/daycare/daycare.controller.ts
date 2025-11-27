@@ -225,4 +225,84 @@ export class DaycareController {
   ) {
     return this.daycareService.validateByOtp(req.user.sub, id, body.otp, body.phase);
   }
+
+  // ============================================
+  // NOTIFICATION CLIENT À PROXIMITÉ
+  // ============================================
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/client-nearby
+   * Client notifie qu'il est à proximité
+   */
+  @Post('bookings/:id/client-nearby')
+  async notifyClientNearby(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { lat?: number; lng?: number },
+  ) {
+    return this.daycareService.notifyClientNearby(req.user.sub, id, body.lat, body.lng);
+  }
+
+  /**
+   * GET /api/v1/daycare/provider/nearby-clients
+   * Pro: Obtenir les clients à proximité
+   */
+  @Get('provider/nearby-clients')
+  async getNearbyClients(@Req() req: any) {
+    return this.daycareService.getNearbyClients(req.user.sub);
+  }
+
+  // ============================================
+  // FRAIS DE RETARD
+  // ============================================
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/client-confirm-pickup-late
+   * Client confirme le retrait (avec calcul frais de retard)
+   */
+  @Post('bookings/:id/client-confirm-pickup-late')
+  async clientConfirmPickupWithLateFee(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { method?: string; lat?: number; lng?: number },
+  ) {
+    return this.daycareService.clientConfirmPickupWithLateFee(
+      req.user.sub,
+      id,
+      body.method || 'PROXIMITY',
+      body.lat,
+      body.lng,
+    );
+  }
+
+  /**
+   * GET /api/v1/daycare/bookings/:id/late-fee
+   * Calculer les frais de retard pour une réservation
+   */
+  @Get('bookings/:id/late-fee')
+  async calculateLateFee(@Param('id') id: string) {
+    return this.daycareService.calculateLateFee(id);
+  }
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/handle-late-fee
+   * Pro: Accepter ou refuser les frais de retard
+   */
+  @Post('bookings/:id/handle-late-fee')
+  async handleLateFee(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { accept: boolean; note?: string },
+  ) {
+    return this.daycareService.handleLateFee(req.user.sub, id, body.accept, body.note);
+  }
+
+  /**
+   * GET /api/v1/daycare/provider/pending-late-fees
+   * Pro: Obtenir les bookings avec frais de retard en attente
+   */
+  @Get('provider/pending-late-fees')
+  async getPendingLateFees(@Req() req: any) {
+    return this.daycareService.getPendingLateFees(req.user.sub);
+  }
 }
