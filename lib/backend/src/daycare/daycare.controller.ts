@@ -107,4 +107,122 @@ export class DaycareController {
   async findActiveDaycareBookingForPet(@Param('petId') petId: string) {
     return this.daycareService.findActiveDaycareBookingForPet(petId);
   }
+
+  // ============================================
+  // SYSTÈME ANTI-FRAUDE
+  // ============================================
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/client-confirm-drop
+   * Client confirme son arrivée pour déposer l'animal
+   */
+  @Post('bookings/:id/client-confirm-drop')
+  async clientConfirmDropOff(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { method?: string; lat?: number; lng?: number },
+  ) {
+    return this.daycareService.clientConfirmDropOff(
+      req.user.sub,
+      id,
+      body.method || 'PROXIMITY',
+      body.lat,
+      body.lng,
+    );
+  }
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/client-confirm-pickup
+   * Client confirme son arrivée pour récupérer l'animal
+   */
+  @Post('bookings/:id/client-confirm-pickup')
+  async clientConfirmPickup(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { method?: string; lat?: number; lng?: number },
+  ) {
+    return this.daycareService.clientConfirmPickup(
+      req.user.sub,
+      id,
+      body.method || 'PROXIMITY',
+      body.lat,
+      body.lng,
+    );
+  }
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/pro-validate-drop
+   * Pro valide ou refuse le dépôt de l'animal
+   */
+  @Post('bookings/:id/pro-validate-drop')
+  async proValidateDropOff(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approved: boolean; method?: string },
+  ) {
+    return this.daycareService.proValidateDropOff(
+      req.user.sub,
+      id,
+      body.approved,
+      body.method || 'MANUAL',
+    );
+  }
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/pro-validate-pickup
+   * Pro valide ou refuse le retrait de l'animal
+   */
+  @Post('bookings/:id/pro-validate-pickup')
+  async proValidatePickup(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approved: boolean; method?: string },
+  ) {
+    return this.daycareService.proValidatePickup(
+      req.user.sub,
+      id,
+      body.approved,
+      body.method || 'MANUAL',
+    );
+  }
+
+  /**
+   * GET /api/v1/daycare/provider/pending-validations
+   * Obtenir les réservations en attente de validation (pro)
+   */
+  @Get('provider/pending-validations')
+  async getPendingValidations(@Req() req: any) {
+    return this.daycareService.getPendingValidations(req.user.sub);
+  }
+
+  /**
+   * GET /api/v1/daycare/bookings/:id/drop-otp
+   * Obtenir le code OTP pour le dépôt (client)
+   */
+  @Get('bookings/:id/drop-otp')
+  async getDropOtp(@Req() req: any, @Param('id') id: string) {
+    return this.daycareService.getDropOtp(req.user.sub, id);
+  }
+
+  /**
+   * GET /api/v1/daycare/bookings/:id/pickup-otp
+   * Obtenir le code OTP pour le retrait (client)
+   */
+  @Get('bookings/:id/pickup-otp')
+  async getPickupOtp(@Req() req: any, @Param('id') id: string) {
+    return this.daycareService.getPickupOtp(req.user.sub, id);
+  }
+
+  /**
+   * POST /api/v1/daycare/bookings/:id/validate-otp
+   * Valider par code OTP (pro)
+   */
+  @Post('bookings/:id/validate-otp')
+  async validateByOtp(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { otp: string; phase: 'drop' | 'pickup' },
+  ) {
+    return this.daycareService.validateByOtp(req.user.sub, id, body.otp, body.phase);
+  }
 }

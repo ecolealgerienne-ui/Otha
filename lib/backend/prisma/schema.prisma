@@ -784,11 +784,14 @@ model OrderItem {
 // =========================
 
 enum DaycareBookingStatus {
-  PENDING       // En attente de confirmation
-  CONFIRMED     // Confirmé par la garderie
-  IN_PROGRESS   // Animal déposé (heure d'arrivée enregistrée)
-  COMPLETED     // Animal récupéré (heure de départ enregistrée)
-  CANCELLED     // Annulé
+  PENDING                   // En attente de confirmation
+  CONFIRMED                 // Confirmé par la garderie
+  PENDING_DROP_VALIDATION   // Client a confirmé son arrivée, en attente validation pro
+  IN_PROGRESS               // Animal déposé (heure d'arrivée enregistrée)
+  PENDING_PICKUP_VALIDATION // Client a confirmé le retrait, en attente validation pro
+  COMPLETED                 // Animal récupéré (heure de départ enregistrée)
+  CANCELLED                 // Annulé
+  DISPUTED                  // Litige (fraude suspectée)
 }
 
 model DaycareBooking {
@@ -805,6 +808,25 @@ model DaycareBooking {
   // Heures réelles
   actualDropOff   DateTime?             // Heure réelle de dépôt
   actualPickup    DateTime?             // Heure réelle de récupération
+
+  // ✅ Anti-fraude: Confirmation dépôt
+  clientDropConfirmedAt     DateTime?   // Quand le client a confirmé l'arrivée
+  dropConfirmationMethod    String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  dropCheckinLat            Float?      // GPS latitude lors du check-in dépôt
+  dropCheckinLng            Float?      // GPS longitude lors du check-in dépôt
+  dropOtpCode               String?     // Code OTP pour dépôt (6 chiffres)
+  dropOtpExpiresAt          DateTime?   // Expiration du code OTP dépôt
+
+  // ✅ Anti-fraude: Confirmation retrait
+  clientPickupConfirmedAt   DateTime?   // Quand le client a confirmé le retrait
+  pickupConfirmationMethod  String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  pickupCheckinLat          Float?      // GPS latitude lors du check-in retrait
+  pickupCheckinLng          Float?      // GPS longitude lors du check-in retrait
+  pickupOtpCode             String?     // Code OTP pour retrait (6 chiffres)
+  pickupOtpExpiresAt        DateTime?   // Expiration du code OTP retrait
+
+  // Notes litige
+  disputeNote     String?               // Note en cas de litige
 
   // Tarification
   priceDa         Int                   // Prix de base

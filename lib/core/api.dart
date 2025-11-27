@@ -1063,9 +1063,104 @@ Future<List<Map<String, dynamic>>> providerAgenda({
   }
 
   /// Confirmer la réception de l'animal à la garderie (après scan QR)
-  /// Alias pour markDaycareDropOff
+  /// Alias pour markDaycareDropOff - ANCIEN SYSTÈME
   Future<Map<String, dynamic>> confirmDaycareDropOff(String bookingId) async {
     return markDaycareDropOff(bookingId);
+  }
+
+  // --------------- Daycare Anti-fraude ---------------
+
+  /// Client: Confirmer l'arrivée pour déposer l'animal (avec géoloc)
+  Future<Map<String, dynamic>> clientConfirmDaycareDropOff(
+    String bookingId, {
+    String method = 'PROXIMITY',
+    double? lat,
+    double? lng,
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/client-confirm-drop',
+          data: {'method': method, 'lat': lat, 'lng': lng},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Client: Confirmer l'arrivée pour récupérer l'animal (avec géoloc)
+  Future<Map<String, dynamic>> clientConfirmDaycarePickup(
+    String bookingId, {
+    String method = 'PROXIMITY',
+    double? lat,
+    double? lng,
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/client-confirm-pickup',
+          data: {'method': method, 'lat': lat, 'lng': lng},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Valider ou refuser le dépôt de l'animal
+  Future<Map<String, dynamic>> proValidateDaycareDropOff(
+    String bookingId, {
+    required bool approved,
+    String method = 'MANUAL',
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/pro-validate-drop',
+          data: {'approved': approved, 'method': method},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Valider ou refuser le retrait de l'animal
+  Future<Map<String, dynamic>> proValidateDaycarePickup(
+    String bookingId, {
+    required bool approved,
+    String method = 'MANUAL',
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/pro-validate-pickup',
+          data: {'approved': approved, 'method': method},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Obtenir les réservations en attente de validation
+  Future<List<dynamic>> getDaycarePendingValidations() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/provider/pending-validations'));
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  /// Client: Obtenir le code OTP pour le dépôt
+  Future<Map<String, dynamic>> getDaycareDropOtp(String bookingId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/bookings/$bookingId/drop-otp'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Client: Obtenir le code OTP pour le retrait
+  Future<Map<String, dynamic>> getDaycarePickupOtp(String bookingId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/daycare/bookings/$bookingId/pickup-otp'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Pro: Valider par code OTP
+  Future<Map<String, dynamic>> validateDaycareByOtp(
+    String bookingId, {
+    required String otp,
+    required String phase, // 'drop' ou 'pickup'
+  }) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+          '/daycare/bookings/$bookingId/validate-otp',
+          data: {'otp': otp, 'phase': phase},
+        ));
+    return _unwrap<Map<String, dynamic>>(res.data);
   }
 
   // --------------- Reviews ---------------

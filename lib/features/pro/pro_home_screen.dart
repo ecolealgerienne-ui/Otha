@@ -168,6 +168,17 @@ final pendingValidationsCountProvider = FutureProvider.autoDispose<int>((ref) as
   return api.getPendingValidationsCount();
 });
 
+/// Provider pour récupérer les validations daycare en attente
+final pendingDaycareValidationsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final result = await api.getDaycarePendingValidations();
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
 /// Historique normalisé SANS AUCUN overlay local — uniquement backend
 final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   final api = ref.read(apiProvider);
@@ -487,6 +498,86 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                   child: Consumer(
                     builder: (context, ref, _) {
                       final pendingAsync = ref.watch(pendingValidationsProvider);
+                      final hasValidations = pendingAsync.maybeWhen(
+                        data: (v) => v.isNotEmpty,
+                        orElse: () => false,
+                      );
+                      return SizedBox(height: hasValidations ? 14 : 0);
+                    },
+                  ),
+                ),
+
+                // ------- Banner vert : Validations garderie pendantes -------
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final pendingAsync = ref.watch(pendingDaycareValidationsProvider);
+                      return pendingAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (validations) {
+                          if (validations.isEmpty) return const SizedBox.shrink();
+
+                          // Compter les dépôts et retraits
+                          int dropCount = 0;
+                          int pickupCount = 0;
+                          for (final v in validations) {
+                            final st = (v['status'] ?? '').toString().toUpperCase();
+                            if (st == 'PENDING_DROP_VALIDATION') {
+                              dropCount++;
+                            } else if (st == 'PENDING_PICKUP_VALIDATION') {
+                              pickupCount++;
+                            }
+                          }
+
+                          String message;
+                          if (dropCount > 0 && pickupCount > 0) {
+                            message = '🐾 $dropCount dépôt${dropCount > 1 ? 's' : ''} et $pickupCount retrait${pickupCount > 1 ? 's' : ''} à valider';
+                          } else if (dropCount > 0) {
+                            message = '🐾 $dropCount dépôt${dropCount > 1 ? 's' : ''} d\'animal à valider';
+                          } else {
+                            message = '🐾 $pickupCount retrait${pickupCount > 1 ? 's' : ''} d\'animal à valider';
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF22C55E)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.pets, color: Color(0xFF22C55E)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    message,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => context.push('/pro/daycare-pending-validations'),
+                                  child: const Text('Voir', style: TextStyle(color: Color(0xFF22C55E))),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                // Espacement conditionnel après le banner daycare
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final pendingAsync = ref.watch(pendingDaycareValidationsProvider);
                       final hasValidations = pendingAsync.maybeWhen(
                         data: (v) => v.isNotEmpty,
                         orElse: () => false,

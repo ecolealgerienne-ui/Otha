@@ -485,6 +485,27 @@ final nextPendingDaycareBookingProvider =
   }
 });
 
+/// -------------------- Réservation garderie IN_PROGRESS (animal déposé, en attente récupération) --------------------
+final inProgressDaycareBookingProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final api = ref.read(apiProvider);
+  try {
+    final rows = await api.myDaycareBookings();
+
+    for (final raw in rows) {
+      final m = Map<String, dynamic>.from(raw as Map);
+      final st = (m['status'] ?? '').toString().toUpperCase();
+      // ✅ Seulement les réservations IN_PROGRESS (animal à la garderie)
+      if (st == 'IN_PROGRESS') {
+        return m;
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+});
+
 /// -------------------- Commandes petshop en cours (client) --------------------
 final activeOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -685,6 +706,9 @@ class HomeScreen extends ConsumerWidget {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   // ▼ Prochaine réservation garderie pending (orange)
                   const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                  // ▼ Réservation garderie IN_PROGRESS (animal déposé, bouton récupération)
+                  const SliverToBoxAdapter(child: _InProgressDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   // ▼ Commandes en cours (rose saumon)
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
@@ -1683,9 +1707,40 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
   }
 }
 
-/// -------------------- Bandeau réservation garderie confirmée --------------------
-class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
+/// -------------------- Bandeau garderie confirmée avec détection de proximité --------------------
+class _NextConfirmedDaycareBookingBanner extends ConsumerStatefulWidget {
   const _NextConfirmedDaycareBookingBanner({super.key});
+  @override
+  ConsumerState<_NextConfirmedDaycareBookingBanner> createState() => _NextConfirmedDaycareBookingBannerState();
+}
+
+class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirmedDaycareBookingBanner> {
+  bool _isNearby = false;
+  bool _checkingProximity = false;
+  double? _distanceMeters;
+  Timer? _proximityTimer;
+  Map<String, dynamic>? _lastBooking;
+  Position? _lastPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    // Timer qui vérifie la proximité toutes les 30 secondes
+    _proximityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        ref.invalidate(nextConfirmedDaycareBookingProvider);
+        if (_lastBooking != null) {
+          _checkProximity(_lastBooking!);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _proximityTimer?.cancel();
+    super.dispose();
+  }
 
   String _petName(Map<String, dynamic> m) {
     final pet = m['pet'];
@@ -1696,9 +1751,102 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
     return 'Votre animal';
   }
 
+  /// Vérifie si l'utilisateur est à proximité de la garderie (< 500m)
+  Future<void> _checkProximity(Map<String, dynamic> booking) async {
+    if (_checkingProximity) return;
+
+    // Vérifier si c'est le jour du dépôt
+    final iso = (booking['startDate'] ?? '').toString();
+    if (iso.isEmpty) return;
+
+    DateTime? startDate;
+    try {
+      startDate = DateTime.parse(iso);
+    } catch (_) {
+      return;
+    }
+
+    final now = DateTime.now().toUtc();
+    final diff = startDate.difference(now);
+    // Afficher le bouton confirmer si: RDV dans les 2h OU commencé depuis moins de 2h
+    if (diff.inHours > 2 || diff.inHours < -2) return;
+
+    // Récupérer les coordonnées du provider
+    final provider = booking['provider'] as Map<String, dynamic>?;
+    if (provider == null) return;
+
+    final provLat = (provider['lat'] as num?)?.toDouble();
+    final provLng = (provider['lng'] as num?)?.toDouble();
+
+    if (provLat == null || provLng == null) return;
+
+    setState(() => _checkingProximity = true);
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      _lastPosition = pos;
+
+      final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
+
+      if (mounted) {
+        setState(() {
+          _distanceMeters = distance;
+          _isNearby = distance < 500; // Moins de 500m
+        });
+      }
+    } catch (e) {
+      // Ignorer les erreurs de géolocalisation
+    } finally {
+      if (mounted) {
+        setState(() => _checkingProximity = false);
+      }
+    }
+  }
+
+  Future<void> _confirmDropOff(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
+    final id = (m['id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.clientConfirmDaycareDropOff(
+        id,
+        method: 'PROXIMITY',
+        lat: _lastPosition?.latitude,
+        lng: _lastPosition?.longitude,
+      );
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Arrivée confirmée ! La garderie va valider le dépôt.'),
+          backgroundColor: Color(0xFF22C55E),
+        ),
+      );
+
+      ref.invalidate(nextConfirmedDaycareBookingProvider);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedDaycareBookingProvider);
+    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -1706,10 +1854,18 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
       data: (m) {
         if (m == null) return const SizedBox.shrink();
 
+        _lastBooking = m;
+
+        // Vérifier la proximité si position disponible
+        if (userPos != null && !_checkingProximity && _distanceMeters == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkProximity(m);
+          });
+        }
+
         final iso = (m['startDate'] ?? '').toString();
         DateTime? dtUtc;
         try {
-          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
           dtUtc = DateTime.parse(iso);
         } catch (_) {}
         final when = dtUtc != null
@@ -1719,6 +1875,12 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
             : '—';
 
         final petName = _petName(m);
+
+        // Vérifier si c'est le jour du dépôt
+        final now = DateTime.now().toUtc();
+        final isTimeClose = dtUtc != null &&
+            dtUtc.difference(now).inHours <= 2 &&
+            dtUtc.difference(now).inHours >= -2;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1730,37 +1892,88 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
             ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () async {
-                final changed = await context.push<bool>('/daycare/booking-details', extra: m);
-                if (changed == true) {
-                  ref.invalidate(nextConfirmedDaycareBookingProvider);
-                  ref.invalidate(nextPendingDaycareBookingProvider);
-                }
-              },
-              child: Row(
-                children: [
+            child: Column(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final changed = await context.push<bool>('/daycare/booking-details', extra: m);
+                    if (changed == true) {
+                      ref.invalidate(nextConfirmedDaycareBookingProvider);
+                      ref.invalidate(nextPendingDaycareBookingProvider);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.home, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Garderie: $when — $petName',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          maxLines: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
+                ),
+
+                // ✅ Bouton "Confirmer le dépôt" si à proximité et c'est le jour
+                if (_isNearby && isTimeClose) ...[
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E), // ✅ vert
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF22C55E)),
                     ),
-                    child: const Icon(Icons.home, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Garderie confirmée: $when — $petName',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                      maxLines: 2,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Color(0xFF22C55E), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Vous êtes à ${_distanceMeters?.toInt() ?? '?'}m de la garderie',
+                                style: const TextStyle(
+                                  color: Color(0xFF22C55E),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => _confirmDropOff(context, ref, m),
+                            icon: const Icon(Icons.pets, size: 18),
+                            label: const Text('Confirmer le dépôt de l\'animal'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF22C55E),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios, size: 16),
                 ],
-              ),
+              ],
             ),
           ),
         );
@@ -1902,6 +2115,275 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                     ),
                     child: const Text('Annuler'),
                   ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// -------------------- Bandeau réservation garderie IN_PROGRESS (animal déposé) --------------------
+class _InProgressDaycareBookingBanner extends ConsumerStatefulWidget {
+  const _InProgressDaycareBookingBanner({super.key});
+  @override
+  ConsumerState<_InProgressDaycareBookingBanner> createState() => _InProgressDaycareBookingBannerState();
+}
+
+class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDaycareBookingBanner> {
+  bool _isNearby = false;
+  bool _checkingProximity = false;
+  double? _distanceMeters;
+  Timer? _proximityTimer;
+  Map<String, dynamic>? _lastBooking;
+  Position? _lastPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    // Timer qui vérifie la proximité toutes les 30 secondes
+    _proximityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        ref.invalidate(inProgressDaycareBookingProvider);
+        if (_lastBooking != null) {
+          _checkProximity(_lastBooking!);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _proximityTimer?.cancel();
+    super.dispose();
+  }
+
+  String _petName(Map<String, dynamic> m) {
+    final pet = m['pet'];
+    if (pet is Map) {
+      final name = (pet['name'] ?? '').toString().trim();
+      if (name.isNotEmpty) return name;
+    }
+    return 'Votre animal';
+  }
+
+  /// Vérifie si l'utilisateur est à proximité de la garderie (< 500m)
+  Future<void> _checkProximity(Map<String, dynamic> booking) async {
+    if (_checkingProximity) return;
+
+    // Récupérer les coordonnées du provider
+    final provider = booking['provider'] as Map<String, dynamic>?;
+    if (provider == null) return;
+
+    final provLat = (provider['lat'] as num?)?.toDouble();
+    final provLng = (provider['lng'] as num?)?.toDouble();
+
+    if (provLat == null || provLng == null) return;
+
+    setState(() => _checkingProximity = true);
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      _lastPosition = pos;
+
+      final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
+
+      if (mounted) {
+        setState(() {
+          _distanceMeters = distance;
+          _isNearby = distance < 500; // Moins de 500m
+        });
+      }
+    } catch (e) {
+      // Ignorer les erreurs de géolocalisation
+    } finally {
+      if (mounted) {
+        setState(() => _checkingProximity = false);
+      }
+    }
+  }
+
+  Future<void> _confirmPickup(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
+    final id = (m['id'] ?? '').toString();
+    if (id.isEmpty) return;
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.clientConfirmDaycarePickup(
+        id,
+        method: 'PROXIMITY',
+        lat: _lastPosition?.latitude,
+        lng: _lastPosition?.longitude,
+      );
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Retrait confirmé ! La garderie va valider.'),
+          backgroundColor: Color(0xFF22C55E),
+        ),
+      );
+
+      ref.invalidate(inProgressDaycareBookingProvider);
+      ref.invalidate(nextConfirmedDaycareBookingProvider);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(inProgressDaycareBookingProvider);
+    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
+
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (m) {
+        if (m == null) return const SizedBox.shrink();
+
+        _lastBooking = m;
+
+        // Vérifier la proximité si position disponible
+        if (userPos != null && !_checkingProximity && _distanceMeters == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkProximity(m);
+          });
+        }
+
+        final petName = _petName(m);
+
+        // Calculer le temps depuis le dépôt
+        final dropIso = (m['clientDropConfirmedAt'] ?? m['startDate'] ?? '').toString();
+        DateTime? dropAt;
+        try {
+          dropAt = DateTime.parse(dropIso);
+        } catch (_) {}
+
+        String sinceText = '';
+        if (dropAt != null) {
+          final diff = DateTime.now().toUtc().difference(dropAt);
+          if (diff.inHours > 0) {
+            sinceText = ' (depuis ${diff.inHours}h)';
+          } else if (diff.inMinutes > 0) {
+            sinceText = ' (depuis ${diff.inMinutes}min)';
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            ),
+            child: Column(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final changed = await context.push<bool>('/daycare/booking-details', extra: m);
+                    if (changed == true) {
+                      ref.invalidate(inProgressDaycareBookingProvider);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6), // bleu pour IN_PROGRESS
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.pets, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$petName est à la garderie$sinceText',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              maxLines: 2,
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Prêt à récupérer',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
+                ),
+
+                // ✅ Bouton "Confirmer le retrait" si à proximité
+                if (_isNearby) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF22C55E)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Color(0xFF22C55E), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Vous êtes à ${_distanceMeters?.toInt() ?? '?'}m de la garderie',
+                                style: const TextStyle(
+                                  color: Color(0xFF22C55E),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => _confirmPickup(context, ref, m),
+                            icon: const Icon(Icons.check_circle, size: 18),
+                            label: const Text('Confirmer le retrait de l\'animal'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF22C55E),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
