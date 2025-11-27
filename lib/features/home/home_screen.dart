@@ -963,6 +963,7 @@ class _OscillatingCategoriesState extends State<_OscillatingCategories> {
 }
 
 /// -------------------- Bandeau RDV confirmé (tap => page détails) --------------------
+/// Affiche aussi un bouton "Confirmer ma présence" si le client est à proximité
 class _NextConfirmedBanner extends ConsumerStatefulWidget {
   const _NextConfirmedBanner({super.key});
   @override
@@ -970,6 +971,10 @@ class _NextConfirmedBanner extends ConsumerStatefulWidget {
 }
 
 class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
+  bool _isNearby = false;
+  bool _checkingProximity = false;
+  double? _distanceMeters;
+
   String _serviceName(Map<String, dynamic> m) {
     final s = m['service'];
     if (s is Map) {
@@ -979,15 +984,108 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
     return 'Rendez-vous';
   }
 
+  /// Calcule la distance entre deux points GPS (formule Haversine)
+  double _haversineDistance(double lat1, double lng1, double lat2, double lng2) {
+    const R = 6371000.0; // Rayon de la Terre en mètres
+    final dLat = (lat2 - lat1) * 3.141592653589793 / 180;
+    final dLng = (lng2 - lng1) * 3.141592653589793 / 180;
+    final a = (1 - (dLat).abs().clamp(0, 1) > 0 ? 1 : 0) *
+            (dLat / 2).abs() *
+            (dLat / 2).abs() +
+        (lat1 * 3.141592653589793 / 180).abs().clamp(0, 1) *
+            (lat2 * 3.141592653589793 / 180).abs().clamp(0, 1) *
+            (dLng / 2).abs() *
+            (dLng / 2).abs();
+    // Simplified: use Geolocator.distanceBetween instead
+    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
+  }
+
+  /// Vérifie si l'utilisateur est à proximité du cabinet (< 500m)
+  Future<void> _checkProximity(Map<String, dynamic> booking) async {
+    if (_checkingProximity) return;
+
+    // Vérifier si le RDV est dans les prochaines 2h ou commencé depuis moins de 1h
+    final iso = (booking['scheduledAt'] ?? booking['scheduled_at'] ?? '').toString();
+    if (iso.isEmpty) return;
+
+    DateTime? scheduledAt;
+    try {
+      scheduledAt = DateTime.parse(iso).toLocal();
+    } catch (_) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final diff = scheduledAt.difference(now);
+    // Afficher le bouton confirmer si: RDV dans les 2h OU commencé depuis moins de 1h
+    if (diff.inHours > 2 || diff.inHours < -1) return;
+
+    // Récupérer les coordonnées du provider
+    final provider = booking['provider'] as Map<String, dynamic>?;
+    final providerProfile = booking['providerProfile'] as Map<String, dynamic>?;
+    final effectiveProvider = provider ?? providerProfile;
+
+    if (effectiveProvider == null) return;
+
+    final provLat = (effectiveProvider['lat'] as num?)?.toDouble();
+    final provLng = (effectiveProvider['lng'] as num?)?.toDouble();
+
+    if (provLat == null || provLng == null) return;
+
+    setState(() => _checkingProximity = true);
+
+    try {
+      // Obtenir la position de l'utilisateur
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+
+      final distance = Geolocator.distanceBetween(
+        position.latitude, position.longitude,
+        provLat, provLng,
+      );
+
+      if (mounted) {
+        setState(() {
+          _distanceMeters = distance;
+          _isNearby = distance <= 500; // 500 mètres
+        });
+      }
+    } catch (e) {
+      // Ignorer les erreurs de géolocalisation
+    } finally {
+      if (mounted) {
+        setState(() => _checkingProximity = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedBookingProvider);
+    final userPos = ref.watch(homeUserPositionStreamProvider).maybeWhen(
+      data: (p) => p,
+      orElse: () => null,
+    );
 
     return async.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) => const SizedBox.shrink(),
       data: (m) {
         if (m == null) return const SizedBox.shrink();
+
+        // Vérifier la proximité si on a la position de l'utilisateur
+        if (userPos != null && !_checkingProximity && _distanceMeters == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkProximity(m);
+          });
+        }
 
         final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
         DateTime? dtLocal;
@@ -1002,6 +1100,12 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
 
         final service = _serviceName(m);
 
+        // Vérifier si le RDV est proche dans le temps (2h avant, 1h après)
+        final now = DateTime.now();
+        final isTimeClose = dtLocal != null &&
+            dtLocal.difference(now).inHours <= 2 &&
+            dtLocal.difference(now).inHours >= -1;
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: AnimatedContainer(
@@ -1012,37 +1116,113 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
             ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () async {
-                final changed = await context.push<bool>('/booking-details', extra: m);
-                if (changed == true && mounted) {
-                  ref.invalidate(nextConfirmedBookingProvider);
-                  ref.invalidate(nextPendingBookingProvider);
-                }
-              },
-              child: Row(
-                children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Ligne principale (cliquable vers détails)
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final changed = await context.push<bool>('/booking-details', extra: m);
+                    if (changed == true && mounted) {
+                      ref.invalidate(nextConfirmedBookingProvider);
+                      ref.invalidate(nextPendingBookingProvider);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E), // ✅ vert
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.event_available, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Prochain rendez-vous: $when — $service',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          maxLines: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
+                ),
+
+                // ✅ Bouton "Confirmer ma présence" si à proximité
+                if (_isNearby && isTimeClose) ...[
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E), // ✅ vert
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF81C784)),
                     ),
-                    child: const Icon(Icons.event_available, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Prochain rendez-vous: $when — $service',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                      maxLines: 2,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Color(0xFF43AA8B), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Vous êtes à proximité !',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (_distanceMeters != null)
+                                Text(
+                                  '${_distanceMeters!.round()} m du cabinet',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios, size: 16),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () {
+                      context.push('/booking/${m['id']}/confirm', extra: m);
+                    },
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Confirmer ma présence'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF36C6C),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ] else if (isTimeClose && !_isNearby && _distanceMeters != null) ...[
+                  // Si pas à proximité mais RDV proche, afficher la distance
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Distance: ${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         );
