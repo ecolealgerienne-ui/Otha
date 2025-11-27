@@ -118,6 +118,7 @@ model ProviderProfile {
   address     String?
   specialties Json?
   timezone    String?
+  avatarUrl   String?   // Photo de profil du provider
 
   isApproved      Boolean   @default(false)
   appliedAt       DateTime  @default(now())
