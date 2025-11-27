@@ -44,6 +44,7 @@ import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
 import '../features/pro/pro_pending_validations_screen.dart';
+import '../features/pro/pro_daycare_pending_validations_screen.dart';
 import '../features/pro/pro_verify_otp_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
@@ -690,6 +691,10 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/pending-validations',
             builder: (_, __) => const ProPendingValidationsScreen(),
+          ),
+          GoRoute(
+            path: '/pro/daycare-pending-validations',
+            builder: (_, __) => const ProDaycarePendingValidationsScreen(),
           ),
           GoRoute(
             path: '/pro/verify-otp/:bookingId',

@@ -405,6 +405,362 @@ export class DaycareService {
     });
   }
 
+  // ============================================
+  // SYSTÈME ANTI-FRAUDE
+  // ============================================
+
+  /**
+   * Client: Confirmer l'arrivée pour déposer l'animal (avec géoloc)
+   */
+  async clientConfirmDropOff(
+    userId: string,
+    bookingId: string,
+    method: string = 'PROXIMITY',
+    lat?: number,
+    lng?: number,
+  ) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    if (booking.status !== 'CONFIRMED') {
+      throw new BadRequestException('La réservation doit être confirmée pour le dépôt');
+    }
+
+    // Vérifier la date (doit être le jour du dépôt ou proche)
+    const now = new Date();
+    const startDate = new Date(booking.startDate);
+    const diffHours = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    // Autoriser confirmation 2h avant jusqu'à 2h après le début prévu
+    if (diffHours > 2 || diffHours < -2) {
+      throw new BadRequestException('Vous ne pouvez confirmer que le jour du dépôt');
+    }
+
+    // Générer un code OTP pour le dépôt
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expire dans 10 minutes
+
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'PENDING_DROP_VALIDATION',
+        clientDropConfirmedAt: now,
+        dropConfirmationMethod: method,
+        dropCheckinLat: lat,
+        dropCheckinLng: lng,
+        dropOtpCode: otpCode,
+        dropOtpExpiresAt: otpExpiresAt,
+      },
+      include: {
+        pet: true,
+        provider: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+    });
+  }
+
+  /**
+   * Client: Confirmer le retrait de l'animal (avec géoloc)
+   */
+  async clientConfirmPickup(
+    userId: string,
+    bookingId: string,
+    method: string = 'PROXIMITY',
+    lat?: number,
+    lng?: number,
+  ) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    if (booking.status !== 'IN_PROGRESS') {
+      throw new BadRequestException('L\'animal doit d\'abord être déposé');
+    }
+
+    // Générer un code OTP pour le retrait
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    return this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'PENDING_PICKUP_VALIDATION',
+        clientPickupConfirmedAt: new Date(),
+        pickupConfirmationMethod: method,
+        pickupCheckinLat: lat,
+        pickupCheckinLng: lng,
+        pickupOtpCode: otpCode,
+        pickupOtpExpiresAt: otpExpiresAt,
+      },
+      include: {
+        pet: true,
+        provider: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+    });
+  }
+
+  /**
+   * Pro: Valider le dépôt de l'animal (après confirmation client)
+   */
+  async proValidateDropOff(
+    userId: string,
+    bookingId: string,
+    approved: boolean,
+    method: string = 'MANUAL',
+  ) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+
+    if (!provider) throw new ForbiddenException('Vous n\'êtes pas un professionnel');
+
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.providerId !== provider.id) {
+      throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    }
+
+    if (booking.status !== 'PENDING_DROP_VALIDATION') {
+      throw new BadRequestException('Le client doit d\'abord confirmer son arrivée');
+    }
+
+    if (approved) {
+      // ✅ VALIDER LE DÉPÔT
+      const updatedBooking = await this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'IN_PROGRESS',
+          actualDropOff: new Date(),
+          dropConfirmationMethod: method,
+        },
+        include: { pet: true, user: { select: { id: true, firstName: true, lastName: true } } },
+      });
+
+      // Créer acte médical
+      const providerName = `${provider.user.firstName || ''} ${provider.user.lastName || ''}`.trim() || provider.displayName || 'Garderie';
+      const durationDays = Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24));
+
+      await this.prisma.medicalRecord.create({
+        data: {
+          petId: booking.petId,
+          type: 'DAYCARE_VISIT',
+          title: `Séjour en garderie - ${providerName}`,
+          description: `Séjour confirmé en garderie`,
+          date: new Date(booking.startDate),
+          vetId: provider.id,
+          vetName: providerName,
+          providerType: 'DAYCARE',
+          daycareBookingId: booking.id,
+          durationMinutes: durationDays * 24 * 60,
+          notes: `Confirmation: ${method}`,
+        },
+      });
+
+      return updatedBooking;
+    } else {
+      // ❌ REFUSER = CLIENT MENT
+      await this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'DISPUTED',
+          disputeNote: 'Pro claims client did not arrive for drop-off',
+        },
+      });
+
+      await this.prisma.adminFlag.create({
+        data: {
+          userId: booking.userId,
+          type: 'DAYCARE_DISPUTE',
+          note: 'Pro claims client did not arrive for daycare drop-off (DISPUTED)',
+        },
+      });
+
+      return { disputed: true, message: 'Réservation marquée en litige' };
+    }
+  }
+
+  /**
+   * Pro: Valider le retrait de l'animal (après confirmation client)
+   */
+  async proValidatePickup(
+    userId: string,
+    bookingId: string,
+    approved: boolean,
+    method: string = 'MANUAL',
+  ) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new ForbiddenException('Vous n\'êtes pas un professionnel');
+
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.providerId !== provider.id) {
+      throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    }
+
+    if (booking.status !== 'PENDING_PICKUP_VALIDATION') {
+      throw new BadRequestException('Le client doit d\'abord confirmer le retrait');
+    }
+
+    if (approved) {
+      return this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'COMPLETED',
+          actualPickup: new Date(),
+          pickupConfirmationMethod: method,
+        },
+        include: { pet: true, user: { select: { id: true, firstName: true, lastName: true } } },
+      });
+    } else {
+      await this.prisma.daycareBooking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'DISPUTED',
+          disputeNote: 'Pro claims client did not arrive for pickup',
+        },
+      });
+
+      await this.prisma.adminFlag.create({
+        data: {
+          userId: booking.userId,
+          type: 'DAYCARE_DISPUTE',
+          note: 'Pro claims client did not arrive for daycare pickup (DISPUTED)',
+        },
+      });
+
+      return { disputed: true, message: 'Réservation marquée en litige' };
+    }
+  }
+
+  /**
+   * Pro: Obtenir les réservations en attente de validation
+   */
+  async getPendingValidations(userId: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new NotFoundException('Profil professionnel non trouvé');
+
+    return this.prisma.daycareBooking.findMany({
+      where: {
+        providerId: provider.id,
+        status: { in: ['PENDING_DROP_VALIDATION', 'PENDING_PICKUP_VALIDATION'] },
+      },
+      include: {
+        pet: true,
+        user: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+  }
+
+  /**
+   * Client: Obtenir le code OTP pour le dépôt
+   */
+  async getDropOtp(userId: string, bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+
+    if (!booking.dropOtpCode || !booking.dropOtpExpiresAt) {
+      throw new BadRequestException('Aucun code OTP disponible');
+    }
+
+    if (new Date() > new Date(booking.dropOtpExpiresAt)) {
+      throw new BadRequestException('Le code OTP a expiré');
+    }
+
+    return { otp: booking.dropOtpCode, expiresAt: booking.dropOtpExpiresAt };
+  }
+
+  /**
+   * Client: Obtenir le code OTP pour le retrait
+   */
+  async getPickupOtp(userId: string, bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.userId !== userId) throw new ForbiddenException('Cette réservation ne vous appartient pas');
+
+    if (!booking.pickupOtpCode || !booking.pickupOtpExpiresAt) {
+      throw new BadRequestException('Aucun code OTP disponible');
+    }
+
+    if (new Date() > new Date(booking.pickupOtpExpiresAt)) {
+      throw new BadRequestException('Le code OTP a expiré');
+    }
+
+    return { otp: booking.pickupOtpCode, expiresAt: booking.pickupOtpExpiresAt };
+  }
+
+  /**
+   * Pro: Valider par code OTP
+   */
+  async validateByOtp(userId: string, bookingId: string, otpCode: string, phase: 'drop' | 'pickup') {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!provider) throw new ForbiddenException('Vous n\'êtes pas un professionnel');
+
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) throw new NotFoundException('Réservation non trouvée');
+    if (booking.providerId !== provider.id) {
+      throw new ForbiddenException('Cette réservation ne vous appartient pas');
+    }
+
+    if (phase === 'drop') {
+      if (booking.status !== 'PENDING_DROP_VALIDATION') {
+        throw new BadRequestException('Le client doit d\'abord confirmer son arrivée');
+      }
+      if (booking.dropOtpCode !== otpCode) {
+        throw new BadRequestException('Code OTP incorrect');
+      }
+      if (!booking.dropOtpExpiresAt || new Date() > new Date(booking.dropOtpExpiresAt)) {
+        throw new BadRequestException('Le code OTP a expiré');
+      }
+      return this.proValidateDropOff(userId, bookingId, true, 'OTP');
+    } else {
+      if (booking.status !== 'PENDING_PICKUP_VALIDATION') {
+        throw new BadRequestException('Le client doit d\'abord confirmer le retrait');
+      }
+      if (booking.pickupOtpCode !== otpCode) {
+        throw new BadRequestException('Code OTP incorrect');
+      }
+      if (!booking.pickupOtpExpiresAt || new Date() > new Date(booking.pickupOtpExpiresAt)) {
+        throw new BadRequestException('Le code OTP a expiré');
+      }
+      return this.proValidatePickup(userId, bookingId, true, 'OTP');
+    }
+  }
+
   /**
    * Chercher un booking daycare actif pour un pet (pour le scan QR)
    * Utilisé par la garderie pour trouver si un animal a un RDV aujourd'hui
