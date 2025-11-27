@@ -237,8 +237,9 @@ class _BookingProximityConfirmationScreenState
     if (scheduledAtStr != null) {
       scheduledAt = DateTime.tryParse(scheduledAtStr);
     }
+    // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
     final dateStr = scheduledAt != null
-        ? DateFormat('EEEE d MMMM à HH:mm', 'fr_FR').format(scheduledAt.toLocal())
+        ? DateFormat('EEEE d MMMM à HH:mm', 'fr_FR').format(scheduledAt)
         : '';
 
     return Scaffold(

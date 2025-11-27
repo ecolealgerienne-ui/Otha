@@ -1053,12 +1053,13 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
 
     DateTime? scheduledAt;
     try {
-      scheduledAt = DateTime.parse(iso).toLocal();
+      // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf" (9h = 09:00Z)
+      scheduledAt = DateTime.parse(iso);
     } catch (_) {
       return;
     }
 
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc(); // Comparer en UTC
     final diff = scheduledAt.difference(now);
     // Afficher le bouton confirmer si: RDV dans les 2h OU commencé depuis moins de 1h
     if (diff.inHours > 2 || diff.inHours < -1) return;
@@ -1177,23 +1178,24 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
         }
 
         final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
-        DateTime? dtLocal;
+        DateTime? dtUtc;
         try {
-          dtLocal = DateTime.parse(iso).toLocal();
+          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf" (9h = 09:00Z)
+          dtUtc = DateTime.parse(iso);
         } catch (_) {}
-        final when = dtLocal != null
+        final when = dtUtc != null
             ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
-                .format(dtLocal)
+                .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 
         final service = _serviceName(m);
 
         // Vérifier si le RDV est proche dans le temps (2h avant, 1h après)
-        final now = DateTime.now();
-        final isTimeClose = dtLocal != null &&
-            dtLocal.difference(now).inHours <= 2 &&
-            dtLocal.difference(now).inHours >= -1;
+        final now = DateTime.now().toUtc(); // Comparer en UTC
+        final isTimeClose = dtUtc != null &&
+            dtUtc.difference(now).inHours <= 2 &&
+            dtUtc.difference(now).inHours >= -1;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1584,13 +1586,14 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
         if (m == null) return const SizedBox.shrink();
 
         final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
-        DateTime? dtLocal;
+        DateTime? dtUtc;
         try {
-          dtLocal = DateTime.parse(iso).toLocal();
+          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
+          dtUtc = DateTime.parse(iso);
         } catch (_) {}
-        final when = dtLocal != null
+        final when = dtUtc != null
             ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
-                .format(dtLocal)
+                .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 
@@ -1704,13 +1707,14 @@ class _NextConfirmedDaycareBookingBanner extends ConsumerWidget {
         if (m == null) return const SizedBox.shrink();
 
         final iso = (m['startDate'] ?? '').toString();
-        DateTime? dtLocal;
+        DateTime? dtUtc;
         try {
-          dtLocal = DateTime.parse(iso).toLocal();
+          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
+          dtUtc = DateTime.parse(iso);
         } catch (_) {}
-        final when = dtLocal != null
+        final when = dtUtc != null
             ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
-                .format(dtLocal)
+                .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 
@@ -1827,13 +1831,14 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
         if (m == null) return const SizedBox.shrink();
 
         final iso = (m['startDate'] ?? '').toString();
-        DateTime? dtLocal;
+        DateTime? dtUtc;
         try {
-          dtLocal = DateTime.parse(iso).toLocal();
+          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
+          dtUtc = DateTime.parse(iso);
         } catch (_) {}
-        final when = dtLocal != null
+        final when = dtUtc != null
             ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
-                .format(dtLocal)
+                .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 

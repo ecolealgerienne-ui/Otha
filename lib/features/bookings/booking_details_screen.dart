@@ -372,12 +372,13 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
     // lecture des infos
     final iso = (_m['scheduledAt'] ?? _m['scheduled_at'] ?? '').toString();
-    DateTime? dtLocal;
+    DateTime? dtUtc;
     try {
-      dtLocal = DateTime.parse(iso).toLocal();
+      // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
+      dtUtc = DateTime.parse(iso);
     } catch (_) {}
-    final dateStr = dtLocal != null ? DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(dtLocal) : '—';
-    final timeStr = dtLocal != null ? DateFormat('HH:mm', 'fr_FR').format(dtLocal) : '—';
+    final dateStr = dtUtc != null ? DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(dtUtc) : '—';
+    final timeStr = dtUtc != null ? DateFormat('HH:mm', 'fr_FR').format(dtUtc) : '—';
 
     final provLight = _providerMap(_m);
     final providerName = _providerName(provLight);
