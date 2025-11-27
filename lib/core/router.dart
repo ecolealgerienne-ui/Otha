@@ -25,6 +25,7 @@ import '../features/providers/provider_details_screen.dart';
 import '../features/bookings/booking_flow_screen.dart';
 import '../features/bookings/booking_details_screen.dart';
 import '../features/bookings/booking_thanks_screen.dart';
+import '../features/bookings/booking_proximity_confirmation_screen.dart';
 
 import '../features/bookings/my_bookings_screen.dart';
 
@@ -43,6 +44,7 @@ import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
 import '../features/pro/pro_pending_validations_screen.dart';
+import '../features/pro/pro_verify_otp_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
 import '../features/petshop/petshop_product_edit_screen.dart';
@@ -219,6 +221,17 @@ GoRoute(
   builder: (_, state) => BookingThanksScreen(
     createdBooking: (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{},
   ),
+),
+GoRoute(
+  path: '/booking/:id/confirm',
+  builder: (_, state) {
+    final bookingId = state.pathParameters['id'] ?? '';
+    final bookingData = (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{};
+    return BookingProximityConfirmationScreen(
+      bookingId: bookingId,
+      bookingData: bookingData,
+    );
+  },
 ),
 
 
@@ -663,6 +676,17 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/pending-validations',
             builder: (_, __) => const ProPendingValidationsScreen(),
+          ),
+          GoRoute(
+            path: '/pro/verify-otp/:bookingId',
+            builder: (_, state) {
+              final bookingId = state.pathParameters['bookingId'] ?? '';
+              final bookingData = (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{};
+              return ProVerifyOtpScreen(
+                bookingId: bookingId,
+                bookingData: bookingData,
+              );
+            },
           ),
           // ✅ Settings passe sous le shell (protégé, back stack propre)
           GoRoute(

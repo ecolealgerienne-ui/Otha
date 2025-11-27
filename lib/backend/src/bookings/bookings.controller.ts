@@ -408,4 +408,99 @@ export class BookingsController {
   checkGracePeriods() {
     return this.svc.checkGracePeriods();
   }
+
+  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
+
+  /**
+   * CLIENT: Récupérer son code OTP (le génère si nécessaire)
+   * GET /bookings/:id/otp
+   */
+  @Get(':id/otp')
+  getBookingOtp(@Req() req: any, @Param('id') id: string) {
+    return this.svc.getBookingOtp(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT: Générer un nouveau code OTP
+   * POST /bookings/:id/otp/generate
+   */
+  @Post(':id/otp/generate')
+  generateBookingOtp(@Req() req: any, @Param('id') id: string) {
+    return this.svc.generateBookingOtp(req.user.sub, id);
+  }
+
+  /**
+   * PRO: Vérifier le code OTP donné par le client
+   * POST /bookings/:id/otp/verify
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':id/otp/verify')
+  verifyBookingOtp(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { otp: string },
+  ) {
+    if (!body?.otp || typeof body.otp !== 'string') {
+      throw new BadRequestException('otp is required');
+    }
+    return this.svc.verifyBookingOtpByPro(req.user.sub, id, body.otp);
+  }
+
+  // ==================== CHECK-IN GÉOLOCALISÉ ====================
+
+  /**
+   * CLIENT: Vérifier s'il est proche du cabinet (pour afficher page confirmation)
+   * POST /bookings/:id/check-proximity
+   */
+  @Post(':id/check-proximity')
+  checkProximity(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number },
+  ) {
+    if (typeof body?.lat !== 'number' || typeof body?.lng !== 'number') {
+      throw new BadRequestException('lat and lng are required');
+    }
+    return this.svc.checkProximity(req.user.sub, id, body.lat, body.lng);
+  }
+
+  /**
+   * CLIENT: Faire check-in (enregistre position GPS)
+   * POST /bookings/:id/checkin
+   */
+  @Post(':id/checkin')
+  clientCheckin(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number },
+  ) {
+    if (typeof body?.lat !== 'number' || typeof body?.lng !== 'number') {
+      throw new BadRequestException('lat and lng are required');
+    }
+    return this.svc.clientCheckin(req.user.sub, id, body.lat, body.lng);
+  }
+
+  /**
+   * CLIENT: Confirmer avec une méthode spécifique
+   * POST /bookings/:id/confirm-with-method
+   */
+  @Post(':id/confirm-with-method')
+  clientConfirmWithMethod(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { method: 'SIMPLE' | 'OTP' | 'QR_SCAN'; rating?: number; comment?: string },
+  ) {
+    const validMethods = ['SIMPLE', 'OTP', 'QR_SCAN'];
+    if (!body?.method || !validMethods.includes(body.method)) {
+      throw new BadRequestException('method must be SIMPLE, OTP, or QR_SCAN');
+    }
+    return this.svc.clientConfirmWithMethod(
+      req.user.sub,
+      id,
+      body.method,
+      body.rating,
+      body.comment,
+    );
+  }
 }
