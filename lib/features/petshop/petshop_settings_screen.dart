@@ -105,9 +105,9 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
     _lastName.text = (me['lastName'] ?? '').toString();
     _email.text = (me['email'] ?? '').toString();
     _phone.text = (me['phone'] ?? '').toString();
-    _photoUrl.text = (me['photoUrl'] ?? me['avatar'] ?? '').toString();
 
-    // PROVIDER
+    // PROVIDER (charger d'abord pour récupérer l'avatar si disponible)
+    String? providerAvatarUrl;
     try {
       final raw = await api.myProvider();
       final p = _unwrap(raw) ?? {};
@@ -122,7 +122,15 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
       _visible = (p['visible'] == true) || (specs['visible'] == true);
       _mapsUrl = (specs['mapsUrl'] ?? p['mapsUrl'])?.toString();
       _bio.text = (p['bio'] ?? specs['bio'] ?? '').toString();
+
+      // Récupérer l'avatar du provider si disponible
+      providerAvatarUrl = (p['avatarUrl'] ?? p['photoUrl'] ?? '').toString();
     } catch (_) {}
+
+    // Charger l'avatar: priorité au provider, puis utilisateur
+    _photoUrl.text = providerAvatarUrl?.isNotEmpty == true
+        ? providerAvatarUrl!
+        : (me['photoUrl'] ?? me['avatar'] ?? '').toString();
 
     // PRODUCTS
     try {
@@ -275,9 +283,27 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
       _photoUrl.text = url;
       _avatarFile = null;
 
-      // Sauvegarder immédiatement
+      // Sauvegarder au niveau utilisateur
       await api.updateMe(photoUrl: url);
       await ref.read(sessionProvider.notifier).refreshMe();
+
+      // Sauvegarder aussi au niveau provider si on a un provider
+      if (_providerId != null && _providerId!.isNotEmpty) {
+        final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
+        final displayName = fullName.isEmpty ? _email.text.split('@').first : fullName;
+
+        await api.upsertMyProvider(
+          displayName: displayName,
+          address: _address.text.trim().isEmpty ? null : _address.text.trim(),
+          bio: _bio.text.trim().isEmpty ? null : _bio.text.trim(),
+          avatarUrl: url,
+          specialties: {
+            'kind': _kind,
+            'visible': _visible,
+            if (_mapsUrl != null && _mapsUrl!.isNotEmpty) 'mapsUrl': _mapsUrl!,
+          },
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
