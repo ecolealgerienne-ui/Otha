@@ -565,6 +565,7 @@ class ApiClient {
     String? timezone,
     String? avnCardFront,
     String? avnCardBack,
+    String? avatarUrl,
   }) async {
     await ensureAuth();
 
@@ -582,6 +583,7 @@ class ApiClient {
       if (!forceReparse && _validCoord(lng)) 'lng': lng,
       if (avnCardFront != null) 'avnCardFront': avnCardFront,
       if (avnCardBack != null) 'avnCardBack': avnCardBack,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
     };
 
     final res = await _dio.post(
