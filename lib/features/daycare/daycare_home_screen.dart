@@ -83,13 +83,9 @@ final pendingDaycareValidationsProvider = FutureProvider.autoDispose<List<Map<St
 
 /// Provider pour récupérer les clients à proximité
 final nearbyDaycareClientsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  try {
-    final api = ref.read(apiProvider);
-    final result = await api.getDaycareNearbyClients();
-    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  } catch (e) {
-    return [];
-  }
+  final api = ref.read(apiProvider);
+  final result = await api.getDaycareNearbyClients();
+  return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
 /// Provider pour récupérer les frais de retard en attente
@@ -536,6 +532,8 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               ref.invalidate(myDaycareProfileProvider);
               ref.invalidate(myDaycareBookingsProvider);
               ref.invalidate(pendingDaycareBookingsProvider);
+              ref.invalidate(nearbyDaycareClientsProvider);
+              ref.invalidate(pendingDaycareValidationsProvider);
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),

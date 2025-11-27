@@ -1028,24 +1028,32 @@ export class DaycareService {
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     const now = new Date();
 
+    // Requête séparée pour éviter les conflits avec les filtres OR imbriqués
     return this.prisma.daycareBooking.findMany({
       where: {
         providerId: provider.id,
-        status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
         OR: [
-          // Client à proximité récemment
-          { clientNearbyAt: { gte: thirtyMinutesAgo } },
+          // Client à proximité récemment (pour dépôt CONFIRMED)
+          {
+            status: 'CONFIRMED',
+            clientNearbyAt: { gte: thirtyMinutesAgo },
+          },
+          // Client à proximité récemment (pour retrait IN_PROGRESS)
+          {
+            status: 'IN_PROGRESS',
+            clientNearbyAt: { gte: thirtyMinutesAgo },
+          },
           // OTP de dépôt actif et non expiré
           {
+            status: 'CONFIRMED',
             dropOtpCode: { not: null },
             dropOtpExpiresAt: { gte: now },
-            status: 'CONFIRMED',
           },
           // OTP de retrait actif et non expiré
           {
+            status: 'IN_PROGRESS',
             pickupOtpCode: { not: null },
             pickupOtpExpiresAt: { gte: now },
-            status: 'IN_PROGRESS',
           },
         ],
       },
