@@ -343,6 +343,112 @@ class _DayAnimalsViewState extends ConsumerState<_DayAnimalsView> {
     }
   }
 
+  /// Afficher la dialog pour saisir le code OTP
+  Future<void> _showOtpDialog(String bookingId, String phase) async {
+    final otpController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.pin, color: Color(0xFF22C55E)),
+            ),
+            const SizedBox(width: 12),
+            Text(phase == 'drop' ? 'Code dépôt' : 'Code retrait'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Entrez le code à 6 chiffres fourni par le client',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 8,
+              ),
+              decoration: InputDecoration(
+                hintText: '000000',
+                counterText: '',
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF22C55E),
+            ),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && otpController.text.length == 6) {
+      await _validateOtp(bookingId, otpController.text, phase);
+    }
+    otpController.dispose();
+  }
+
+  Future<void> _validateOtp(String bookingId, String otp, String phase) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.validateDaycareByOtp(bookingId, otp: otp, phase: phase);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(phase == 'drop' ? 'Dépôt validé avec succès !' : 'Retrait validé avec succès !'),
+            backgroundColor: const Color(0xFF22C55E),
+          ),
+        );
+        ref.invalidate(daycareCalendarBookingsProvider);
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code invalide: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -431,10 +537,11 @@ class _DayAnimalsViewState extends ConsumerState<_DayAnimalsView> {
                   itemCount: widget.bookings.length,
                   itemBuilder: (context, index) {
                     final booking = widget.bookings[index];
+                    final bookingId = booking['id'] as String;
                     return _AnimalDetailPage(
                       booking: booking,
-                      onMarkDropOff: () => _markDropOff(booking['id'] as String),
-                      onMarkPickup: () => _markPickup(booking['id'] as String),
+                      onMarkDropOff: () => _markDropOff(bookingId),
+                      onMarkPickup: () => _markPickup(bookingId),
                       onScanQR: () async {
                         await context.push('/scan-pet');
                         // Rafraîchir les données après retour du scan
@@ -443,6 +550,8 @@ class _DayAnimalsViewState extends ConsumerState<_DayAnimalsView> {
                           Navigator.of(context).pop(); // Fermer le modal
                         }
                       },
+                      onVerifyDropOtp: () => _showOtpDialog(bookingId, 'drop'),
+                      onVerifyPickupOtp: () => _showOtpDialog(bookingId, 'pickup'),
                     );
                   },
                 ),
@@ -481,12 +590,16 @@ class _AnimalDetailPage extends StatelessWidget {
   final VoidCallback onMarkDropOff;
   final VoidCallback onMarkPickup;
   final VoidCallback onScanQR;
+  final VoidCallback onVerifyDropOtp;
+  final VoidCallback onVerifyPickupOtp;
 
   const _AnimalDetailPage({
     required this.booking,
     required this.onMarkDropOff,
     required this.onMarkPickup,
     required this.onScanQR,
+    required this.onVerifyDropOtp,
+    required this.onVerifyPickupOtp,
   });
 
   Color _getStatusColor(String status) {
@@ -880,6 +993,41 @@ class _AnimalDetailPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            // Bouton Vérifier code OTP
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF9C27B0).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onVerifyDropOtp,
+                icon: const Icon(Icons.pin, size: 24),
+                label: const Text(
+                  'Vérifier code OTP',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             // Bouton manuel "Animal accueilli"
             Container(
               width: double.infinity,
@@ -916,7 +1064,79 @@ class _AnimalDetailPage extends StatelessWidget {
             ),
           ],
 
-          if (status == 'IN_PROGRESS')
+          // ✅ Boutons pour IN_PROGRESS (retrait)
+          if (status == 'IN_PROGRESS') ...[
+            // Bouton Scanner QR Code (retrait)
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00ACC1), Color(0xFF26C6DA)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00ACC1).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onScanQR,
+                icon: const Icon(Icons.qr_code_scanner, size: 24),
+                label: const Text(
+                  'Scanner QR code',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Bouton Vérifier code OTP (retrait)
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF9C27B0).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onVerifyPickupOtp,
+                icon: const Icon(Icons.pin, size: 24),
+                label: const Text(
+                  'Vérifier code OTP',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Bouton manuel "Animal récupéré"
             Container(
               width: double.infinity,
               height: 56,

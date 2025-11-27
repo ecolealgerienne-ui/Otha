@@ -195,6 +195,291 @@ class DaycareHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
+  /// Afficher le dialogue de validation pour un client à proximité
+  Future<void> _showClientValidationDialog(
+    Map<String, dynamic> booking,
+    bool isForPickup,
+  ) async {
+    final bookingId = booking['id']?.toString() ?? '';
+    final user = booking['user'] as Map<String, dynamic>?;
+    final pet = booking['pet'] as Map<String, dynamic>?;
+    final clientName = user != null
+        ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
+        : 'Client';
+    final petName = pet?['name'] ?? 'Animal';
+
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Titre
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isForPickup
+                          ? const Color(0xFFFFF3E0)
+                          : const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isForPickup ? Icons.logout : Icons.login,
+                      color: isForPickup
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF3B82F6),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isForPickup ? 'Valider le retrait' : 'Valider le dépôt',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          '$clientName - $petName',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Bouton Scanner QR
+              _ValidationOptionButton(
+                icon: Icons.qr_code_scanner,
+                label: 'Scanner QR code',
+                subtitle: 'Scannez le QR code de l\'animal',
+                color: const Color(0xFF00ACC1),
+                onTap: () => Navigator.pop(ctx, 'qr'),
+              ),
+              const SizedBox(height: 12),
+
+              // Bouton OTP
+              _ValidationOptionButton(
+                icon: Icons.pin,
+                label: 'Vérifier code OTP',
+                subtitle: 'Entrez le code à 6 chiffres du client',
+                color: const Color(0xFF9C27B0),
+                onTap: () => Navigator.pop(ctx, 'otp'),
+              ),
+              const SizedBox(height: 12),
+
+              // Bouton Manuel
+              _ValidationOptionButton(
+                icon: isForPickup ? Icons.check_circle : Icons.pets,
+                label: isForPickup ? 'Confirmer le retrait' : 'Confirmer le dépôt',
+                subtitle: 'Validation manuelle sans vérification',
+                color: isForPickup
+                    ? const Color(0xFF2196F3)
+                    : const Color(0xFF4CAF50),
+                onTap: () => Navigator.pop(ctx, 'manual'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    if (result == 'qr') {
+      // Naviguer vers le scanner QR
+      context.push('/scan-pet');
+    } else if (result == 'otp') {
+      // Afficher la dialog OTP
+      await _showOtpInputDialog(bookingId, isForPickup);
+    } else if (result == 'manual') {
+      // Confirmer manuellement
+      await _confirmManually(bookingId, isForPickup);
+    }
+  }
+
+  /// Dialog pour saisir le code OTP
+  Future<void> _showOtpInputDialog(String bookingId, bool isForPickup) async {
+    final otpController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.pin, color: Color(0xFF22C55E)),
+            ),
+            const SizedBox(width: 12),
+            Text(isForPickup ? 'Code retrait' : 'Code dépôt'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Entrez le code à 6 chiffres fourni par le client',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 8,
+              ),
+              decoration: InputDecoration(
+                hintText: '000000',
+                counterText: '',
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF22C55E),
+            ),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && otpController.text.length == 6) {
+      await _validateWithOtp(bookingId, otpController.text, isForPickup);
+    }
+    otpController.dispose();
+  }
+
+  /// Valider avec le code OTP
+  Future<void> _validateWithOtp(String bookingId, String otp, bool isForPickup) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.validateDaycareByOtp(
+        bookingId,
+        otp: otp,
+        phase: isForPickup ? 'pickup' : 'drop',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isForPickup
+              ? 'Retrait validé avec succès !'
+              : 'Dépôt validé avec succès !'),
+          backgroundColor: const Color(0xFF22C55E),
+        ),
+      );
+      _refreshData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Code invalide: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Confirmer manuellement
+  Future<void> _confirmManually(String bookingId, bool isForPickup) async {
+    try {
+      final api = ref.read(apiProvider);
+      if (isForPickup) {
+        await api.markDaycarePickup(bookingId);
+      } else {
+        await api.markDaycareDropOff(bookingId);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isForPickup
+              ? 'Retrait confirmé !'
+              : 'Dépôt confirmé !'),
+          backgroundColor: const Color(0xFF22C55E),
+        ),
+      );
+      _refreshData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _refreshData() {
+    ref.invalidate(myDaycareProfileProvider);
+    ref.invalidate(myDaycareBookingsProvider);
+    ref.invalidate(pendingDaycareBookingsProvider);
+    ref.invalidate(nearbyDaycareClientsProvider);
+    ref.invalidate(pendingDaycareValidationsProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     const bgSoft = Color(0xFFF7F8FA);
@@ -263,7 +548,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                // ✅ Banner bleu : Clients à proximité
+                // ✅ Banner bleu : Clients à proximité (cliquable)
                 SliverToBoxAdapter(
                   child: Consumer(
                     builder: (context, ref, _) {
@@ -301,7 +586,16 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  ...clients.take(3).map((c) {
+                                  Text(
+                                    'Appuyez sur un client pour valider',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ...clients.take(5).map((c) {
                                     final user = c['user'] as Map<String, dynamic>?;
                                     final pet = c['pet'] as Map<String, dynamic>?;
                                     final clientName = user != null
@@ -311,23 +605,74 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                     final status = (c['status'] ?? '').toString().toUpperCase();
                                     final isForPickup = status == 'IN_PROGRESS';
 
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isForPickup ? Icons.logout : Icons.login,
-                                            size: 16,
-                                            color: isForPickup ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
+                                    return InkWell(
+                                      onTap: () => _showClientValidationDialog(c, isForPickup),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        margin: const EdgeInsets.only(top: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isForPickup
+                                                ? const Color(0xFFF59E0B).withOpacity(0.3)
+                                                : const Color(0xFF3B82F6).withOpacity(0.3),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '$clientName - $petName (${isForPickup ? 'Retrait' : 'Dépôt'})',
-                                              style: const TextStyle(fontSize: 13),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: isForPickup
+                                                    ? const Color(0xFFFFF3E0)
+                                                    : const Color(0xFFE3F2FD),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Icon(
+                                                isForPickup ? Icons.logout : Icons.login,
+                                                size: 16,
+                                                color: isForPickup
+                                                    ? const Color(0xFFF59E0B)
+                                                    : const Color(0xFF3B82F6),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '$clientName - $petName',
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    isForPickup ? 'Retrait' : 'Dépôt',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isForPickup
+                                                          ? const Color(0xFFF59E0B)
+                                                          : const Color(0xFF3B82F6),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              color: Colors.grey,
+                                              size: 20,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     );
                                   }),
@@ -1194,6 +1539,76 @@ class _CommissionCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget pour les options de validation dans la popup
+class _ValidationOptionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ValidationOptionButton({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: color),
           ],
         ),
       ),
