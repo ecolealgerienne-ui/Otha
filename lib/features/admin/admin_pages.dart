@@ -2262,3 +2262,516 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+
+/// ================== PAGE TRAÇABILITÉ (anti-fraude) ==================
+class AdminTraceabilityPage extends ConsumerStatefulWidget {
+  const AdminTraceabilityPage({super.key});
+  @override
+  ConsumerState<AdminTraceabilityPage> createState() => _AdminTraceabilityPageState();
+}
+
+class _AdminTraceabilityPageState extends ConsumerState<AdminTraceabilityPage> {
+  bool _loading = true;
+  String? _error;
+  Map<String, dynamic> _global = {};
+  List<Map<String, dynamic>> _providers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final api = ref.read(apiProvider);
+      final result = await api.adminTraceabilityStats();
+
+      setState(() {
+        _global = Map<String, dynamic>.from(result['global'] as Map? ?? {});
+        _providers = (result['providers'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Color _rateColor(int rate, {bool inverse = false}) {
+    if (inverse) {
+      // Pour completion rate: vert = bon
+      if (rate >= 80) return Colors.green;
+      if (rate >= 50) return Colors.orange;
+      return Colors.red;
+    } else {
+      // Pour cancellation rate: rouge = mauvais
+      if (rate <= 10) return Colors.green;
+      if (rate <= 25) return Colors.orange;
+      return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: _adminTheme(context),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Traçabilité'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _load,
+            ),
+          ],
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text(_error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton(onPressed: _load, child: const Text('Réessayer')),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        // Global stats
+                        _buildGlobalStats(),
+                        const SizedBox(height: 20),
+
+                        // Providers list
+                        Text(
+                          'Détail par professionnel',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (_providers.isEmpty)
+                          const Center(child: Text('Aucun professionnel'))
+                        else
+                          ..._providers.map(_buildProviderCard),
+                      ],
+                    ),
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildGlobalStats() {
+    final totalProviders = _asInt(_global['totalProviders']);
+    final suspiciousCount = _asInt(_global['suspiciousCount']);
+    final totalBookings = _asInt(_global['totalBookings']);
+    final totalCompleted = _asInt(_global['totalCompleted']);
+    final totalCancelled = _asInt(_global['totalCancelled']);
+    final totalCancelledByPro = _asInt(_global['totalCancelledByPro']);
+    final totalOtpVerified = _asInt(_global['totalOtpVerified']);
+    final totalQrVerified = _asInt(_global['totalQrVerified']);
+    final avgCancellationRate = _asInt(_global['avgCancellationRate']);
+    final avgCompletionRate = _asInt(_global['avgCompletionRate']);
+
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.analytics, color: AdminColors.salmon),
+                const SizedBox(width: 8),
+                const Text(
+                  'Vue globale',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                const Spacer(),
+                if (suspiciousCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.warning, color: Colors.red, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$suspiciousCount suspect${suspiciousCount > 1 ? 's' : ''}',
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Stats grid
+            Row(
+              children: [
+                Expanded(child: _StatMini(label: 'Pros', value: '$totalProviders', icon: Icons.store)),
+                Expanded(child: _StatMini(label: 'RDV Total', value: '$totalBookings', icon: Icons.calendar_today)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatMini(
+                    label: 'Complétés',
+                    value: '$totalCompleted',
+                    icon: Icons.check_circle,
+                    color: Colors.green,
+                  ),
+                ),
+                Expanded(
+                  child: _StatMini(
+                    label: 'Annulés',
+                    value: '$totalCancelled',
+                    icon: Icons.cancel,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatMini(
+                    label: 'Annulés par pro',
+                    value: '$totalCancelledByPro',
+                    icon: Icons.person_off,
+                    color: Colors.orange,
+                  ),
+                ),
+                Expanded(
+                  child: _StatMini(
+                    label: 'Vérifiés OTP/QR',
+                    value: '${totalOtpVerified + totalQrVerified}',
+                    icon: Icons.verified,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
+
+            // Average rates
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        '$avgCompletionRate%',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: _rateColor(avgCompletionRate, inverse: true),
+                        ),
+                      ),
+                      const Text('Taux completion moyen', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        '$avgCancellationRate%',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: _rateColor(avgCancellationRate),
+                        ),
+                      ),
+                      const Text('Taux annulation moyen', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderCard(Map<String, dynamic> p) {
+    final name = p['providerName']?.toString() ?? 'Inconnu';
+    final email = p['email']?.toString() ?? '';
+    final totalBookings = _asInt(p['totalBookings']);
+    final completed = _asInt(p['completed']);
+    final cancelled = _asInt(p['cancelled']);
+    final cancelledByPro = _asInt(p['cancelledByPro']);
+    final cancellationRate = _asInt(p['cancellationRate']);
+    final completionRate = _asInt(p['completionRate']);
+    final proCancellationRate = _asInt(p['proCancellationRate']);
+    final verificationRate = _asInt(p['verificationRate']);
+    final otpVerified = _asInt(p['otpVerified']);
+    final qrVerified = _asInt(p['qrVerified']);
+    final simpleConfirm = _asInt(p['simpleConfirm']);
+    final completedWithoutConfirmation = _asInt(p['completedWithoutConfirmation']);
+    final isSuspicious = p['isSuspicious'] == true;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: isSuspicious ? Colors.red.shade50 : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSuspicious
+            ? BorderSide(color: Colors.red.shade200, width: 1.5)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AdminColors.salmon.withOpacity(0.1),
+                  child: Text(
+                    _firstLetter(name),
+                    style: const TextStyle(color: AdminColors.salmon, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isSuspicious) ...[
+                            const SizedBox(width: 6),
+                            Icon(Icons.warning, color: Colors.red, size: 16),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        email,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$totalBookings RDV',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      '$completed complétés',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+
+            // Rates
+            Row(
+              children: [
+                _RateBadge(
+                  label: 'Completion',
+                  rate: completionRate,
+                  color: _rateColor(completionRate, inverse: true),
+                ),
+                const SizedBox(width: 8),
+                _RateBadge(
+                  label: 'Annulation',
+                  rate: cancellationRate,
+                  color: _rateColor(cancellationRate),
+                ),
+                const SizedBox(width: 8),
+                _RateBadge(
+                  label: 'Ann. par Pro',
+                  rate: proCancellationRate,
+                  color: _rateColor(proCancellationRate),
+                ),
+                const SizedBox(width: 8),
+                _RateBadge(
+                  label: 'Vérification',
+                  rate: verificationRate,
+                  color: _rateColor(verificationRate, inverse: true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Confirmation methods
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _MethodChip(icon: Icons.pin, label: 'OTP: $otpVerified', color: Colors.blue),
+                _MethodChip(icon: Icons.qr_code, label: 'QR: $qrVerified', color: Colors.purple),
+                _MethodChip(icon: Icons.touch_app, label: 'Simple: $simpleConfirm', color: Colors.grey),
+                if (completedWithoutConfirmation > 0)
+                  _MethodChip(
+                    icon: Icons.help_outline,
+                    label: 'Sans confirm: $completedWithoutConfirmation',
+                    color: Colors.orange,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatMini extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? color;
+
+  const _StatMini({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AdminColors.salmon;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: c, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: c)),
+                Text(label, style: TextStyle(fontSize: 10, color: c.withOpacity(0.8))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RateBadge extends StatelessWidget {
+  final String label;
+  final int rate;
+  final Color color;
+
+  const _RateBadge({
+    required this.label,
+    required this.rate,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$rate%',
+              style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 14),
+            ),
+            Text(
+              label,
+              style: TextStyle(fontSize: 9, color: color),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MethodChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _MethodChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}

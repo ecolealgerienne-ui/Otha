@@ -261,7 +261,23 @@ export class BookingsController {
     return this.svc.adminUncollectMonth(body.month, body.providerId);
   }
 
-  /** PRO/ADMIN: changer le statut d’une résa qui m’appartient */
+  /**
+   * ADMIN: Statistiques de traçabilité par provider
+   * Calcule les taux d'annulation, confirmation, vérification OTP/QR
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/traceability')
+  adminTraceability(
+    @Query('from') fromQ?: string,
+    @Query('to') toQ?: string,
+  ) {
+    const from = fromQ ? this.parseWhen(fromQ) ?? undefined : undefined;
+    const to = toQ ? this.parseWhen(toQ) ?? undefined : undefined;
+    return this.svc.adminTraceabilityStats({ from, to });
+  }
+
+  /** PRO/ADMIN: changer le statut d'une résa qui m'appartient */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PRO', 'ADMIN')
   @Patch(':id/provider-status')
