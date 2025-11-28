@@ -21,7 +21,8 @@ export interface AuthTokens {
 
 export interface LoginResponse {
   user: User;
-  tokens: AuthTokens;
+  accessToken: string;
+  refreshToken: string;
 }
 
 // Provider Types

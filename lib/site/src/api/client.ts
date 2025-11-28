@@ -114,19 +114,19 @@ class ApiClient {
   // ==================== AUTH ====================
   async login(email: string, password: string): Promise<LoginResponse> {
     const { data } = await this.client.post<LoginResponse>('/auth/login', { email, password });
-    this.setTokens(data.tokens);
+    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data;
   }
 
   async register(email: string, password: string, phone?: string): Promise<LoginResponse> {
     const { data } = await this.client.post<LoginResponse>('/auth/register', { email, password, phone });
-    this.setTokens(data.tokens);
+    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data;
   }
 
   async googleLogin(idToken: string): Promise<LoginResponse> {
     const { data } = await this.client.post<LoginResponse>('/auth/google', { idToken });
-    this.setTokens(data.tokens);
+    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data;
   }
 
