@@ -50,7 +50,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: <Calendar size={20} />, label: 'Agenda', path: '/pro/agenda' },
     { icon: <Users size={20} />, label: 'Patients', path: '/pro/patients' },
     { icon: <Clock size={20} />, label: 'Disponibilités', path: '/pro/availability' },
-    { icon: <FileText size={20} />, label: 'Garderie', path: '/pro/daycare' },
     { icon: <DollarSign size={20} />, label: 'Gains', path: '/pro/earnings' },
     { icon: <Settings size={20} />, label: 'Paramètres', path: '/pro/settings' },
   ];
