@@ -8,6 +8,10 @@ import { Prisma, $Enums } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MapsService } from '../maps/maps.service';
 
+// In-memory cache for scanned pet sync between Flutter app and website
+// Key: providerId, Value: { token, petData, scannedAt }
+const scannedPetCache = new Map<string, { token: string; petData: any; scannedAt: Date }>();
+
 @Injectable()
 export class ProvidersService {
   constructor(
@@ -701,5 +705,91 @@ async upsertMyProvider(userId: string, dto: any) {
       },
       select: { id: true, isApproved: true, appliedAt: true, rejectedAt: true, rejectionReason: true },
     });
+  }
+
+  /* ======================= Scanned Pet Sync ======================= */
+
+  /**
+   * Store a scanned pet token for this provider (called from Flutter app)
+   * The website will poll this to get the pet data
+   */
+  async setScannedPet(userId: string, token: string): Promise<{ success: boolean; pet?: any }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    // Get pet data from token
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: {
+        pet: {
+          include: {
+            medicalRecords: { orderBy: { date: 'desc' } },
+            weightRecords: { orderBy: { date: 'desc' }, take: 10 },
+            vaccinations: { orderBy: { date: 'desc' } },
+            treatments: { orderBy: { startDate: 'desc' } },
+            allergies: true,
+            preventiveCare: { orderBy: { lastDate: 'desc' } },
+            owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          },
+        },
+      },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    // Store in cache
+    scannedPetCache.set(provider.id, {
+      token,
+      petData: accessToken.pet,
+      scannedAt: new Date(),
+    });
+
+    // Auto-clear after 30 minutes
+    setTimeout(() => {
+      const cached = scannedPetCache.get(provider.id);
+      if (cached?.token === token) {
+        scannedPetCache.delete(provider.id);
+      }
+    }, 30 * 60 * 1000);
+
+    return { success: true, pet: accessToken.pet };
+  }
+
+  /**
+   * Get the currently scanned pet for this provider (called from website polling)
+   */
+  async getScannedPet(userId: string): Promise<{ pet: any | null; scannedAt: Date | null }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const cached = scannedPetCache.get(provider.id);
+    if (!cached) {
+      return { pet: null, scannedAt: null };
+    }
+
+    return { pet: cached.petData, scannedAt: cached.scannedAt };
+  }
+
+  /**
+   * Clear the scanned pet for this provider
+   */
+  async clearScannedPet(userId: string): Promise<{ success: boolean }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    scannedPetCache.delete(provider.id);
+    return { success: true };
   }
 }

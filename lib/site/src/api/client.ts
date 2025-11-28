@@ -345,6 +345,16 @@ class ApiClient {
     return data?.data || data;
   }
 
+  // ==================== SCANNED PET SYNC (Flutter <-> Website) ====================
+  async getScannedPet(): Promise<{ pet: Pet | null; scannedAt: string | null }> {
+    const { data } = await this.client.get('/providers/me/scanned-pet');
+    return data?.data || data;
+  }
+
+  async clearScannedPet(): Promise<void> {
+    await this.client.delete('/providers/me/scanned-pet');
+  }
+
   // ==================== EARNINGS ====================
   async myHistoryMonthly(months = 12): Promise<MonthlyEarnings[]> {
     const { data } = await this.client.get(`/earnings/me/history-monthly?months=${months}`);

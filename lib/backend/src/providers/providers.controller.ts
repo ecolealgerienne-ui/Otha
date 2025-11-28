@@ -281,6 +281,36 @@ export class ProvidersController {
     return this.providers.listServices(id);
   }
 
+  /** -------- Scanned Pet Sync (Flutter <-> Website) -------- */
+
+  // Called from Flutter app when pro scans a QR code
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('me/scanned-pet')
+  async setScannedPet(@Req() req: any, @Body('token') token: string) {
+    const userId = this.getUserIdFromReq(req);
+    if (!token) throw new BadRequestException('token is required');
+    return this.providers.setScannedPet(userId, token);
+  }
+
+  // Called from website to poll for scanned pet
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('me/scanned-pet')
+  async getScannedPet(@Req() req: any) {
+    const userId = this.getUserIdFromReq(req);
+    return this.providers.getScannedPet(userId);
+  }
+
+  // Called to clear the scanned pet
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/scanned-pet')
+  async clearScannedPet(@Req() req: any) {
+    const userId = this.getUserIdFromReq(req);
+    return this.providers.clearScannedPet(userId);
+  }
+
   // Admin utilitaire pour backfill lat/lng
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)

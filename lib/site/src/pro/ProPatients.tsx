@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   FileText,
   Syringe,
@@ -12,6 +12,8 @@ import {
   Pill,
   Activity,
   Heart,
+  Smartphone,
+  Monitor,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -44,6 +46,51 @@ export function ProPatients() {
   // Active booking found for scanned pet
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+
+  // Polling for phone scan
+  const [isPolling, setIsPolling] = useState(false);
+  const [lastScannedAt, setLastScannedAt] = useState<string | null>(null);
+  const pollingRef = useRef<number | null>(null);
+
+  // Poll for scanned pet from Flutter app
+  const pollForScannedPet = useCallback(async () => {
+    try {
+      const result = await api.getScannedPet();
+      if (result.pet && result.scannedAt !== lastScannedAt) {
+        // New pet scanned from phone!
+        setLastScannedAt(result.scannedAt);
+        setScannedPet(result.pet);
+        setScannedRecords((result.pet as any).medicalRecords || []);
+        setScannedVaccinations((result.pet as any).vaccinations || []);
+        setIsPolling(false);
+        // Clear on server
+        api.clearScannedPet().catch(() => {});
+      }
+    } catch (error) {
+      console.log('Poll error:', error);
+    }
+  }, [lastScannedAt]);
+
+  // Start/stop polling
+  useEffect(() => {
+    if (isPolling) {
+      // Poll every 2 seconds
+      pollingRef.current = window.setInterval(pollForScannedPet, 2000);
+      // Initial poll
+      pollForScannedPet();
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [isPolling, pollForScannedPet]);
 
   useEffect(() => {
     return () => {
@@ -191,6 +238,16 @@ export function ProPatients() {
     setActiveBooking(null);
     setBookingConfirmed(false);
     setScanLoading(false);
+    setIsPolling(false);
+  };
+
+  // Start waiting for phone scan
+  const startPhoneScan = () => {
+    setIsPolling(true);
+  };
+
+  const stopPhoneScan = () => {
+    setIsPolling(false);
   };
 
   // Get icon and color for medical record type
@@ -419,8 +476,31 @@ export function ProPatients() {
               </Button>
             </div>
           </Card>
+        ) : isPolling ? (
+          /* Waiting for phone scan */
+          <Card className="text-center py-12">
+            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Smartphone size={48} className="text-orange-600 animate-pulse" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              En attente du scan téléphone...
+            </h2>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Ouvrez l'application Otha sur votre téléphone et scannez le QR code du patient.
+              Le carnet s'affichera automatiquement ici.
+            </p>
+
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
+              <span className="text-gray-600">En attente...</span>
+            </div>
+
+            <Button variant="secondary" onClick={stopPhoneScan}>
+              Annuler
+            </Button>
+          </Card>
         ) : (
-          /* Scanner button - PC webcam only */
+          /* Scanner choice buttons */
           <Card className="text-center py-12">
             <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <QrCode size={48} className="text-primary-600" />
@@ -438,14 +518,20 @@ export function ProPatients() {
                 <span className="text-gray-600">Chargement du carnet...</span>
               </div>
             ) : (
-              <Button onClick={startQrScanner} size="lg">
-                <QrCode size={20} className="mr-2" />
-                Scanner QR Code
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                <Button onClick={startQrScanner} size="lg" className="flex-1">
+                  <Monitor size={20} className="mr-2" />
+                  Scanner avec PC
+                </Button>
+                <Button onClick={startPhoneScan} variant="secondary" size="lg" className="flex-1">
+                  <Smartphone size={20} className="mr-2" />
+                  Scanner avec téléphone
+                </Button>
+              </div>
             )}
 
             <p className="text-xs text-gray-400 mt-6">
-              Utilisez la webcam de votre PC pour scanner
+              Utilisez la webcam de votre PC ou l'application Otha sur votre téléphone
             </p>
           </Card>
         )}
