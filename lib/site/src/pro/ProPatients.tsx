@@ -9,6 +9,12 @@ import {
   RefreshCw,
   Plus,
   Calendar,
+  CheckCircle,
+  Stethoscope,
+  Scissors,
+  Pill,
+  Activity,
+  Heart,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -54,6 +60,10 @@ export function ProPatients() {
     description: '',
   });
   const [addingRecord, setAddingRecord] = useState(false);
+
+  // Active booking found for scanned pet
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
   // All bookings for history
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -218,6 +228,8 @@ export function ProPatients() {
 
     setCurrentToken(token);
     setShowQrScanner(false);
+    setActiveBooking(null);
+    setBookingConfirmed(false);
 
     try {
       const result = await api.getPetByToken(token);
@@ -225,6 +237,30 @@ export function ProPatients() {
       setScannedPet(result.pet);
       setScannedRecords(result.medicalRecords || []);
       setScannedVaccinations(result.vaccinations || []);
+
+      // Check for active booking for this pet
+      if (result.pet?.id) {
+        try {
+          const booking = await api.getActiveBookingForPet(result.pet.id);
+          if (booking) {
+            setActiveBooking(booking);
+            console.log('Found active booking:', booking);
+
+            // Auto-confirm the booking via QR scan
+            try {
+              await api.proConfirmBooking(booking.id, 'QR_SCAN');
+              setBookingConfirmed(true);
+              // Refresh patients list
+              fetchPatients();
+            } catch (confirmError) {
+              console.error('Error auto-confirming booking:', confirmError);
+            }
+          }
+        } catch (bookingError) {
+          // No active booking found - that's OK
+          console.log('No active booking for pet');
+        }
+      }
     } catch (error) {
       console.error('Error fetching pet by token:', error);
       alert('QR code invalide ou expiré');
@@ -258,6 +294,29 @@ export function ProPatients() {
     setScannedRecords([]);
     setScannedVaccinations([]);
     setCurrentToken(null);
+    setActiveBooking(null);
+    setBookingConfirmed(false);
+  };
+
+  // Get icon and color for medical record type
+  const getRecordTypeIcon = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'VACCINATION':
+        return { icon: Syringe, color: 'text-green-600', bg: 'bg-green-100' };
+      case 'SURGERY':
+        return { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100' };
+      case 'CHECKUP':
+      case 'CONSULTATION':
+        return { icon: Stethoscope, color: 'text-blue-600', bg: 'bg-blue-100' };
+      case 'TREATMENT':
+        return { icon: Heart, color: 'text-orange-600', bg: 'bg-orange-100' };
+      case 'MEDICATION':
+        return { icon: Pill, color: 'text-purple-600', bg: 'bg-purple-100' };
+      case 'DIAGNOSTIC':
+        return { icon: Activity, color: 'text-cyan-600', bg: 'bg-cyan-100' };
+      default:
+        return { icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100' };
+    }
   };
 
   const filteredPatients = patients.filter((p) => {
@@ -310,17 +369,49 @@ export function ProPatients() {
           </div>
         </div>
 
-        {/* QR Scanned Pet View */}
+        {/* QR Scanned Pet View - Carnet de Santé */}
         {scannedPet && (
           <Card className="border-2 border-primary-500">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary-600">
-                Carnet scanné
+                🩺 Carnet de santé
               </h2>
               <button onClick={closePetView} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
+
+            {/* Booking confirmation banner */}
+            {activeBooking && (
+              <div className={`mb-4 p-3 rounded-lg flex items-center gap-3 ${
+                bookingConfirmed
+                  ? 'bg-green-50 border border-green-200'
+                  : 'bg-yellow-50 border border-yellow-200'
+              }`}>
+                {bookingConfirmed ? (
+                  <>
+                    <CheckCircle className="text-green-600" size={24} />
+                    <div>
+                      <p className="font-medium text-green-800">Rendez-vous confirmé !</p>
+                      <p className="text-sm text-green-600">
+                        {activeBooking.service?.title || 'Consultation'} - {' '}
+                        {activeBooking.scheduledAt && format(new Date(activeBooking.scheduledAt), "HH:mm", { locale: fr })}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="text-yellow-600" size={24} />
+                    <div>
+                      <p className="font-medium text-yellow-800">RDV en cours de confirmation...</p>
+                      <p className="text-sm text-yellow-600">
+                        {activeBooking.service?.title || 'Consultation'}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Pet info */}
             <div className="flex items-start space-x-4 mb-6">
@@ -340,64 +431,105 @@ export function ProPatients() {
                     <span>🎂 {format(new Date(scannedPet.birthDate), 'dd/MM/yyyy')}</span>
                   )}
                   {scannedPet.weight && <span>⚖️ {scannedPet.weight} kg</span>}
+                  {scannedPet.microchip && <span>📟 {scannedPet.microchip}</span>}
                 </div>
+                {scannedPet.user && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Propriétaire: {scannedPet.user.firstName || scannedPet.user.email?.split('@')[0] || 'Client'}
+                    {scannedPet.user.phone && ` • ${scannedPet.user.phone}`}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Add record button */}
             <Button onClick={() => setShowAddRecordModal(true)} className="mb-4">
               <Plus size={16} className="mr-2" />
-              Ajouter un enregistrement
+              Ajouter un acte
             </Button>
 
             {/* Vaccinations */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Syringe size={18} className="text-green-600" />
-                <h4 className="font-medium">Vaccinations</h4>
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 bg-green-100 rounded-lg">
+                  <Syringe size={18} className="text-green-600" />
+                </div>
+                <h4 className="font-semibold">Vaccinations</h4>
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  {scannedVaccinations.length}
+                </span>
               </div>
               {scannedVaccinations.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucune vaccination</p>
+                <p className="text-sm text-gray-500 italic">Aucune vaccination enregistrée</p>
               ) : (
                 <div className="space-y-2">
                   {scannedVaccinations.slice(0, 5).map((v) => (
-                    <div key={v.id} className="text-sm p-2 bg-gray-50 rounded">
-                      <span className="font-medium">{v.name}</span>
-                      <span className="text-gray-500 ml-2">
-                        {format(new Date(v.date), 'dd/MM/yyyy')}
-                      </span>
+                    <div key={v.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Syringe size={16} className="text-green-600" />
+                        <span className="font-medium">{v.name}</span>
+                      </div>
+                      <div className="text-right text-sm">
+                        <span className="text-gray-600">
+                          {format(new Date(v.date), 'dd/MM/yyyy')}
+                        </span>
+                        {v.nextDueDate && (
+                          <p className="text-xs text-orange-600">
+                            Rappel: {format(new Date(v.nextDueDate), 'dd/MM/yyyy')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Medical Records */}
+            {/* Medical Records - Historique médical */}
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <FileText size={18} className="text-blue-600" />
-                <h4 className="font-medium">Historique médical</h4>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                  <FileText size={18} className="text-blue-600" />
+                </div>
+                <h4 className="font-semibold">Historique médical</h4>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  {scannedRecords.length}
+                </span>
               </div>
               {scannedRecords.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucun enregistrement</p>
+                <p className="text-sm text-gray-500 italic">Aucun historique médical</p>
               ) : (
                 <div className="space-y-2">
-                  {scannedRecords.map((r) => (
-                    <div key={r.id} className="p-3 bg-gray-50 rounded">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          {r.type}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {format(new Date(r.date), 'dd/MM/yyyy')}
-                        </span>
+                  {scannedRecords.map((r) => {
+                    const typeInfo = getRecordTypeIcon(r.type);
+                    const IconComponent = typeInfo.icon;
+                    return (
+                      <div key={r.id} className="p-3 bg-white border border-gray-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 ${typeInfo.bg} rounded-lg flex-shrink-0`}>
+                            <IconComponent size={16} className={typeInfo.color} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-xs ${typeInfo.bg} ${typeInfo.color} px-2 py-0.5 rounded font-medium`}>
+                                {r.type}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {format(new Date(r.date), 'dd/MM/yyyy')}
+                              </span>
+                            </div>
+                            <p className="font-medium text-gray-900">{r.title}</p>
+                            {r.description && (
+                              <p className="text-sm text-gray-600 mt-1">{r.description}</p>
+                            )}
+                            {r.veterinarian && (
+                              <p className="text-xs text-gray-400 mt-1">Dr. {r.veterinarian}</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="font-medium">{r.title}</p>
-                      {r.description && (
-                        <p className="text-sm text-gray-600 mt-1">{r.description}</p>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

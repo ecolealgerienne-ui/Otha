@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Clock, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, DollarSign, Info } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { Service } from '../types';
 
+// Commission fixe (doit matcher pro_services_screen dans Flutter)
+const COMMISSION_DA = 100;
+
 interface ServiceFormData {
   title: string;
   description: string;
   durationMin: number;
-  price: number;
+  basePrice: number; // Prix de base (sans commission)
 }
 
 export function ProServices() {
@@ -49,18 +52,20 @@ export function ProServices() {
       title: '',
       description: '',
       durationMin: 30,
-      price: 0,
+      basePrice: 0,
     });
     setShowModal(true);
   };
 
   const openEditModal = (service: Service) => {
     setEditingService(service);
+    // Extract base price (total - commission)
+    const basePrice = Math.max(0, service.price - COMMISSION_DA);
     reset({
       title: service.title,
       description: service.description || '',
       durationMin: service.durationMin,
-      price: service.price,
+      basePrice,
     });
     setShowModal(true);
   };
@@ -68,10 +73,19 @@ export function ProServices() {
   const onSubmit = async (data: ServiceFormData) => {
     setActionLoading(true);
     try {
+      // Send total price (base + commission) to backend
+      const priceToSend = data.basePrice + COMMISSION_DA;
+      const payload = {
+        title: data.title,
+        description: data.description,
+        durationMin: data.durationMin,
+        price: priceToSend,
+      };
+
       if (editingService) {
-        await api.updateMyService(editingService.id, data);
+        await api.updateMyService(editingService.id, payload);
       } else {
-        await api.createMyService(data);
+        await api.createMyService(payload);
       }
       await fetchServices();
       setShowModal(false);
@@ -91,13 +105,6 @@ export function ProServices() {
     } catch (error) {
       console.error('Error deleting service:', error);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-DZ', {
-      style: 'currency',
-      currency: 'DZD',
-    }).format(amount);
   };
 
   return (
@@ -163,9 +170,12 @@ export function ProServices() {
                     <Clock size={14} className="mr-1" />
                     {service.durationMin} min
                   </div>
-                  <div className="flex items-center font-semibold text-primary-600">
-                    <DollarSign size={14} className="mr-1" />
-                    {formatCurrency(service.price)}
+                  <div className="text-right">
+                    <div className="flex items-center font-semibold text-primary-600">
+                      <DollarSign size={14} className="mr-1" />
+                      {service.price - COMMISSION_DA} + {COMMISSION_DA} = {service.price} DA
+                    </div>
+                    <p className="text-xs text-gray-400">Service + Commission</p>
                   </div>
                 </div>
               </Card>
@@ -214,6 +224,7 @@ export function ProServices() {
                     {...register('durationMin', {
                       required: 'Durée requise',
                       min: { value: 15, message: 'Minimum 15 min' },
+                      valueAsNumber: true,
                     })}
                     error={errors.durationMin?.message}
                   />
@@ -222,14 +233,26 @@ export function ProServices() {
                 <div>
                   <Input
                     type="number"
-                    label="Prix (DZD)"
+                    label="Prix de base (DZD)"
                     min={0}
-                    {...register('price', {
+                    {...register('basePrice', {
                       required: 'Prix requis',
                       min: { value: 0, message: 'Prix invalide' },
+                      valueAsNumber: true,
                     })}
-                    error={errors.price?.message}
+                    error={errors.basePrice?.message}
                   />
+                </div>
+              </div>
+
+              {/* Commission info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium">Commission fixe: {COMMISSION_DA} DA</p>
+                  <p className="text-blue-600">
+                    Le client paiera: Prix de base + {COMMISSION_DA} DA
+                  </p>
                 </div>
               </div>
 
