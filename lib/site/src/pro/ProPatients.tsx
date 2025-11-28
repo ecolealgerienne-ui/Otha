@@ -12,8 +12,6 @@ import {
   Pill,
   Activity,
   Heart,
-  Smartphone,
-  Monitor,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -31,6 +29,7 @@ export function ProPatients() {
   const [scannedVaccinations, setScannedVaccinations] = useState<Vaccination[]>([]);
   const [currentToken, setCurrentToken] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Add record modal
@@ -46,9 +45,6 @@ export function ProPatients() {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
-  // Choice modal (PC or Phone)
-  const [showChoiceModal, setShowChoiceModal] = useState(false);
-
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
@@ -56,26 +52,6 @@ export function ProPatients() {
       }
     };
   }, []);
-
-  // Scan via PC webcam
-  const handleScanPC = () => {
-    setShowChoiceModal(false);
-    startQrScanner();
-  };
-
-  // Scan via Phone - open Flutter app
-  const handleScanPhone = () => {
-    setShowChoiceModal(false);
-    // Open deep link to Flutter app's scanner
-    const deepLink = 'otha://vet/scan';
-    window.location.href = deepLink;
-
-    // Fallback: if deep link doesn't work after 2 seconds, show message
-    setTimeout(() => {
-      // The page is still here, so deep link probably didn't work
-      alert("Ouvrez l'application Otha sur votre téléphone et allez dans 'Scanner patient'");
-    }, 2000);
-  };
 
   // QR Scanner functions
   const startQrScanner = async () => {
@@ -128,42 +104,60 @@ export function ProPatients() {
       token = text.split('token=').pop() || text;
     }
 
+    console.log('QR scanned, token:', token);
     setCurrentToken(token);
     setShowQrScanner(false);
     setActiveBooking(null);
     setBookingConfirmed(false);
+    setScanLoading(true);
 
     try {
+      // Step 1: Get pet data from token
+      console.log('Fetching pet by token...');
       const result = await api.getPetByToken(token);
       console.log('Pet by token result:', result);
+
+      if (!result || !result.pet) {
+        throw new Error('Aucun animal trouvé pour ce QR code');
+      }
+
+      // Set pet data immediately so user sees the carnet
       setScannedPet(result.pet);
       setScannedRecords(result.medicalRecords || []);
       setScannedVaccinations(result.vaccinations || []);
 
-      // Check for active booking for this pet
+      // Step 2: Try to find active booking (optional - don't block on this)
       if (result.pet?.id) {
         try {
+          console.log('Checking for active booking for pet:', result.pet.id);
           const booking = await api.getActiveBookingForPet(result.pet.id);
-          if (booking) {
-            setActiveBooking(booking);
-            console.log('Found active booking:', booking);
 
-            // Auto-confirm the booking via QR scan
+          if (booking) {
+            console.log('Found active booking:', booking);
+            setActiveBooking(booking);
+
+            // Try to auto-confirm
             try {
               await api.proConfirmBooking(booking.id, 'QR_SCAN');
               setBookingConfirmed(true);
-            } catch (confirmError) {
-              console.error('Error auto-confirming booking:', confirmError);
+              console.log('Booking confirmed via QR scan');
+            } catch (confirmErr) {
+              console.error('Could not auto-confirm booking:', confirmErr);
             }
+          } else {
+            console.log('No active booking found for this pet today');
           }
-        } catch (bookingError) {
-          // No active booking found - that's OK
-          console.log('No active booking for pet');
+        } catch (bookingErr) {
+          // This is OK - just means no active booking or endpoint not available
+          console.log('Could not check for active booking:', bookingErr);
         }
       }
     } catch (error) {
       console.error('Error fetching pet by token:', error);
-      alert('QR code invalide ou expiré');
+      const message = error instanceof Error ? error.message : 'QR code invalide ou expiré';
+      alert(message);
+    } finally {
+      setScanLoading(false);
     }
   };
 
@@ -196,6 +190,7 @@ export function ProPatients() {
     setCurrentToken(null);
     setActiveBooking(null);
     setBookingConfirmed(false);
+    setScanLoading(false);
   };
 
   // Get icon and color for medical record type
@@ -425,7 +420,7 @@ export function ProPatients() {
             </div>
           </Card>
         ) : (
-          /* Scanner choice buttons */
+          /* Scanner button - PC webcam only */
           <Card className="text-center py-12">
             <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <QrCode size={48} className="text-primary-600" />
@@ -437,19 +432,20 @@ export function ProPatients() {
               Scannez le QR code du carnet de santé de l'animal pour accéder à son historique médical et confirmer le rendez-vous.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-              <Button onClick={handleScanPC} size="lg" className="flex-1">
-                <Monitor size={20} className="mr-2" />
-                Scanner avec PC
+            {scanLoading ? (
+              <div className="flex items-center justify-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
+                <span className="text-gray-600">Chargement du carnet...</span>
+              </div>
+            ) : (
+              <Button onClick={startQrScanner} size="lg">
+                <QrCode size={20} className="mr-2" />
+                Scanner QR Code
               </Button>
-              <Button onClick={handleScanPhone} variant="secondary" size="lg" className="flex-1">
-                <Smartphone size={20} className="mr-2" />
-                Scanner avec téléphone
-              </Button>
-            </div>
+            )}
 
             <p className="text-xs text-gray-400 mt-6">
-              Le scan par téléphone ouvrira l'application Otha
+              Utilisez la webcam de votre PC pour scanner
             </p>
           </Card>
         )}
@@ -493,48 +489,6 @@ export function ProPatients() {
                   }}
                 />
               </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Choice Modal */}
-      {showChoiceModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Comment scanner ?</h2>
-              <button onClick={() => setShowChoiceModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={handleScanPC}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-4"
-              >
-                <div className="p-3 bg-primary-100 rounded-lg">
-                  <Monitor size={24} className="text-primary-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold text-gray-900">Webcam PC</p>
-                  <p className="text-sm text-gray-500">Utiliser la caméra de l'ordinateur</p>
-                </div>
-              </button>
-
-              <button
-                onClick={handleScanPhone}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-4"
-              >
-                <div className="p-3 bg-orange-100 rounded-lg">
-                  <Smartphone size={24} className="text-orange-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold text-gray-900">Téléphone</p>
-                  <p className="text-sm text-gray-500">Ouvrir l'app Otha sur le téléphone</p>
-                </div>
-              </button>
             </div>
           </Card>
         </div>
