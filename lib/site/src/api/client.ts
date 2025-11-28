@@ -113,9 +113,21 @@ class ApiClient {
 
   // ==================== AUTH ====================
   async login(email: string, password: string): Promise<LoginResponse> {
-    const { data } = await this.client.post<LoginResponse>('/auth/login', { email, password });
-    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-    return data;
+    const response = await this.client.post('/auth/login', { email, password });
+    console.log('Raw login response:', response);
+    console.log('Response data:', response.data);
+
+    // Handle wrapped response (if backend wraps in { data: ... })
+    const data = response.data?.data || response.data;
+
+    const accessToken = data.accessToken || data.token;
+    const refreshToken = data.refreshToken || data.refresh_token;
+
+    if (accessToken) {
+      this.setTokens({ accessToken, refreshToken: refreshToken || '' });
+    }
+
+    return data as LoginResponse;
   }
 
   async register(email: string, password: string, phone?: string): Promise<LoginResponse> {

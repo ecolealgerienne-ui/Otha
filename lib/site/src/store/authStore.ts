@@ -30,14 +30,23 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await api.login(email, password);
+          console.log('Login response:', response);
+
+          // Handle case where user might be at root level or nested
+          const user = response.user || response;
+
+          if (!user || !user.id) {
+            throw new Error('Invalid login response - no user data');
+          }
+
           set({
-            user: response.user,
+            user,
             isAuthenticated: true,
             isLoading: false,
           });
 
           // If user is PRO, fetch provider profile (don't fail login if this fails)
-          if (response.user.role === 'PRO') {
+          if (user.role === 'PRO') {
             try {
               const provider = await api.myProvider();
               set({ provider });
