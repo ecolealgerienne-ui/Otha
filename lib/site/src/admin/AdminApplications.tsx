@@ -140,9 +140,9 @@ export function AdminApplications() {
                               {provider.address}
                             </p>
                           )}
-                          {provider.specialties && provider.specialties.length > 0 && (
+                          {Array.isArray(provider.specialties) && provider.specialties.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {provider.specialties.slice(0, 3).map((specialty) => (
+                              {provider.specialties.slice(0, 3).map((specialty: string) => (
                                 <span
                                   key={specialty}
                                   className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
@@ -231,11 +231,11 @@ export function AdminApplications() {
                     </div>
                   )}
 
-                  {selectedProvider.specialties && selectedProvider.specialties.length > 0 && (
+                  {Array.isArray(selectedProvider.specialties) && selectedProvider.specialties.length > 0 && (
                     <div>
                       <p className="text-gray-500">Spécialités</p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedProvider.specialties.map((specialty) => (
+                        {selectedProvider.specialties.map((specialty: string) => (
                           <span
                             key={specialty}
                             className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded"

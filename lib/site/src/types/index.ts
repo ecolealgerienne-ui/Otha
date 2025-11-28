@@ -5,6 +5,8 @@ export interface User {
   id: string;
   email: string;
   phone?: string;
+  firstName?: string;
+  lastName?: string;
   city?: string;
   lat?: number;
   lng?: number;
@@ -33,7 +35,8 @@ export interface ProviderProfile {
   userId: string;
   displayName: string;
   bio?: string;
-  specialties: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  specialties: any; // Can be string[] or a custom object with kind, mapsUrl, etc.
   avatarUrl?: string;
   address?: string;
   lat?: number;
@@ -42,6 +45,7 @@ export interface ProviderProfile {
   avnCardFront?: string;
   avnCardBack?: string;
   status: ProviderStatus;
+  isApproved?: boolean;
   visible: boolean;
   timezone: string;
   user?: User;
@@ -66,8 +70,10 @@ export interface ProviderAvailability {
   id: string;
   providerId: string;
   weekday: number; // 0-6 (Sunday-Saturday)
-  startTime: string; // HH:mm
-  endTime: string; // HH:mm
+  startTime?: string; // HH:mm (legacy)
+  endTime?: string; // HH:mm (legacy)
+  startMin?: number; // Minutes from midnight
+  endMin?: number; // Minutes from midnight
 }
 
 export interface ProviderTimeOff {
@@ -152,6 +158,8 @@ export interface Pet {
   microchip?: string;
   bloodType?: string;
   photoUrl?: string;
+  idNumber?: string;
+  user?: User;
   createdAt: string;
   updatedAt: string;
 }

@@ -9,7 +9,6 @@ import {
   Settings,
   LogOut,
   Bell,
-  FileText,
   DollarSign,
   Heart,
   Briefcase,

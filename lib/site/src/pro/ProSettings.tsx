@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  User,
   Mail,
   Phone,
   MapPin,
   Link as LinkIcon,
   Copy,
   LogOut,
-  Eye,
-  EyeOff,
   Stethoscope,
   Check,
   Clock,
