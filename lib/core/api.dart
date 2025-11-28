@@ -1450,6 +1450,12 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Sync scanned pet token with website (Flutter -> Website sync)
+  Future<void> setScannedPet(String token) async {
+    await ensureAuth();
+    await _dio.post('/providers/me/scanned-pet', data: {'token': token});
+  }
+
   Future<Map<String, dynamic>> createMedicalRecordByToken(
     String token, {
     required String type,

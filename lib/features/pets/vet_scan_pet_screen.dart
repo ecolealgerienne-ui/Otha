@@ -64,6 +64,15 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
         _petData = petData;
       });
 
+      // Sync with website - so the carnet appears on the PC too
+      try {
+        await api.setScannedPet(token);
+        debugPrint('✅ Pet synced with website');
+      } catch (e) {
+        debugPrint('⚠️ Could not sync pet with website: $e');
+        // Non-blocking - continue even if sync fails
+      }
+
       // Chercher un booking actif pour ce pet (vet ou daycare)
       try {
         final petId = petData['id']?.toString();
