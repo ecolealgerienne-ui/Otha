@@ -11,6 +11,7 @@ import {
   QrCode,
   KeyRound,
   Phone,
+  DollarSign,
 } from 'lucide-react';
 import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
@@ -27,6 +28,9 @@ import {
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Html5Qrcode } from 'html5-qrcode';
+
+// Commission fixe (doit matcher pro_services_screen dans Flutter)
+const COMMISSION_DA = 100;
 
 export function ProAgenda() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -445,7 +449,8 @@ export function ProAgenda() {
                   <div>
                     <p className="text-sm text-gray-500">Client</p>
                     <p className="font-medium">{selectedBooking.user?.email || 'Client'}</p>
-                    {selectedBooking.user?.phone && (
+                    {/* Show phone only when CONFIRMED */}
+                    {isConfirmed(selectedBooking.status) && selectedBooking.user?.phone && (
                       <a
                         href={`tel:${selectedBooking.user.phone}`}
                         className="text-sm text-primary-600 flex items-center gap-1"
@@ -466,6 +471,24 @@ export function ProAgenda() {
                       <p className="text-sm text-gray-500">Animal</p>
                       <p className="font-medium">
                         {selectedBooking.pet.name} ({selectedBooking.pet.species})
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Price with commission */}
+                {selectedBooking.service?.price != null && (
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <DollarSign size={20} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">À payer</p>
+                      <p className="font-medium">
+                        {selectedBooking.service.price} + {COMMISSION_DA} = {selectedBooking.service.price + COMMISSION_DA} DA
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        (Service: {selectedBooking.service.price} DA + Commission: {COMMISSION_DA} DA)
                       </p>
                     </div>
                   </div>
