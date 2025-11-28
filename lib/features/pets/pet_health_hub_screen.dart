@@ -97,6 +97,17 @@ class PetHealthHubScreen extends ConsumerWidget {
               // Cartes d'accès rapide
               _buildActionCard(
                 context: context,
+                icon: Icons.history_rounded,
+                title: 'Historique médical',
+                subtitle: 'Consultations, diagnostics, traitements',
+                color: Colors.blue,
+                gradientColor: Colors.blue.withOpacity(0.7),
+                onTap: () => context.push('/pets/$petId/medical'),
+              ),
+              const SizedBox(height: 16),
+
+              _buildActionCard(
+                context: context,
                 icon: Icons.analytics_rounded,
                 title: 'Statistiques de santé',
                 subtitle: 'Poids, température, fréquence cardiaque',
