@@ -1,6 +1,7 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import api from '../../api/client';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,15 +11,22 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const location = useLocation();
   const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
-      fetchUser();
-    }
+    const checkAuth = async () => {
+      // Only check if we have a token and haven't checked yet
+      const token = api.getAccessToken();
+      if (token && !isAuthenticated && !hasChecked) {
+        await fetchUser();
+      }
+      setHasChecked(true);
+    };
+    checkAuth();
   }, []);
 
-  // Show loading while checking auth
-  if (isLoading) {
+  // Show loading while checking auth (only if we have a token)
+  if (isLoading || (!hasChecked && api.getAccessToken())) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
