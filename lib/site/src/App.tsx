@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './auth/LoginPage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 
+// Contexts
+import { ScannedPetProvider } from './contexts/ScannedPetContext';
+
 // Admin pages
 import {
   AdminDashboard,
@@ -41,8 +44,9 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
+      <ScannedPetProvider>
+        <Router>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
 
@@ -157,8 +161,9 @@ function App() {
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </ScannedPetProvider>
     </QueryClientProvider>
   );
 }

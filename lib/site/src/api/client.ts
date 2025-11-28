@@ -13,6 +13,9 @@ import type {
   Pet,
   MedicalRecord,
   Vaccination,
+  Prescription,
+  HealthStatsAggregated,
+  DiseaseTracking,
   AdoptPost,
   AdoptConversation,
   AdoptMessage,
@@ -343,6 +346,66 @@ class ApiClient {
   async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {
     const { data } = await this.client.post(`/pets/by-token/${token}/medical-records`, record);
     return data?.data || data;
+  }
+
+  async deleteMedicalRecord(recordId: string): Promise<void> {
+    await this.client.delete(`/pets/medical-records/${recordId}`);
+  }
+
+  // ==================== PRESCRIPTIONS ====================
+  async getPetPrescriptions(petId: string): Promise<Prescription[]> {
+    const { data } = await this.client.get(`/pets/${petId}/prescriptions`);
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
+  }
+
+  async createPrescriptionByToken(
+    token: string,
+    prescription: { title: string; description?: string; imageUrl?: string }
+  ): Promise<Prescription> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/prescriptions`, prescription);
+    return data?.data || data;
+  }
+
+  async deletePrescription(prescriptionId: string): Promise<void> {
+    await this.client.delete(`/pets/prescriptions/${prescriptionId}`);
+  }
+
+  // ==================== HEALTH STATS (aggregated from MedicalRecord) ====================
+  async getPetHealthStats(petId: string): Promise<HealthStatsAggregated | null> {
+    try {
+      const { data } = await this.client.get(`/pets/${petId}/health-stats`);
+      return data?.data || data;
+    } catch {
+      return null;
+    }
+  }
+
+  // ==================== DISEASE TRACKING ====================
+  async getPetDiseases(petId: string): Promise<DiseaseTracking[]> {
+    const { data } = await this.client.get(`/pets/${petId}/diseases`);
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
+  }
+
+  async createDiseaseByToken(
+    token: string,
+    disease: { name: string; description?: string; status?: string; images?: string[] }
+  ): Promise<DiseaseTracking> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
+    return data?.data || data;
+  }
+
+  async updateDisease(
+    diseaseId: string,
+    updates: { status?: string; notes?: string; images?: string[]; resolvedDate?: string }
+  ): Promise<DiseaseTracking> {
+    const { data } = await this.client.patch(`/pets/diseases/${diseaseId}`, updates);
+    return data?.data || data;
+  }
+
+  async deleteDisease(diseaseId: string): Promise<void> {
+    await this.client.delete(`/pets/diseases/${diseaseId}`);
   }
 
   // ==================== SCANNED PET SYNC (Flutter <-> Website) ====================

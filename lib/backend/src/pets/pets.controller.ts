@@ -94,6 +94,52 @@ export class PetsController {
     return this.pets.createMedicalRecordByToken(token, vetId, vetName, dto);
   }
 
+  // Vet ajoute une ordonnance via token
+  @Post('by-token/:token/prescriptions')
+  createPrescriptionByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createPrescriptionByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un suivi de maladie via token
+  @Post('by-token/:token/diseases')
+  createDiseaseByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createDiseaseByToken(token, req.user.sub, dto);
+  }
+
+  // ============ MEDICAL RECORDS (DELETE by provider) ============
+
+  @Delete('medical-records/:recordId')
+  deleteMedicalRecordByProvider(@Req() req: any, @Param('recordId') recordId: string) {
+    return this.pets.deleteMedicalRecordByProvider(req.user.sub, recordId);
+  }
+
+  // ============ PRESCRIPTIONS ============
+
+  @Get(':petId/prescriptions')
+  listPrescriptions(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listPrescriptions(req.user.sub, petId);
+  }
+
+  @Delete('prescriptions/:prescriptionId')
+  deletePrescriptionByProvider(@Req() req: any, @Param('prescriptionId') prescriptionId: string) {
+    return this.pets.deletePrescriptionByProvider(req.user.sub, prescriptionId);
+  }
+
+  // ============ DISEASES (DELETE by provider) ============
+
+  @Delete('diseases/:diseaseId')
+  deleteDiseaseByProvider(@Req() req: any, @Param('diseaseId') diseaseId: string) {
+    return this.pets.deleteDiseaseByProvider(req.user.sub, diseaseId);
+  }
+
   // ============ WEIGHT RECORDS ============
 
   @Get(':petId/weight-records')

@@ -186,6 +186,57 @@ export interface Vaccination {
   notes?: string;
 }
 
+// Prescription (Ordonnance) Types
+export interface Prescription {
+  id: string;
+  petId: string;
+  providerId: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  date: string;
+  provider?: ProviderProfile;
+  createdAt: string;
+}
+
+// Health Stats Types (aggregated format from MedicalRecord)
+export interface HealthStatsAggregated {
+  petId: string;
+  weight: {
+    data: Array<{ date: string; weightKg: number; source: string; context?: string; vetName?: string; notes?: string }>;
+    current: number | null;
+    min: number | null;
+    max: number | null;
+  };
+  temperature: {
+    data: Array<{ date: string; temperatureC: number; context?: string; vetName?: string }>;
+    current: number | null;
+    average: number | null;
+  };
+  heartRate: {
+    data: Array<{ date: string; heartRate: number; context?: string; vetName?: string }>;
+    current: number | null;
+    average: number | null;
+  };
+}
+
+// Disease Tracking Types
+export interface DiseaseTracking {
+  id: string;
+  petId: string;
+  providerId: string;
+  name: string;
+  description?: string;
+  status: 'ACTIVE' | 'MONITORING' | 'RESOLVED';
+  diagnosedDate: string;
+  resolvedDate?: string;
+  images?: string[];
+  notes?: string;
+  provider?: ProviderProfile;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Adoption Types
 export type AdoptPostStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 

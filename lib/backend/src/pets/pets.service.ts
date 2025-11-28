@@ -239,19 +239,122 @@ export class PetsService {
       throw new ForbiddenException('Token expired');
     }
 
+    // Get provider ID from user ID
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId: vetId } });
+
     return this.prisma.medicalRecord.create({
       data: {
         petId: accessToken.petId,
         type: dto.type,
         title: dto.title,
         description: dto.description ?? null,
-        date: new Date(dto.date),
+        date: dto.date ? new Date(dto.date) : new Date(),
         vetId,
         vetName,
         notes: dto.notes ?? null,
         images: dto.images ?? [],
+        providerId: provider?.id ?? null,
       },
     });
+  }
+
+  // Vet ajoute une ordonnance via token
+  async createPrescriptionByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.prescription.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        title: dto.title,
+        description: dto.description ?? null,
+        imageUrl: dto.imageUrl ?? null,
+        date: new Date(),
+      },
+    });
+  }
+
+  // Vet ajoute un suivi de maladie via token
+  async createDiseaseByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.diseaseTracking.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        name: dto.name,
+        description: dto.description ?? null,
+        status: dto.status ?? 'ONGOING',
+        diagnosisDate: new Date(),
+        images: dto.images ?? [],
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  // Delete medical record by provider (only own records)
+  async deleteMedicalRecordByProvider(userId: string, recordId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const record = await this.prisma.medicalRecord.findUnique({ where: { id: recordId } });
+    if (!record) throw new NotFoundException('Record not found');
+    if (record.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.medicalRecord.delete({ where: { id: recordId } });
+  }
+
+  // List prescriptions for a pet
+  async listPrescriptions(userId: string, petId: string) {
+    return this.prisma.prescription.findMany({
+      where: { petId },
+      include: { provider: { select: { id: true, displayName: true } } },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  // Delete prescription by provider (only own records)
+  async deletePrescriptionByProvider(userId: string, prescriptionId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const prescription = await this.prisma.prescription.findUnique({ where: { id: prescriptionId } });
+    if (!prescription) throw new NotFoundException('Prescription not found');
+    if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
+
+    return this.prisma.prescription.delete({ where: { id: prescriptionId } });
+  }
+
+  // Delete disease by provider (only own records)
+  async deleteDiseaseByProvider(userId: string, diseaseId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const disease = await this.prisma.diseaseTracking.findUnique({ where: { id: diseaseId } });
+    if (!disease) throw new NotFoundException('Disease not found');
+    if (disease.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.diseaseTracking.delete({ where: { id: diseaseId } });
   }
 
   // ============ WEIGHT RECORDS ============

@@ -136,11 +136,14 @@ model ProviderProfile {
   timeOffs ProviderTimeOff[]
 
   // Back-relations
-  earnings        ProviderEarning[]
-  collections     AdminCollection[]
-  products        Product[]
-  orders          Order[]
-  daycareBookings DaycareBooking[]
+  earnings         ProviderEarning[]
+  collections      AdminCollection[]
+  products         Product[]
+  orders           Order[]
+  daycareBookings  DaycareBooking[]
+  medicalRecords   MedicalRecord[]
+  prescriptions    Prescription[]
+  diseaseTrackings DiseaseTracking[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -293,6 +296,7 @@ model Pet {
   preventiveCare   PreventiveCare[]
   diseaseTrackings DiseaseTracking[]
   daycareBookings  DaycareBooking[]
+  prescriptions    Prescription[]
 
   @@index([ownerId])
 }
@@ -389,6 +393,7 @@ model PreventiveCare {
 model DiseaseTracking {
   id          String   @id @default(cuid())
   petId       String
+  providerId  String?  // Provider qui a créé le suivi
   name        String   // Nom de la maladie (ex: "Allergie cutanée", "Otite")
   description String?  // Description de la maladie
   status      String   // ONGOING (en cours), CURED (guérie), CHRONIC (chronique), MONITORING (surveillance)
@@ -413,10 +418,13 @@ model DiseaseTracking {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   // Entrées d'évolution (timeline)
   progressEntries DiseaseProgressEntry[]
+
+  @@index([providerId])
 
   @@index([petId, status])
   @@index([petId, diagnosisDate])
@@ -445,7 +453,8 @@ model MedicalRecord {
   title       String
   description String?
   date        DateTime
-  vetId       String?  // Provider ID du vétérinaire (optionnel)
+  vetId       String?  // User ID du vétérinaire (optionnel)
+  providerId  String?  // Provider ID (pour contrôle ownership)
   vetName     String?  // Nom du vétérinaire/garderie
   notes       String?
   images      String[] // URLs des images (radios, ordonnances, etc.)
@@ -464,13 +473,35 @@ model MedicalRecord {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   @@index([petId, date])
   @@index([petId, type])
   @@index([bookingId])
   @@index([daycareBookingId])
+  @@index([providerId])
 }
+
+// Ordonnances (Prescriptions)
+model Prescription {
+  id          String   @id @default(cuid())
+  petId       String
+  providerId  String?  // Provider qui a créé l'ordonnance
+  title       String
+  description String?
+  imageUrl    String?  // URL de l'image (scan/photo de l'ordonnance)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
+
+  @@index([petId, date])
+  @@index([providerId])
+}
+
 
 model PetAccessToken {
   id        String   @id @default(cuid())
