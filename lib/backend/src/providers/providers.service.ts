@@ -726,12 +726,23 @@ async upsertMyProvider(userId: string, dto: any) {
       include: {
         pet: {
           include: {
-            medicalRecords: { orderBy: { date: 'desc' } },
+            medicalRecords: {
+              orderBy: { date: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
             weightRecords: { orderBy: { date: 'desc' }, take: 10 },
             vaccinations: { orderBy: { date: 'desc' } },
             treatments: { orderBy: { startDate: 'desc' } },
             allergies: true,
             preventiveCare: { orderBy: { lastDate: 'desc' } },
+            prescriptions: {
+              orderBy: { date: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
+            diseaseTrackings: {
+              orderBy: { createdAt: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
             owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
           },
         },
