@@ -13,11 +13,16 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
 
+  console.log('ProtectedRoute render:', { isAuthenticated, isLoading, hasChecked, user: user?.email, path: location.pathname });
+
   useEffect(() => {
     const checkAuth = async () => {
       // Only check if we have a token and haven't checked yet
       const token = api.getAccessToken();
+      console.log('ProtectedRoute checkAuth:', { token: token ? 'exists' : 'missing', isAuthenticated, hasChecked });
+
       if (token && !isAuthenticated && !hasChecked) {
+        console.log('Calling fetchUser...');
         await fetchUser();
       }
       setHasChecked(true);

@@ -72,14 +72,20 @@ export const useAuthStore = create<AuthState>()(
 
       fetchUser: async () => {
         const token = api.getAccessToken();
+        console.log('fetchUser called, token:', token ? 'exists' : 'missing');
+
         if (!token) {
+          console.log('No token, setting unauthenticated');
           set({ isAuthenticated: false, user: null });
           return;
         }
 
         set({ isLoading: true });
         try {
+          console.log('Fetching user from /users/me...');
           const user = await api.getMe();
+          console.log('Got user:', user);
+
           set({
             user,
             isAuthenticated: true,
@@ -88,10 +94,13 @@ export const useAuthStore = create<AuthState>()(
 
           // If user is PRO, fetch provider profile
           if (user.role === 'PRO') {
+            console.log('User is PRO, fetching provider...');
             const provider = await api.myProvider();
+            console.log('Got provider:', provider);
             set({ provider });
           }
-        } catch {
+        } catch (error) {
+          console.error('fetchUser error:', error);
           api.logout();
           set({
             user: null,
