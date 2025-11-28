@@ -35,8 +35,21 @@ export function LoginPage() {
       } else {
         setError('Accès non autorisé. Ce portail est réservé aux administrateurs et professionnels.');
       }
-    } catch (err) {
-      setError('Email ou mot de passe incorrect');
+    } catch (err: unknown) {
+      console.error('Login error:', err);
+      if (err instanceof Error) {
+        // Check if it's an axios error with response
+        const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
+        if (axiosError.response?.status === 401) {
+          setError('Email ou mot de passe incorrect');
+        } else if (axiosError.response?.data?.message) {
+          setError(axiosError.response.data.message);
+        } else {
+          setError(err.message || 'Une erreur est survenue');
+        }
+      } else {
+        setError('Une erreur est survenue lors de la connexion');
+      }
     }
   };
 

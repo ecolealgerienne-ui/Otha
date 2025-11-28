@@ -36,10 +36,15 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
 
-          // If user is PRO, fetch provider profile
+          // If user is PRO, fetch provider profile (don't fail login if this fails)
           if (response.user.role === 'PRO') {
-            const provider = await api.myProvider();
-            set({ provider });
+            try {
+              const provider = await api.myProvider();
+              set({ provider });
+            } catch (providerError) {
+              console.warn('Could not fetch provider profile:', providerError);
+              // Don't throw - login was successful, provider fetch is optional
+            }
           }
         } catch (error) {
           set({ isLoading: false });
