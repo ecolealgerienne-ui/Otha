@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStat, DiseaseTracking, Booking } from '../types';
+import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStatsAggregated, DiseaseTracking, Booking } from '../types';
 import api from '../api/client';
 
 interface ScannedPetState {
@@ -8,7 +8,7 @@ interface ScannedPetState {
   records: MedicalRecord[];
   vaccinations: Vaccination[];
   prescriptions: Prescription[];
-  healthStats: HealthStat[];
+  healthStats: HealthStatsAggregated | null; // Aggregated from MedicalRecord
   diseases: DiseaseTracking[];
   activeBooking: Booking | null;
   bookingConfirmed: boolean;
@@ -22,22 +22,20 @@ interface ScannedPetContextType extends ScannedPetState {
     records?: MedicalRecord[],
     vaccinations?: Vaccination[],
     prescriptions?: Prescription[],
-    healthStats?: HealthStat[],
+    healthStats?: HealthStatsAggregated | null,
     diseases?: DiseaseTracking[]
   ) => void;
   setBooking: (booking: Booking | null, confirmed?: boolean) => void;
   updateRecords: (records: MedicalRecord[]) => void;
   updateVaccinations: (vaccinations: Vaccination[]) => void;
   updatePrescriptions: (prescriptions: Prescription[]) => void;
-  updateHealthStats: (stats: HealthStat[]) => void;
+  updateHealthStats: (stats: HealthStatsAggregated | null) => void;
   updateDiseases: (diseases: DiseaseTracking[]) => void;
   addRecord: (record: MedicalRecord) => void;
   addPrescription: (prescription: Prescription) => void;
-  addHealthStat: (stat: HealthStat) => void;
   addDisease: (disease: DiseaseTracking) => void;
   removeRecord: (id: string) => void;
   removePrescription: (id: string) => void;
-  removeHealthStat: (id: string) => void;
   removeDisease: (id: string) => void;
   clearPet: () => void;
   // Polling
@@ -52,7 +50,7 @@ const initialState: ScannedPetState = {
   records: [],
   vaccinations: [],
   prescriptions: [],
-  healthStats: [],
+  healthStats: null,
   diseases: [],
   activeBooking: null,
   bookingConfirmed: false,
@@ -76,9 +74,16 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           medicalRecords?: MedicalRecord[];
           vaccinations?: Vaccination[];
           prescriptions?: Prescription[];
-          healthStats?: HealthStat[];
           diseases?: DiseaseTracking[];
         };
+
+        // Load health stats separately (aggregated endpoint)
+        let healthStats: HealthStatsAggregated | null = null;
+        try {
+          healthStats = await api.getPetHealthStats(petData.id);
+        } catch {
+          // Ignore health stats fetch errors
+        }
 
         setState({
           pet: petData,
@@ -86,7 +91,7 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           records: petData.medicalRecords || [],
           vaccinations: petData.vaccinations || [],
           prescriptions: petData.prescriptions || [],
-          healthStats: petData.healthStats || [],
+          healthStats,
           diseases: petData.diseases || [],
           activeBooking: null,
           bookingConfirmed: false,
@@ -126,7 +131,7 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
       records: MedicalRecord[] = [],
       vaccinations: Vaccination[] = [],
       prescriptions: Prescription[] = [],
-      healthStats: HealthStat[] = [],
+      healthStats: HealthStatsAggregated | null = null,
       diseases: DiseaseTracking[] = []
     ) => {
       setState({
@@ -164,7 +169,7 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, prescriptions }));
   }, []);
 
-  const updateHealthStats = useCallback((healthStats: HealthStat[]) => {
+  const updateHealthStats = useCallback((healthStats: HealthStatsAggregated | null) => {
     setState((prev) => ({ ...prev, healthStats }));
   }, []);
 
@@ -180,10 +185,6 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, prescriptions: [prescription, ...prev.prescriptions] }));
   }, []);
 
-  const addHealthStat = useCallback((stat: HealthStat) => {
-    setState((prev) => ({ ...prev, healthStats: [stat, ...prev.healthStats] }));
-  }, []);
-
   const addDisease = useCallback((disease: DiseaseTracking) => {
     setState((prev) => ({ ...prev, diseases: [disease, ...prev.diseases] }));
   }, []);
@@ -194,10 +195,6 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
 
   const removePrescription = useCallback((id: string) => {
     setState((prev) => ({ ...prev, prescriptions: prev.prescriptions.filter((p) => p.id !== id) }));
-  }, []);
-
-  const removeHealthStat = useCallback((id: string) => {
-    setState((prev) => ({ ...prev, healthStats: prev.healthStats.filter((s) => s.id !== id) }));
   }, []);
 
   const removeDisease = useCallback((id: string) => {
@@ -230,11 +227,9 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         updateDiseases,
         addRecord,
         addPrescription,
-        addHealthStat,
         addDisease,
         removeRecord,
         removePrescription,
-        removeHealthStat,
         removeDisease,
         clearPet,
         isPolling,

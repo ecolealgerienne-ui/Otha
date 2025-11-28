@@ -199,18 +199,25 @@ export interface Prescription {
   createdAt: string;
 }
 
-// Health Stats Types
-export interface HealthStat {
-  id: string;
+// Health Stats Types (aggregated format from MedicalRecord)
+export interface HealthStatsAggregated {
   petId: string;
-  providerId: string;
-  type: 'WEIGHT' | 'TEMPERATURE' | 'HEART_RATE';
-  value: number;
-  unit: string;
-  date: string;
-  notes?: string;
-  provider?: ProviderProfile;
-  createdAt: string;
+  weight: {
+    data: Array<{ date: string; weightKg: number; source: string; context?: string; vetName?: string; notes?: string }>;
+    current: number | null;
+    min: number | null;
+    max: number | null;
+  };
+  temperature: {
+    data: Array<{ date: string; temperatureC: number; context?: string; vetName?: string }>;
+    current: number | null;
+    average: number | null;
+  };
+  heartRate: {
+    data: Array<{ date: string; heartRate: number; context?: string; vetName?: string }>;
+    current: number | null;
+    average: number | null;
+  };
 }
 
 // Disease Tracking Types

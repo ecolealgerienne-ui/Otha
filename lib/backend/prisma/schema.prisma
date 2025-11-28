@@ -143,7 +143,6 @@ model ProviderProfile {
   daycareBookings  DaycareBooking[]
   medicalRecords   MedicalRecord[]
   prescriptions    Prescription[]
-  healthStats      HealthStat[]
   diseaseTrackings DiseaseTracking[]
 
   @@index([userId])
@@ -298,7 +297,6 @@ model Pet {
   diseaseTrackings DiseaseTracking[]
   daycareBookings  DaycareBooking[]
   prescriptions    Prescription[]
-  healthStats      HealthStat[]
 
   @@index([ownerId])
 }
@@ -504,24 +502,6 @@ model Prescription {
   @@index([providerId])
 }
 
-// Statistiques de santé (Poids, Température, BPM)
-model HealthStat {
-  id         String   @id @default(cuid())
-  petId      String
-  providerId String?  // Provider qui a enregistré la mesure
-  type       String   // WEIGHT, TEMPERATURE, HEART_RATE
-  value      Float
-  unit       String   // kg, °C, BPM
-  date       DateTime @default(now())
-  notes      String?
-  createdAt  DateTime @default(now())
-
-  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
-  provider ProviderProfile? @relation(fields: [providerId], references: [id])
-
-  @@index([petId, type, date])
-  @@index([providerId])
-}
 
 model PetAccessToken {
   id        String   @id @default(cuid())

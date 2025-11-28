@@ -29,7 +29,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStat, DiseaseTracking, Booking } from '../types';
+import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStatsAggregated, DiseaseTracking, Booking } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useScannedPet } from '../contexts/ScannedPetContext';
@@ -53,11 +53,9 @@ export function ProPatients() {
     setBooking,
     addRecord,
     addPrescription,
-    addHealthStat,
     addDisease,
     removeRecord,
     removePrescription,
-    removeHealthStat,
     removeDisease,
     clearPet,
     isPolling,
@@ -80,19 +78,16 @@ export function ProPatients() {
   // Modals
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
   const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
-  const [showAddHealthStatModal, setShowAddHealthStatModal] = useState(false);
   const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
 
   // Form states
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
   const [newPrescription, setNewPrescription] = useState({ title: '', description: '', imageUrl: '' });
-  const [newHealthStat, setNewHealthStat] = useState({ type: 'WEIGHT' as const, value: '', notes: '' });
   const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
 
   // Loading states
   const [addingRecord, setAddingRecord] = useState(false);
   const [addingPrescription, setAddingPrescription] = useState(false);
-  const [addingHealthStat, setAddingHealthStat] = useState(false);
   const [addingDisease, setAddingDisease] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -172,7 +167,7 @@ export function ProPatients() {
       // Load additional data
       const [presc, stats, dis] = await Promise.all([
         api.getPetPrescriptions(result.pet.id).catch(() => []),
-        api.getPetHealthStats(result.pet.id).catch(() => []),
+        api.getPetHealthStats(result.pet.id).catch(() => null),
         api.getPetDiseases(result.pet.id).catch(() => []),
       ]);
 
@@ -182,7 +177,7 @@ export function ProPatients() {
         result.medicalRecords || [],
         result.vaccinations || [],
         presc,
-        stats,
+        stats,  // HealthStatsAggregated | null
         dis
       );
 
@@ -274,26 +269,6 @@ export function ProPatients() {
     }
   };
 
-  const handleAddHealthStat = async () => {
-    if (!currentToken || !newHealthStat.value) return;
-    setAddingHealthStat(true);
-    try {
-      const stat = await api.createHealthStatByToken(currentToken, {
-        type: newHealthStat.type,
-        value: parseFloat(newHealthStat.value),
-        notes: newHealthStat.notes || undefined,
-      });
-      addHealthStat(stat);
-      setShowAddHealthStatModal(false);
-      setNewHealthStat({ type: 'WEIGHT', value: '', notes: '' });
-    } catch (error) {
-      console.error('Error:', error);
-      alert("Erreur lors de l'ajout");
-    } finally {
-      setAddingHealthStat(false);
-    }
-  };
-
   const handleAddDisease = async () => {
     if (!currentToken || !newDisease.name) return;
     setAddingDisease(true);
@@ -330,16 +305,6 @@ export function ProPatients() {
     try {
       await api.deletePrescription(id);
       removePrescription(id);
-    } catch (error) {
-      alert('Erreur lors de la suppression');
-    }
-  };
-
-  const handleDeleteHealthStat = async (id: string) => {
-    if (!confirm('Supprimer cette mesure ?')) return;
-    try {
-      await api.deleteHealthStat(id);
-      removeHealthStat(id);
     } catch (error) {
       alert('Erreur lors de la suppression');
     }
@@ -384,9 +349,13 @@ export function ProPatients() {
     }
   };
 
+  // Get latest stat from aggregated health stats
   const getLatestStat = (type: string) => {
-    const stat = healthStats.find((s) => s.type === type);
-    return stat?.value;
+    if (!healthStats) return null;
+    if (type === 'WEIGHT') return healthStats.weight?.current;
+    if (type === 'TEMPERATURE') return healthStats.temperature?.current;
+    if (type === 'HEART_RATE') return healthStats.heartRate?.current;
+    return null;
   };
 
   return (
@@ -548,7 +517,7 @@ export function ProPatients() {
                       <p className="font-bold text-gray-900">Statistiques de santé</p>
                       <p className="text-sm text-gray-500">Poids, température, BPM</p>
                     </div>
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">{healthStats.length}</span>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">{healthStats ? (healthStats.weight.data.length + healthStats.temperature.data.length + healthStats.heartRate.data.length) : 0}</span>
                   </button>
 
                   {/* Disease tracking */}
@@ -720,54 +689,79 @@ export function ProPatients() {
                   <TrendingUp className="text-orange-600" size={24} />
                   Statistiques de santé
                 </h3>
-                {healthStats.length === 0 ? (
+                {!healthStats || (healthStats.weight.data.length === 0 && healthStats.temperature.data.length === 0 && healthStats.heartRate.data.length === 0) ? (
                   <div className="text-center py-12">
                     <TrendingUp className="mx-auto text-gray-300 mb-4" size={48} />
                     <p className="text-gray-500">Aucune mesure</p>
+                    <p className="text-sm text-gray-400 mt-2">Les mesures sont enregistrées lors des visites vétérinaires</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {healthStats.map((s) => {
-                      const canDelete = isOwnRecord(s.providerId);
-                      const icon = s.type === 'WEIGHT' ? Scale : s.type === 'TEMPERATURE' ? Thermometer : Heart;
-                      const color = s.type === 'WEIGHT' ? 'text-primary-600' : s.type === 'TEMPERATURE' ? 'text-red-600' : 'text-pink-600';
-                      const bg = s.type === 'WEIGHT' ? 'bg-primary-100' : s.type === 'TEMPERATURE' ? 'bg-red-100' : 'bg-pink-100';
-                      const Icon = icon;
-                      return (
-                        <div key={s.id} className="p-4 bg-white border border-gray-200 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2.5 ${bg} rounded-xl`}>
-                              <Icon size={18} className={color} />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <p className="font-semibold text-gray-900">
-                                  {s.value} {s.unit}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-500">{format(new Date(s.date), 'dd/MM/yyyy')}</span>
-                                  {canDelete && (
-                                    <button onClick={() => handleDeleteHealthStat(s.id)} className="text-red-400 hover:text-red-600">
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
-                                </div>
+                  <div className="space-y-6">
+                    {/* Weight history */}
+                    {healthStats.weight.data.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <Scale size={16} className="text-primary-600" />
+                          Poids ({healthStats.weight.current?.toFixed(1)} kg actuel)
+                        </h4>
+                        <div className="space-y-2">
+                          {healthStats.weight.data.slice(-5).reverse().map((w, i) => (
+                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
+                              <span className="font-semibold text-gray-900">{w.weightKg.toFixed(1)} kg</span>
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
+                                {w.context && <p className="text-xs text-gray-400">{w.context}</p>}
                               </div>
-                              <p className="text-sm text-gray-500">{s.type === 'WEIGHT' ? 'Poids' : s.type === 'TEMPERATURE' ? 'Température' : 'Fréquence cardiaque'}</p>
-                              {s.notes && <p className="text-xs text-gray-400 mt-1">{s.notes}</p>}
                             </div>
-                          </div>
+                          ))}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
+                    {/* Temperature history */}
+                    {healthStats.temperature.data.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <Thermometer size={16} className="text-red-600" />
+                          Température ({healthStats.temperature.current?.toFixed(1)}°C actuel)
+                        </h4>
+                        <div className="space-y-2">
+                          {healthStats.temperature.data.slice(-5).reverse().map((t, i) => (
+                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
+                              <span className="font-semibold text-gray-900">{t.temperatureC.toFixed(1)}°C</span>
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
+                                {t.context && <p className="text-xs text-gray-400">{t.context}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Heart rate history */}
+                    {healthStats.heartRate.data.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                          <Heart size={16} className="text-pink-600" />
+                          Fréquence cardiaque ({healthStats.heartRate.current} BPM actuel)
+                        </h4>
+                        <div className="space-y-2">
+                          {healthStats.heartRate.data.slice(-5).reverse().map((h, i) => (
+                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
+                              <span className="font-semibold text-gray-900">{h.heartRate} BPM</span>
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
+                                {h.context && <p className="text-xs text-gray-400">{h.context}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-                <div className="mt-6">
-                  <Button onClick={() => setShowAddHealthStatModal(true)} className="w-full">
-                    <Plus size={16} className="mr-2" />
-                    Ajouter une mesure
-                  </Button>
-                </div>
+                <p className="text-xs text-gray-400 text-center mt-4">
+                  Les statistiques sont automatiquement enregistrées lors des consultations vétérinaires
+                </p>
               </>
             ) : viewMode === 'diseases' ? (
               <>
@@ -960,31 +954,6 @@ export function ProPatients() {
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => setShowAddPrescriptionModal(false)}>Annuler</Button>
               <Button className="flex-1" onClick={handleAddPrescription} isLoading={addingPrescription} disabled={!newPrescription.title}>Ajouter</Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Add Health Stat Modal */}
-      {showAddHealthStatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Ajouter une mesure</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select value={newHealthStat.type} onChange={(e) => setNewHealthStat({ ...newHealthStat, type: e.target.value as any })} className="w-full px-3 py-2 border rounded-lg">
-                  <option value="WEIGHT">Poids (kg)</option>
-                  <option value="TEMPERATURE">Température (°C)</option>
-                  <option value="HEART_RATE">Fréquence cardiaque (BPM)</option>
-                </select>
-              </div>
-              <Input label="Valeur" type="number" step="0.1" placeholder="Ex: 5.2" value={newHealthStat.value} onChange={(e) => setNewHealthStat({ ...newHealthStat, value: e.target.value })} />
-              <Input label="Notes (optionnel)" placeholder="Notes..." value={newHealthStat.notes} onChange={(e) => setNewHealthStat({ ...newHealthStat, notes: e.target.value })} />
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowAddHealthStatModal(false)}>Annuler</Button>
-              <Button className="flex-1" onClick={handleAddHealthStat} isLoading={addingHealthStat} disabled={!newHealthStat.value}>Ajouter</Button>
             </div>
           </Card>
         </div>

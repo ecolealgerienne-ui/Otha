@@ -14,7 +14,7 @@ import type {
   MedicalRecord,
   Vaccination,
   Prescription,
-  HealthStat,
+  HealthStatsAggregated,
   DiseaseTracking,
   AdoptPost,
   AdoptConversation,
@@ -371,23 +371,14 @@ class ApiClient {
     await this.client.delete(`/pets/prescriptions/${prescriptionId}`);
   }
 
-  // ==================== HEALTH STATS ====================
-  async getPetHealthStats(petId: string): Promise<HealthStat[]> {
-    const { data } = await this.client.get(`/pets/${petId}/health-stats`);
-    const result = data?.data || data;
-    return Array.isArray(result) ? result : [];
-  }
-
-  async createHealthStatByToken(
-    token: string,
-    stat: { type: 'WEIGHT' | 'TEMPERATURE' | 'HEART_RATE'; value: number; notes?: string }
-  ): Promise<HealthStat> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/health-stats`, stat);
-    return data?.data || data;
-  }
-
-  async deleteHealthStat(statId: string): Promise<void> {
-    await this.client.delete(`/pets/health-stats/${statId}`);
+  // ==================== HEALTH STATS (aggregated from MedicalRecord) ====================
+  async getPetHealthStats(petId: string): Promise<HealthStatsAggregated | null> {
+    try {
+      const { data } = await this.client.get(`/pets/${petId}/health-stats`);
+      return data?.data || data;
+    } catch {
+      return null;
+    }
   }
 
   // ==================== DISEASE TRACKING ====================

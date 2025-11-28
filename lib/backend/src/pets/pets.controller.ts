@@ -104,16 +104,6 @@ export class PetsController {
     return this.pets.createPrescriptionByToken(token, req.user.sub, dto);
   }
 
-  // Vet ajoute une stat de santé via token
-  @Post('by-token/:token/health-stats')
-  createHealthStatByToken(
-    @Req() req: any,
-    @Param('token') token: string,
-    @Body() dto: any,
-  ) {
-    return this.pets.createHealthStatByToken(token, req.user.sub, dto);
-  }
-
   // Vet ajoute un suivi de maladie via token
   @Post('by-token/:token/diseases')
   createDiseaseByToken(
@@ -141,13 +131,6 @@ export class PetsController {
   @Delete('prescriptions/:prescriptionId')
   deletePrescriptionByProvider(@Req() req: any, @Param('prescriptionId') prescriptionId: string) {
     return this.pets.deletePrescriptionByProvider(req.user.sub, prescriptionId);
-  }
-
-  // ============ HEALTH STATS (DELETE by provider) ============
-
-  @Delete('health-stats/:statId')
-  deleteHealthStatByProvider(@Req() req: any, @Param('statId') statId: string) {
-    return this.pets.deleteHealthStatByProvider(req.user.sub, statId);
   }
 
   // ============ DISEASES (DELETE by provider) ============

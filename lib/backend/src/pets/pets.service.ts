@@ -284,39 +284,6 @@ export class PetsService {
     });
   }
 
-  // Vet ajoute une stat de santé via token
-  async createHealthStatByToken(token: string, userId: string, dto: any) {
-    const accessToken = await this.prisma.petAccessToken.findUnique({
-      where: { token },
-      include: { pet: true },
-    });
-
-    if (!accessToken) throw new NotFoundException('Token not found');
-    if (accessToken.expiresAt < new Date()) {
-      throw new ForbiddenException('Token expired');
-    }
-
-    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
-
-    // Determine unit based on type
-    let unit = '';
-    if (dto.type === 'WEIGHT') unit = 'kg';
-    else if (dto.type === 'TEMPERATURE') unit = '°C';
-    else if (dto.type === 'HEART_RATE') unit = 'BPM';
-
-    return this.prisma.healthStat.create({
-      data: {
-        petId: accessToken.petId,
-        providerId: provider?.id ?? null,
-        type: dto.type,
-        value: dto.value,
-        unit,
-        date: new Date(),
-        notes: dto.notes ?? null,
-      },
-    });
-  }
-
   // Vet ajoute un suivi de maladie via token
   async createDiseaseByToken(token: string, userId: string, dto: any) {
     const accessToken = await this.prisma.petAccessToken.findUnique({
@@ -376,18 +343,6 @@ export class PetsService {
     if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
 
     return this.prisma.prescription.delete({ where: { id: prescriptionId } });
-  }
-
-  // Delete health stat by provider (only own records)
-  async deleteHealthStatByProvider(userId: string, statId: string) {
-    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
-    if (!provider) throw new ForbiddenException('Not a provider');
-
-    const stat = await this.prisma.healthStat.findUnique({ where: { id: statId } });
-    if (!stat) throw new NotFoundException('Health stat not found');
-    if (stat.providerId !== provider.id) throw new ForbiddenException('Not your record');
-
-    return this.prisma.healthStat.delete({ where: { id: statId } });
   }
 
   // Delete disease by provider (only own records)
