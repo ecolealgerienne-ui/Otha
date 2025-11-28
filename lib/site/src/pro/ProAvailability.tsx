@@ -65,12 +65,12 @@ export function ProAvailability() {
         api.myTimeOffs(),
       ]);
 
-      // Parse entries from API response
+      // Parse entries from API response (may have startMin/endMin or startTime/endTime)
       const entries = weeklyResult.entries || [];
-      const slots: AvailabilitySlot[] = entries.map((e: { weekday: number; startMin: number; endMin: number }) => ({
+      const slots: AvailabilitySlot[] = entries.map((e) => ({
         weekday: e.weekday,
-        startMin: e.startMin,
-        endMin: e.endMin,
+        startMin: e.startMin ?? (e.startTime ? timeToMin(e.startTime) : 0),
+        endMin: e.endMin ?? (e.endTime ? timeToMin(e.endTime) : 0),
       }));
 
       console.log('Loaded availability:', slots);

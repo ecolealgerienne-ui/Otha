@@ -263,13 +263,35 @@ class ApiClient {
   }
 
   async providerSetStatus(bookingId: string, status: BookingStatus): Promise<Booking> {
-    const { data } = await this.client.patch<Booking>(`/bookings/${bookingId}/status`, { status });
-    return data;
+    const { data } = await this.client.patch(`/bookings/${bookingId}/provider-status`, { status });
+    return (data as { data?: Booking })?.data || data;
   }
 
   async cancelBooking(bookingId: string): Promise<Booking> {
-    const { data } = await this.client.post<Booking>(`/bookings/${bookingId}/cancel`);
-    return data;
+    const { data } = await this.client.post(`/bookings/${bookingId}/cancel`);
+    return (data as { data?: Booking })?.data || data;
+  }
+
+  // OTP verification (provider verifies client's OTP code)
+  async verifyBookingOtp(bookingId: string, code: string): Promise<{ success: boolean; message?: string }> {
+    const { data } = await this.client.post(`/bookings/${bookingId}/otp/verify`, { code });
+    return (data as { data?: { success: boolean; message?: string } })?.data || data;
+  }
+
+  // Provider confirms booking with method (QR_SCAN or SIMPLE)
+  async proConfirmBooking(bookingId: string, method: 'QR_SCAN' | 'SIMPLE' = 'SIMPLE'): Promise<Booking> {
+    const { data } = await this.client.post(`/bookings/${bookingId}/pro-confirm`, { method });
+    return (data as { data?: Booking })?.data || data;
+  }
+
+  // Get active booking for pet (used when scanning QR code)
+  async getActiveBookingForPet(petId: string): Promise<Booking | null> {
+    try {
+      const { data } = await this.client.get(`/bookings/active-for-pet/${petId}`);
+      return data?.data || data;
+    } catch {
+      return null;
+    }
   }
 
   // ==================== DAYCARE ====================

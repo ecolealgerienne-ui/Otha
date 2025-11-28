@@ -8,7 +8,6 @@ import {
   X,
   RefreshCw,
   Plus,
-  Clock,
   Calendar,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -88,20 +87,21 @@ export function ProPatients() {
         const status = (booking.status || '').toUpperCase();
         if (status !== 'CONFIRMED' && status !== 'COMPLETED') return;
 
-        const user = booking.user || {};
-        const userId = user.id || booking.userId || user.email || '';
+        const user = booking.user;
+        const userId = user?.id || booking.userId || user?.email || '';
         if (!userId) return;
 
         const name = getHumanName(user);
-        const phone = user.phone || '';
-        const email = user.email || '';
+        const phone = user?.phone || '';
+        const email = user?.email || '';
 
         const scheduledAt = booking.scheduledAt
           ? new Date(booking.scheduledAt)
           : null;
 
-        const petLabel = booking.pet
-          ? `${booking.pet.idNumber || booking.pet.species || ''} (${booking.pet.name || ''})`
+        const pet = booking.pet;
+        const petLabel = pet
+          ? `${pet.idNumber || pet.species || ''} (${pet.name || ''})`
           : '';
 
         const existing = patientMap.get(userId);
@@ -142,8 +142,9 @@ export function ProPatients() {
     }
   }
 
-  function getHumanName(user: { displayName?: string; firstName?: string; lastName?: string; email?: string }): string {
-    if (user.displayName) return user.displayName;
+  function getHumanName(user?: { displayName?: string; firstName?: string; lastName?: string; email?: string }): string {
+    if (!user) return 'Client';
+    if ((user as { displayName?: string }).displayName) return (user as { displayName?: string }).displayName!;
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     if (fullName) return fullName;
     return user.email?.split('@')[0] || 'Client';
