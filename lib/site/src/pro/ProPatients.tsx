@@ -1,12 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import {
-  Search,
-  User,
   FileText,
   Syringe,
   QrCode,
   X,
-  RefreshCw,
   Plus,
   Calendar,
   CheckCircle,
@@ -15,6 +12,8 @@ import {
   Pill,
   Activity,
   Heart,
+  Smartphone,
+  Monitor,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -24,25 +23,7 @@ import type { Pet, MedicalRecord, Vaccination, Booking } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// Patient aggregated from bookings
-interface PatientRow {
-  keyId: string;
-  name: string;
-  phone: string;
-  lastPet: string;
-  visits: number;
-  lastAt: Date | null;
-  email: string;
-}
-
 export function ProPatients() {
-  const [patients, setPatients] = useState<PatientRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<PatientRow | null>(null);
-  const [patientBookings, setPatientBookings] = useState<Booking[]>([]);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-
   // QR Scanner state
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [scannedPet, setScannedPet] = useState<Pet | null>(null);
@@ -65,11 +46,10 @@ export function ProPatients() {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
-  // All bookings for history
-  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  // Choice modal (PC or Phone)
+  const [showChoiceModal, setShowChoiceModal] = useState(false);
 
   useEffect(() => {
-    fetchPatients();
     return () => {
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
@@ -77,102 +57,24 @@ export function ProPatients() {
     };
   }, []);
 
-  async function fetchPatients() {
-    setLoading(true);
-    try {
-      // Get all provider bookings
-      const now = new Date();
-      const fromDate = new Date(now.getFullYear() - 2, 0, 1);
-      const bookings = await api.providerAgenda(
-        fromDate.toISOString().split('T')[0],
-        now.toISOString().split('T')[0]
-      );
+  // Scan via PC webcam
+  const handleScanPC = () => {
+    setShowChoiceModal(false);
+    startQrScanner();
+  };
 
-      setAllBookings(bookings);
+  // Scan via Phone - open Flutter app
+  const handleScanPhone = () => {
+    setShowChoiceModal(false);
+    // Open deep link to Flutter app's scanner
+    const deepLink = 'otha://vet/scan';
+    window.location.href = deepLink;
 
-      // Aggregate patients from bookings
-      const patientMap = new Map<string, PatientRow>();
-
-      bookings.forEach((booking) => {
-        const status = (booking.status || '').toUpperCase();
-        if (status !== 'CONFIRMED' && status !== 'COMPLETED') return;
-
-        const user = booking.user;
-        const userId = user?.id || booking.userId || user?.email || '';
-        if (!userId) return;
-
-        const name = getHumanName(user);
-        const phone = user?.phone || '';
-        const email = user?.email || '';
-
-        const scheduledAt = booking.scheduledAt
-          ? new Date(booking.scheduledAt)
-          : null;
-
-        const pet = booking.pet;
-        const petLabel = pet
-          ? `${pet.idNumber || pet.species || ''} (${pet.name || ''})`
-          : '';
-
-        const existing = patientMap.get(userId);
-        if (!existing) {
-          patientMap.set(userId, {
-            keyId: userId,
-            name,
-            phone,
-            email,
-            lastPet: petLabel,
-            visits: 1,
-            lastAt: scheduledAt,
-          });
-        } else {
-          const newer =
-            !existing.lastAt ||
-            (scheduledAt && scheduledAt > existing.lastAt);
-          patientMap.set(userId, {
-            ...existing,
-            visits: existing.visits + 1,
-            lastAt: newer ? scheduledAt : existing.lastAt,
-            lastPet: newer && petLabel ? petLabel : existing.lastPet,
-            phone: existing.phone || phone,
-          });
-        }
-      });
-
-      const rows = Array.from(patientMap.values()).sort((a, b) => {
-        if (a.lastAt && b.lastAt) return b.lastAt.getTime() - a.lastAt.getTime();
-        return a.name.localeCompare(b.name);
-      });
-
-      setPatients(rows);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function getHumanName(user?: { displayName?: string; firstName?: string; lastName?: string; email?: string }): string {
-    if (!user) return 'Client';
-    if ((user as { displayName?: string }).displayName) return (user as { displayName?: string }).displayName!;
-    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-    if (fullName) return fullName;
-    return user.email?.split('@')[0] || 'Client';
-  }
-
-  const handleShowHistory = (patient: PatientRow) => {
-    setSelectedPatient(patient);
-    const bookings = allBookings.filter((b) => {
-      const userId = b.user?.id || b.userId || b.user?.email || '';
-      const status = (b.status || '').toUpperCase();
-      return userId === patient.keyId && (status === 'CONFIRMED' || status === 'COMPLETED');
-    });
-    setPatientBookings(bookings.sort((a, b) => {
-      const dateA = new Date(a.scheduledAt || 0);
-      const dateB = new Date(b.scheduledAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    }));
-    setShowHistoryModal(true);
+    // Fallback: if deep link doesn't work after 2 seconds, show message
+    setTimeout(() => {
+      // The page is still here, so deep link probably didn't work
+      alert("Ouvrez l'application Otha sur votre téléphone et allez dans 'Scanner patient'");
+    }, 2000);
   };
 
   // QR Scanner functions
@@ -250,8 +152,6 @@ export function ProPatients() {
             try {
               await api.proConfirmBooking(booking.id, 'QR_SCAN');
               setBookingConfirmed(true);
-              // Refresh patients list
-              fetchPatients();
             } catch (confirmError) {
               console.error('Error auto-confirming booking:', confirmError);
             }
@@ -319,15 +219,6 @@ export function ProPatients() {
     }
   };
 
-  const filteredPatients = patients.filter((p) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(query) ||
-      p.phone.toLowerCase().includes(query) ||
-      p.lastPet.toLowerCase().includes(query)
-    );
-  });
-
   const getSpeciesEmoji = (species?: string) => {
     switch ((species || '').toUpperCase()) {
       case 'DOG':
@@ -352,25 +243,16 @@ export function ProPatients() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Scanner Patient</h1>
             <p className="text-gray-600 mt-1">
-              Consultez vos patients et scannez les QR codes
+              Scannez le QR code du carnet de santé de l'animal
             </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={fetchPatients}>
-              <RefreshCw size={16} className="mr-2" />
-              Actualiser
-            </Button>
-            <Button onClick={startQrScanner}>
-              <QrCode size={16} className="mr-2" />
-              Scanner QR
-            </Button>
           </div>
         </div>
 
-        {/* QR Scanned Pet View - Carnet de Santé */}
-        {scannedPet && (
+        {/* Main content - Scanner buttons or Pet view */}
+        {scannedPet ? (
+          /* QR Scanned Pet View - Carnet de Santé */
           <Card className="border-2 border-primary-500">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-primary-600">
@@ -533,73 +415,47 @@ export function ProPatients() {
                 </div>
               )}
             </div>
-          </Card>
-        )}
 
-        {/* Search bar */}
-        <Card>
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <Input
-              placeholder="Rechercher (nom, téléphone, animal)…"
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </Card>
-
-        {/* Patients list */}
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
-          </div>
-        ) : filteredPatients.length === 0 ? (
-          <Card className="text-center py-8">
-            <User size={48} className="text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Aucun patient</p>
+            {/* Button to scan another */}
+            <div className="mt-6 pt-4 border-t">
+              <Button variant="secondary" onClick={closePetView} className="w-full">
+                <QrCode size={16} className="mr-2" />
+                Scanner un autre patient
+              </Button>
+            </div>
           </Card>
         ) : (
-          <div className="grid gap-3">
-            {filteredPatients.map((patient) => (
-              <Card key={patient.keyId} className="hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-bold text-primary-600">
-                        {patient.name[0]?.toUpperCase() || '?'}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{patient.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {[
-                          patient.lastPet,
-                          patient.phone,
-                          patient.lastAt
-                            ? `Dernière visite: ${format(patient.lastAt, 'dd MMM yyyy', { locale: fr })}`
-                            : null,
-                          `${patient.visits} ${patient.visits > 1 ? 'visites' : 'visite'}`,
-                        ]
-                          .filter(Boolean)
-                          .join(' • ')}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="secondary" size="sm" onClick={() => handleShowHistory(patient)}>
-                    Historique
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+          /* Scanner choice buttons */
+          <Card className="text-center py-12">
+            <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <QrCode size={48} className="text-primary-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Scanner un patient
+            </h2>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Scannez le QR code du carnet de santé de l'animal pour accéder à son historique médical et confirmer le rendez-vous.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+              <Button onClick={handleScanPC} size="lg" className="flex-1">
+                <Monitor size={20} className="mr-2" />
+                Scanner avec PC
+              </Button>
+              <Button onClick={handleScanPhone} variant="secondary" size="lg" className="flex-1">
+                <Smartphone size={20} className="mr-2" />
+                Scanner avec téléphone
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-400 mt-6">
+              Le scan par téléphone ouvrira l'application Otha
+            </p>
+          </Card>
         )}
       </div>
 
-      {/* QR Scanner Modal */}
+      {/* QR Scanner Modal (PC webcam) */}
       {showQrScanner && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
@@ -642,59 +498,43 @@ export function ProPatients() {
         </div>
       )}
 
-      {/* History Modal */}
-      {showHistoryModal && selectedPatient && (
+      {/* Choice Modal */}
+      {showChoiceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Historique — {selectedPatient.name}</h2>
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+          <Card className="w-full max-w-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Comment scanner ?</h2>
+              <button onClick={() => setShowChoiceModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {patientBookings.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
-                  Aucun rendez-vous pour ce patient
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {patientBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Calendar size={18} className="text-gray-400" />
-                        <div>
-                          <p className="font-medium">
-                            {booking.service?.title || 'Consultation'}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {booking.scheduledAt
-                              ? format(new Date(booking.scheduledAt), "dd/MM/yyyy 'à' HH:mm", {
-                                  locale: fr,
-                                })
-                              : '—'}
-                            {booking.pet && ` • ${booking.pet.name}`}
-                            {' • '}
-                            {booking.status}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="font-medium text-gray-700">
-                        {booking.service?.price
-                          ? `${booking.service.price.toLocaleString('fr-DZ')} DA`
-                          : '—'}
-                      </span>
-                    </div>
-                  ))}
+            <div className="space-y-3">
+              <button
+                onClick={handleScanPC}
+                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-4"
+              >
+                <div className="p-3 bg-primary-100 rounded-lg">
+                  <Monitor size={24} className="text-primary-600" />
                 </div>
-              )}
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900">Webcam PC</p>
+                  <p className="text-sm text-gray-500">Utiliser la caméra de l'ordinateur</p>
+                </div>
+              </button>
+
+              <button
+                onClick={handleScanPhone}
+                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-4"
+              >
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <Smartphone size={24} className="text-orange-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900">Téléphone</p>
+                  <p className="text-sm text-gray-500">Ouvrir l'app Otha sur le téléphone</p>
+                </div>
+              </button>
             </div>
           </Card>
         </div>
@@ -704,7 +544,7 @@ export function ProPatients() {
       {showAddRecordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Ajouter un enregistrement</h2>
+            <h2 className="text-lg font-semibold mb-4">Ajouter un acte médical</h2>
 
             <div className="space-y-4">
               <div>
