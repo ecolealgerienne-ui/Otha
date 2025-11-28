@@ -128,12 +128,30 @@ export class PetsController {
     return this.pets.listPrescriptions(req.user.sub, petId);
   }
 
+  @Patch('prescriptions/:prescriptionId')
+  updatePrescriptionByProvider(
+    @Req() req: any,
+    @Param('prescriptionId') prescriptionId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updatePrescriptionByProvider(req.user.sub, prescriptionId, dto);
+  }
+
   @Delete('prescriptions/:prescriptionId')
   deletePrescriptionByProvider(@Req() req: any, @Param('prescriptionId') prescriptionId: string) {
     return this.pets.deletePrescriptionByProvider(req.user.sub, prescriptionId);
   }
 
-  // ============ DISEASES (DELETE by provider) ============
+  // ============ DISEASES (UPDATE/DELETE by provider) ============
+
+  @Patch('diseases/:diseaseId')
+  updateDiseaseByProvider(
+    @Req() req: any,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updateDiseaseByProvider(req.user.sub, diseaseId, dto);
+  }
 
   @Delete('diseases/:diseaseId')
   deleteDiseaseByProvider(@Req() req: any, @Param('diseaseId') diseaseId: string) {

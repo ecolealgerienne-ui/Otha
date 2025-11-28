@@ -23,6 +23,7 @@ import {
   Upload,
   Image,
   Trash2,
+  Edit2,
   AlertTriangle,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -54,6 +55,8 @@ export function ProPatients() {
     addRecord,
     addPrescription,
     addDisease,
+    editPrescription,
+    editDisease,
     removeRecord,
     removePrescription,
     removeDisease,
@@ -79,16 +82,24 @@ export function ProPatients() {
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
   const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
   const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
+  const [showEditPrescriptionModal, setShowEditPrescriptionModal] = useState(false);
+  const [showEditDiseaseModal, setShowEditDiseaseModal] = useState(false);
 
   // Form states
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
   const [newPrescription, setNewPrescription] = useState({ title: '', description: '', imageUrl: '' });
   const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
 
+  // Edit states
+  const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
+  const [editingDisease, setEditingDisease] = useState<DiseaseTracking | null>(null);
+
   // Loading states
   const [addingRecord, setAddingRecord] = useState(false);
   const [addingPrescription, setAddingPrescription] = useState(false);
   const [addingDisease, setAddingDisease] = useState(false);
+  const [savingPrescription, setSavingPrescription] = useState(false);
+  const [savingDisease, setSavingDisease] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Get current provider ID on mount
@@ -307,6 +318,55 @@ export function ProPatients() {
       removePrescription(id);
     } catch (error) {
       alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleEditPrescription = (p: Prescription) => {
+    setEditingPrescription(p);
+    setShowEditPrescriptionModal(true);
+  };
+
+  const handleSavePrescription = async () => {
+    if (!editingPrescription) return;
+    setSavingPrescription(true);
+    try {
+      const updated = await api.updatePrescription(editingPrescription.id, {
+        title: editingPrescription.title,
+        description: editingPrescription.description,
+        imageUrl: editingPrescription.imageUrl,
+      });
+      editPrescription(editingPrescription.id, updated);
+      setShowEditPrescriptionModal(false);
+      setEditingPrescription(null);
+    } catch (error) {
+      alert('Erreur lors de la modification');
+    } finally {
+      setSavingPrescription(false);
+    }
+  };
+
+  const handleEditDisease = (d: DiseaseTracking) => {
+    setEditingDisease(d);
+    setShowEditDiseaseModal(true);
+  };
+
+  const handleSaveDisease = async () => {
+    if (!editingDisease) return;
+    setSavingDisease(true);
+    try {
+      const updated = await api.updateDisease(editingDisease.id, {
+        name: editingDisease.name,
+        description: editingDisease.description,
+        status: editingDisease.status,
+        notes: editingDisease.notes,
+      });
+      editDisease(editingDisease.id, updated);
+      setShowEditDiseaseModal(false);
+      setEditingDisease(null);
+    } catch (error) {
+      alert('Erreur lors de la modification');
+    } finally {
+      setSavingDisease(false);
     }
   };
 
@@ -656,9 +716,14 @@ export function ProPatients() {
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-gray-500">{format(new Date(p.date), 'dd/MM/yyyy')}</span>
                                   {canDelete && (
-                                    <button onClick={() => handleDeletePrescription(p.id)} className="text-red-400 hover:text-red-600">
-                                      <Trash2 size={14} />
-                                    </button>
+                                    <>
+                                      <button onClick={() => handleEditPrescription(p)} className="text-blue-400 hover:text-blue-600">
+                                        <Edit2 size={14} />
+                                      </button>
+                                      <button onClick={() => handleDeletePrescription(p.id)} className="text-red-400 hover:text-red-600">
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -794,9 +859,14 @@ export function ProPatients() {
                                   </span>
                                 </div>
                                 {canDelete && (
-                                  <button onClick={() => handleDeleteDisease(d.id)} className="text-red-400 hover:text-red-600">
-                                    <Trash2 size={14} />
-                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <button onClick={() => handleEditDisease(d)} className="text-blue-400 hover:text-blue-600">
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button onClick={() => handleDeleteDisease(d.id)} className="text-red-400 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                               {d.description && <p className="text-sm text-gray-600">{d.description}</p>}
@@ -982,6 +1052,67 @@ export function ProPatients() {
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
               <Button className="flex-1" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Prescription Modal */}
+      {showEditPrescriptionModal && editingPrescription && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Modifier l'ordonnance</h2>
+            <div className="space-y-4">
+              <Input label="Titre" placeholder="Ex: Antibiotiques" value={editingPrescription.title} onChange={(e) => setEditingPrescription({ ...editingPrescription, title: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} placeholder="Posologie, durée..." value={editingPrescription.description || ''} onChange={(e) => setEditingPrescription({ ...editingPrescription, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              {editingPrescription.imageUrl && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image actuelle</label>
+                  <a href={editingPrescription.imageUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                    <Image size={14} />
+                    Voir l'ordonnance
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowEditPrescriptionModal(false); setEditingPrescription(null); }}>Annuler</Button>
+              <Button className="flex-1" onClick={handleSavePrescription} isLoading={savingPrescription} disabled={!editingPrescription.title}>Enregistrer</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Disease Modal */}
+      {showEditDiseaseModal && editingDisease && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Modifier le suivi de maladie</h2>
+            <div className="space-y-4">
+              <Input label="Nom de la pathologie" placeholder="Ex: Otite" value={editingDisease.name} onChange={(e) => setEditingDisease({ ...editingDisease, name: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} placeholder="Symptômes, observations..." value={editingDisease.description || ''} onChange={(e) => setEditingDisease({ ...editingDisease, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <select value={editingDisease.status} onChange={(e) => setEditingDisease({ ...editingDisease, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="ACTIVE">Actif</option>
+                  <option value="MONITORING">Surveillance</option>
+                  <option value="RESOLVED">Résolu</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea rows={2} placeholder="Notes additionnelles..." value={editingDisease.notes || ''} onChange={(e) => setEditingDisease({ ...editingDisease, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowEditDiseaseModal(false); setEditingDisease(null); }}>Annuler</Button>
+              <Button className="flex-1" onClick={handleSaveDisease} isLoading={savingDisease} disabled={!editingDisease.name}>Enregistrer</Button>
             </div>
           </Card>
         </div>

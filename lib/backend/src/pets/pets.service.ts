@@ -333,6 +333,26 @@ export class PetsService {
     });
   }
 
+  // Update prescription by provider (only own records)
+  async updatePrescriptionByProvider(userId: string, prescriptionId: string, dto: any) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const prescription = await this.prisma.prescription.findUnique({ where: { id: prescriptionId } });
+    if (!prescription) throw new NotFoundException('Prescription not found');
+    if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
+
+    return this.prisma.prescription.update({
+      where: { id: prescriptionId },
+      data: {
+        title: dto.title ?? prescription.title,
+        description: dto.description ?? prescription.description,
+        imageUrl: dto.imageUrl ?? prescription.imageUrl,
+      },
+      include: { provider: { select: { id: true, displayName: true } } },
+    });
+  }
+
   // Delete prescription by provider (only own records)
   async deletePrescriptionByProvider(userId: string, prescriptionId: string) {
     const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
@@ -343,6 +363,28 @@ export class PetsService {
     if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
 
     return this.prisma.prescription.delete({ where: { id: prescriptionId } });
+  }
+
+  // Update disease by provider (only own records)
+  async updateDiseaseByProvider(userId: string, diseaseId: string, dto: any) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const disease = await this.prisma.diseaseTracking.findUnique({ where: { id: diseaseId } });
+    if (!disease) throw new NotFoundException('Disease not found');
+    if (disease.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.diseaseTracking.update({
+      where: { id: diseaseId },
+      data: {
+        name: dto.name ?? disease.name,
+        description: dto.description ?? disease.description,
+        status: dto.status ?? disease.status,
+        notes: dto.notes ?? disease.notes,
+        images: dto.images ?? disease.images,
+      },
+      include: { provider: { select: { id: true, displayName: true } } },
+    });
   }
 
   // Delete disease by provider (only own records)

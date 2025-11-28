@@ -367,6 +367,14 @@ class ApiClient {
     return data?.data || data;
   }
 
+  async updatePrescription(
+    prescriptionId: string,
+    updates: { title?: string; description?: string; imageUrl?: string }
+  ): Promise<Prescription> {
+    const { data } = await this.client.patch(`/pets/prescriptions/${prescriptionId}`, updates);
+    return data?.data || data;
+  }
+
   async deletePrescription(prescriptionId: string): Promise<void> {
     await this.client.delete(`/pets/prescriptions/${prescriptionId}`);
   }
@@ -398,7 +406,7 @@ class ApiClient {
 
   async updateDisease(
     diseaseId: string,
-    updates: { status?: string; notes?: string; images?: string[]; resolvedDate?: string }
+    updates: { name?: string; description?: string; status?: string; notes?: string; images?: string[] }
   ): Promise<DiseaseTracking> {
     const { data } = await this.client.patch(`/pets/diseases/${diseaseId}`, updates);
     return data?.data || data;
