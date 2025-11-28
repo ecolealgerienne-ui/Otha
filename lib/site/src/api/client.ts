@@ -251,8 +251,9 @@ class ApiClient {
   async providerAgenda(fromIso: string, toIso: string, status?: BookingStatus): Promise<Booking[]> {
     const params = new URLSearchParams({ from: fromIso, to: toIso });
     if (status) params.append('status', status);
-    const { data } = await this.client.get<Booking[]>(`/bookings/provider/me?${params}`);
-    return data;
+    const { data } = await this.client.get(`/bookings/provider/me?${params}`);
+    // Handle wrapped response { data: [...] } or direct array
+    return Array.isArray(data) ? data : (data?.data || []);
   }
 
   async providerSetStatus(bookingId: string, status: BookingStatus): Promise<Booking> {

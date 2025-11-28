@@ -50,10 +50,17 @@ export function ProDashboard() {
         const end = format(today, 'yyyy-MM-dd');
         const month = format(today, 'yyyy-MM');
 
-        const [bookings, earnings] = await Promise.all([
+        const [bookingsResult, earnings] = await Promise.all([
           api.providerAgenda(start, end),
           api.myEarnings(month).catch(() => null),
         ]);
+
+        console.log('Bookings result:', bookingsResult);
+
+        // Handle wrapped response { data: [...] } or direct array
+        const bookings = Array.isArray(bookingsResult)
+          ? bookingsResult
+          : (bookingsResult as { data?: Booking[] })?.data || [];
 
         setTodayBookings(bookings);
         setMonthEarnings(earnings);
