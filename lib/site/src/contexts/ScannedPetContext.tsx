@@ -34,6 +34,8 @@ interface ScannedPetContextType extends ScannedPetState {
   addRecord: (record: MedicalRecord) => void;
   addPrescription: (prescription: Prescription) => void;
   addDisease: (disease: DiseaseTracking) => void;
+  editPrescription: (id: string, updated: Prescription) => void;
+  editDisease: (id: string, updated: DiseaseTracking) => void;
   removeRecord: (id: string) => void;
   removePrescription: (id: string) => void;
   removeDisease: (id: string) => void;
@@ -189,6 +191,20 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, diseases: [disease, ...prev.diseases] }));
   }, []);
 
+  const editPrescription = useCallback((id: string, updated: Prescription) => {
+    setState((prev) => ({
+      ...prev,
+      prescriptions: prev.prescriptions.map((p) => (p.id === id ? updated : p)),
+    }));
+  }, []);
+
+  const editDisease = useCallback((id: string, updated: DiseaseTracking) => {
+    setState((prev) => ({
+      ...prev,
+      diseases: prev.diseases.map((d) => (d.id === id ? updated : d)),
+    }));
+  }, []);
+
   const removeRecord = useCallback((id: string) => {
     setState((prev) => ({ ...prev, records: prev.records.filter((r) => r.id !== id) }));
   }, []);
@@ -228,6 +244,8 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         addRecord,
         addPrescription,
         addDisease,
+        editPrescription,
+        editDisease,
         removeRecord,
         removePrescription,
         removeDisease,
