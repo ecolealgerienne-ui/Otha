@@ -105,6 +105,14 @@ class VetPetMedicalScreen extends ConsumerWidget {
             ?.map((e) => Map<String, dynamic>.from(e as Map))
             .toList() ??
         [];
+    final prescriptions = (petData['prescriptions'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        [];
+    final diseases = (petData['diseaseTrackings'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        [];
 
     return RefreshIndicator(
       color: _coral,
@@ -303,6 +311,96 @@ class VetPetMedicalScreen extends ConsumerWidget {
             else
               ...medicalRecords.map((record) => _buildRecordCard(record)),
 
+            const SizedBox(height: 24),
+
+            // Section Ordonnances
+            Row(
+              children: [
+                const Icon(Icons.medication, color: Color(0xFF4ECDC4)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Ordonnances',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _ink,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${prescriptions.length} ordonnance(s)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (prescriptions.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.medication_outlined, size: 40, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('Aucune ordonnance', style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...prescriptions.map((p) => _buildPrescriptionCard(p)),
+
+            const SizedBox(height: 24),
+
+            // Section Suivi de maladie
+            Row(
+              children: [
+                const Icon(Icons.monitor_heart, color: Color(0xFFF39C12)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Suivi de maladie',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _ink,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${diseases.length} suivi(s)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (diseases.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.monitor_heart_outlined, size: 40, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('Aucun suivi de maladie', style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...diseases.map((d) => _buildDiseaseCard(d)),
+
             const SizedBox(height: 100), // Space for FAB
           ],
         ),
@@ -478,6 +576,192 @@ class VetPetMedicalScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionCard(Map<String, dynamic> prescription) {
+    final title = (prescription['title'] ?? 'Ordonnance').toString();
+    final description = (prescription['description'] ?? '').toString();
+    final dateStr = prescription['date']?.toString();
+    final provider = prescription['provider'] as Map<String, dynamic>?;
+    final vetName = provider?['displayName']?.toString() ?? '';
+    DateTime? date;
+    if (dateStr != null) {
+      date = DateTime.tryParse(dateStr);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4ECDC4).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.medication, color: Color(0xFF4ECDC4), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _ink),
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (date != null || vetName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (date != null) ...[
+                        Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('dd/MM/yyyy').format(date),
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
+                      if (vetName.isNotEmpty) ...[
+                        if (date != null) const SizedBox(width: 8),
+                        Icon(Icons.person, size: 12, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            vetName,
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiseaseCard(Map<String, dynamic> disease) {
+    final name = (disease['name'] ?? 'Maladie').toString();
+    final status = (disease['status'] ?? 'ACTIVE').toString();
+    final description = (disease['description'] ?? '').toString();
+    final provider = disease['provider'] as Map<String, dynamic>?;
+    final vetName = provider?['displayName']?.toString() ?? '';
+
+    Color statusColor;
+    String statusLabel;
+    switch (status.toUpperCase()) {
+      case 'RESOLVED':
+        statusColor = _green;
+        statusLabel = 'Guéri';
+        break;
+      case 'MONITORING':
+        statusColor = const Color(0xFFF39C12);
+        statusLabel = 'Suivi';
+        break;
+      default:
+        statusColor = _coral;
+        statusLabel = 'Actif';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withOpacity(0.3), width: 2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.monitor_heart, color: statusColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _ink),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
+                      ),
+                    ),
+                  ],
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (vetName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.person, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Text(
+                        vetName,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
