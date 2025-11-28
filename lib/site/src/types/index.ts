@@ -186,6 +186,50 @@ export interface Vaccination {
   notes?: string;
 }
 
+// Prescription (Ordonnance) Types
+export interface Prescription {
+  id: string;
+  petId: string;
+  providerId: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  date: string;
+  provider?: ProviderProfile;
+  createdAt: string;
+}
+
+// Health Stats Types
+export interface HealthStat {
+  id: string;
+  petId: string;
+  providerId: string;
+  type: 'WEIGHT' | 'TEMPERATURE' | 'HEART_RATE';
+  value: number;
+  unit: string;
+  date: string;
+  notes?: string;
+  provider?: ProviderProfile;
+  createdAt: string;
+}
+
+// Disease Tracking Types
+export interface DiseaseTracking {
+  id: string;
+  petId: string;
+  providerId: string;
+  name: string;
+  description?: string;
+  status: 'ACTIVE' | 'MONITORING' | 'RESOLVED';
+  diagnosedDate: string;
+  resolvedDate?: string;
+  images?: string[];
+  notes?: string;
+  provider?: ProviderProfile;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Adoption Types
 export type AdoptPostStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 

@@ -19,25 +19,57 @@ import {
   ClipboardList,
   ArrowLeft,
   Scale,
+  Thermometer,
+  Upload,
+  Image,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Pet, MedicalRecord, Vaccination, Booking } from '../types';
+import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStat, DiseaseTracking, Booking } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useScannedPet } from '../contexts/ScannedPetContext';
 
 // View modes for the pet card
-type ViewMode = 'hub' | 'medical-history' | 'vaccinations';
+type ViewMode = 'hub' | 'medical-history' | 'vaccinations' | 'prescriptions' | 'health-stats' | 'diseases';
 
 export function ProPatients() {
+  // Use global context for persistent state
+  const {
+    pet: scannedPet,
+    token: currentToken,
+    records: scannedRecords,
+    vaccinations: scannedVaccinations,
+    prescriptions,
+    healthStats,
+    diseases,
+    activeBooking,
+    bookingConfirmed,
+    setPetData,
+    setBooking,
+    addRecord,
+    addPrescription,
+    addHealthStat,
+    addDisease,
+    removeRecord,
+    removePrescription,
+    removeHealthStat,
+    removeDisease,
+    clearPet,
+    isPolling,
+    startPolling,
+    stopPolling,
+  } = useScannedPet();
+
+  // Current provider ID (for ownership check)
+  const [currentProviderId, setCurrentProviderId] = useState<string | null>(null);
+
   // QR Scanner state
   const [showQrScanner, setShowQrScanner] = useState(false);
-  const [scannedPet, setScannedPet] = useState<Pet | null>(null);
-  const [scannedRecords, setScannedRecords] = useState<MedicalRecord[]>([]);
-  const [scannedVaccinations, setScannedVaccinations] = useState<Vaccination[]>([]);
-  const [currentToken, setCurrentToken] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -45,63 +77,31 @@ export function ProPatients() {
   // View mode for pet card
   const [viewMode, setViewMode] = useState<ViewMode>('hub');
 
-  // Add record modal
+  // Modals
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
-  const [newRecord, setNewRecord] = useState({
-    title: '',
-    type: 'CONSULTATION',
-    description: '',
-  });
+  const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
+  const [showAddHealthStatModal, setShowAddHealthStatModal] = useState(false);
+  const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
+
+  // Form states
+  const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
+  const [newPrescription, setNewPrescription] = useState({ title: '', description: '', imageUrl: '' });
+  const [newHealthStat, setNewHealthStat] = useState({ type: 'WEIGHT' as const, value: '', notes: '' });
+  const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
+
+  // Loading states
   const [addingRecord, setAddingRecord] = useState(false);
+  const [addingPrescription, setAddingPrescription] = useState(false);
+  const [addingHealthStat, setAddingHealthStat] = useState(false);
+  const [addingDisease, setAddingDisease] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Active booking found for scanned pet
-  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
-
-  // Polling for phone scan
-  const [isPolling, setIsPolling] = useState(false);
-  const [lastScannedAt, setLastScannedAt] = useState<string | null>(null);
-  const pollingRef = useRef<number | null>(null);
-
-  // Poll for scanned pet from Flutter app
-  const pollForScannedPet = useCallback(async () => {
-    try {
-      const result = await api.getScannedPet();
-      if (result.pet && result.scannedAt !== lastScannedAt) {
-        // New pet scanned from phone!
-        setLastScannedAt(result.scannedAt);
-        setScannedPet(result.pet);
-        setScannedRecords((result.pet as any).medicalRecords || []);
-        setScannedVaccinations((result.pet as any).vaccinations || []);
-        setIsPolling(false);
-        // Clear on server
-        api.clearScannedPet().catch(() => {});
-      }
-    } catch (error) {
-      console.log('Poll error:', error);
-    }
-  }, [lastScannedAt]);
-
-  // Start/stop polling
+  // Get current provider ID on mount
   useEffect(() => {
-    if (isPolling) {
-      // Poll every 2 seconds
-      pollingRef.current = window.setInterval(pollForScannedPet, 2000);
-      // Initial poll
-      pollForScannedPet();
-    } else {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    }
-
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-    };
-  }, [isPolling, pollForScannedPet]);
+    api.myProvider().then((provider) => {
+      if (provider) setCurrentProviderId(provider.id);
+    });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -110,6 +110,11 @@ export function ProPatients() {
       }
     };
   }, []);
+
+  // Check if current user owns this record
+  const isOwnRecord = (providerId?: string) => {
+    return providerId === currentProviderId;
+  };
 
   // QR Scanner functions
   const startQrScanner = async () => {
@@ -123,16 +128,10 @@ export function ProPatients() {
 
         await scanner.start(
           { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           async (decodedText) => {
-            // Stop scanner
             await scanner.stop();
             scannerRef.current = null;
-
-            // Process QR code
             handleQrResult(decodedText);
           },
           () => {}
@@ -154,7 +153,6 @@ export function ProPatients() {
   };
 
   const handleQrResult = async (text: string) => {
-    // Extract token from URL or use directly
     let token = text;
     if (text.includes('/pet/')) {
       token = text.split('/pet/').pop() || text;
@@ -162,66 +160,82 @@ export function ProPatients() {
       token = text.split('token=').pop() || text;
     }
 
-    console.log('QR scanned, token:', token);
-    setCurrentToken(token);
     setShowQrScanner(false);
-    setActiveBooking(null);
-    setBookingConfirmed(false);
     setScanLoading(true);
 
     try {
-      // Step 1: Get pet data from token
-      console.log('Fetching pet by token...');
       const result = await api.getPetByToken(token);
-      console.log('Pet by token result:', result);
-
       if (!result || !result.pet) {
         throw new Error('Aucun animal trouvé pour ce QR code');
       }
 
-      // Set pet data immediately so user sees the carnet
-      setScannedPet(result.pet);
-      setScannedRecords(result.medicalRecords || []);
-      setScannedVaccinations(result.vaccinations || []);
+      // Load additional data
+      const [presc, stats, dis] = await Promise.all([
+        api.getPetPrescriptions(result.pet.id).catch(() => []),
+        api.getPetHealthStats(result.pet.id).catch(() => []),
+        api.getPetDiseases(result.pet.id).catch(() => []),
+      ]);
 
-      // Step 2: Try to find active booking (optional - don't block on this)
+      setPetData(
+        result.pet,
+        token,
+        result.medicalRecords || [],
+        result.vaccinations || [],
+        presc,
+        stats,
+        dis
+      );
+
+      // Check for active booking
       if (result.pet?.id) {
         try {
-          console.log('Checking for active booking for pet:', result.pet.id);
           const booking = await api.getActiveBookingForPet(result.pet.id);
-
           if (booking) {
-            console.log('Found active booking:', booking);
-            setActiveBooking(booking);
-
-            // Try to auto-confirm
+            setBooking(booking, false);
             try {
               await api.proConfirmBooking(booking.id, 'QR_SCAN');
-              setBookingConfirmed(true);
-              console.log('Booking confirmed via QR scan');
-            } catch (confirmErr) {
-              console.error('Could not auto-confirm booking:', confirmErr);
+              setBooking(booking, true);
+            } catch (e) {
+              console.error('Could not auto-confirm:', e);
             }
-          } else {
-            console.log('No active booking found for this pet today');
           }
-        } catch (bookingErr) {
-          // This is OK - just means no active booking or endpoint not available
-          console.log('Could not check for active booking:', bookingErr);
+        } catch (e) {
+          console.log('No active booking:', e);
         }
       }
     } catch (error) {
-      console.error('Error fetching pet by token:', error);
-      const message = error instanceof Error ? error.message : 'QR code invalide ou expiré';
-      alert(message);
+      console.error('Error fetching pet:', error);
+      alert(error instanceof Error ? error.message : 'QR code invalide');
     } finally {
       setScanLoading(false);
     }
   };
 
+  // Handle image upload for prescription
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const url = await api.uploadFile(file);
+      setNewPrescription((prev) => ({ ...prev, imageUrl: url }));
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert("Erreur lors du téléversement de l'image");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Add handlers
   const handleAddRecord = async () => {
     if (!currentToken || !newRecord.title) return;
-
     setAddingRecord(true);
     try {
       const record = await api.createMedicalRecordByToken(currentToken, {
@@ -229,77 +243,150 @@ export function ProPatients() {
         type: newRecord.type,
         description: newRecord.description || undefined,
       });
-      setScannedRecords((prev) => [record, ...prev]);
+      addRecord(record);
       setShowAddRecordModal(false);
       setNewRecord({ title: '', type: 'CONSULTATION', description: '' });
-      alert('Enregistrement ajouté !');
     } catch (error) {
-      console.error('Error adding record:', error);
+      console.error('Error:', error);
       alert("Erreur lors de l'ajout");
     } finally {
       setAddingRecord(false);
     }
   };
 
+  const handleAddPrescription = async () => {
+    if (!currentToken || !newPrescription.title) return;
+    setAddingPrescription(true);
+    try {
+      const prescription = await api.createPrescriptionByToken(currentToken, {
+        title: newPrescription.title,
+        description: newPrescription.description || undefined,
+        imageUrl: newPrescription.imageUrl || undefined,
+      });
+      addPrescription(prescription);
+      setShowAddPrescriptionModal(false);
+      setNewPrescription({ title: '', description: '', imageUrl: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout");
+    } finally {
+      setAddingPrescription(false);
+    }
+  };
+
+  const handleAddHealthStat = async () => {
+    if (!currentToken || !newHealthStat.value) return;
+    setAddingHealthStat(true);
+    try {
+      const stat = await api.createHealthStatByToken(currentToken, {
+        type: newHealthStat.type,
+        value: parseFloat(newHealthStat.value),
+        notes: newHealthStat.notes || undefined,
+      });
+      addHealthStat(stat);
+      setShowAddHealthStatModal(false);
+      setNewHealthStat({ type: 'WEIGHT', value: '', notes: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout");
+    } finally {
+      setAddingHealthStat(false);
+    }
+  };
+
+  const handleAddDisease = async () => {
+    if (!currentToken || !newDisease.name) return;
+    setAddingDisease(true);
+    try {
+      const disease = await api.createDiseaseByToken(currentToken, {
+        name: newDisease.name,
+        description: newDisease.description || undefined,
+        status: newDisease.status,
+      });
+      addDisease(disease);
+      setShowAddDiseaseModal(false);
+      setNewDisease({ name: '', description: '', status: 'ACTIVE' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout");
+    } finally {
+      setAddingDisease(false);
+    }
+  };
+
+  // Delete handlers (only own records)
+  const handleDeleteRecord = async (id: string) => {
+    if (!confirm('Supprimer cet enregistrement ?')) return;
+    try {
+      await api.deleteMedicalRecord(id);
+      removeRecord(id);
+    } catch (error) {
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleDeletePrescription = async (id: string) => {
+    if (!confirm('Supprimer cette ordonnance ?')) return;
+    try {
+      await api.deletePrescription(id);
+      removePrescription(id);
+    } catch (error) {
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleDeleteHealthStat = async (id: string) => {
+    if (!confirm('Supprimer cette mesure ?')) return;
+    try {
+      await api.deleteHealthStat(id);
+      removeHealthStat(id);
+    } catch (error) {
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleDeleteDisease = async (id: string) => {
+    if (!confirm('Supprimer ce suivi ?')) return;
+    try {
+      await api.deleteDisease(id);
+      removeDisease(id);
+    } catch (error) {
+      alert('Erreur lors de la suppression');
+    }
+  };
+
   const closePetView = () => {
-    setScannedPet(null);
-    setScannedRecords([]);
-    setScannedVaccinations([]);
-    setCurrentToken(null);
-    setActiveBooking(null);
-    setBookingConfirmed(false);
-    setScanLoading(false);
-    setIsPolling(false);
+    clearPet();
     setViewMode('hub');
   };
 
-  // Start waiting for phone scan
-  const startPhoneScan = () => {
-    setIsPolling(true);
-  };
-
-  const stopPhoneScan = () => {
-    setIsPolling(false);
-  };
-
-  // Get icon and color for medical record type
+  // Get icon for record type
   const getRecordTypeIcon = (type: string) => {
     switch (type.toUpperCase()) {
-      case 'VACCINATION':
-        return { icon: Syringe, color: 'text-green-600', bg: 'bg-green-100' };
-      case 'SURGERY':
-        return { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100' };
+      case 'VACCINATION': return { icon: Syringe, color: 'text-green-600', bg: 'bg-green-100' };
+      case 'SURGERY': return { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100' };
       case 'CHECKUP':
-      case 'CONSULTATION':
-        return { icon: Stethoscope, color: 'text-blue-600', bg: 'bg-blue-100' };
-      case 'TREATMENT':
-        return { icon: Heart, color: 'text-orange-600', bg: 'bg-orange-100' };
-      case 'MEDICATION':
-        return { icon: Pill, color: 'text-purple-600', bg: 'bg-purple-100' };
-      case 'DIAGNOSTIC':
-        return { icon: Activity, color: 'text-cyan-600', bg: 'bg-cyan-100' };
-      default:
-        return { icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100' };
+      case 'CONSULTATION': return { icon: Stethoscope, color: 'text-blue-600', bg: 'bg-blue-100' };
+      case 'TREATMENT': return { icon: Heart, color: 'text-orange-600', bg: 'bg-orange-100' };
+      case 'MEDICATION': return { icon: Pill, color: 'text-purple-600', bg: 'bg-purple-100' };
+      case 'DIAGNOSTIC': return { icon: Activity, color: 'text-cyan-600', bg: 'bg-cyan-100' };
+      default: return { icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100' };
     }
   };
 
   const getSpeciesEmoji = (species?: string) => {
     switch ((species || '').toUpperCase()) {
-      case 'DOG':
-      case 'CHIEN':
-        return '🐕';
-      case 'CAT':
-      case 'CHAT':
-        return '🐈';
-      case 'BIRD':
-      case 'OISEAU':
-        return '🐦';
-      case 'RABBIT':
-      case 'LAPIN':
-        return '🐰';
-      default:
-        return '🐾';
+      case 'DOG': case 'CHIEN': return '🐕';
+      case 'CAT': case 'CHAT': return '🐈';
+      case 'BIRD': case 'OISEAU': return '🐦';
+      case 'RABBIT': case 'LAPIN': return '🐰';
+      default: return '🐾';
     }
+  };
+
+  const getLatestStat = (type: string) => {
+    const stat = healthStats.find((s) => s.type === type);
+    return stat?.value;
   };
 
   return (
@@ -308,51 +395,37 @@ export function ProPatients() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Scanner Patient</h1>
-            <p className="text-gray-600 mt-1">
-              Scannez le QR code du carnet de santé de l'animal
-            </p>
+            <p className="text-gray-600 mt-1">Scannez le QR code du carnet de santé</p>
           </div>
         </div>
 
-        {/* Main content - Scanner buttons or Pet view */}
         {scannedPet ? (
-          /* Pet Health Hub - Similar to Flutter pet_health_hub_screen */
           <Card className="border-2 border-primary-500">
-            {/* Header with back button if in sub-view */}
+            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               {viewMode !== 'hub' ? (
-                <button
-                  onClick={() => setViewMode('hub')}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-                >
+                <button onClick={() => setViewMode('hub')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
                   <ArrowLeft size={20} />
                   <span className="font-medium">Retour</span>
                 </button>
               ) : (
-                <h2 className="text-lg font-bold text-primary-600">
-                  Santé de {scannedPet.name}
-                </h2>
+                <h2 className="text-lg font-bold text-primary-600">Santé de {scannedPet.name}</h2>
               )}
               <button onClick={closePetView} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
 
-            {/* Booking confirmation banner */}
+            {/* Booking banner */}
             {activeBooking && (
-              <div className={`mb-4 p-3 rounded-lg flex items-center gap-3 ${
-                bookingConfirmed
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-yellow-50 border border-yellow-200'
-              }`}>
+              <div className={`mb-4 p-3 rounded-lg flex items-center gap-3 ${bookingConfirmed ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
                 {bookingConfirmed ? (
                   <>
                     <CheckCircle className="text-green-600" size={24} />
                     <div>
                       <p className="font-medium text-green-800">Rendez-vous confirmé !</p>
                       <p className="text-sm text-green-600">
-                        {activeBooking.service?.title || 'Consultation'} - {' '}
-                        {activeBooking.scheduledAt && format(new Date(activeBooking.scheduledAt), "HH:mm", { locale: fr })}
+                        {activeBooking.service?.title || 'Consultation'} - {activeBooking.scheduledAt && format(new Date(activeBooking.scheduledAt), "HH:mm", { locale: fr })}
                       </p>
                     </div>
                   </>
@@ -360,10 +433,8 @@ export function ProPatients() {
                   <>
                     <Calendar className="text-yellow-600" size={24} />
                     <div>
-                      <p className="font-medium text-yellow-800">RDV en cours de confirmation...</p>
-                      <p className="text-sm text-yellow-600">
-                        {activeBooking.service?.title || 'Consultation'}
-                      </p>
+                      <p className="font-medium text-yellow-800">RDV en cours...</p>
+                      <p className="text-sm text-yellow-600">{activeBooking.service?.title || 'Consultation'}</p>
                     </div>
                   </>
                 )}
@@ -371,70 +442,57 @@ export function ProPatients() {
             )}
 
             {viewMode === 'hub' ? (
-              /* Hub View - Main screen with action cards */
               <>
-                {/* Pet info header */}
+                {/* Pet info */}
                 <div className="flex items-start space-x-4 mb-6 p-4 bg-gradient-to-r from-primary-50 to-teal-50 rounded-xl border border-primary-100">
                   <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shadow-sm">
                     {getSpeciesEmoji(scannedPet.species)}
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-gray-900">{scannedPet.name}</h3>
-                    <p className="text-gray-600">
-                      {scannedPet.species} {scannedPet.breed && `• ${scannedPet.breed}`}
-                    </p>
+                    <p className="text-gray-600">{scannedPet.species} {scannedPet.breed && `• ${scannedPet.breed}`}</p>
                     <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600">
                       {scannedPet.gender && (
-                        <span className="flex items-center gap-1">
-                          {scannedPet.gender === 'MALE' ? '♂️' : '♀️'}
-                          {scannedPet.gender === 'MALE' ? 'Mâle' : 'Femelle'}
-                        </span>
-                      )}
-                      {scannedPet.weight && (
-                        <span className="flex items-center gap-1">
-                          <Scale size={14} />
-                          {scannedPet.weight} kg
-                        </span>
+                        <span>{scannedPet.gender === 'MALE' ? '♂️ Mâle' : '♀️ Femelle'}</span>
                       )}
                     </div>
                     {scannedPet.user && (
                       <p className="text-sm text-gray-500 mt-2">
-                        👤 {scannedPet.user.firstName || 'Client'}
-                        {scannedPet.user.phone && ` • ${scannedPet.user.phone}`}
+                        👤 {scannedPet.user.firstName || 'Client'} {scannedPet.user.phone && `• ${scannedPet.user.phone}`}
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* Quick stats overview */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
+                {/* Quick stats */}
+                <div className="grid grid-cols-4 gap-2 mb-6">
                   <div className="p-3 bg-white rounded-xl border text-center">
-                    <Scale className="mx-auto text-primary-500 mb-1" size={20} />
-                    <p className="text-lg font-bold text-gray-900">{scannedPet.weight || '—'}</p>
-                    <p className="text-xs text-gray-500">Poids (kg)</p>
+                    <Scale className="mx-auto text-primary-500 mb-1" size={18} />
+                    <p className="text-lg font-bold">{getLatestStat('WEIGHT') || '—'}</p>
+                    <p className="text-xs text-gray-500">kg</p>
                   </div>
                   <div className="p-3 bg-white rounded-xl border text-center">
-                    <Syringe className="mx-auto text-green-500 mb-1" size={20} />
-                    <p className="text-lg font-bold text-gray-900">{scannedVaccinations.length}</p>
+                    <Thermometer className="mx-auto text-red-500 mb-1" size={18} />
+                    <p className="text-lg font-bold">{getLatestStat('TEMPERATURE') || '—'}</p>
+                    <p className="text-xs text-gray-500">°C</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border text-center">
+                    <Heart className="mx-auto text-pink-500 mb-1" size={18} />
+                    <p className="text-lg font-bold">{getLatestStat('HEART_RATE') || '—'}</p>
+                    <p className="text-xs text-gray-500">BPM</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border text-center">
+                    <Syringe className="mx-auto text-green-500 mb-1" size={18} />
+                    <p className="text-lg font-bold">{scannedVaccinations.length}</p>
                     <p className="text-xs text-gray-500">Vaccins</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl border text-center">
-                    <FileText className="mx-auto text-blue-500 mb-1" size={20} />
-                    <p className="text-lg font-bold text-gray-900">{scannedRecords.length}</p>
-                    <p className="text-xs text-gray-500">Actes</p>
                   </div>
                 </div>
 
-                {/* Section title */}
-                <h4 className="font-bold text-gray-900 mb-4">Accès rapide</h4>
-
                 {/* Action Cards */}
+                <h4 className="font-bold text-gray-900 mb-4">Accès rapide</h4>
                 <div className="space-y-3">
-                  {/* Add medical record */}
-                  <button
-                    onClick={() => setShowAddRecordModal(true)}
-                    className="w-full p-4 bg-gradient-to-r from-white to-primary-50 rounded-xl border-2 border-primary-200 hover:border-primary-400 transition-colors flex items-center gap-4 text-left"
-                  >
+                  {/* Add record */}
+                  <button onClick={() => setShowAddRecordModal(true)} className="w-full p-4 bg-gradient-to-r from-white to-primary-50 rounded-xl border-2 border-primary-200 hover:border-primary-400 transition-colors flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
                       <Plus className="text-white" size={24} />
                     </div>
@@ -446,62 +504,66 @@ export function ProPatients() {
                   </button>
 
                   {/* Medical history */}
-                  <button
-                    onClick={() => setViewMode('medical-history')}
-                    className="w-full p-4 bg-gradient-to-r from-white to-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-colors flex items-center gap-4 text-left"
-                  >
+                  <button onClick={() => setViewMode('medical-history')} className="w-full p-4 bg-gradient-to-r from-white to-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-colors flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
                       <ClipboardList className="text-white" size={24} />
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-gray-900">Historique médical</p>
-                      <p className="text-sm text-gray-500">Consultations, diagnostics, traitements</p>
+                      <p className="text-sm text-gray-500">Consultations, diagnostics</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                        {scannedRecords.length}
-                      </span>
-                      <ChevronRight className="text-blue-400" size={20} />
-                    </div>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">{scannedRecords.length}</span>
                   </button>
 
                   {/* Vaccinations */}
-                  <button
-                    onClick={() => setViewMode('vaccinations')}
-                    className="w-full p-4 bg-gradient-to-r from-white to-green-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-colors flex items-center gap-4 text-left"
-                  >
+                  <button onClick={() => setViewMode('vaccinations')} className="w-full p-4 bg-gradient-to-r from-white to-green-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-colors flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-200">
                       <Syringe className="text-white" size={24} />
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-gray-900">Vaccinations</p>
-                      <p className="text-sm text-gray-500">Calendrier et rappels de vaccins</p>
+                      <p className="text-sm text-gray-500">Calendrier vaccinal</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                        {scannedVaccinations.length}
-                      </span>
-                      <ChevronRight className="text-green-400" size={20} />
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">{scannedVaccinations.length}</span>
+                  </button>
+
+                  {/* Prescriptions */}
+                  <button onClick={() => setViewMode('prescriptions')} className="w-full p-4 bg-gradient-to-r from-white to-purple-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors flex items-center gap-4 text-left">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-200">
+                      <FileText className="text-white" size={24} />
                     </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Ordonnances</p>
+                      <p className="text-sm text-gray-500">Prescriptions médicales</p>
+                    </div>
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">{prescriptions.length}</span>
                   </button>
 
                   {/* Health stats */}
-                  <button
-                    className="w-full p-4 bg-gradient-to-r from-white to-orange-50 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-colors flex items-center gap-4 text-left opacity-60 cursor-not-allowed"
-                    disabled
-                  >
+                  <button onClick={() => setViewMode('health-stats')} className="w-full p-4 bg-gradient-to-r from-white to-orange-50 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-colors flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-200">
                       <TrendingUp className="text-white" size={24} />
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-gray-900">Statistiques de santé</p>
-                      <p className="text-sm text-gray-500">Poids, température (bientôt)</p>
+                      <p className="text-sm text-gray-500">Poids, température, BPM</p>
                     </div>
-                    <ChevronRight className="text-orange-400" size={20} />
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">{healthStats.length}</span>
+                  </button>
+
+                  {/* Disease tracking */}
+                  <button onClick={() => setViewMode('diseases')} className="w-full p-4 bg-gradient-to-r from-white to-red-50 rounded-xl border-2 border-red-200 hover:border-red-400 transition-colors flex items-center gap-4 text-left">
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
+                      <AlertTriangle className="text-white" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Suivi de maladies</p>
+                      <p className="text-sm text-gray-500">Pathologies en cours</p>
+                    </div>
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">{diseases.filter((d) => d.status !== 'RESOLVED').length}</span>
                   </button>
                 </div>
 
-                {/* Button to scan another */}
                 <div className="mt-6 pt-4 border-t">
                   <Button variant="secondary" onClick={closePetView} className="w-full">
                     <QrCode size={16} className="mr-2" />
@@ -510,27 +572,22 @@ export function ProPatients() {
                 </div>
               </>
             ) : viewMode === 'medical-history' ? (
-              /* Medical History Detail View */
               <>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <ClipboardList className="text-blue-600" size={24} />
                   Historique médical
                 </h3>
-
                 {scannedRecords.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-                    <p className="text-gray-500">Aucun historique médical</p>
-                    <Button onClick={() => setShowAddRecordModal(true)} className="mt-4">
-                      <Plus size={16} className="mr-2" />
-                      Ajouter un acte
-                    </Button>
+                    <p className="text-gray-500">Aucun historique</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {scannedRecords.map((r) => {
                       const typeInfo = getRecordTypeIcon(r.type);
                       const IconComponent = typeInfo.icon;
+                      const canDelete = isOwnRecord((r as any).providerId);
                       return (
                         <div key={r.id} className="p-4 bg-white border border-gray-200 rounded-xl">
                           <div className="flex items-start gap-3">
@@ -539,20 +596,19 @@ export function ProPatients() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs ${typeInfo.bg} ${typeInfo.color} px-2 py-0.5 rounded font-medium`}>
-                                  {r.type}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {format(new Date(r.date), 'dd/MM/yyyy')}
-                                </span>
+                                <span className={`text-xs ${typeInfo.bg} ${typeInfo.color} px-2 py-0.5 rounded font-medium`}>{r.type}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">{format(new Date(r.date), 'dd/MM/yyyy')}</span>
+                                  {canDelete && (
+                                    <button onClick={() => handleDeleteRecord(r.id)} className="text-red-400 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <p className="font-semibold text-gray-900">{r.title}</p>
-                              {r.description && (
-                                <p className="text-sm text-gray-600 mt-1">{r.description}</p>
-                              )}
-                              {r.veterinarian && (
-                                <p className="text-xs text-gray-400 mt-2">Dr. {r.veterinarian}</p>
-                              )}
+                              {r.description && <p className="text-sm text-gray-600 mt-1">{r.description}</p>}
+                              {r.veterinarian && <p className="text-xs text-gray-400 mt-2">Dr. {r.veterinarian}</p>}
                             </div>
                           </div>
                         </div>
@@ -560,26 +616,23 @@ export function ProPatients() {
                     })}
                   </div>
                 )}
-
                 <div className="mt-6">
                   <Button onClick={() => setShowAddRecordModal(true)} className="w-full">
                     <Plus size={16} className="mr-2" />
-                    Ajouter un acte médical
+                    Ajouter un acte
                   </Button>
                 </div>
               </>
             ) : viewMode === 'vaccinations' ? (
-              /* Vaccinations Detail View */
               <>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Syringe className="text-green-600" size={24} />
                   Vaccinations
                 </h3>
-
                 {scannedVaccinations.length === 0 ? (
                   <div className="text-center py-12">
                     <Syringe className="mx-auto text-gray-300 mb-4" size={48} />
-                    <p className="text-gray-500">Aucune vaccination enregistrée</p>
+                    <p className="text-gray-500">Aucune vaccination</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -592,17 +645,13 @@ export function ProPatients() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{v.name}</p>
-                              <p className="text-sm text-gray-500">
-                                Administré le {format(new Date(v.date), 'dd MMMM yyyy', { locale: fr })}
-                              </p>
+                              <p className="text-sm text-gray-500">{format(new Date(v.date), 'dd MMMM yyyy', { locale: fr })}</p>
                             </div>
                           </div>
                           {v.nextDueDate && (
                             <div className="text-right">
                               <p className="text-xs text-orange-600 font-medium">Rappel</p>
-                              <p className="text-sm text-orange-700 font-semibold">
-                                {format(new Date(v.nextDueDate), 'dd/MM/yyyy')}
-                              </p>
+                              <p className="text-sm text-orange-700 font-semibold">{format(new Date(v.nextDueDate), 'dd/MM/yyyy')}</p>
                             </div>
                           )}
                         </div>
@@ -611,48 +660,192 @@ export function ProPatients() {
                   </div>
                 )}
               </>
+            ) : viewMode === 'prescriptions' ? (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <FileText className="text-purple-600" size={24} />
+                  Ordonnances
+                </h3>
+                {prescriptions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucune ordonnance</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {prescriptions.map((p) => {
+                      const canDelete = isOwnRecord(p.providerId);
+                      return (
+                        <div key={p.id} className="p-4 bg-white border border-gray-200 rounded-xl">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-purple-100 rounded-xl flex-shrink-0">
+                              <FileText size={18} className="text-purple-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="font-semibold text-gray-900">{p.title}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">{format(new Date(p.date), 'dd/MM/yyyy')}</span>
+                                  {canDelete && (
+                                    <button onClick={() => handleDeletePrescription(p.id)} className="text-red-400 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {p.description && <p className="text-sm text-gray-600">{p.description}</p>}
+                              {p.imageUrl && (
+                                <a href={p.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800">
+                                  <Image size={14} />
+                                  Voir l'ordonnance
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddPrescriptionModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter une ordonnance
+                  </Button>
+                </div>
+              </>
+            ) : viewMode === 'health-stats' ? (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <TrendingUp className="text-orange-600" size={24} />
+                  Statistiques de santé
+                </h3>
+                {healthStats.length === 0 ? (
+                  <div className="text-center py-12">
+                    <TrendingUp className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucune mesure</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {healthStats.map((s) => {
+                      const canDelete = isOwnRecord(s.providerId);
+                      const icon = s.type === 'WEIGHT' ? Scale : s.type === 'TEMPERATURE' ? Thermometer : Heart;
+                      const color = s.type === 'WEIGHT' ? 'text-primary-600' : s.type === 'TEMPERATURE' ? 'text-red-600' : 'text-pink-600';
+                      const bg = s.type === 'WEIGHT' ? 'bg-primary-100' : s.type === 'TEMPERATURE' ? 'bg-red-100' : 'bg-pink-100';
+                      const Icon = icon;
+                      return (
+                        <div key={s.id} className="p-4 bg-white border border-gray-200 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2.5 ${bg} rounded-xl`}>
+                              <Icon size={18} className={color} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-gray-900">
+                                  {s.value} {s.unit}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">{format(new Date(s.date), 'dd/MM/yyyy')}</span>
+                                  {canDelete && (
+                                    <button onClick={() => handleDeleteHealthStat(s.id)} className="text-red-400 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-500">{s.type === 'WEIGHT' ? 'Poids' : s.type === 'TEMPERATURE' ? 'Température' : 'Fréquence cardiaque'}</p>
+                              {s.notes && <p className="text-xs text-gray-400 mt-1">{s.notes}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddHealthStatModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter une mesure
+                  </Button>
+                </div>
+              </>
+            ) : viewMode === 'diseases' ? (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="text-red-600" size={24} />
+                  Suivi de maladies
+                </h3>
+                {diseases.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucun suivi</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {diseases.map((d) => {
+                      const canDelete = isOwnRecord(d.providerId);
+                      const statusColor = d.status === 'ACTIVE' ? 'bg-red-100 text-red-700' : d.status === 'MONITORING' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700';
+                      return (
+                        <div key={d.id} className="p-4 bg-white border border-gray-200 rounded-xl">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
+                              <AlertTriangle size={18} className="text-red-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-gray-900">{d.name}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
+                                    {d.status === 'ACTIVE' ? 'Actif' : d.status === 'MONITORING' ? 'Surveillance' : 'Résolu'}
+                                  </span>
+                                </div>
+                                {canDelete && (
+                                  <button onClick={() => handleDeleteDisease(d.id)} className="text-red-400 hover:text-red-600">
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                              {d.description && <p className="text-sm text-gray-600">{d.description}</p>}
+                              <p className="text-xs text-gray-400 mt-1">Diagnostiqué le {format(new Date(d.diagnosedDate), 'dd/MM/yyyy')}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddDiseaseModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter un suivi
+                  </Button>
+                </div>
+              </>
             ) : null}
           </Card>
         ) : isPolling ? (
-          /* Waiting for phone scan */
           <Card className="text-center py-12">
             <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Smartphone size={48} className="text-orange-600 animate-pulse" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              En attente du scan téléphone...
-            </h2>
-            <p className="text-gray-500 mb-8 max-w-md mx-auto">
-              Ouvrez l'application Otha sur votre téléphone et scannez le QR code du patient.
-              Le carnet s'affichera automatiquement ici.
-            </p>
-
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">En attente du scan...</h2>
+            <p className="text-gray-500 mb-8">Scannez le QR code depuis l'app Otha sur votre téléphone</p>
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
-              <span className="text-gray-600">En attente...</span>
             </div>
-
-            <Button variant="secondary" onClick={stopPhoneScan}>
-              Annuler
-            </Button>
+            <Button variant="secondary" onClick={stopPolling}>Annuler</Button>
           </Card>
         ) : (
-          /* Scanner choice buttons */
           <Card className="text-center py-12">
             <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <QrCode size={48} className="text-primary-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Scanner un patient
-            </h2>
-            <p className="text-gray-500 mb-8 max-w-md mx-auto">
-              Scannez le QR code du carnet de santé de l'animal pour accéder à son historique médical et confirmer le rendez-vous.
-            </p>
-
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Scanner un patient</h2>
+            <p className="text-gray-500 mb-8">Scannez le QR code du carnet de santé</p>
             {scanLoading ? (
               <div className="flex items-center justify-center gap-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
-                <span className="text-gray-600">Chargement du carnet...</span>
+                <span className="text-gray-600">Chargement...</span>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
@@ -660,58 +853,41 @@ export function ProPatients() {
                   <Monitor size={20} className="mr-2" />
                   Scanner avec PC
                 </Button>
-                <Button onClick={startPhoneScan} variant="secondary" size="lg" className="flex-1">
+                <Button onClick={startPolling} variant="secondary" size="lg" className="flex-1">
                   <Smartphone size={20} className="mr-2" />
                   Scanner avec téléphone
                 </Button>
               </div>
             )}
-
-            <p className="text-xs text-gray-400 mt-6">
-              Utilisez la webcam de votre PC ou l'application Otha sur votre téléphone
-            </p>
           </Card>
         )}
       </div>
 
-      {/* QR Scanner Modal (PC webcam) */}
+      {/* QR Scanner Modal */}
       {showQrScanner && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Scanner QR Code</h2>
-              <button onClick={stopQrScanner} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+              <button onClick={stopQrScanner} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-
             {qrError ? (
               <div className="text-red-500 text-center py-8">{qrError}</div>
             ) : (
               <div id="qr-reader" className="w-full" />
             )}
-
-            <p className="text-sm text-gray-500 text-center mt-4">
-              Pointez la caméra vers le QR code de l'animal
-            </p>
-
-            {/* Manual token input */}
+            <p className="text-sm text-gray-500 text-center mt-4">Pointez vers le QR code</p>
             <div className="mt-4 pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-2">Ou entrez le token manuellement:</p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Token du QR code"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const input = e.currentTarget;
-                      if (input.value) {
-                        stopQrScanner();
-                        handleQrResult(input.value);
-                      }
-                    }
-                  }}
-                />
-              </div>
+              <p className="text-sm text-gray-600 mb-2">Ou entrez le token:</p>
+              <Input
+                placeholder="Token"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.currentTarget.value) {
+                    stopQrScanner();
+                    handleQrResult(e.currentTarget.value);
+                  }
+                }}
+              />
             </div>
           </Card>
         </div>
@@ -722,17 +898,10 @@ export function ProPatients() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">Ajouter un acte médical</h2>
-
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
-                </label>
-                <select
-                  value={newRecord.type}
-                  onChange={(e) => setNewRecord({ ...newRecord, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select value={newRecord.type} onChange={(e) => setNewRecord({ ...newRecord, type: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
                   <option value="CONSULTATION">Consultation</option>
                   <option value="VACCINATION">Vaccination</option>
                   <option value="SURGERY">Chirurgie</option>
@@ -741,46 +910,109 @@ export function ProPatients() {
                   <option value="OTHER">Autre</option>
                 </select>
               </div>
-
-              <Input
-                label="Titre"
-                placeholder="Ex: Consultation de routine"
-                value={newRecord.title}
-                onChange={(e) => setNewRecord({ ...newRecord, title: e.target.value })}
-              />
-
+              <Input label="Titre" placeholder="Ex: Consultation de routine" value={newRecord.title} onChange={(e) => setNewRecord({ ...newRecord, title: e.target.value })} />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (optionnel)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Notes sur l'examen, le diagnostic..."
-                  value={newRecord.description}
-                  onChange={(e) =>
-                    setNewRecord({ ...newRecord, description: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} placeholder="Notes..." value={newRecord.description} onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
               </div>
             </div>
-
             <div className="flex gap-3 mt-6">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={() => setShowAddRecordModal(false)}
-              >
-                Annuler
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleAddRecord}
-                isLoading={addingRecord}
-                disabled={!newRecord.title}
-              >
-                Ajouter
-              </Button>
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddRecordModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddRecord} isLoading={addingRecord} disabled={!newRecord.title}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Prescription Modal */}
+      {showAddPrescriptionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Ajouter une ordonnance</h2>
+            <div className="space-y-4">
+              <Input label="Titre" placeholder="Ex: Antibiotiques" value={newPrescription.title} onChange={(e) => setNewPrescription({ ...newPrescription, title: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} placeholder="Posologie, durée..." value={newPrescription.description} onChange={(e) => setNewPrescription({ ...newPrescription, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image (optionnel)</label>
+                {newPrescription.imageUrl ? (
+                  <div className="relative">
+                    <img src={newPrescription.imageUrl} alt="Ordonnance" className="w-full h-32 object-cover rounded-lg" />
+                    <button onClick={() => setNewPrescription({ ...newPrescription, imageUrl: '' })} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-400">
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    {uploadingImage ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
+                    ) : (
+                      <div className="text-center">
+                        <Upload className="mx-auto text-gray-400 mb-2" size={24} />
+                        <span className="text-sm text-gray-500">Téléverser une image</span>
+                      </div>
+                    )}
+                  </label>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddPrescriptionModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddPrescription} isLoading={addingPrescription} disabled={!newPrescription.title}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Health Stat Modal */}
+      {showAddHealthStatModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Ajouter une mesure</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select value={newHealthStat.type} onChange={(e) => setNewHealthStat({ ...newHealthStat, type: e.target.value as any })} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="WEIGHT">Poids (kg)</option>
+                  <option value="TEMPERATURE">Température (°C)</option>
+                  <option value="HEART_RATE">Fréquence cardiaque (BPM)</option>
+                </select>
+              </div>
+              <Input label="Valeur" type="number" step="0.1" placeholder="Ex: 5.2" value={newHealthStat.value} onChange={(e) => setNewHealthStat({ ...newHealthStat, value: e.target.value })} />
+              <Input label="Notes (optionnel)" placeholder="Notes..." value={newHealthStat.notes} onChange={(e) => setNewHealthStat({ ...newHealthStat, notes: e.target.value })} />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddHealthStatModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddHealthStat} isLoading={addingHealthStat} disabled={!newHealthStat.value}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Disease Modal */}
+      {showAddDiseaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">Ajouter un suivi de maladie</h2>
+            <div className="space-y-4">
+              <Input label="Nom de la pathologie" placeholder="Ex: Otite" value={newDisease.name} onChange={(e) => setNewDisease({ ...newDisease, name: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} placeholder="Symptômes, observations..." value={newDisease.description} onChange={(e) => setNewDisease({ ...newDisease, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <select value={newDisease.status} onChange={(e) => setNewDisease({ ...newDisease, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="ACTIVE">Actif</option>
+                  <option value="MONITORING">Surveillance</option>
+                  <option value="RESOLVED">Résolu</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
             </div>
           </Card>
         </div>
