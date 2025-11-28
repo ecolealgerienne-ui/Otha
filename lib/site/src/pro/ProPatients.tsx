@@ -14,6 +14,11 @@ import {
   Heart,
   Smartphone,
   Monitor,
+  ChevronRight,
+  TrendingUp,
+  ClipboardList,
+  ArrowLeft,
+  Scale,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -22,6 +27,9 @@ import api from '../api/client';
 import type { Pet, MedicalRecord, Vaccination, Booking } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+// View modes for the pet card
+type ViewMode = 'hub' | 'medical-history' | 'vaccinations';
 
 export function ProPatients() {
   // QR Scanner state
@@ -33,6 +41,9 @@ export function ProPatients() {
   const [qrError, setQrError] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  // View mode for pet card
+  const [viewMode, setViewMode] = useState<ViewMode>('hub');
 
   // Add record modal
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
@@ -239,6 +250,7 @@ export function ProPatients() {
     setBookingConfirmed(false);
     setScanLoading(false);
     setIsPolling(false);
+    setViewMode('hub');
   };
 
   // Start waiting for phone scan
@@ -304,12 +316,23 @@ export function ProPatients() {
 
         {/* Main content - Scanner buttons or Pet view */}
         {scannedPet ? (
-          /* QR Scanned Pet View - Carnet de Santé */
+          /* Pet Health Hub - Similar to Flutter pet_health_hub_screen */
           <Card className="border-2 border-primary-500">
+            {/* Header with back button if in sub-view */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-primary-600">
-                🩺 Carnet de santé
-              </h2>
+              {viewMode !== 'hub' ? (
+                <button
+                  onClick={() => setViewMode('hub')}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft size={20} />
+                  <span className="font-medium">Retour</span>
+                </button>
+              ) : (
+                <h2 className="text-lg font-bold text-primary-600">
+                  Santé de {scannedPet.name}
+                </h2>
+              )}
               <button onClick={closePetView} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -347,134 +370,248 @@ export function ProPatients() {
               </div>
             )}
 
-            {/* Pet info */}
-            <div className="flex items-start space-x-4 mb-6">
-              <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center text-3xl">
-                {getSpeciesEmoji(scannedPet.species)}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-gray-900">{scannedPet.name}</h3>
-                <p className="text-gray-500">
-                  {scannedPet.species} {scannedPet.breed && `- ${scannedPet.breed}`}
-                </p>
-                <div className="flex flex-wrap gap-4 mt-2 text-sm">
-                  {scannedPet.gender && (
-                    <span>{scannedPet.gender === 'MALE' ? '♂️ Mâle' : '♀️ Femelle'}</span>
-                  )}
-                  {scannedPet.birthDate && (
-                    <span>🎂 {format(new Date(scannedPet.birthDate), 'dd/MM/yyyy')}</span>
-                  )}
-                  {scannedPet.weight && <span>⚖️ {scannedPet.weight} kg</span>}
-                  {scannedPet.microchip && <span>📟 {scannedPet.microchip}</span>}
-                </div>
-                {scannedPet.user && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Propriétaire: {scannedPet.user.firstName || scannedPet.user.email?.split('@')[0] || 'Client'}
-                    {scannedPet.user.phone && ` • ${scannedPet.user.phone}`}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Add record button */}
-            <Button onClick={() => setShowAddRecordModal(true)} className="mb-4">
-              <Plus size={16} className="mr-2" />
-              Ajouter un acte
-            </Button>
-
-            {/* Vaccinations */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-green-100 rounded-lg">
-                  <Syringe size={18} className="text-green-600" />
-                </div>
-                <h4 className="font-semibold">Vaccinations</h4>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                  {scannedVaccinations.length}
-                </span>
-              </div>
-              {scannedVaccinations.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">Aucune vaccination enregistrée</p>
-              ) : (
-                <div className="space-y-2">
-                  {scannedVaccinations.slice(0, 5).map((v) => (
-                    <div key={v.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Syringe size={16} className="text-green-600" />
-                        <span className="font-medium">{v.name}</span>
-                      </div>
-                      <div className="text-right text-sm">
-                        <span className="text-gray-600">
-                          {format(new Date(v.date), 'dd/MM/yyyy')}
+            {viewMode === 'hub' ? (
+              /* Hub View - Main screen with action cards */
+              <>
+                {/* Pet info header */}
+                <div className="flex items-start space-x-4 mb-6 p-4 bg-gradient-to-r from-primary-50 to-teal-50 rounded-xl border border-primary-100">
+                  <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shadow-sm">
+                    {getSpeciesEmoji(scannedPet.species)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900">{scannedPet.name}</h3>
+                    <p className="text-gray-600">
+                      {scannedPet.species} {scannedPet.breed && `• ${scannedPet.breed}`}
+                    </p>
+                    <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-600">
+                      {scannedPet.gender && (
+                        <span className="flex items-center gap-1">
+                          {scannedPet.gender === 'MALE' ? '♂️' : '♀️'}
+                          {scannedPet.gender === 'MALE' ? 'Mâle' : 'Femelle'}
                         </span>
-                        {v.nextDueDate && (
-                          <p className="text-xs text-orange-600">
-                            Rappel: {format(new Date(v.nextDueDate), 'dd/MM/yyyy')}
-                          </p>
-                        )}
-                      </div>
+                      )}
+                      {scannedPet.weight && (
+                        <span className="flex items-center gap-1">
+                          <Scale size={14} />
+                          {scannedPet.weight} kg
+                        </span>
+                      )}
                     </div>
-                  ))}
+                    {scannedPet.user && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        👤 {scannedPet.user.firstName || 'Client'}
+                        {scannedPet.user.phone && ` • ${scannedPet.user.phone}`}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Medical Records - Historique médical */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <FileText size={18} className="text-blue-600" />
+                {/* Quick stats overview */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="p-3 bg-white rounded-xl border text-center">
+                    <Scale className="mx-auto text-primary-500 mb-1" size={20} />
+                    <p className="text-lg font-bold text-gray-900">{scannedPet.weight || '—'}</p>
+                    <p className="text-xs text-gray-500">Poids (kg)</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border text-center">
+                    <Syringe className="mx-auto text-green-500 mb-1" size={20} />
+                    <p className="text-lg font-bold text-gray-900">{scannedVaccinations.length}</p>
+                    <p className="text-xs text-gray-500">Vaccins</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border text-center">
+                    <FileText className="mx-auto text-blue-500 mb-1" size={20} />
+                    <p className="text-lg font-bold text-gray-900">{scannedRecords.length}</p>
+                    <p className="text-xs text-gray-500">Actes</p>
+                  </div>
                 </div>
-                <h4 className="font-semibold">Historique médical</h4>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                  {scannedRecords.length}
-                </span>
-              </div>
-              {scannedRecords.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">Aucun historique médical</p>
-              ) : (
-                <div className="space-y-2">
-                  {scannedRecords.map((r) => {
-                    const typeInfo = getRecordTypeIcon(r.type);
-                    const IconComponent = typeInfo.icon;
-                    return (
-                      <div key={r.id} className="p-3 bg-white border border-gray-200 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 ${typeInfo.bg} rounded-lg flex-shrink-0`}>
-                            <IconComponent size={16} className={typeInfo.color} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`text-xs ${typeInfo.bg} ${typeInfo.color} px-2 py-0.5 rounded font-medium`}>
-                                {r.type}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {format(new Date(r.date), 'dd/MM/yyyy')}
-                              </span>
+
+                {/* Section title */}
+                <h4 className="font-bold text-gray-900 mb-4">Accès rapide</h4>
+
+                {/* Action Cards */}
+                <div className="space-y-3">
+                  {/* Add medical record */}
+                  <button
+                    onClick={() => setShowAddRecordModal(true)}
+                    className="w-full p-4 bg-gradient-to-r from-white to-primary-50 rounded-xl border-2 border-primary-200 hover:border-primary-400 transition-colors flex items-center gap-4 text-left"
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
+                      <Plus className="text-white" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Ajouter un acte</p>
+                      <p className="text-sm text-gray-500">Consultation, traitement, diagnostic</p>
+                    </div>
+                    <ChevronRight className="text-primary-400" size={20} />
+                  </button>
+
+                  {/* Medical history */}
+                  <button
+                    onClick={() => setViewMode('medical-history')}
+                    className="w-full p-4 bg-gradient-to-r from-white to-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-colors flex items-center gap-4 text-left"
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                      <ClipboardList className="text-white" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Historique médical</p>
+                      <p className="text-sm text-gray-500">Consultations, diagnostics, traitements</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                        {scannedRecords.length}
+                      </span>
+                      <ChevronRight className="text-blue-400" size={20} />
+                    </div>
+                  </button>
+
+                  {/* Vaccinations */}
+                  <button
+                    onClick={() => setViewMode('vaccinations')}
+                    className="w-full p-4 bg-gradient-to-r from-white to-green-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-colors flex items-center gap-4 text-left"
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-200">
+                      <Syringe className="text-white" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Vaccinations</p>
+                      <p className="text-sm text-gray-500">Calendrier et rappels de vaccins</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                        {scannedVaccinations.length}
+                      </span>
+                      <ChevronRight className="text-green-400" size={20} />
+                    </div>
+                  </button>
+
+                  {/* Health stats */}
+                  <button
+                    className="w-full p-4 bg-gradient-to-r from-white to-orange-50 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-colors flex items-center gap-4 text-left opacity-60 cursor-not-allowed"
+                    disabled
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-200">
+                      <TrendingUp className="text-white" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">Statistiques de santé</p>
+                      <p className="text-sm text-gray-500">Poids, température (bientôt)</p>
+                    </div>
+                    <ChevronRight className="text-orange-400" size={20} />
+                  </button>
+                </div>
+
+                {/* Button to scan another */}
+                <div className="mt-6 pt-4 border-t">
+                  <Button variant="secondary" onClick={closePetView} className="w-full">
+                    <QrCode size={16} className="mr-2" />
+                    Scanner un autre patient
+                  </Button>
+                </div>
+              </>
+            ) : viewMode === 'medical-history' ? (
+              /* Medical History Detail View */
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <ClipboardList className="text-blue-600" size={24} />
+                  Historique médical
+                </h3>
+
+                {scannedRecords.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucun historique médical</p>
+                    <Button onClick={() => setShowAddRecordModal(true)} className="mt-4">
+                      <Plus size={16} className="mr-2" />
+                      Ajouter un acte
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {scannedRecords.map((r) => {
+                      const typeInfo = getRecordTypeIcon(r.type);
+                      const IconComponent = typeInfo.icon;
+                      return (
+                        <div key={r.id} className="p-4 bg-white border border-gray-200 rounded-xl">
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2.5 ${typeInfo.bg} rounded-xl flex-shrink-0`}>
+                              <IconComponent size={18} className={typeInfo.color} />
                             </div>
-                            <p className="font-medium text-gray-900">{r.title}</p>
-                            {r.description && (
-                              <p className="text-sm text-gray-600 mt-1">{r.description}</p>
-                            )}
-                            {r.veterinarian && (
-                              <p className="text-xs text-gray-400 mt-1">Dr. {r.veterinarian}</p>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs ${typeInfo.bg} ${typeInfo.color} px-2 py-0.5 rounded font-medium`}>
+                                  {r.type}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {format(new Date(r.date), 'dd/MM/yyyy')}
+                                </span>
+                              </div>
+                              <p className="font-semibold text-gray-900">{r.title}</p>
+                              {r.description && (
+                                <p className="text-sm text-gray-600 mt-1">{r.description}</p>
+                              )}
+                              {r.veterinarian && (
+                                <p className="text-xs text-gray-400 mt-2">Dr. {r.veterinarian}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-            {/* Button to scan another */}
-            <div className="mt-6 pt-4 border-t">
-              <Button variant="secondary" onClick={closePetView} className="w-full">
-                <QrCode size={16} className="mr-2" />
-                Scanner un autre patient
-              </Button>
-            </div>
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddRecordModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter un acte médical
+                  </Button>
+                </div>
+              </>
+            ) : viewMode === 'vaccinations' ? (
+              /* Vaccinations Detail View */
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Syringe className="text-green-600" size={24} />
+                  Vaccinations
+                </h3>
+
+                {scannedVaccinations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Syringe className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucune vaccination enregistrée</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {scannedVaccinations.map((v) => (
+                      <div key={v.id} className="p-4 bg-gradient-to-r from-green-50 to-white rounded-xl border border-green-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-green-100 rounded-xl">
+                              <Syringe size={18} className="text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">{v.name}</p>
+                              <p className="text-sm text-gray-500">
+                                Administré le {format(new Date(v.date), 'dd MMMM yyyy', { locale: fr })}
+                              </p>
+                            </div>
+                          </div>
+                          {v.nextDueDate && (
+                            <div className="text-right">
+                              <p className="text-xs text-orange-600 font-medium">Rappel</p>
+                              <p className="text-sm text-orange-700 font-semibold">
+                                {format(new Date(v.nextDueDate), 'dd/MM/yyyy')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : null}
           </Card>
         ) : isPolling ? (
           /* Waiting for phone scan */
