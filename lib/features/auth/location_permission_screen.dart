@@ -178,20 +178,20 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
               // Avantages
               _buildAdvantageItem(
                 icon: Icons.calendar_today,
-                title: 'Confirmer vos rendez-vous',
-                description: 'Validation automatique à votre arrivée au cabinet',
+                title: 'Confirmer vos visites',
+                description: 'Validation automatique chez le vétérinaire et en garderie',
+              ),
+              const SizedBox(height: 16),
+              _buildAdvantageItem(
+                icon: Icons.explore,
+                title: 'Services à proximité',
+                description: 'Vétérinaires, garderies et petshops proches de vous',
               ),
               const SizedBox(height: 16),
               _buildAdvantageItem(
                 icon: Icons.pets,
-                title: 'Trouver les vétérinaires',
-                description: 'Découvrez les professionnels proches de vous',
-              ),
-              const SizedBox(height: 16),
-              _buildAdvantageItem(
-                icon: Icons.notifications_active,
-                title: 'Rappels intelligents',
-                description: 'Notifications basées sur votre localisation',
+                title: 'Dépôt et récupération',
+                description: 'Confirmation facilitée pour les garderies',
               ),
 
               const Spacer(),
