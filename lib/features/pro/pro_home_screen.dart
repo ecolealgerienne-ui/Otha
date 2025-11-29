@@ -496,23 +496,34 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                   ),
                 ),
 
-                // ------- Prochain rendez-vous -------
+                // ------- Prochain rendez-vous (seulement si existe) -------
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: nextAsync.when(
-                      loading: () => const _LoadingCard(
+                  child: nextAsync.when(
+                    loading: () => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const _LoadingCard(
                         text: 'Chargement du prochain rendez-vous...',
                       ),
-                      error: (e, _) => _SectionCard(
-                        child: Text('Erreur: $e'),
-                      ),
-                      data: (next) => _NextAppointment(next: next),
                     ),
+                    error: (e, _) => const SizedBox.shrink(),
+                    data: (next) {
+                      // Ne rien afficher s'il n'y a pas de RDV
+                      if (next == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _NextAppointment(next: next),
+                      );
+                    },
                   ),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                // Espacement conditionnel (seulement si RDV existe)
+                SliverToBoxAdapter(
+                  child: nextAsync.maybeWhen(
+                    data: (next) => SizedBox(height: next != null ? 16 : 0),
+                    orElse: () => const SizedBox(height: 16),
+                  ),
+                ),
 
                 // ------- Actions -------
                 const SliverToBoxAdapter(child: _ActionGrid()),

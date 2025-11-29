@@ -695,24 +695,13 @@ class HomeScreen extends ConsumerWidget {
                   SliverToBoxAdapter(child: _Header(isPro: isPro, name: greetingName, avatarUrl: avatarUrl)),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                  // ▼ Prochain RDV confirmé (vert)
+                  // ▼ Banners de RDV/réservations (chacun gère son propre espacement)
                   const SliverToBoxAdapter(child: _NextConfirmedBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochain RDV pending (orange) — sous le confirmé
                   const SliverToBoxAdapter(child: _NextPendingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochaine réservation garderie confirmée (vert)
                   const SliverToBoxAdapter(child: _NextConfirmedDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochaine réservation garderie pending (orange)
                   const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Réservation garderie IN_PROGRESS (animal déposé, bouton récupération)
                   const SliverToBoxAdapter(child: _InProgressDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Commandes en cours (rose saumon)
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
                   const SliverToBoxAdapter(child: _ExploreGrid()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -1221,8 +1210,14 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
             dtUtc.difference(now).inHours <= 2 &&
             dtUtc.difference(now).inHours >= -1;
 
+        // ✅ NOUVEAU: Vérifier si c'est l'heure exacte du RDV (15min avant à 30min après)
+        // Permet d'afficher le bouton "Confirmer" même sans géoloc
+        final isAppointmentTimeNow = dtUtc != null &&
+            now.isAfter(dtUtc.subtract(const Duration(minutes: 15))) &&
+            now.isBefore(dtUtc.add(const Duration(minutes: 30)));
+
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -1472,8 +1467,48 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                       ],
                     ),
                   ),
+                ] else if (isAppointmentTimeNow && _distanceMeters == null) ...[
+                  // ✅ C'est l'heure du RDV mais pas de géoloc - afficher directement le bouton
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFFB74D)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time, color: Color(0xFFE65100), size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'C\'est l\'heure de votre rendez-vous !',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFE65100),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Confirmer ma présence'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF36C6C),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ] else if (isTimeClose && _distanceMeters == null && !_checkingProximity) ...[
-                  // En attente de vérification ou première charge
+                  // En attente de vérification ou première charge (hors heure exacte)
                   const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
@@ -1624,7 +1659,7 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
         final service = _serviceName(m);
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -1886,7 +1921,7 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
             dtUtc.difference(now).inHours >= -2;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -2061,7 +2096,7 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
         final petName = _petName(m);
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -2290,7 +2325,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
