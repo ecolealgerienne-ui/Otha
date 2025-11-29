@@ -388,58 +388,63 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                     child: CustomScrollView(
                       controller: scrollController,
                       slivers: [
-                        // Handle bar - draggable
-                        SliverToBoxAdapter(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              if (_sheetController.size < 0.4) {
-                                _sheetController.animateTo(
-                                  0.45,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
-                                );
-                              } else {
-                                _sheetController.animateTo(
-                                  0.18,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
-                                );
-                              }
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Column(
-                                children: [
-                                  // Drag indicator
-                                  Container(
-                                    width: 48,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Info text
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.keyboard_arrow_up,
-                                        color: _coral, size: 20),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
+                        // Handle bar - PINNED (reste en haut quand on scroll)
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _StickyHeaderDelegate(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                if (_sheetController.size < 0.4) {
+                                  _sheetController.animateTo(
+                                    0.45,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOut,
+                                  );
+                                } else {
+                                  _sheetController.animateTo(
+                                    0.18,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOut,
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                color: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Drag indicator
+                                    Container(
+                                      width: 48,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(3),
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Info text
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.keyboard_arrow_up,
+                                          color: _coral, size: 20),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -996,5 +1001,28 @@ class _ProviderCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------- Sticky Header Delegate ----------------
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 70;
+
+  @override
+  double get maxExtent => 70;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
+    return child != oldDelegate.child;
   }
 }
