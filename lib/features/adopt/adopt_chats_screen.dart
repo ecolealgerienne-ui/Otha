@@ -4,120 +4,323 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 
-const _roseSoft = Color(0xFFFFEEF0);
-const _roseAccent = Color(0xFFFF8A8A);
+const _rosePrimary = Color(0xFFFF6B6B);
+const _roseLight = Color(0xFFFFE8E8);
+const _redDelete = Color(0xFFFF3B5C);
 
-// AutoDispose pour rafraîchir automatiquement quand on revient sur l'écran
-final _requestsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final api = ref.read(apiProvider);
-  return await api.adoptMyIncomingRequests();
-});
-
-final _chatsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final api = ref.read(apiProvider);
-  return await api.adoptMyConversations();
-});
-
-class AdoptChatsScreen extends ConsumerWidget {
+class AdoptChatsScreen extends ConsumerStatefulWidget {
   const AdoptChatsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
-      length: 2,
-      initialIndex: _initialTabFromQuery(context),
-      child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          title: const Text('Discussions', style: TextStyle(fontWeight: FontWeight.bold)),
-          bottom: TabBar(
-            indicatorColor: _roseAccent,
-            labelColor: _roseAccent,
-            unselectedLabelColor: Colors.grey[600],
-            tabs: const [
-              Tab(icon: Icon(Icons.mark_email_unread_outlined), text: 'Demandes'),
-              Tab(icon: Icon(Icons.chat_bubble_outline), text: 'Chats'),
-            ],
-          ),
-        ),
-        body: const TabBarView(
-          children: [
-            _RequestsTab(),
-            _ChatsTab(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  int _initialTabFromQuery(BuildContext context) {
-    final q = GoRouterState.of(context).uri.queryParameters['tab'];
-    if (q == 'chats') return 1;
-    return 0;
-  }
+  ConsumerState<AdoptChatsScreen> createState() => _AdoptChatsScreenState();
 }
 
-class _RequestsTab extends ConsumerWidget {
-  const _RequestsTab();
+class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
+  List<Map<String, dynamic>> _requests = [];
+  List<Map<String, dynamic>> _chats = [];
+  bool _loading = true;
+  String? _error;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_requestsProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(_requestsProvider)),
-      data: (list) {
-        if (list.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(_requestsProvider);
-              await Future.delayed(const Duration(milliseconds: 500));
-            },
-            child: ListView(
-              children: const [
-                SizedBox(height: 200),
-                _Empty(
-                  icon: Icons.inbox_outlined,
-                  text: 'Aucune demande pour le moment',
-                  subtitle: 'Les demandes d\'adoption apparaîtront ici',
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final api = ref.read(apiProvider);
+      final results = await Future.wait([
+        api.adoptMyIncomingRequests(),
+        api.adoptMyConversations(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _requests = List<Map<String, dynamic>>.from(results[0]);
+          _chats = List<Map<String, dynamic>>.from(results[1]);
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _acceptRequest(String requestId) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptAcceptRequest(requestId);
+      _showSnackBar('Demande acceptée', Colors.green);
+      _loadData(); // Refresh instant
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
+    }
+  }
+
+  Future<void> _rejectRequest(String requestId) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptRejectRequest(requestId);
+      _showSnackBar('Demande refusée', Colors.orange);
+      _loadData(); // Refresh instant
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
+    }
+  }
+
+  Future<void> _deleteConversation(String conversationId) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptHideConversation(conversationId);
+      _showSnackBar('Conversation supprimée', Colors.grey);
+      _loadData(); // Refresh instant
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: Column(
+        children: [
+          // Header
+          Container(
+            padding: EdgeInsets.only(top: topPadding + 8, left: 16, right: 16, bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          );
-        }
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(_requestsProvider);
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, i) => _RequestTile(item: list[i]),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _roseLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.chat_bubble_rounded, color: _rosePrimary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Messages',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                if (_requests.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _rosePrimary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_requests.length} nouvelle${_requests.length > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        );
-      },
+
+          // Content
+          Expanded(
+            child: _loading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: const BoxDecoration(
+                            color: _roseLight,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const CircularProgressIndicator(color: _rosePrimary),
+                        ),
+                      ],
+                    ),
+                  )
+                : _error != null
+                    ? _ErrorState(error: _error!, onRetry: _loadData)
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: _rosePrimary,
+                        child: _requests.isEmpty && _chats.isEmpty
+                            ? _EmptyState(onRefresh: _loadData)
+                            : ListView(
+                                padding: EdgeInsets.zero,
+                                children: [
+                                  // Section: Nouvelles demandes
+                                  if (_requests.isNotEmpty) ...[
+                                    _SectionHeader(
+                                      title: 'Nouvelles demandes',
+                                      count: _requests.length,
+                                    ),
+                                    SizedBox(
+                                      height: 140,
+                                      child: ListView.builder(
+                                        scrollDirection: Axis.horizontal,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        itemCount: _requests.length,
+                                        itemBuilder: (context, index) {
+                                          return _RequestCard(
+                                            request: _requests[index],
+                                            onAccept: () {
+                                              final id = _requests[index]['id']?.toString();
+                                              if (id != null) _acceptRequest(id);
+                                            },
+                                            onReject: () {
+                                              final id = _requests[index]['id']?.toString();
+                                              if (id != null) _rejectRequest(id);
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+
+                                  // Section: Messages
+                                  if (_chats.isNotEmpty) ...[
+                                    _SectionHeader(
+                                      title: 'Conversations',
+                                      count: _chats.length,
+                                    ),
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      itemCount: _chats.length,
+                                      itemBuilder: (context, index) {
+                                        return _ChatTile(
+                                          chat: _chats[index],
+                                          onTap: () {
+                                            final id = _chats[index]['id']?.toString();
+                                            if (id != null) context.push('/adopt/chat/$id');
+                                          },
+                                          onDelete: () {
+                                            final id = _chats[index]['id']?.toString();
+                                            if (id != null) _deleteConversation(id);
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ],
+
+                                  const SizedBox(height: 100),
+                                ],
+                              ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _RequestTile extends ConsumerWidget {
-  final Map<String, dynamic> item;
-  const _RequestTile({required this.item});
+// Section header
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final int count;
+
+  const _SectionHeader({required this.title, required this.count});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final post = item['post'] as Map<String, dynamic>? ?? {};
-    final requester = item['requester'] as Map<String, dynamic>? ?? {};
-    final requestId = item['id']?.toString() ?? '';
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+// Request card (horizontal scroll)
+class _RequestCard extends StatelessWidget {
+  final Map<String, dynamic> request;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+
+  const _RequestCard({
+    required this.request,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final post = request['post'] as Map<String, dynamic>? ?? {};
+    final requester = request['requester'] as Map<String, dynamic>? ?? {};
     final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
-    final anonymousName = (requester['anonymousName'] ?? 'Anonyme').toString();
-    final species = (post['species'] ?? '').toString();
-    final city = (post['city'] ?? '').toString();
+    final requesterName = (requester['anonymousName'] ?? 'Anonyme').toString();
 
     final images = (post['images'] as List<dynamic>?)
         ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
@@ -126,382 +329,476 @@ class _RequestTile extends ConsumerWidget {
         .toList() ?? [];
 
     return Container(
+      width: 130,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // Image de l'animal
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: images.isNotEmpty
-                      ? Image.network(
-                          images.first,
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 60,
-                            height: 60,
-                            color: _roseSoft,
-                            child: const Icon(Icons.pets, color: _roseAccent),
-                          ),
-                        )
-                      : Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: _roseSoft,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.pets, color: _roseAccent),
+      child: Column(
+        children: [
+          // Image + badge NEW
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: images.isNotEmpty
+                    ? Image.network(
+                        images.first,
+                        width: 130,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 130,
+                          height: 70,
+                          color: _roseLight,
+                          child: const Icon(Icons.pets, color: _rosePrimary),
                         ),
+                      )
+                    : Container(
+                        width: 130,
+                        height: 70,
+                        color: _roseLight,
+                        child: const Icon(Icons.pets, color: _rosePrimary),
+                      ),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _rosePrimary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'NEW',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
+              ),
+            ],
+          ),
+          // Info
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    animalName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    requesterName,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+            child: Row(
+              children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        animalName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  child: InkWell(
+                    onTap: onReject,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              anonymousName,
-                              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      child: Icon(Icons.close, size: 16, color: Colors.grey[600]),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: InkWell(
+                    onTap: onAccept,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CD964).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      if (species.isNotEmpty || city.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          [species, city].where((s) => s.isNotEmpty).join(' • '),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
+                      child: const Icon(Icons.check, size: 16, color: Color(0xFF4CD964)),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      try {
-                        await ref.read(apiProvider).adoptRejectRequest(requestId);
-                        ref.invalidate(_requestsProvider);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Demande refusée'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[300]!),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Refuser'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () async {
-                      try {
-                        final result = await ref.read(apiProvider).adoptAcceptRequest(requestId);
-                        ref.invalidate(_requestsProvider);
-                        ref.invalidate(_chatsProvider);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('✅ Demande acceptée ! Chat créé'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _roseAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Accepter'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ChatsTab extends ConsumerWidget {
-  const _ChatsTab();
+// Chat tile with swipe to delete
+class _ChatTile extends StatefulWidget {
+  final Map<String, dynamic> chat;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _ChatTile({
+    required this.chat,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_chatsProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(_chatsProvider)),
-      data: (list) {
-        if (list.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(_chatsProvider);
-              await Future.delayed(const Duration(milliseconds: 500));
-            },
-            child: ListView(
-              children: const [
-                SizedBox(height: 200),
-                _Empty(
-                  icon: Icons.chat_bubble_outline,
-                  text: 'Aucune conversation',
-                  subtitle: 'Acceptez des demandes pour démarrer un chat',
+  State<_ChatTile> createState() => _ChatTileState();
+}
+
+class _ChatTileState extends State<_ChatTile> {
+  double _dragOffset = 0;
+  bool _showDeleteButton = false;
+  static const double _deleteButtonWidth = 80;
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragOffset += details.delta.dx;
+      _dragOffset = _dragOffset.clamp(-_deleteButtonWidth, 0);
+      _showDeleteButton = _dragOffset < -20;
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    setState(() {
+      if (_dragOffset < -_deleteButtonWidth / 2) {
+        _dragOffset = -_deleteButtonWidth;
+        _showDeleteButton = true;
+      } else {
+        _dragOffset = 0;
+        _showDeleteButton = false;
+      }
+    });
+  }
+
+  void _resetSwipe() {
+    setState(() {
+      _dragOffset = 0;
+      _showDeleteButton = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.chat['post'] as Map<String, dynamic>? ?? {};
+    final otherPersonName = (widget.chat['otherPersonName'] ?? 'Anonyme').toString();
+    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+
+    final lastMessage = widget.chat['lastMessage'] as Map<String, dynamic>?;
+    final lastMessageText = lastMessage != null
+        ? (lastMessage['content'] ?? '').toString()
+        : 'Aucun message';
+    final lastMessageTime = lastMessage?['sentAt'] as String?;
+
+    final images = (post['images'] as List<dynamic>?)
+        ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
+        .where((url) => url != null && url.isNotEmpty)
+        .cast<String>()
+        .toList() ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Stack(
+        children: [
+          // Delete button (behind)
+          Positioned.fill(
+            child: Container(
+              alignment: Alignment.centerRight,
+              decoration: BoxDecoration(
+                color: _redDelete,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: _deleteButtonWidth,
+                alignment: Alignment.center,
+                child: InkWell(
+                  onTap: () {
+                    _resetSwipe();
+                    widget.onDelete();
+                  },
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                      SizedBox(height: 2),
+                      Text(
+                        'Supprimer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          );
-        }
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(_chatsProvider);
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, i) {
-            final conv = list[i];
-            final post = conv['post'] as Map<String, dynamic>? ?? {};
-            final conversationId = conv['id']?.toString() ?? '';
-            final otherPersonName = (conv['otherPersonName'] ?? 'Anonyme').toString();
-            final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+          ),
 
-            final lastMessage = conv['lastMessage'] as Map<String, dynamic>?;
-            final lastMessageText = lastMessage != null
-                ? (lastMessage['content'] ?? '').toString()
-                : 'Aucun message';
-
-            final images = (post['images'] as List<dynamic>?)
-                ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
-                .where((url) => url != null && url.isNotEmpty)
-                .cast<String>()
-                .toList() ?? [];
-
-            return Container(
+          // Chat tile (front)
+          GestureDetector(
+            onHorizontalDragUpdate: _onHorizontalDragUpdate,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            onTap: () {
+              if (_showDeleteButton) {
+                _resetSwipe();
+              } else {
+                widget.onTap();
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              transform: Matrix4.translationValues(_dragOffset, 0, 0),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => context.push('/adopt/chat/$conversationId'),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Image de l'animal
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: images.isNotEmpty
-                              ? Image.network(
-                                  images.first,
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: 60,
-                                    height: 60,
-                                    color: _roseSoft,
-                                    child: const Icon(Icons.pets, color: _roseAccent),
-                                  ),
-                                )
-                              : Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: _roseSoft,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.pets, color: _roseAccent),
-                                ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    // Avatar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: images.isNotEmpty
+                          ? Image.network(
+                              images.first,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 56,
+                                height: 56,
+                                color: _roseLight,
+                                child: const Icon(Icons.pets, color: _rosePrimary),
+                              ),
+                            )
+                          : Container(
+                              width: 56,
+                              height: 56,
+                              color: _roseLight,
+                              child: const Icon(Icons.pets, color: _rosePrimary),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                animalName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    otherPersonName,
-                                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                              Expanded(
+                                child: Text(
+                                  animalName,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              const SizedBox(height: 6),
+                              if (lastMessageTime != null)
+                                Text(
+                                  _formatTime(lastMessageTime),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(Icons.person_outline, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
                               Text(
-                                lastMessageText,
-                                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                otherPersonName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        Icon(Icons.chevron_right, color: Colors.grey[400]),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            lastMessageText,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[500],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                  ],
                 ),
               ),
-            );
-          },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
+  }
+
+  String _formatTime(String isoString) {
+    try {
+      final dt = DateTime.parse(isoString).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+
+      if (diff.inMinutes < 1) return 'À l\'instant';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}min';
+      if (diff.inHours < 24) return '${diff.inHours}h';
+      if (diff.inDays < 7) return '${diff.inDays}j';
+      return '${dt.day}/${dt.month}';
+    } catch (_) {
+      return '';
+    }
   }
 }
 
-class _Empty extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final String subtitle;
+// Empty state
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onRefresh;
 
-  const _Empty({required this.icon, required this.text, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              text,
-              style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({required this.message, required this.onRetry});
+  const _EmptyState({required this.onRefresh});
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const SizedBox(height: 120),
+        Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Erreur',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: _roseLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.chat_bubble_outline, size: 56, color: _rosePrimary),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Aucun message',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                message,
+                'Vos demandes et conversations\napparaîtront ici',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: onRetry,
-                style: FilledButton.styleFrom(backgroundColor: _roseAccent),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
+                onPressed: onRefresh,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _rosePrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Actualiser'),
               ),
             ],
           ),
         ),
-      );
+      ],
+    );
+  }
+}
+
+// Error state
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'Erreur de chargement',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
