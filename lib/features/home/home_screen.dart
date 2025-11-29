@@ -695,24 +695,13 @@ class HomeScreen extends ConsumerWidget {
                   SliverToBoxAdapter(child: _Header(isPro: isPro, name: greetingName, avatarUrl: avatarUrl)),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                  // ▼ Prochain RDV confirmé (vert)
+                  // ▼ Banners de RDV/réservations (chacun gère son propre espacement)
                   const SliverToBoxAdapter(child: _NextConfirmedBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochain RDV pending (orange) — sous le confirmé
                   const SliverToBoxAdapter(child: _NextPendingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochaine réservation garderie confirmée (vert)
                   const SliverToBoxAdapter(child: _NextConfirmedDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Prochaine réservation garderie pending (orange)
                   const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Réservation garderie IN_PROGRESS (animal déposé, bouton récupération)
                   const SliverToBoxAdapter(child: _InProgressDaycareBookingBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  // ▼ Commandes en cours (rose saumon)
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
 
                   const SliverToBoxAdapter(child: _ExploreGrid()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -1228,7 +1217,7 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
             now.isBefore(dtUtc.add(const Duration(minutes: 30)));
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -1670,7 +1659,7 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
         final service = _serviceName(m);
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -1932,7 +1921,7 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
             dtUtc.difference(now).inHours >= -2;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -2107,7 +2096,7 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
         final petName = _petName(m);
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
@@ -2336,7 +2325,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
