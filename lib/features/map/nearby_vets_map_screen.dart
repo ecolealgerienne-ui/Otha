@@ -367,11 +367,11 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
               // --- BOTTOM SHEET DRAGGABLE ---
               DraggableScrollableSheet(
                 controller: _sheetController,
-                initialChildSize: 0.15,
-                minChildSize: 0.15,
-                maxChildSize: 0.65,
+                initialChildSize: 0.18,
+                minChildSize: 0.18,
+                maxChildSize: 0.45,  // Max 2-3 cards visibles
                 snap: true,
-                snapSizes: const [0.15, 0.4, 0.65],
+                snapSizes: const [0.18, 0.45],
                 builder: (context, scrollController) {
                   return Container(
                     decoration: const BoxDecoration(
@@ -395,13 +395,13 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                             onTap: () {
                               if (_sheetController.size < 0.4) {
                                 _sheetController.animateTo(
-                                  0.4,
+                                  0.45,
                                   duration: const Duration(milliseconds: 300),
                                   curve: Curves.easeOut,
                                 );
                               } else {
                                 _sheetController.animateTo(
-                                  0.15,
+                                  0.18,
                                   duration: const Duration(milliseconds: 300),
                                   curve: Curves.easeOut,
                                 );
@@ -513,14 +513,13 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
     final lat = m['__lat'] as double;
     final lng = m['__lng'] as double;
 
-    // Offset pour que le marqueur soit visible au-dessus du sheet
-    // On décale vers le bas de ~0.015 degrés (environ 1.5km)
-    final offsetLat = lat - 0.012;
+    // Petit offset pour que le marqueur soit juste au-dessus du sheet
+    final offsetLat = lat - 0.004;
     _mapCtl.move(LatLng(offsetLat, lng), 15);
 
-    // Expand sheet and scroll to card
+    // Expand sheet
     _sheetController.animateTo(
-      0.4,
+      0.45,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
@@ -532,14 +531,9 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
     final lat = m['__lat'] as double;
     final lng = m['__lng'] as double;
 
-    // Calculer l'offset basé sur la taille du sheet
-    // Plus le sheet est grand, plus on décale
-    final screenHeight = MediaQuery.of(context).size.height;
-    final sheetHeight = screenHeight * _sheetController.size;
-
-    // Convertir les pixels en degrés (approximatif)
-    // À zoom 15, 1 degré ≈ 111km, donc on calcule le ratio
-    final offsetDegrees = (sheetHeight / screenHeight) * 0.025;
+    // Petit offset basé sur la taille du sheet (max 45% de l'écran)
+    final sheetRatio = _sheetController.size;
+    final offsetDegrees = sheetRatio * 0.012;  // Plus petit offset
     final offsetLat = lat - offsetDegrees;
 
     _mapCtl.move(LatLng(offsetLat, lng), 15);
