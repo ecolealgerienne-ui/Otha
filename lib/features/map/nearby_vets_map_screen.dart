@@ -369,9 +369,9 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                 controller: _sheetController,
                 initialChildSize: 0.18,
                 minChildSize: 0.18,
-                maxChildSize: 0.45,  // Max 2-3 cards visibles
+                maxChildSize: 0.5,
                 snap: true,
-                snapSizes: const [0.18, 0.45],
+                snapSizes: const [0.18, 0.5],
                 builder: (context, scrollController) {
                   return Container(
                     decoration: const BoxDecoration(
@@ -385,109 +385,102 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                         ),
                       ],
                     ),
-                    child: CustomScrollView(
-                      controller: scrollController,
-                      slivers: [
-                        // Handle bar - PINNED (reste en haut quand on scroll)
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _StickyHeaderDelegate(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                if (_sheetController.size < 0.4) {
-                                  _sheetController.animateTo(
-                                    0.45,
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeOut,
-                                  );
-                                } else {
-                                  _sheetController.animateTo(
-                                    0.18,
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeOut,
-                                  );
-                                }
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                color: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
+                    child: Column(
+                      children: [
+                        // Header fixe
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (_sheetController.size < 0.4) {
+                              _sheetController.animateTo(
+                                0.5,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
+                            } else {
+                              _sheetController.animateTo(
+                                0.18,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Drag indicator
+                                Container(
+                                  width: 48,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Info text
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    // Drag indicator
-                                    Container(
-                                      width: 48,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(3),
+                                    Icon(Icons.keyboard_arrow_up,
+                                      color: _coral, size: 20),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
                                       ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // Info text
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.keyboard_arrow_up,
-                                          color: _coral, size: 20),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
-                                          style: TextStyle(
-                                            color: Colors.grey[700],
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ],
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),
                         // Liste des providers
-                        if (filtered.isEmpty)
-                          SliverFillRemaining(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'Aucun établissement trouvé',
-                                    style: TextStyle(color: Colors.grey[600]),
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Aucun établissement trouvé',
+                                        style: TextStyle(color: Colors.grey[600]),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          )
-                        else
-                          SliverPadding(
-                            padding: EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              bottom: bottomPadding + 16,
-                            ),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (ctx, i) {
-                                  final isActive = i == _selectedIndex;
-                                  return _ProviderCard(
-                                    provider: filtered[i],
-                                    kind: _kindOf(filtered[i]),
-                                    isActive: isActive,
-                                    onTap: () => _onCardTap(i, filtered, context),
-                                  );
-                                },
-                                childCount: filtered.length,
-                              ),
-                            ),
-                          ),
+                                )
+                              : ListView.builder(
+                                  controller: scrollController,
+                                  padding: EdgeInsets.only(
+                                    left: 16,
+                                    right: 16,
+                                    bottom: bottomPadding + 16,
+                                  ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (ctx, i) {
+                                    final isActive = i == _selectedIndex;
+                                    return _ProviderCard(
+                                      provider: filtered[i],
+                                      kind: _kindOf(filtered[i]),
+                                      isActive: isActive,
+                                      onTap: () => _onCardTap(i, filtered, context),
+                                    );
+                                  },
+                                ),
+                        ),
                       ],
                     ),
                   );
@@ -1004,25 +997,3 @@ class _ProviderCard extends ConsumerWidget {
   }
 }
 
-// ---------------- Sticky Header Delegate ----------------
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-
-  _StickyHeaderDelegate({required this.child});
-
-  @override
-  double get minExtent => 70;
-
-  @override
-  double get maxExtent => 70;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
-    return child != oldDelegate.child;
-  }
-}
