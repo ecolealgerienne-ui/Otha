@@ -199,7 +199,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                       count: _requests.length,
                                     ),
                                     SizedBox(
-                                      height: 140,
+                                      height: 160,
                                       child: ListView.builder(
                                         scrollDirection: Axis.horizontal,
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -329,8 +329,8 @@ class _RequestCard extends StatelessWidget {
         .toList() ?? [];
 
     return Container(
-      width: 130,
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      width: 140,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -352,19 +352,19 @@ class _RequestCard extends StatelessWidget {
                 child: images.isNotEmpty
                     ? Image.network(
                         images.first,
-                        width: 130,
-                        height: 70,
+                        width: 140,
+                        height: 80,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          width: 130,
-                          height: 70,
+                          width: 140,
+                          height: 80,
                           color: _roseLight,
                           child: const Icon(Icons.pets, color: _rosePrimary),
                         ),
                       )
                     : Container(
-                        width: 130,
-                        height: 70,
+                        width: 140,
+                        height: 80,
                         color: _roseLight,
                         child: const Icon(Icons.pets, color: _rosePrimary),
                       ),
