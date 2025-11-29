@@ -385,89 +385,104 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        // Handle bar
-                        GestureDetector(
-                          onTap: () {
-                            if (_sheetController.size < 0.4) {
-                              _sheetController.animateTo(
-                                0.4,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOut,
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Column(
-                              children: [
-                                // Drag indicator
-                                Container(
-                                  width: 48,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                // Info text
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.keyboard_arrow_up,
-                                      color: _coral, size: 20),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
-                                      style: TextStyle(
-                                        color: Colors.grey[700],
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
+                    child: CustomScrollView(
+                      controller: scrollController,
+                      slivers: [
+                        // Handle bar - draggable
+                        SliverToBoxAdapter(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              if (_sheetController.size < 0.4) {
+                                _sheetController.animateTo(
+                                  0.4,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
+                              } else {
+                                _sheetController.animateTo(
+                                  0.15,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Column(
+                                children: [
+                                  // Drag indicator
+                                  Container(
+                                    width: 48,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  // Info text
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.keyboard_arrow_up,
+                                        color: _coral, size: 20),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         // Liste des providers
-                        Expanded(
-                          child: filtered.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Aucun établissement trouvé',
-                                        style: TextStyle(color: Colors.grey[600]),
-                                      ),
-                                    ],
+                        if (filtered.isEmpty)
+                          SliverFillRemaining(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Aucun établissement trouvé',
+                                    style: TextStyle(color: Colors.grey[600]),
                                   ),
-                                )
-                              : ListView.builder(
-                                  controller: scrollController,
-                                  padding: EdgeInsets.only(
-                                    left: 16,
-                                    right: 16,
-                                    bottom: bottomPadding + 16,
-                                  ),
-                                  itemCount: filtered.length,
-                                  itemBuilder: (ctx, i) {
-                                    final isActive = i == _selectedIndex;
-                                    return _ProviderCard(
-                                      provider: filtered[i],
-                                      kind: _kindOf(filtered[i]),
-                                      isActive: isActive,
-                                      onTap: () => _onCardTap(i, filtered),
-                                    );
-                                  },
-                                ),
-                        ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              bottom: bottomPadding + 16,
+                            ),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, i) {
+                                  final isActive = i == _selectedIndex;
+                                  return _ProviderCard(
+                                    provider: filtered[i],
+                                    kind: _kindOf(filtered[i]),
+                                    isActive: isActive,
+                                    onTap: () => _onCardTap(i, filtered, context),
+                                  );
+                                },
+                                childCount: filtered.length,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -495,7 +510,13 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
   void _onMarkerTap(int index, List<Map<String, dynamic>> filtered) {
     setState(() => _selectedIndex = index);
     final m = filtered[index];
-    _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 15);
+    final lat = m['__lat'] as double;
+    final lng = m['__lng'] as double;
+
+    // Offset pour que le marqueur soit visible au-dessus du sheet
+    // On décale vers le bas de ~0.015 degrés (environ 1.5km)
+    final offsetLat = lat - 0.012;
+    _mapCtl.move(LatLng(offsetLat, lng), 15);
 
     // Expand sheet and scroll to card
     _sheetController.animateTo(
@@ -505,10 +526,23 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
     );
   }
 
-  void _onCardTap(int index, List<Map<String, dynamic>> filtered) {
+  void _onCardTap(int index, List<Map<String, dynamic>> filtered, BuildContext context) {
     setState(() => _selectedIndex = index);
     final m = filtered[index];
-    _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 15);
+    final lat = m['__lat'] as double;
+    final lng = m['__lng'] as double;
+
+    // Calculer l'offset basé sur la taille du sheet
+    // Plus le sheet est grand, plus on décale
+    final screenHeight = MediaQuery.of(context).size.height;
+    final sheetHeight = screenHeight * _sheetController.size;
+
+    // Convertir les pixels en degrés (approximatif)
+    // À zoom 15, 1 degré ≈ 111km, donc on calcule le ratio
+    final offsetDegrees = (sheetHeight / screenHeight) * 0.025;
+    final offsetLat = lat - offsetDegrees;
+
+    _mapCtl.move(LatLng(offsetLat, lng), 15);
   }
 }
 
