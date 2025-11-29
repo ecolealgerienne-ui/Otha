@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 
+const _rosePrimary = Color(0xFFFF6B6B);
+const _roseLight = Color(0xFFFFE8E8);
+const _greenSuccess = Color(0xFF4CD964);
+
 class AdoptConversationScreen extends ConsumerStatefulWidget {
   final String conversationId;
 
@@ -21,6 +25,7 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   Map<String, dynamic>? _conversation;
   bool _loading = true;
   bool _sending = false;
+  bool _proposingAdoption = false;
   String? _error;
   Timer? _pollingTimer;
 
@@ -28,7 +33,6 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
   void initState() {
     super.initState();
     _loadMessages();
-    // Polling toutes les 5 secondes pour actualiser les messages
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && !_loading && !_sending) {
         _loadMessages(silent: true);
@@ -62,7 +66,7 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
       if (mounted) {
         setState(() {
           _messages = messages;
-          _conversation = result; // Le backend renvoie directement l'objet, pas {conversation: {...}}
+          _conversation = result;
           _loading = false;
         });
         if (!silent) {
@@ -88,17 +92,11 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     try {
       final api = ref.read(apiProvider);
       await api.adoptSendMessage(widget.conversationId, content);
-
       _messageController.clear();
       await _loadMessages();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar('Erreur: $e', Colors.red);
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -119,22 +117,99 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     }
   }
 
-  Future<void> _showDeleteDialog(BuildContext context) async {
+  void _showSnackBar(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _proposeAdoption() async {
+    final post = _conversation?['post'] as Map<String, dynamic>? ?? {};
+    final otherPersonName = (_conversation?['otherPersonName'] ?? 'cette personne').toString();
+    final animalName = (post['animalName'] ?? post['title'] ?? 'cet animal').toString();
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Supprimer la conversation'),
-        content: const Text(
-          'Voulez-vous vraiment supprimer cette conversation ? '
-          'Elle sera masquée mais l\'autre personne pourra toujours la voir.',
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _greenSuccess.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.pets, color: _greenSuccess),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Proposer l\'adoption')),
+          ],
+        ),
+        content: Text(
+          'Voulez-vous proposer l\'adoption de $animalName à $otherPersonName ?\n\n'
+          'Cette personne recevra une notification pour confirmer.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Annuler', style: TextStyle(color: Colors.grey[600])),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: _greenSuccess,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.favorite, size: 18),
+            label: const Text('Proposer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _proposingAdoption = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      final postId = post['id']?.toString();
+      final adopterId = _conversation?['otherUserId']?.toString();
+
+      if (postId != null) {
+        await api.markAdoptPostAsAdopted(postId, adoptedById: adopterId);
+        _showSnackBar('Proposition envoyée à $otherPersonName', _greenSuccess);
+        await _loadMessages();
+      }
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _proposingAdoption = false);
+    }
+  }
+
+  Future<void> _deleteConversation() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Supprimer la conversation'),
+        content: const Text('Cette conversation sera masquée de votre liste.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Supprimer'),
           ),
@@ -142,105 +217,16 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
       ),
     );
 
-    if (confirmed == true && mounted) {
-      try {
-        final api = ref.read(apiProvider);
-        await api.adoptHideConversation(widget.conversationId);
+    if (confirmed != true) return;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conversation supprimée'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          context.pop();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
+    try {
+      final api = ref.read(apiProvider);
+      await api.adoptHideConversation(widget.conversationId);
+      _showSnackBar('Conversation supprimée', Colors.grey);
+      if (mounted) context.pop();
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
     }
-  }
-
-  Future<void> _showReportDialog(BuildContext context) async {
-    final reasonController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Signaler la conversation'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Pourquoi signalez-vous cette conversation ?'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Motif du signalement',
-                border: OutlineInputBorder(),
-                hintText: 'Ex: Contenu inapproprié, arnaque, etc.',
-              ),
-              maxLines: 3,
-              maxLength: 500,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (reasonController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Veuillez indiquer un motif')),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Signaler'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        final api = ref.read(apiProvider);
-        await api.adoptReportConversation(widget.conversationId, reasonController.text.trim());
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conversation signalée aux administrateurs'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-
-    reasonController.dispose();
   }
 
   @override
@@ -248,165 +234,386 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     final post = _conversation?['post'] as Map<String, dynamic>? ?? {};
     final otherPersonName = (_conversation?['otherPersonName'] ?? 'Anonyme').toString();
     final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+    final isOwner = _conversation?['isOwner'] == true;
+    final isAdopted = post['adoptedAt'] != null;
+    final pendingConfirmation = _conversation?['pendingAdoptionConfirmation'] == true;
+
+    final images = (post['images'] as List<dynamic>?)
+        ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
+        .where((url) => url != null && url.isNotEmpty)
+        .cast<String>()
+        .toList() ?? [];
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              animalName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              otherPersonName,
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        actions: [
-          // Bouton Signaler
-          IconButton(
-            icon: const Icon(Icons.flag_outlined, color: Colors.orange),
-            tooltip: 'Signaler',
-            onPressed: () => _showReportDialog(context),
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: Column(
+        children: [
+          // Custom header with animal info
+          _buildHeader(context, animalName, otherPersonName, images),
+
+          // Owner action banner (propose adoption)
+          if (isOwner && !isAdopted && !pendingConfirmation)
+            _buildAdoptionBanner(otherPersonName),
+
+          // Pending confirmation banner
+          if (pendingConfirmation)
+            _buildPendingBanner(isOwner),
+
+          // Adopted banner
+          if (isAdopted)
+            _buildAdoptedBanner(),
+
+          // Messages
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _rosePrimary))
+                : _error != null
+                    ? _buildErrorState()
+                    : _buildMessagesList(),
           ),
-          // Bouton Supprimer
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
-            tooltip: 'Supprimer',
-            onPressed: () => _showDeleteDialog(context),
+
+          // Input bar
+          _buildInputBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String animalName, String otherPersonName, List<String> images) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    return Container(
+      padding: EdgeInsets.only(top: topPadding + 8, left: 12, right: 12, bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Erreur: $_error'),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _loadMessages,
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
+      child: Row(
+        children: [
+          // Back button
+          IconButton(
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: _roseLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Animal avatar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: images.isNotEmpty
+                ? Image.network(
+                    images.first,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
+                  )
+                : _buildPlaceholderAvatar(),
+          ),
+          const SizedBox(width: 12),
+          // Names
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  animalName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                )
-              : Column(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
                   children: [
-                    // Messages list
-                    Expanded(
-                      child: _messages.isEmpty
-                          ? Center(
-                              child: Text(
-                                'Aucun message. Commencez la conversation !',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            )
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _messages.length,
-                              itemBuilder: (context, index) {
-                                final message = _messages[index];
-                                final isMe = message['sentByMe'] == true;
-                                final content = (message['content'] ?? '').toString();
-                                final timestamp = message['sentAt'] as String?;
-
-                                // Détecter le message de félicitations
-                                final isCongratulationsMessage = content.contains('🎉 Félicitations') ||
-                                    content.contains('changé une vie');
-
-                                // Détecter le message de confirmation d'adoption
-                                final isConfirmationMessage = content.contains('🐾 Voulez-vous adopter') &&
-                                    (_conversation?['pendingAdoptionConfirmation'] == true) &&
-                                    !isMe;
-
-                                return _MessageBubble(
-                                  content: content,
-                                  isMe: isMe,
-                                  timestamp: timestamp,
-                                  isCongratulationsMessage: isCongratulationsMessage,
-                                  adoptionPost: isCongratulationsMessage ? post : null,
-                                  isConfirmationMessage: isConfirmationMessage,
-                                  conversationId: widget.conversationId,
-                                  onConfirmationChanged: () => _loadMessages(),
-                                );
-                              },
-                            ),
-                    ),
-
-                    // Input bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                      ),
-                      padding: EdgeInsets.only(
-                        left: 16,
-                        right: 16,
-                        top: 12,
-                        bottom: MediaQuery.of(context).padding.bottom + 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              decoration: InputDecoration(
-                                hintText: 'Votre message...',
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                              ),
-                              maxLines: null,
-                              textCapitalization: TextCapitalization.sentences,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          CircleAvatar(
-                            backgroundColor: const Color(0xFFFF8A8A),
-                            child: _sending
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                                    onPressed: _sendMessage,
-                                    padding: EdgeInsets.zero,
-                                  ),
-                          ),
-                        ],
-                      ),
+                    Icon(Icons.person_outline, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      otherPersonName,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          // Delete button
+          IconButton(
+            onPressed: _deleteConversation,
+            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
+            tooltip: 'Supprimer',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderAvatar() {
+    return Container(
+      width: 44,
+      height: 44,
+      color: _roseLight,
+      child: const Icon(Icons.pets, color: _rosePrimary, size: 24),
+    );
+  }
+
+  Widget _buildAdoptionBanner(String otherPersonName) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_greenSuccess.withOpacity(0.1), _greenSuccess.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _greenSuccess.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _greenSuccess.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.favorite, color: _greenSuccess, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Prêt à finaliser ?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                Text(
+                  'Proposez l\'adoption à $otherPersonName',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          FilledButton(
+            onPressed: _proposingAdoption ? null : _proposeAdoption,
+            style: FilledButton.styleFrom(
+              backgroundColor: _greenSuccess,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: _proposingAdoption
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Proposer', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingBanner(bool isOwner) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_top, color: Colors.orange, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isOwner
+                  ? 'En attente de confirmation de l\'adoptant...'
+                  : 'Une proposition d\'adoption vous attend !',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdoptedBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _greenSuccess.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _greenSuccess.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle, color: _greenSuccess, size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Adoption confirmée !',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: _greenSuccess,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text('Erreur: $_error'),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _loadMessages,
+            style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
+            child: const Text('Réessayer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessagesList() {
+    if (_messages.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun message',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Commencez la conversation !',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final post = _conversation?['post'] as Map<String, dynamic>? ?? {};
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(16),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final message = _messages[index];
+        final isMe = message['sentByMe'] == true;
+        final content = (message['content'] ?? '').toString();
+        final timestamp = message['sentAt'] as String?;
+
+        final isCongratulationsMessage = content.contains('🎉 Félicitations') ||
+            content.contains('changé une vie');
+
+        final isConfirmationMessage = content.contains('🐾 Voulez-vous adopter') &&
+            (_conversation?['pendingAdoptionConfirmation'] == true) &&
+            !isMe;
+
+        return _MessageBubble(
+          content: content,
+          isMe: isMe,
+          timestamp: timestamp,
+          isCongratulationsMessage: isCongratulationsMessage,
+          adoptionPost: isCongratulationsMessage ? post : null,
+          isConfirmationMessage: isConfirmationMessage,
+          conversationId: widget.conversationId,
+          onConfirmationChanged: () => _loadMessages(),
+        );
+      },
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Votre message...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) => _sendMessage(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: _rosePrimary,
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              onTap: _sending ? null : _sendMessage,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                child: _sending
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -448,9 +655,11 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Félicitations ! L\'adoption est confirmée !'),
-            backgroundColor: Color(0xFF4CAF50),
+          SnackBar(
+            content: const Text('🎉 Adoption confirmée !'),
+            backgroundColor: _greenSuccess,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         widget.onConfirmationChanged?.call();
@@ -459,10 +668,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -477,9 +683,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Adoption refusée. L\'annonce reste disponible.'),
-          ),
+          const SnackBar(content: Text('Adoption refusée')),
         );
         widget.onConfirmationChanged?.call();
       }
@@ -487,10 +691,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -517,7 +718,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: widget.isMe ? const Color(0xFFFF8A8A) : Colors.white,
+          color: widget.isMe ? _rosePrimary : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -552,7 +753,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                 ),
               ),
             ],
-            // Boutons "Accepter" / "Refuser" pour le message de confirmation d'adoption
+            // Confirmation buttons
             if (widget.isConfirmationMessage && !_loading) ...[
               const SizedBox(height: 12),
               Row(
@@ -564,9 +765,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         side: const BorderSide(color: Colors.grey),
                         foregroundColor: Colors.grey[700],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text('Refuser', style: TextStyle(fontSize: 13)),
                     ),
@@ -576,11 +775,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                     child: FilledButton(
                       onPressed: _handleAccept,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
+                        backgroundColor: _greenSuccess,
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text('Accepter', style: TextStyle(fontSize: 13)),
                     ),
@@ -590,42 +787,29 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
             ],
             if (widget.isConfirmationMessage && _loading) ...[
               const SizedBox(height: 12),
-              const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
             ],
-            // Bouton "Créer le profil" pour le message de félicitations (uniquement pour l'adopteur)
+            // Create pet profile button
             if (widget.isCongratulationsMessage && widget.adoptionPost != null && !widget.isMe) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () async {
-                    // Marquer le profil pet comme en cours de création
                     final postId = widget.adoptionPost!['id']?.toString();
                     if (postId != null) {
                       try {
                         await ref.read(apiProvider).markAdoptPetProfileCreated(postId);
-                      } catch (e) {
-                        // Ignorer l'erreur, on laisse l'utilisateur créer le profil
-                      }
+                      } catch (_) {}
                     }
-
-                    // Naviguer vers le pet onboarding avec les données d'adoption
                     if (context.mounted) {
                       context.push('/pets/add', extra: widget.adoptionPost);
                     }
                   },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
+                    backgroundColor: _greenSuccess,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: const Icon(Icons.pets, size: 20),
                   label: const Text('Créer le profil'),
