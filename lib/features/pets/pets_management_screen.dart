@@ -511,72 +511,92 @@ class _PetSwipeCard extends ConsumerWidget {
                       ),
                     ],
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // Boutons d'action
-                    Column(
-                      children: [
-                        // Bouton Modifier
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              await context.push('/pets/edit', extra: pet);
-                              // Rafraîchir après modification
-                              if (context.mounted) {
-                                ref.invalidate(myPetsProvider);
-                              }
-                            },
-                            icon: const Icon(Icons.edit, size: 18),
-                            label: const Text('Modifier les informations'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _coral,
-                              side: const BorderSide(color: _coral, width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                    // Actions rapides - Grille 2x2
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Actions rapides',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Carnet et QR Code
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => context.push('/pets/$id/health-stats'),
-                                icon: const Icon(Icons.medical_services, size: 18),
-                                label: const Text('Carnet'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: _coral,
-                                  side: const BorderSide(color: _coral, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // Modifier
+                              Expanded(
+                                child: _QuickActionButton(
+                                  icon: Icons.edit_outlined,
+                                  label: 'Modifier',
+                                  color: _coral,
+                                  onTap: () async {
+                                    await context.push('/pets/edit', extra: pet);
+                                    if (context.mounted) {
+                                      ref.invalidate(myPetsProvider);
+                                    }
+                                  },
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: () => context.push('/pets/$id/qr'),
-                                icon: const Icon(Icons.qr_code, size: 18),
-                                label: const Text('QR Code'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: _coral,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                              const SizedBox(width: 10),
+                              // Carnet santé
+                              Expanded(
+                                child: _QuickActionButton(
+                                  icon: Icons.medical_services_outlined,
+                                  label: 'Carnet santé',
+                                  color: const Color(0xFF4CAF50),
+                                  onTap: () => context.push('/pets/$id/health-stats'),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              // QR Code
+                              Expanded(
+                                child: _QuickActionButton(
+                                  icon: Icons.qr_code_2,
+                                  label: 'QR Code',
+                                  color: const Color(0xFF2196F3),
+                                  onTap: () => context.push('/pets/$id/qr'),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Partager
+                              Expanded(
+                                child: _QuickActionButton(
+                                  icon: Icons.share_outlined,
+                                  label: 'Partager',
+                                  color: const Color(0xFF9C27B0),
+                                  onTap: () {
+                                    // TODO: Partager le profil de l'animal
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Fonctionnalité bientôt disponible'),
+                                        backgroundColor: Colors.grey.shade700,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -657,6 +677,54 @@ class _AlertChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

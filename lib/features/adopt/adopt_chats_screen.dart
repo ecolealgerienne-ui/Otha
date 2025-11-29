@@ -199,7 +199,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                       count: _requests.length,
                                     ),
                                     SizedBox(
-                                      height: 160,
+                                      height: 175,
                                       child: ListView.builder(
                                         scrollDirection: Axis.horizontal,
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
