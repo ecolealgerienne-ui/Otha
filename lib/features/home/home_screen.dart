@@ -1221,6 +1221,12 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
             dtUtc.difference(now).inHours <= 2 &&
             dtUtc.difference(now).inHours >= -1;
 
+        // ✅ NOUVEAU: Vérifier si c'est l'heure exacte du RDV (15min avant à 30min après)
+        // Permet d'afficher le bouton "Confirmer" même sans géoloc
+        final isAppointmentTimeNow = dtUtc != null &&
+            now.isAfter(dtUtc.subtract(const Duration(minutes: 15))) &&
+            now.isBefore(dtUtc.add(const Duration(minutes: 30)));
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: AnimatedContainer(
@@ -1472,8 +1478,48 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                       ],
                     ),
                   ),
+                ] else if (isAppointmentTimeNow && _distanceMeters == null) ...[
+                  // ✅ C'est l'heure du RDV mais pas de géoloc - afficher directement le bouton
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFFB74D)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time, color: Color(0xFFE65100), size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'C\'est l\'heure de votre rendez-vous !',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFE65100),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Confirmer ma présence'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF36C6C),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ] else if (isTimeClose && _distanceMeters == null && !_checkingProximity) ...[
-                  // En attente de vérification ou première charge
+                  // En attente de vérification ou première charge (hors heure exacte)
                   const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
