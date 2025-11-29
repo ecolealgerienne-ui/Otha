@@ -182,10 +182,10 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
   }
 
   Future<void> _finish({required bool skip}) async {
-    // Si l'utilisateur ignore la photo, on passe direct à l'app
+    // Si l'utilisateur ignore la photo, on passe à la permission géoloc
     if (skip || _avatarFile == null) {
       if (!mounted) return;
-      context.go('/home');
+      context.go('/auth/location-permission');
       return;
     }
 
@@ -198,14 +198,14 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
       String url = await api.uploadLocalFile(_avatarFile!, folder: 'avatar');
       await api.meUpdate(photoUrl: url);
       if (!mounted) return;
-      context.go('/home');
+      context.go('/auth/location-permission');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload avatar échoué: $e')),
       );
-      // On n'empêche pas la suite : on va quand même vers l'app
-      context.go('/home');
+      // On n'empêche pas la suite : on va quand même vers la permission géoloc
+      context.go('/auth/location-permission');
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -251,8 +251,8 @@ class _UserRegisterScreenState extends ConsumerState<UserRegisterScreen> {
         // Profil incomplet -> rediriger vers complétion
         context.go('/auth/profile-completion');
       } else {
-        // Profil complet -> rediriger vers home
-        context.go('/home');
+        // Profil complet -> rediriger vers permission géoloc
+        context.go('/auth/location-permission');
       }
     } catch (e) {
       if (!mounted) return;

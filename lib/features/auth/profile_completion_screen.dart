@@ -91,8 +91,8 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
 
       if (!mounted) return;
 
-      // Rediriger vers la page d'accueil
-      context.go('/home');
+      // Rediriger vers la permission de géolocalisation
+      context.go('/auth/location-permission');
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
