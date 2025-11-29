@@ -13,6 +13,7 @@ import '../../core/session_controller.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralLight = Color(0xFFFFEEF0);
+const _coralDark = Color(0xFFE85555);
 const _ink = Color(0xFF222222);
 
 // ---------------- Centre utilisateur (DEVICE -> PROFIL -> fallback) ----------------
@@ -47,7 +48,7 @@ final _myProviderIdProvider = FutureProvider<String?>((ref) async {
   return id.isEmpty ? null : id;
 });
 
-// ---------------- Tous les pros (le back exclut déjà specialties.visible == false) ----------------
+// ---------------- Tous les pros ----------------
 final allVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
   final center = await ref.watch(_userCenterProvider.future);
@@ -66,7 +67,6 @@ final allVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
     return null;
   }
 
-  // Fallback Haversine si distance_km absente
   double? _haversineKm(double? lat, double? lng) {
     if (lat == null || lng == null) return null;
     const R = 6371.0;
@@ -80,7 +80,6 @@ final allVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
     return R * c;
   }
 
-  // Normalisation
   final rows = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   bool _validNum(dynamic v) => v is num && v.isFinite && v != 0;
 
@@ -104,18 +103,22 @@ class NearbyVetsMapScreen extends ConsumerStatefulWidget {
   ConsumerState<NearbyVetsMapScreen> createState() => _NearbyVetsMapScreenState();
 }
 
-class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen> {
+class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
+    with SingleTickerProviderStateMixin {
   final _mapCtl = MapController();
   LatLng? _center;
 
-  // Filtres (rail vertical)
-  bool _showVet = true;
-  bool _showDaycare = true;
-  bool _showPetshop = true;
+  // Filtres
+  String _selectedFilter = 'all'; // 'all', 'vet', 'daycare', 'petshop'
 
-  // Carrousel
-  final _pageCtl = PageController();
-  bool _showCarousel = false;
+  // Sheet controller
+  final _sheetController = DraggableScrollableController();
+
+  // Current selected index
+  int _selectedIndex = -1;
+
+  // Scroll controller for list
+  final _listScrollController = ScrollController();
 
   @override
   void initState() {
@@ -124,14 +127,44 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen> {
       final c = await ref.read(_userCenterProvider.future);
       if (!mounted) return;
       setState(() => _center = c);
-      _mapCtl.move(c, 12);
+      _mapCtl.move(c, 13);
     });
+
+    _listScrollController.addListener(_onListScroll);
   }
 
   @override
   void dispose() {
-    _pageCtl.dispose();
+    _sheetController.dispose();
+    _listScrollController.dispose();
     super.dispose();
+  }
+
+  void _onListScroll() {
+    // Calculate which card is most visible based on scroll position
+    if (!_listScrollController.hasClients) return;
+
+    final itemHeight = 130.0; // Height of each card + padding
+    final offset = _listScrollController.offset;
+    final newIndex = (offset / itemHeight).round();
+
+    if (newIndex != _selectedIndex && newIndex >= 0) {
+      _onCardFocused(newIndex);
+    }
+  }
+
+  void _onCardFocused(int index) {
+    final vetsAsync = ref.read(allVetsProvider);
+    vetsAsync.whenData((rows) {
+      final filtered = _getFilteredList(rows);
+      if (index >= 0 && index < filtered.length) {
+        setState(() => _selectedIndex = index);
+        final m = filtered[index];
+        final lat = (m['__lat'] as double);
+        final lng = (m['__lng'] as double);
+        _mapCtl.move(LatLng(lat, lng), 15);
+      }
+    });
   }
 
   String _kindOf(Map<String, dynamic> m) {
@@ -155,13 +188,28 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen> {
     return false;
   }
 
-  Color _markerColor(String kind, {required bool isMine}) {
-    if (isMine) return _coral;
+  List<Map<String, dynamic>> _getFilteredList(List<Map<String, dynamic>> rows) {
+    final filtered = <Map<String, dynamic>>[];
+    for (final m in rows) {
+      if (_explicitInvisible(m)) continue;
+      final kind = _kindOf(m);
+      if (_selectedFilter != 'all' && kind != _selectedFilter) continue;
+      filtered.add(m);
+    }
+    filtered.sort((a, b) {
+      final da = (a['__distKm'] as num?)?.toDouble() ?? double.maxFinite;
+      final db = (b['__distKm'] as num?)?.toDouble() ?? double.maxFinite;
+      return da.compareTo(db);
+    });
+    return filtered;
+  }
+
+  IconData _getKindIcon(String kind) {
     switch (kind) {
-      case 'vet': return Colors.redAccent;
-      case 'daycare': return Colors.teal;
-      case 'petshop': return Colors.amber;
-      default: return Colors.redAccent;
+      case 'vet': return Icons.local_hospital;
+      case 'daycare': return Icons.home;
+      case 'petshop': return Icons.shopping_bag;
+      default: return Icons.location_on;
     }
   }
 
@@ -169,53 +217,63 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen> {
   Widget build(BuildContext context) {
     final vetsAsync = ref.watch(allVetsProvider);
     final myPidAsync = ref.watch(_myProviderIdProvider);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      // AppBar retirée → on dessine tout en overlay
       body: vetsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
         error: (e, _) => Center(child: Text('Erreur: $e')),
         data: (rows) {
-          // On exclut uniquement les invisibles explicites
-          final filtered = <Map<String, dynamic>>[];
-          for (final m in rows) {
-            if (_explicitInvisible(m)) continue;
-            final kind = _kindOf(m);
-            if (kind == 'vet' && !_showVet) continue;
-            if (kind == 'daycare' && !_showDaycare) continue;
-            if (kind == 'petshop' && !_showPetshop) continue;
-            filtered.add(m);
-          }
-
-          // Tri par distance
-          filtered.sort((a, b) {
-            final da = (a['__distKm'] as num?)?.toDouble() ?? double.maxFinite;
-            final db = (b['__distKm'] as num?)?.toDouble() ?? double.maxFinite;
-            return da.compareTo(db);
-          });
-
+          final filtered = _getFilteredList(rows);
           final center = _center ?? const LatLng(36.75, 3.06);
           final myPid = myPidAsync.maybeWhen(data: (v) => v, orElse: () => null);
 
           // Marqueurs
           final markers = <Marker>[
+            // Ma position - cercle bleu pulsant
             Marker(
-              width: 36, height: 36, point: center,
-              child: const Icon(Icons.radio_button_checked, color: Colors.blue, size: 20),
+              width: 24, height: 24, point: center,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ];
-          for (final m in filtered) {
+
+          for (int i = 0; i < filtered.length; i++) {
+            final m = filtered[i];
             final lat = ((m['__lat'] as num?)?.toDouble())!;
             final lng = ((m['__lng'] as num?)?.toDouble())!;
             final id = (m['id'] ?? '').toString();
             final isMine = (myPid != null && id == myPid);
+            final isSelected = i == _selectedIndex;
             final kind = _kindOf(m);
+
             markers.add(
               Marker(
-                width: 44, height: 44, point: LatLng(lat, lng),
-                child: _VetMarker(
-                  color: _markerColor(kind, isMine: isMine),
-                  data: m,
+                width: isSelected ? 56 : 44,
+                height: isSelected ? 56 : 44,
+                point: LatLng(lat, lng),
+                child: GestureDetector(
+                  onTap: () => _onMarkerTap(i, filtered),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: _CustomMarker(
+                      kind: kind,
+                      isSelected: isSelected,
+                      isMine: isMine,
+                    ),
+                  ),
                 ),
               ),
             );
@@ -223,308 +281,485 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen> {
 
           return Stack(
             children: [
-              // --- MAP ---
+              // --- MAP avec style épuré ---
               FlutterMap(
                 mapController: _mapCtl,
-                options: MapOptions(initialCenter: center, initialZoom: 12),
+                options: MapOptions(
+                  initialCenter: center,
+                  initialZoom: 13,
+                  onTap: (_, __) {
+                    setState(() => _selectedIndex = -1);
+                  },
+                ),
                 children: [
+                  // CartoDB Light - Style minimaliste
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
                     userAgentPackageName: 'com.vethome.app',
+                    retinaMode: true,
                   ),
                   MarkerLayer(markers: markers),
                 ],
               ),
 
-              // --- TOP-LEFT : retour (bouton rond blanc/corail) + séparation + filtres ---
+              // --- TOP BAR: Retour + Filtres ---
               SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 10, top: 10),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Row(
+                        children: [
+                          // Bouton retour
+                          _CircleButton(
+                            icon: Icons.arrow_back,
+                            onTap: () {
+                              final nav = Navigator.of(context);
+                              if (nav.canPop()) {
+                                nav.pop();
+                              } else {
+                                context.go('/home');
+                              }
+                            },
+                          ),
+                          const Spacer(),
+                          // Boutons actions
+                          _CircleButton(
+                            icon: Icons.refresh,
+                            onTap: () {
+                              ref.invalidate(allVetsProvider);
+                              ref.invalidate(_userCenterProvider);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          _CircleButton(
+                            icon: Icons.my_location,
+                            onTap: () async {
+                              final c = await ref.read(_userCenterProvider.future);
+                              if (!mounted) return;
+                              setState(() {
+                                _center = c;
+                                _selectedIndex = -1;
+                              });
+                              _mapCtl.move(c, 13);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Filtres horizontaux
+                    _FilterBar(
+                      selected: _selectedFilter,
+                      counts: _getCounts(rows),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedFilter = v;
+                          _selectedIndex = -1;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // --- BOTTOM SHEET DRAGGABLE ---
+              DraggableScrollableSheet(
+                controller: _sheetController,
+                initialChildSize: 0.15,
+                minChildSize: 0.15,
+                maxChildSize: 0.65,
+                snap: true,
+                snapSizes: const [0.15, 0.4, 0.65],
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          offset: Offset(0, -5),
+                        ),
+                      ],
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _IconFab(
-                          icon: Icons.arrow_back_ios_new,
+                        // Handle bar
+                        GestureDetector(
                           onTap: () {
-                            final nav = Navigator.of(context);
-                            if (nav.canPop()) {
-                              nav.pop();
-                            } else {
-                              context.go('/pro/home');
+                            if (_sheetController.size < 0.4) {
+                              _sheetController.animateTo(
+                                0.4,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
                             }
                           },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Column(
+                              children: [
+                                // Drag indicator
+                                Container(
+                                  width: 48,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Info text
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.keyboard_arrow_up,
+                                      color: _coral, size: 20),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${filtered.length} établissement${filtered.length > 1 ? 's' : ''} à proximité',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        _FilterPill(
-                          emoji: '🐶', label: 'Vétos',
-                          selected: _showVet,
-                          onTap: () => setState(() => _showVet = !_showVet),
-                        ),
-                        const SizedBox(height: 8),
-                        _FilterPill(
-                          emoji: '🏡', label: 'Gard.',
-                          selected: _showDaycare,
-                          onTap: () => setState(() => _showDaycare = !_showDaycare),
-                        ),
-                        const SizedBox(height: 8),
-                        _FilterPill(
-                          emoji: '🛍️', label: 'Shops',
-                          selected: _showPetshop,
-                          onTap: () => setState(() => _showPetshop = !_showPetshop),
+                        // Liste des providers
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Aucun établissement trouvé',
+                                        style: TextStyle(color: Colors.grey[600]),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  controller: scrollController,
+                                  padding: EdgeInsets.only(
+                                    left: 16,
+                                    right: 16,
+                                    bottom: bottomPadding + 16,
+                                  ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (ctx, i) {
+                                    final isActive = i == _selectedIndex;
+                                    return _ProviderCard(
+                                      provider: filtered[i],
+                                      kind: _kindOf(filtered[i]),
+                                      isActive: isActive,
+                                      onTap: () => _onCardTap(i, filtered),
+                                    );
+                                  },
+                                ),
                         ),
                       ],
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-
-              // --- TOP-RIGHT : MAJ / MOI (même style que la flèche) ---
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10, top: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _IconFab(
-                          icon: Icons.refresh,
-                          onTap: () {
-                            ref.invalidate(allVetsProvider);
-                            ref.invalidate(_userCenterProvider);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _IconFab(
-                          icon: Icons.my_location,
-                          onTap: () async {
-                            final c = await ref.read(_userCenterProvider.future);
-                            if (!mounted) return;
-                            setState(() => _center = c);
-                            _mapCtl.move(c, 12);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // --- FLÈCHE (ouvre carrousel du plus proche au plus loin) ---
-              Positioned(
-                bottom: _showCarousel ? 200 : 24, left: 0, right: 0,
-                child: Center(
-                  child: FloatingActionButton(
-                    backgroundColor: _coral,
-                    heroTag: 'openCarousel',
-                    onPressed: () {
-                      if (filtered.isEmpty) return;
-                      setState(() => _showCarousel = true);
-                      // évite "PageController is not attached"
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        _pageCtl.jumpToPage(0);
-                        final m = filtered.first;
-                        _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 14);
-                      });
-                    },
-                    child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
-                  ),
-                ),
-              ),
-
-              // --- CARROUSEL ---
-              if (_showCarousel)
-                Positioned(
-                  left: 0, right: 0, bottom: 0,
-                  child: _ProviderCarousel(
-                    pageCtl: _pageCtl,
-                    items: filtered,
-                    onClose: () => setState(() => _showCarousel = false),
-                    onPageChanged: (idx) {
-                      if (idx < 0 || idx >= filtered.length) return;
-                      final m = filtered[idx];
-                      _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 14);
-                    },
-                  ),
-                ),
             ],
           );
         },
       ),
     );
   }
+
+  Map<String, int> _getCounts(List<Map<String, dynamic>> rows) {
+    int vet = 0, daycare = 0, petshop = 0;
+    for (final m in rows) {
+      if (_explicitInvisible(m)) continue;
+      final kind = _kindOf(m);
+      if (kind == 'vet') vet++;
+      if (kind == 'daycare') daycare++;
+      if (kind == 'petshop') petshop++;
+    }
+    return {'all': vet + daycare + petshop, 'vet': vet, 'daycare': daycare, 'petshop': petshop};
+  }
+
+  void _onMarkerTap(int index, List<Map<String, dynamic>> filtered) {
+    setState(() => _selectedIndex = index);
+    final m = filtered[index];
+    _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 15);
+
+    // Expand sheet and scroll to card
+    _sheetController.animateTo(
+      0.4,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _onCardTap(int index, List<Map<String, dynamic>> filtered) {
+    setState(() => _selectedIndex = index);
+    final m = filtered[index];
+    _mapCtl.move(LatLng((m['__lat'] as double), (m['__lng'] as double)), 15);
+  }
 }
 
-// ---------------- Widgets ----------------
-class _VetMarker extends StatelessWidget {
-  final Color color;
-  final Map<String, dynamic> data;
-  const _VetMarker({required this.color, required this.data});
+// ---------------- Custom Marker ----------------
+class _CustomMarker extends StatelessWidget {
+  final String kind;
+  final bool isSelected;
+  final bool isMine;
+
+  const _CustomMarker({
+    required this.kind,
+    required this.isSelected,
+    required this.isMine,
+  });
+
+  IconData get _icon {
+    switch (kind) {
+      case 'vet': return Icons.medical_services;
+      case 'daycare': return Icons.house;
+      case 'petshop': return Icons.shopping_bag;
+      default: return Icons.location_on;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => showModalBottomSheet(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true, // pour une hauteur adaptée
-        builder: (_) => _ProviderSheet(data: data),
-      ),
-      child: Icon(Icons.location_pin, size: 44, color: color),
+    final size = isSelected ? 52.0 : 42.0;
+    final iconSize = isSelected ? 24.0 : 20.0;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Shadow
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _coral.withOpacity(isSelected ? 0.4 : 0.2),
+                blurRadius: isSelected ? 12 : 6,
+                spreadRadius: isSelected ? 2 : 0,
+              ),
+            ],
+          ),
+        ),
+        // Main circle
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: isSelected ? _coral : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isMine ? _coralDark : _coral,
+              width: isSelected ? 3 : 2,
+            ),
+          ),
+          child: Icon(
+            _icon,
+            size: iconSize,
+            color: isSelected ? Colors.white : _coral,
+          ),
+        ),
+        // Mine indicator
+        if (isMine)
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: _coralDark,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(Icons.star, size: 8, color: Colors.white),
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _IconFab extends StatelessWidget {
+// ---------------- Circle Button ----------------
+class _CircleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final double size;
-  const _IconFab({required this.icon, required this.onTap, this.size = 44});
+
+  const _CircleButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _coral,
+      color: Colors.white,
       shape: const CircleBorder(),
       elevation: 4,
+      shadowColor: Colors.black26,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Center(
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
+        child: Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          child: Icon(icon, color: _coral, size: 22),
         ),
       ),
     );
   }
 }
 
-class _FilterPill extends StatelessWidget {
-  final String emoji;
+// ---------------- Filter Bar ----------------
+class _FilterBar extends StatelessWidget {
+  final String selected;
+  final Map<String, int> counts;
+  final ValueChanged<String> onChanged;
+
+  const _FilterBar({
+    required this.selected,
+    required this.counts,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'Tous',
+            count: counts['all'] ?? 0,
+            icon: Icons.apps,
+            isSelected: selected == 'all',
+            onTap: () => onChanged('all'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: 'Vétérinaires',
+            count: counts['vet'] ?? 0,
+            icon: Icons.medical_services,
+            isSelected: selected == 'vet',
+            onTap: () => onChanged('vet'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: 'Garderies',
+            count: counts['daycare'] ?? 0,
+            icon: Icons.house,
+            isSelected: selected == 'daycare',
+            onTap: () => onChanged('daycare'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: 'Petshops',
+            count: counts['petshop'] ?? 0,
+            icon: Icons.shopping_bag,
+            isSelected: selected == 'petshop',
+            onTap: () => onChanged('petshop'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
   final String label;
-  final bool selected;
+  final int count;
+  final IconData icon;
+  final bool isSelected;
   final VoidCallback onTap;
 
-  const _FilterPill({
-    required this.emoji,
+  const _FilterChip({
     required this.label,
-    required this.selected,
+    required this.count,
+    required this.icon,
+    required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? _coral : Colors.white;
-    final fg = selected ? Colors.white : _coral;
-    final br = selected ? _coral : _coral.withOpacity(.35);
-
     return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(12),
-      elevation: selected ? 4 : 1,
+      color: isSelected ? _coral : Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      elevation: isSelected ? 4 : 2,
+      shadowColor: isSelected ? _coral.withOpacity(0.3) : Colors.black12,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: br),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : _coral,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : _ink,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white.withOpacity(0.2) : _coralLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : _coral,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: DefaultTextStyle(
-            style: TextStyle(color: fg, fontWeight: FontWeight.w800),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
-                Text(label, style: const TextStyle(fontSize: 12, letterSpacing: .2)),
-              ],
-            ),
-          ),
         ),
       ),
     );
   }
 }
 
-class _ProviderSheet extends ConsumerWidget {
-  final Map<String, dynamic> data;
-  const _ProviderSheet({required this.data});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final h = MediaQuery.of(context).size.height;
-    final maxH = (h * 0.34).clamp(190.0, 320.0);
-
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: maxH,
-          minHeight: 200,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          // Un SEUL bouton "Détail" via la mini-card → pas de doublon
-          child: _ProviderMiniCard(provider: data, showDetailOnly: true),
-        ),
-      ),
-    );
-  }
-}
-
-class _SquareAvatar extends StatelessWidget {
-  final String? url;
-  final String initial;
-  final double size;
-  const _SquareAvatar({required this.url, required this.initial, this.size = 64});
-
-  String _fixUrl(String? u) {
-    if (u == null || u.isEmpty) return '';
-    // Force https sur domaine API pour éviter les 404 http
-    if (u.startsWith('http://api.piecespro.com/')) return u.replaceFirst('http://', 'https://');
-    return u;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final u = _fixUrl(url);
-    final radius = BorderRadius.circular(12);
-    if (u.isEmpty) {
-      return Container(
-        width: size, height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: _coralLight, borderRadius: radius),
-        child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w800, color: _ink)),
-      );
-    }
-    return ClipRRect(
-      borderRadius: radius,
-      child: Image.network(
-        u,
-        width: size, height: size, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: size, height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: _coralLight, borderRadius: radius),
-          child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w800, color: _ink)),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProviderMiniCard extends ConsumerWidget {
+// ---------------- Provider Card ----------------
+class _ProviderCard extends ConsumerWidget {
   final Map<String, dynamic> provider;
-  final bool showDetailOnly; // pas d’itinéraire ici
-  const _ProviderMiniCard({required this.provider, this.showDetailOnly = false});
+  final String kind;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ProviderCard({
+    required this.provider,
+    required this.kind,
+    required this.isActive,
+    required this.onTap,
+  });
 
   String? _photoOf(Map<String, dynamic> m) {
     final p1 = (m['photoUrl'] ?? m['avatar'])?.toString();
@@ -534,145 +769,198 @@ class _ProviderMiniCard extends ConsumerWidget {
     return (p2 != null && p2.isNotEmpty) ? p2 : null;
   }
 
-  String _fmtPrice(dynamic v) {
-    if (v == null) return '—';
-    final n = (v is num) ? v.toInt() : int.tryParse('$v');
-    return (n == null) ? '—' : '$n DA';
+  String _formatDistance(double? km) {
+    if (km == null) return '';
+    if (km < 1) return '${(km * 1000).round()} m';
+    return '${km.toStringAsFixed(1)} km';
+  }
+
+  String _getKindLabel(String kind) {
+    switch (kind) {
+      case 'vet': return 'Vétérinaire';
+      case 'daycare': return 'Garderie';
+      case 'petshop': return 'Petshop';
+      default: return 'Établissement';
+    }
+  }
+
+  IconData _getKindIcon(String kind) {
+    switch (kind) {
+      case 'vet': return Icons.medical_services;
+      case 'daycare': return Icons.house;
+      case 'petshop': return Icons.shopping_bag;
+      default: return Icons.location_on;
+    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final api = ref.read(apiProvider);
-    final pid = (provider['id'] ?? '').toString();
     final photo = _photoOf(provider);
-    final name  = (provider['displayName'] ?? 'Professionnel').toString();
-    final bio   = (provider['bio'] ?? '').toString();
+    final name = (provider['displayName'] ?? 'Professionnel').toString();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+    final address = (provider['address'] ?? '').toString();
+    final distKm = (provider['__distKm'] as num?)?.toDouble();
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEFEFEF)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SquareAvatar(url: photo, initial: initial, size: 64),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: api.listServices(pid),
-              builder: (context, snap) {
-                final list = (snap.data ?? const <dynamic>[])
-                    .whereType<Map>()
-                    .map((e) => Map<String, dynamic>.from(e))
-                    .toList();
-                final top = list.take(3).toList();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                    const SizedBox(height: 4),
-                    if (top.isNotEmpty) ...[
-  for (final s in top)
-    Text(
-      '• ${(s['title'] ?? s['name'] ?? 'Consultation').toString()}',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(color: Colors.black54),
-    ),
-  const SizedBox(height: 6),
-],
-
-                    //   '• ${(s['title'] ?? s['name'] ?? 'Consultation').toString()} — ${_fmtPrice(...)}'
-
-                    if (bio.isNotEmpty)
-                      Text(
-                        bio,
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.black87, height: 1.25),
-                      ),
-                  ],
-                );
-              },
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isActive ? _coralLight : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? _coral : Colors.grey[200]!,
+            width: isActive ? 2 : 1,
           ),
-          const SizedBox(width: 8),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: _coral,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              final id = (provider['id'] ?? '').toString();
-              if (id.isNotEmpty) context.push('/explore/vets/$id');
-            },
-            child: const Text('Détail'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-
-class _ProviderCarousel extends StatelessWidget {
-  final PageController pageCtl;
-  final List<Map<String, dynamic>> items;
-  final VoidCallback onClose;
-  final ValueChanged<int> onPageChanged;
-  const _ProviderCarousel({
-    required this.pageCtl,
-    required this.items,
-    required this.onClose,
-    required this.onPageChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 16,
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+          boxShadow: [
+            if (isActive)
+              BoxShadow(
+                color: _coral.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Center(
-                      child: SizedBox(
-                        width: 40, height: 4,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0x22000000),
-                            borderRadius: BorderRadius.all(Radius.circular(2)),
+            // Photo
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 70,
+                height: 70,
+                color: _coralLight,
+                child: photo != null && photo.isNotEmpty
+                    ? Image.network(
+                        photo.startsWith('http://api.')
+                            ? photo.replaceFirst('http://', 'https://')
+                            : photo,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: _coral,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: _coral,
                           ),
                         ),
                       ),
-                    ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _coral.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_getKindIcon(kind), size: 12, color: _coral),
+                            const SizedBox(width: 4),
+                            Text(
+                              _getKindLabel(kind),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: _coral,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      if (distKm != null)
+                        Text(
+                          _formatDistance(distKm),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ],
                   ),
-                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
+                  const SizedBox(height: 6),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: _ink,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
-            SizedBox(
-              height: 210,
-              child: PageView.builder(
-                controller: pageCtl,
-                onPageChanged: onPageChanged,
-                itemCount: items.length,
-                itemBuilder: (ctx, i) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-                  child: _ProviderMiniCard(provider: items[i], showDetailOnly: true),
+            const SizedBox(width: 8),
+            // Arrow - Navigate to details
+            GestureDetector(
+              onTap: () {
+                final id = (provider['id'] ?? '').toString();
+                if (id.isEmpty) return;
+                // Navigate based on kind
+                switch (kind) {
+                  case 'vet':
+                    context.push('/explore/vets/$id');
+                    break;
+                  case 'daycare':
+                    context.push('/explore/daycare/$id');
+                    break;
+                  case 'petshop':
+                    context.push('/explore/petshop/$id');
+                    break;
+                  default:
+                    context.push('/explore/vets/$id');
+                }
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isActive ? _coral : _coralLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 18,
+                  color: isActive ? Colors.white : _coral,
                 ),
               ),
             ),

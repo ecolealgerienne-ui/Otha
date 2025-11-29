@@ -15,6 +15,7 @@ import '../features/auth/user_register_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/otp_screen.dart';
 import '../features/auth/profile_completion_screen.dart';
+import '../features/auth/location_permission_screen.dart';
 import '../features/pro/pro_register_screen.dart';
 
 // Home (client)
@@ -144,6 +145,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/auth/register/pro',
         '/auth/forgot-password',
         '/auth/otp',
+        '/auth/location-permission',
+        '/auth/profile-completion',
+        '/pets/add',  // Onboarding pet après inscription
         '/pro/application/submitted',  // Page publique pour les PRO en attente
         '/pro/application/rejected',    // Page publique pour les PRO rejetés
       ];
@@ -279,6 +283,11 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/auth/profile-completion',
         name: 'profileCompletion',
         builder: (context, state) => const ProfileCompletionScreen(),
+      ),
+      GoRoute(
+        path: '/auth/location-permission',
+        name: 'locationPermission',
+        builder: (context, state) => const LocationPermissionScreen(),
       ),
 
       // -------- States d'application PRO --------
