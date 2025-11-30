@@ -12,9 +12,8 @@ const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
 
-// Storage keys for checkout info
-const _kCheckoutPhone = 'checkout_phone';
-const _kCheckoutAddress = 'checkout_address';
+// Storage keys for checkout info (shared with user_settings_screen)
+const _kDeliveryAddress = 'user_delivery_address';
 const _kCheckoutNotes = 'checkout_notes';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -31,11 +30,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _phoneController = TextEditingController();
   final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
+  bool _loadingProfile = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedInfo();
+    _loadProfileAndSavedInfo();
   }
 
   @override
@@ -46,26 +46,59 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.dispose();
   }
 
-  /// Load previously saved checkout info
-  Future<void> _loadSavedInfo() async {
-    final phone = await _storage.read(key: _kCheckoutPhone);
-    final address = await _storage.read(key: _kCheckoutAddress);
-    final notes = await _storage.read(key: _kCheckoutNotes);
+  /// Load user profile data first, then fallback to saved checkout info
+  Future<void> _loadProfileAndSavedInfo() async {
+    setState(() => _loadingProfile = true);
+
+    try {
+      // 1. Try to get phone from user profile
+      final api = ref.read(apiProvider);
+      final me = await api.me();
+      final profilePhone = (me['phone'] ?? '').toString();
+
+      if (profilePhone.isNotEmpty) {
+        _phoneController.text = profilePhone;
+      }
+
+      // 2. Load delivery address from storage (shared with settings)
+      final savedAddress = await _storage.read(key: _kDeliveryAddress);
+      if (savedAddress != null && savedAddress.isNotEmpty) {
+        _addressController.text = savedAddress;
+      }
+
+      // 3. Load notes from storage
+      final savedNotes = await _storage.read(key: _kCheckoutNotes);
+      if (savedNotes != null && savedNotes.isNotEmpty) {
+        _notesController.text = savedNotes;
+      }
+    } catch (e) {
+      // If profile fetch fails, just continue with empty fields
+      debugPrint('Failed to load profile: $e');
+    }
 
     if (mounted) {
-      setState(() {
-        if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
-        if (address != null && address.isNotEmpty) _addressController.text = address;
-        if (notes != null && notes.isNotEmpty) _notesController.text = notes;
-      });
+      setState(() => _loadingProfile = false);
     }
   }
 
   /// Save checkout info for future orders
   Future<void> _saveCheckoutInfo() async {
-    await _storage.write(key: _kCheckoutPhone, value: _phoneController.text.trim());
-    await _storage.write(key: _kCheckoutAddress, value: _addressController.text.trim());
+    // Save address (shared key with settings)
+    await _storage.write(key: _kDeliveryAddress, value: _addressController.text.trim());
     await _storage.write(key: _kCheckoutNotes, value: _notesController.text.trim());
+
+    // Also update phone in profile if changed
+    try {
+      final api = ref.read(apiProvider);
+      final me = await api.me();
+      final currentPhone = (me['phone'] ?? '').toString();
+
+      if (_phoneController.text.trim() != currentPhone && _phoneController.text.trim().isNotEmpty) {
+        await api.meUpdate(phone: _phoneController.text.trim());
+      }
+    } catch (_) {
+      // Ignore profile update errors
+    }
   }
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
@@ -152,9 +185,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         appBar: AppBar(
           title: const Text('Finaliser la commande'),
         ),
-        body: cart.isEmpty
-            ? _buildEmptyCart()
-            : Form(
+        body: _loadingProfile
+            ? const Center(child: CircularProgressIndicator(color: _coral))
+            : cart.isEmpty
+                ? _buildEmptyCart()
+                : Form(
                 key: _formKey,
                 child: Column(
                   children: [
@@ -162,6 +197,43 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       child: ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
+                          // Info banner
+                          if (_phoneController.text.isNotEmpty || _addressController.text.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _coralSoft,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _coral.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: _coral, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Informations préremplies depuis votre profil',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _coral,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => context.push('/profile/settings'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: _coral,
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: const Size(50, 30),
+                                    ),
+                                    child: const Text('Modifier', style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
+                              ),
+                            ),
+
                           // Phone number
                           _buildSection(
                             icon: Icons.phone_outlined,
