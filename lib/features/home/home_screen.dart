@@ -49,8 +49,8 @@ bool _adoptionCheckDone = false;
 // Tracker si on a déjà vérifié les confirmations de bookings (une fois par session)
 bool _bookingConfirmationCheckDone = false;
 
-// Tracker si on a déjà vérifié le statut de restriction (une fois par session)
-bool _trustRestrictionCheckDone = false;
+// Tracker si on a déjà montré la popup de restriction CETTE session (pour éviter spam au refresh)
+bool _trustRestrictionShownThisSession = false;
 
 // Provider pour charger les notifications depuis le backend
 final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
@@ -636,36 +636,45 @@ class HomeScreen extends ConsumerWidget {
 
   /// Verifie si l'utilisateur est restreint et affiche un popup avec le timer
   Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
-    // Ne verifier qu'une seule fois par session
-    if (_trustRestrictionCheckDone) return;
-    _trustRestrictionCheckDone = true;
+    // Eviter le spam si deja montre cette session (refresh, etc.)
+    if (_trustRestrictionShownThisSession) return;
 
     try {
       final api = ref.read(apiProvider);
       final trustInfo = await api.checkUserCanBook();
 
-      final trustStatus = (trustInfo['trustStatus'] ?? '').toString();
-      final restrictedUntilStr = (trustInfo['restrictedUntil'] ?? '').toString();
+      final trustStatus = (trustInfo['trustStatus'] ?? '').toString().toUpperCase();
+      final restrictedUntilRaw = trustInfo['restrictedUntil'];
 
-      if (trustStatus == 'RESTRICTED' && restrictedUntilStr.isNotEmpty && context.mounted) {
-        final restrictedUntil = DateTime.tryParse(restrictedUntilStr);
-        if (restrictedUntil != null && restrictedUntil.isAfter(DateTime.now())) {
-          // Calculer le temps restant
-          final remaining = restrictedUntil.difference(DateTime.now());
-          final days = remaining.inDays;
-          final hours = remaining.inHours % 24;
-          final minutes = remaining.inMinutes % 60;
+      // Parser restrictedUntil (peut etre String ISO ou deja un DateTime serialise)
+      DateTime? restrictedUntil;
+      if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
+        restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
+      } else if (restrictedUntilRaw is DateTime) {
+        restrictedUntil = restrictedUntilRaw;
+      }
 
-          String timerText;
-          if (days > 0) {
-            timerText = '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
-          } else if (hours > 0) {
-            timerText = '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
-          } else {
-            timerText = '$minutes minute${minutes > 1 ? 's' : ''}';
-          }
+      debugPrint('[TRUST] Status: $trustStatus, RestrictedUntil: $restrictedUntil');
 
-          await showDialog(
+      if (trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now()) && context.mounted) {
+        _trustRestrictionShownThisSession = true; // Marquer comme montre
+
+        // Calculer le temps restant
+        final remaining = restrictedUntil.difference(DateTime.now());
+        final days = remaining.inDays;
+        final hours = remaining.inHours % 24;
+        final minutes = remaining.inMinutes % 60;
+
+        String timerText;
+        if (days > 0) {
+          timerText = '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+        } else if (hours > 0) {
+          timerText = '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+        } else {
+          timerText = '$minutes minute${minutes > 1 ? 's' : ''}';
+        }
+
+        await showDialog(
             context: context,
             barrierDismissible: true,
             builder: (ctx) => AlertDialog(
@@ -756,10 +765,9 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
           );
-        }
       }
     } catch (e) {
-      // Ignorer les erreurs silencieusement
+      debugPrint('[TRUST] Error checking trust status: $e');
     }
   }
 
