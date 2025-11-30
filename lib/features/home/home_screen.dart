@@ -52,6 +52,13 @@ bool _bookingConfirmationCheckDone = false;
 // Tracker si on a déjà montré la popup de restriction CETTE session (pour éviter spam au refresh)
 bool _trustRestrictionShownThisSession = false;
 
+/// Reset tous les flags de session (appelé au logout)
+void resetHomeSessionFlags() {
+  _adoptionCheckDone = false;
+  _bookingConfirmationCheckDone = false;
+  _trustRestrictionShownThisSession = false;
+}
+
 // Provider pour charger les notifications depuis le backend
 final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
   try {
