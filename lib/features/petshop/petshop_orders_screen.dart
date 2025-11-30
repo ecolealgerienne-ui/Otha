@@ -341,6 +341,9 @@ class _OrderCard extends ConsumerWidget {
     final userName = (user['firstName'] ?? 'Client').toString();
     final userPhone = phone.isNotEmpty ? phone : (user['phone'] ?? '').toString();
 
+    // TRUST SYSTEM: Détection nouveau client
+    final isFirstBooking = user['isFirstBooking'] == true;
+
     final statusInfo = _getStatusInfo(status);
 
     return Container(
@@ -387,13 +390,44 @@ class _OrderCard extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              userName,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
+                            Row(
+                            children: [
+                              Text(
+                                userName,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
                               ),
-                            ),
+                              // TRUST SYSTEM: Badge "Nouveau client"
+                              if (isFirstBooking) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.orange.shade300),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.new_releases, size: 9, color: Colors.orange.shade700),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'Nouveau',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.orange.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                           ],
                         ),
                       ),

@@ -378,14 +378,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   icon: Icons.calendar_today,
                   title: 'Mes rendez-vous',
                   subtitle: 'Voir tous mes rendez-vous',
-                  onTap: () => context.push('/bookings'),
-                ),
-                const SizedBox(height: 10),
-                _buildQuickAccessCard(
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'Mes commandes',
-                  subtitle: 'Historique des commandes petshop',
-                  onTap: () => context.push('/petshop/orders'),
+                  onTap: () => context.push('/me/bookings'),
                 ),
                 const SizedBox(height: 10),
                 _buildQuickAccessCard(

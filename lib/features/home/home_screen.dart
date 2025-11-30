@@ -692,7 +692,12 @@ class HomeScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 slivers: [
                   const SliverToBoxAdapter(child: _HomeBootstrap()),
-                  SliverToBoxAdapter(child: _Header(isPro: isPro, name: greetingName, avatarUrl: avatarUrl)),
+                  SliverToBoxAdapter(child: _Header(
+                    isPro: isPro,
+                    name: greetingName,
+                    avatarUrl: avatarUrl,
+                    trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
+                  )),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
                   // ▼ Banners de RDV/réservations (chacun gère son propre espacement)
@@ -739,10 +744,11 @@ class HomeScreen extends ConsumerWidget {
 
 /// -------------------- Header --------------------
 class _Header extends StatelessWidget {
-  const _Header({required this.isPro, required this.name, this.avatarUrl});
+  const _Header({required this.isPro, required this.name, this.avatarUrl, this.trustStatus});
   final bool isPro;
   final String name;
   final String? avatarUrl;
+  final String? trustStatus;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -782,14 +788,45 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(fontSize: 18, color: Colors.black87),
-                    children: [
-                      const TextSpan(text: 'Bienvenue, '),
-                      TextSpan(text: display, style: TextStyle(fontWeight: FontWeight.w800, color: coral)),
+                Row(
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 18, color: Colors.black87),
+                        children: [
+                          const TextSpan(text: 'Bienvenue, '),
+                          TextSpan(text: display, style: TextStyle(fontWeight: FontWeight.w800, color: coral)),
+                        ],
+                      ),
+                    ),
+                    // ✅ TRUST SYSTEM: Badge "Vérifié" en rose
+                    if (trustStatus == 'VERIFIED') ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE4EC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFF36C6C).withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified, size: 12, color: const Color(0xFFF36C6C)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Vérifié',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFF36C6C),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
                 if (subtitle != null)
                   Padding(

@@ -3457,4 +3457,38 @@ final hay = [
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return Map<String, dynamic>.from(data as Map);
   }
+
+  // ==================== SYSTÈME DE CONFIANCE (ANTI-TROLL) ====================
+
+  /// CLIENT: Vérifier si l'utilisateur peut réserver
+  /// Retourne { canBook, reason?, trustStatus, isFirstBooking?, restrictedUntil? }
+  Future<Map<String, dynamic>> checkUserCanBook() async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/me/trust-status'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT: Vérifier si l'utilisateur peut annuler un RDV
+  /// Retourne { canCancel, reason?, isNoShow? }
+  Future<Map<String, dynamic>> checkUserCanCancel(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/$bookingId/can-cancel'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// CLIENT: Vérifier si l'utilisateur peut modifier un RDV
+  /// Retourne { canReschedule, reason? }
+  Future<Map<String, dynamic>> checkUserCanReschedule(String bookingId) async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/$bookingId/can-reschedule'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// PRO: Récupérer les infos de confiance d'un client
+  /// Retourne { trustStatus, isFirstBooking, noShowCount, totalCompletedBookings }
+  Future<Map<String, dynamic>> getUserTrustInfo(String userId) async {
+    final res = await _authRetry(() async => await _dio.get('/bookings/user/$userId/trust-info'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
 }

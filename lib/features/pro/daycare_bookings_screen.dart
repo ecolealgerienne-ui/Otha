@@ -330,6 +330,9 @@ class _BookingCard extends StatelessWidget {
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm');
     final timeFormat = DateFormat('HH:mm');
 
+    // TRUST SYSTEM: Détection nouveau client
+    final isFirstBooking = user?['isFirstBooking'] == true;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -339,9 +342,40 @@ class _BookingCard extends StatelessWidget {
               backgroundColor: _getStatusColor(status).withOpacity(0.2),
               child: Icon(Icons.pets, color: _getStatusColor(status)),
             ),
-            title: Text(
-              pet?['name'] ?? 'Animal',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            title: Row(
+              children: [
+                Text(
+                  pet?['name'] ?? 'Animal',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                // TRUST SYSTEM: Badge "Nouveau client"
+                if (isFirstBooking) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.new_releases, size: 10, color: Colors.orange.shade700),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Nouveau',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
             subtitle: Text(
               '${user?['firstName']} ${user?['lastName']}\n${user?['phone'] ?? ''}',

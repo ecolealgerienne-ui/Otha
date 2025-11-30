@@ -423,8 +423,11 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
 
     final displayName = (m['user']?['displayName'] ?? 'Client').toString();
     final phone = (m['user']?['phone'] ?? '').toString().trim();
-    final petType = (m['pet']?['label'] ?? '').toString().trim(); // “type d’animal”
+    final petType = (m['pet']?['label'] ?? '').toString().trim(); // "type d'animal"
     final petName = (m['pet']?['name'] ?? '').toString().trim();
+
+    // TRUST SYSTEM: Détection nouveau client
+    final isFirstBooking = m['user']?['isFirstBooking'] == true;
 
     final canShowPhone = status == 'CONFIRMED' || status == 'COMPLETED';
     final hasPhone = phone.isNotEmpty;
@@ -481,7 +484,7 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // statut + prix éventuel
+                  // statut + prix éventuel + badge nouveau client
                   Row(
                     children: [
                       Container(
@@ -504,6 +507,33 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(priceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                      // TRUST SYSTEM: Badge "Nouveau client"
+                      if (isFirstBooking) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.orange.shade300, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.new_releases, size: 12, color: Colors.orange.shade700),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Nouveau',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orange.shade700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                       const Spacer(),
