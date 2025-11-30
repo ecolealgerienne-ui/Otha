@@ -1,4 +1,4 @@
-// lib/features/agenda/provider_agenda_screen.dart
+// lib/features/pro/pro_provider_agenda_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +10,8 @@ import 'pro_verify_otp_screen.dart';
 
 /// ---------- Args immuables pour le provider family ----------
 class _AgendaArgs {
-  final String fromIsoUtc; // ISO UTC (inclus)
-  final String toIsoUtc;   // ISO UTC (exclu)
+  final String fromIsoUtc;
+  final String toIsoUtc;
   const _AgendaArgs(this.fromIsoUtc, this.toIsoUtc);
 
   @override
@@ -23,7 +23,7 @@ class _AgendaArgs {
   int get hashCode => Object.hash(fromIsoUtc, toIsoUtc);
 }
 
-/// ---------- Provider family: charge l’agenda d’une journée ----------
+/// ---------- Provider family: charge l'agenda d'une journée ----------
 final _agendaProvider =
     FutureProvider.autoDispose.family<List<Map<String, dynamic>>, _AgendaArgs>((ref, args) async {
   final api = ref.read(apiProvider);
@@ -31,7 +31,7 @@ final _agendaProvider =
   return rows.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
-/// ---------- Ecran Agenda ----------
+/// ---------- Ecran Agenda Timeline ----------
 class ProviderAgendaScreen extends ConsumerStatefulWidget {
   const ProviderAgendaScreen({super.key});
 
@@ -41,52 +41,36 @@ class ProviderAgendaScreen extends ConsumerStatefulWidget {
 
 class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
     with WidgetsBindingObserver {
-  // Base = jour affiché le plus à gauche du bandeau (UTC minuit)
-  late DateTime _baseUtc;
-  // Index du jour sélectionné (0..6)
-  int _dayIndex = 0;
+  late PageController _pageController;
+  late DateTime _selectedDate;
 
-  // Focus transmis depuis Home -> { focusIso, bookingId }
-  String? _focusIso;
+  // Focus transmis depuis Home
   String? _focusBookingId;
 
-  // Scroll + clés pour auto-scroll vers un RDV précis
-  final ScrollController _listCtl = ScrollController();
+  // Scroll pour timeline
+  final ScrollController _scrollCtl = ScrollController();
   final Map<String, GlobalKey> _rowKeys = {};
-
-  // Filtre d’état (optionnel, pour le confort)
-  String _statusFilter = 'ALL'; // ALL | PENDING | CONFIRMED | COMPLETED | CANCELLED
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Par défaut: aujourd’hui (minuit UTC)
-    final now = DateTime.now().toUtc();
-    _baseUtc = DateTime.utc(now.year, now.month, now.day);
+    _selectedDate = DateTime.now();
+    _pageController = PageController(initialPage: 500); // Centre pour swipe infini
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Récupère l’extra éventuel pour centrer sur un créneau précis
     final extra = GoRouterState.of(context).extra;
     if (extra is Map) {
       final iso = extra['focusIso']?.toString();
       final bid = extra['bookingId']?.toString();
       if (iso != null && iso.isNotEmpty) {
-        _focusIso = iso;
-        _focusBookingId = (bid?.isNotEmpty ?? false) ? bid : null;
-
-        // Place la base directement sur le jour du focus
-        DateTime? f;
         try {
-          f = DateTime.parse(iso).toUtc();
+          _selectedDate = DateTime.parse(iso);
+          _focusBookingId = bid;
         } catch (_) {}
-        if (f != null) {
-          _baseUtc = DateTime.utc(f.year, f.month, f.day);
-          _dayIndex = 0; // le jour du focus = jour sélectionné
-        }
       }
     }
   }
@@ -94,258 +78,335 @@ class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _listCtl.dispose();
+    _pageController.dispose();
+    _scrollCtl.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Re-fetch silencieux à la reprise (ex. après annulation côté client)
       _refreshDay();
     }
   }
 
-  _AgendaArgs _argsForSelectedDay() {
-    final fromUtc = _baseUtc.add(Duration(days: _dayIndex));
+  DateTime _dateForPage(int page) {
+    final diff = page - 500;
+    return DateTime.now().add(Duration(days: diff));
+  }
+
+  _AgendaArgs _argsForDate(DateTime date) {
+    final fromUtc = DateTime.utc(date.year, date.month, date.day);
     final toUtc = fromUtc.add(const Duration(days: 1));
     return _AgendaArgs(fromUtc.toIso8601String(), toUtc.toIso8601String());
   }
 
   Future<void> _refreshDay() async {
-    final args = _argsForSelectedDay();
-    // Invalide puis attend la fin du nouveau fetch
+    final args = _argsForDate(_selectedDate);
     ref.invalidate(_agendaProvider(args));
     await ref.read(_agendaProvider(args).future);
   }
 
-  Future<void> _scrollToFocusedIfNeeded(List<Map<String, dynamic>> items) async {
-    if (_focusIso == null && _focusBookingId == null) return;
+  void _goToToday() {
+    setState(() => _selectedDate = DateTime.now());
+    _pageController.animateToPage(
+      500,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
-    // 1) Si on a un bookingId -> scroll directement sur la ligne correspondante
-    if (_focusBookingId != null) {
-      final key = _rowKeys[_focusBookingId!];
-      if (key != null && key.currentContext != null) {
-        await Future.delayed(const Duration(milliseconds: 50));
-        await Scrollable.ensureVisible(
-          key.currentContext!,
-          alignment: 0.15,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-        return;
-      }
-    }
+  void _previousDay() {
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
-    // 2) Sinon, on tente via l’ISO
-    if (_focusIso != null) {
-      final idx = items.indexWhere((m) {
-        final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
-        return iso == _focusIso;
-      });
-      if (idx >= 0) {
-        await _listCtl.animateTo(
-          (idx * 108).toDouble(), // hauteur moyenne d’une tuile
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    }
+  void _nextDay() {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final args = _argsForSelectedDay();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header avec navigation
+            _AgendaHeader(
+              date: _selectedDate,
+              onPrevious: _previousDay,
+              onNext: _nextDay,
+              onToday: _goToToday,
+            ),
+
+            // Timeline avec PageView pour swipe
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (page) {
+                  setState(() => _selectedDate = _dateForPage(page));
+                },
+                itemBuilder: (context, page) {
+                  final date = _dateForPage(page);
+                  return _DayTimeline(
+                    date: date,
+                    args: _argsForDate(date),
+                    scrollController: _scrollCtl,
+                    focusBookingId: _focusBookingId,
+                    rowKeys: _rowKeys,
+                    onRefresh: _refreshDay,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ---------- Header avec date et navigation ----------
+class _AgendaHeader extends StatelessWidget {
+  final DateTime date;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onToday;
+
+  const _AgendaHeader({
+    required this.date,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onToday,
+  });
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dayName = DateFormat('EEEE', 'fr_FR').format(date);
+    final dayNum = DateFormat('d MMMM', 'fr_FR').format(date);
+    final capitalizedDay = dayName[0].toUpperCase() + dayName.substring(1);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Bouton retour
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFF3F4F6),
+              padding: const EdgeInsets.all(10),
+            ),
+          ),
+
+          // Navigation jour
+          IconButton(
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left, size: 28),
+          ),
+
+          // Date centrale
+          Expanded(
+            child: GestureDetector(
+              onTap: onToday,
+              child: Column(
+                children: [
+                  Text(
+                    capitalizedDay,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _isToday ? const Color(0xFFF36C6C) : Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    dayNum,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Navigation jour
+          IconButton(
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right, size: 28),
+          ),
+
+          // Bouton Aujourd'hui
+          TextButton.icon(
+            onPressed: onToday,
+            icon: Icon(
+              Icons.today,
+              size: 18,
+              color: _isToday ? Colors.grey : const Color(0xFFF36C6C),
+            ),
+            label: Text(
+              'Auj.',
+              style: TextStyle(
+                color: _isToday ? Colors.grey : const Color(0xFFF36C6C),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: _isToday ? const Color(0xFFF3F4F6) : const Color(0xFFFFEEF0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ---------- Timeline d'une journée ----------
+class _DayTimeline extends ConsumerWidget {
+  final DateTime date;
+  final _AgendaArgs args;
+  final ScrollController scrollController;
+  final String? focusBookingId;
+  final Map<String, GlobalKey> rowKeys;
+  final Future<void> Function() onRefresh;
+
+  const _DayTimeline({
+    required this.date,
+    required this.args,
+    required this.scrollController,
+    required this.focusBookingId,
+    required this.rowKeys,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_agendaProvider(args));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Agenda'),
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            tooltip: 'Aujourd’hui',
-            onPressed: () async {
-              final now = DateTime.now().toUtc();
-              setState(() {
-                _baseUtc = DateTime.utc(now.year, now.month, now.day);
-                _dayIndex = 0;
-              });
-              await _refreshDay();
-            },
-            icon: const Icon(Icons.today_outlined),
-          ),
-        ],
+    return async.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFF36C6C)),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 6),
-          _DayStrip(
-            baseUtc: _baseUtc,
-            index: _dayIndex,
-            onChanged: (i) async {
-              setState(() => _dayIndex = i);
-              await _refreshDay();
-            },
-            onPrevBase: () async {
-              setState(() => _baseUtc = _baseUtc.subtract(const Duration(days: 7)));
-              await _refreshDay();
-            },
-            onNextBase: () async {
-              setState(() => _baseUtc = _baseUtc.add(const Duration(days: 7)));
-              await _refreshDay();
-            },
-          ),
-          const SizedBox(height: 6),
-          _StatusFilterBar(
-            value: _statusFilter,
-            onChanged: (v) => setState(() => _statusFilter = v),
-          ),
-          const Divider(height: 1),
-
-          // -------- Liste des rendez-vous du jour sélectionné --------
-          Expanded(
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erreur: $e')),
-              data: (itemsRaw) {
-                // Tri + filtre d’état
-                final items = [...itemsRaw];
-                items.sort((a, b) {
-                  final A = DateTime.parse((a['scheduledAt'] ?? a['scheduled_at']).toString());
-                  final B = DateTime.parse((b['scheduledAt'] ?? b['scheduled_at']).toString());
-                  return A.compareTo(B);
-                });
-                final filtered = (_statusFilter == 'ALL')
-                    ? items
-                    : items.where((m) => (m['status'] ?? '').toString() == _statusFilter).toList();
-
-                // Prépare les clés pour auto-scroll
-                _rowKeys.clear();
-                for (final m in filtered) {
-                  final id = (m['id'] ?? '').toString();
-                  if (id.isNotEmpty) _rowKeys[id] = GlobalKey();
-                }
-
-                // Auto-scroll si focus
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToFocusedIfNeeded(filtered);
-                });
-
-                if (filtered.isEmpty) {
-                  return const Center(child: Text('Aucun rendez-vous.'));
-                }
-
-                return RefreshIndicator(
-                  onRefresh: _refreshDay, // ⬅️ attend vraiment l’API
-                  child: ListView.separated(
-                    controller: _listCtl,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      final m = filtered[i];
-                      final id = (m['id'] ?? '').toString();
-                      final isFocus = (_focusBookingId != null && id == _focusBookingId);
-
-                      return _BookingTile(
-                        key: _rowKeys[id],
-                        m: m,
-                        highlight: isFocus,
-                        refresh: _refreshDay, // ⬅️ passe la vraie fonction asynchrone
-                      );
-                    },
-                  ),
-                );
-              },
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text('Erreur: $e', style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// ---------- Bandeau des jours (7 jours) + flèches semaine ----------
-class _DayStrip extends StatelessWidget {
-  const _DayStrip({
-    required this.baseUtc,
-    required this.index,
-    required this.onChanged,
-    required this.onPrevBase,
-    required this.onNextBase,
-  });
-  final DateTime baseUtc;
-  final int index;
-  final ValueChanged<int> onChanged;
-  final Future<void> Function() onPrevBase;
-  final Future<void> Function() onNextBase;
-
-  @override
-  Widget build(BuildContext context) {
-    final days = List.generate(7, (i) => baseUtc.add(Duration(days: i)).toLocal());
-
-    return Row(
-      children: [
-        IconButton(onPressed: onPrevBase, icon: const Icon(Icons.chevron_left)),
-        Expanded(
-          child: SizedBox(
-            height: 66,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              itemCount: days.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final d = days[i];
-                final isSel = i == index;
-                return ChoiceChip(
-                  label: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(DateFormat('EEE', 'fr_FR').format(d), style: const TextStyle(fontSize: 12)),
-                      Text(
-                        DateFormat('d MMM', 'fr_FR').format(d),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  selected: isSel,
-                  onSelected: (_) => onChanged(i),
-                );
-              },
-            ),
-          ),
+          ],
         ),
-        IconButton(onPressed: onNextBase, icon: const Icon(Icons.chevron_right)),
-      ],
+      ),
+      data: (items) => _buildTimeline(context, items),
     );
   }
-}
 
-/// ---------- Barre de filtres d’état ----------
-class _StatusFilterBar extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-  const _StatusFilterBar({required this.value, required this.onChanged});
+  Widget _buildTimeline(BuildContext context, List<Map<String, dynamic>> items) {
+    // Trier par heure
+    final sorted = [...items];
+    sorted.sort((a, b) {
+      final A = DateTime.parse((a['scheduledAt'] ?? a['scheduled_at']).toString());
+      final B = DateTime.parse((b['scheduledAt'] ?? b['scheduled_at']).toString());
+      return A.compareTo(B);
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    final items = const ['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
-    return SizedBox(
-      height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final v = items[i];
-          final sel = v == value;
-          return ChoiceChip(
-            label: Text(v),
-            selected: sel,
-            onSelected: (_) => onChanged(v),
+    // Grouper par heure
+    final Map<int, List<Map<String, dynamic>>> byHour = {};
+    for (final item in sorted) {
+      final iso = (item['scheduledAt'] ?? item['scheduled_at']).toString();
+      final dt = DateTime.parse(iso);
+      final hour = dt.hour;
+      byHour.putIfAbsent(hour, () => []).add(item);
+    }
+
+    // Heures de travail (8h - 20h)
+    const startHour = 8;
+    const endHour = 20;
+
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: const Color(0xFFF36C6C),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 100),
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.event_available, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucun rendez-vous',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Votre journée est libre',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: const Color(0xFFF36C6C),
+      child: ListView.builder(
+        controller: scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        itemCount: endHour - startHour,
+        itemBuilder: (context, index) {
+          final hour = startHour + index;
+          final bookings = byHour[hour] ?? [];
+
+          return _TimeSlot(
+            hour: hour,
+            bookings: bookings,
+            focusBookingId: focusBookingId,
+            rowKeys: rowKeys,
+            onRefresh: onRefresh,
           );
         },
       ),
@@ -353,52 +414,153 @@ class _StatusFilterBar extends StatelessWidget {
   }
 }
 
-/// ---------- Tuile RDV “timeline-like” ----------
-class _BookingTile extends ConsumerStatefulWidget {
-  const _BookingTile({
-    super.key,
-    required this.m,
-    required this.refresh,
-    this.highlight = false,
+/// ---------- Slot horaire avec ses RDV ----------
+class _TimeSlot extends StatelessWidget {
+  final int hour;
+  final List<Map<String, dynamic>> bookings;
+  final String? focusBookingId;
+  final Map<String, GlobalKey> rowKeys;
+  final Future<void> Function() onRefresh;
+
+  const _TimeSlot({
+    required this.hour,
+    required this.bookings,
+    required this.focusBookingId,
+    required this.rowKeys,
+    required this.onRefresh,
   });
-  final Map<String, dynamic> m;
-  final Future<void> Function() refresh; // ⬅️ asynchrone pour await le re-fetch
-  final bool highlight;
 
   @override
-  ConsumerState<_BookingTile> createState() => _BookingTileState();
+  Widget build(BuildContext context) {
+    final timeStr = '${hour.toString().padLeft(2, '0')}:00';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Colonne heure
+          SizedBox(
+            width: 50,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                timeStr,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: bookings.isNotEmpty ? Colors.black87 : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ),
+
+          // Ligne + contenu
+          Expanded(
+            child: Column(
+              children: [
+                if (bookings.isEmpty)
+                  Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...bookings.map((m) {
+                    final id = (m['id'] ?? '').toString();
+                    final key = rowKeys.putIfAbsent(id, () => GlobalKey());
+                    final isFocus = focusBookingId == id;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 8),
+                      child: _BookingCard(
+                        key: key,
+                        m: m,
+                        highlight: isFocus,
+                        onRefresh: onRefresh,
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _BookingTileState extends ConsumerState<_BookingTile> {
+/// ---------- Carte RDV compacte ----------
+class _BookingCard extends ConsumerStatefulWidget {
+  final Map<String, dynamic> m;
+  final bool highlight;
+  final Future<void> Function() onRefresh;
+
+  const _BookingCard({
+    super.key,
+    required this.m,
+    required this.onRefresh,
+    this.highlight = false,
+  });
+
+  @override
+  ConsumerState<_BookingCard> createState() => _BookingCardState();
+}
+
+class _BookingCardState extends ConsumerState<_BookingCard> {
   bool _busy = false;
 
   Future<void> _setStatus(String status) async {
     setState(() => _busy = true);
     try {
       final id = widget.m['id'].toString();
-
-      // 1) Appel serveur
       await ref.read(apiProvider).providerSetStatus(bookingId: id, status: status);
-
-      // 2) Update optimiste local pour feedback immédiat
-      setState(() {
-        widget.m['status'] = status;
-      });
-
-      // 3) Puis vrai re-fetch de la journée (attendu)
-      await widget.refresh();
+      widget.m['status'] = status;
+      await widget.onRefresh();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Statut mis à jour: $status')),
+          SnackBar(
+            content: Text(_statusMessage(status)),
+            backgroundColor: _statusColor(status),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  String _statusMessage(String status) {
+    switch (status) {
+      case 'CONFIRMED': return 'RDV confirmé ✓';
+      case 'COMPLETED': return 'RDV terminé ✓';
+      case 'CANCELLED': return 'RDV annulé';
+      default: return 'Statut mis à jour';
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'PENDING': return const Color(0xFFFFC857);
+      case 'CONFIRMED': return const Color(0xFF43AA8B);
+      case 'COMPLETED': return const Color(0xFF577590);
+      case 'CANCELLED': return const Color(0xFF8D99AE);
+      default: return Colors.grey;
     }
   }
 
@@ -406,224 +568,320 @@ class _BookingTileState extends ConsumerState<_BookingTile> {
   Widget build(BuildContext context) {
     final m = widget.m;
 
+    // Parse données
     final iso = (m['scheduledAt'] ?? m['scheduled_at']).toString();
     DateTime? dt;
-    try {
-      dt = DateTime.parse(iso).toUtc(); // UTC naïf : 8h UTC = 8h réel
-    } catch (_) {}
-    final time = dt != null ? DateFormat('HH:mm', 'fr_FR').format(dt) : '--:--';
-    final dayTxt = dt != null ? DateFormat('EEE d MMM', 'fr_FR').format(dt) : '—';
+    try { dt = DateTime.parse(iso); } catch (_) {}
+    final time = dt != null ? DateFormat('HH:mm').format(dt) : '--:--';
 
     final status = (m['status'] ?? '').toString();
+    final statusColor = _statusColor(status);
 
-    // Champs renvoyés par le back : see providerAgenda()
-    final serviceTitle = (m['service']?['title'] ?? 'Service').toString();
+    final serviceTitle = (m['service']?['title'] ?? 'Consultation').toString();
     final priceNum = m['service']?['price'];
     final priceLabel = (priceNum is num) ? '${priceNum.round()} DA' : null;
 
     final displayName = (m['user']?['displayName'] ?? 'Client').toString();
     final phone = (m['user']?['phone'] ?? '').toString().trim();
-    final petType = (m['pet']?['label'] ?? '').toString().trim(); // "type d'animal"
+    final petType = (m['pet']?['label'] ?? '').toString().trim();
     final petName = (m['pet']?['name'] ?? '').toString().trim();
 
-    // TRUST SYSTEM: Détection nouveau client
     final isFirstBooking = m['user']?['isFirstBooking'] == true;
-
     final canShowPhone = status == 'CONFIRMED' || status == 'COMPLETED';
-    final hasPhone = phone.isNotEmpty;
-
-    Color statusColor(String s) {
-      switch (s) {
-        case 'PENDING':
-          return const Color(0xFFFFC857);
-        case 'CONFIRMED':
-          return const Color(0xFF43AA8B);
-        case 'COMPLETED':
-          return const Color(0xFF577590);
-        case 'CANCELLED':
-          return const Color(0xFF8D99AE);
-        default:
-          return Colors.grey;
-      }
-    }
-
-    final sc = statusColor(status);
-    final subtle = Colors.black.withOpacity(.7);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: widget.highlight ? Border.all(color: const Color(0xFF2E7DFF), width: 2) : null,
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 6))],
+        borderRadius: BorderRadius.circular(12),
+        border: widget.highlight
+            ? Border.all(color: const Color(0xFF2E7DFF), width: 2)
+            : Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // colonne horaire
-            Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF4FF),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(time, style: const TextStyle(fontWeight: FontWeight.w900)),
-                ),
-                const SizedBox(height: 6),
-                Text(dayTxt, style: TextStyle(fontSize: 12, color: Colors.black.withOpacity(.6))),
-              ],
+            // Barre colorée latérale
+            Container(
+              width: 5,
+              height: double.infinity,
+              constraints: const BoxConstraints(minHeight: 90),
+              color: statusColor,
             ),
-            const SizedBox(width: 12),
 
-            // contenu
+            // Contenu
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // statut + prix éventuel + badge nouveau client
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: sc.withOpacity(.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(fontWeight: FontWeight.w700, color: sc, fontSize: 12),
-                        ),
-                      ),
-                      if (priceLabel != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(priceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                        ),
-                      ],
-                      // TRUST SYSTEM: Badge "Nouveau client"
-                      if (isFirstBooking) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.orange.shade300, width: 1),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.new_releases, size: 12, color: Colors.orange.shade700),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Nouveau',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.orange.shade700,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-                  Text(serviceTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-
-                  // Ligne “Client • Animal”
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      [
-                        displayName,
-                        if (petType.isNotEmpty) '• $petType',
-                        if (petName.isNotEmpty) '($petName)',
-                      ].join(' '),
-                      style: TextStyle(color: subtle),
-                    ),
-                  ),
-
-                  // Téléphone — UNIQUEMENT si confirmé/terminé
-                  if (canShowPhone && hasPhone) ...[
-                    const SizedBox(height: 4),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Ligne 1: Heure + Service + Badge nouveau
                     Row(
                       children: [
-                        const Icon(Icons.call_outlined, size: 18),
-                        const SizedBox(width: 6),
-                        Text(phone, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 10),
-
-                  // actions rapides
-                  Row(
-                    children: [
-                      if (status == 'PENDING')
-                        FilledButton.tonal(
-                          onPressed: _busy ? null : () => _setStatus('CONFIRMED'),
-                          child: const Text('Confirmer'),
-                        ),
-                      if (status == 'PENDING') const SizedBox(width: 8),
-                      if (status == 'CONFIRMED')
-                        FilledButton.tonal(
-                          onPressed: _busy ? null : () => _setStatus('COMPLETED'),
-                          child: const Text('Terminer'),
-                        ),
-                      // Bouton OTP pour PENDING ou CONFIRMED
-                      if (status == 'PENDING' || status == 'CONFIRMED') ...[
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: _busy ? null : () async {
-                            final result = await showDialog<bool>(
-                              context: context,
-                              builder: (_) => ProVerifyOtpDialog(
-                                bookingId: (m['id'] ?? '').toString(),
-                                clientName: displayName,
-                                serviceTitle: serviceTitle,
-                              ),
-                            );
-                            if (result == true) {
-                              await widget.refresh();
-                            }
-                          },
-                          icon: const Icon(Icons.pin, size: 16),
-                          label: const Text('OTP'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF36C6C),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            time,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: statusColor,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ],
-                      const Spacer(),
-                      if (status == 'PENDING' || status == 'CONFIRMED')
-                        TextButton(
-                          onPressed: _busy ? null : () => _setStatus('CANCELLED'),
-                          child: const Text('Annuler'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            serviceTitle,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (isFirstBooking)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.orange.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.star, size: 12, color: Colors.orange.shade600),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Nouveau',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Ligne 2: Client + Animal + Prix
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline, size: 16, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            [
+                              displayName,
+                              if (petType.isNotEmpty) '• $petType',
+                              if (petName.isNotEmpty) '($petName)',
+                            ].join(' '),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (priceLabel != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              priceLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    // Téléphone (si confirmé/terminé)
+                    if (canShowPhone && phone.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.phone_outlined, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(
+                            phone,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
+
+                    const SizedBox(height: 10),
+
+                    // Boutons d'action
+                    _buildActions(status, displayName, serviceTitle),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildActions(String status, String clientName, String serviceTitle) {
+    if (status == 'COMPLETED' || status == 'CANCELLED') {
+      return Row(
+        children: [
+          Icon(
+            status == 'COMPLETED' ? Icons.check_circle : Icons.cancel,
+            size: 16,
+            color: _statusColor(status),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            status == 'COMPLETED' ? 'Terminé' : 'Annulé',
+            style: TextStyle(
+              fontSize: 13,
+              color: _statusColor(status),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        // Bouton principal
+        if (status == 'PENDING')
+          Expanded(
+            child: FilledButton(
+              onPressed: _busy ? null : () => _setStatus('CONFIRMED'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF43AA8B),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Confirmer', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+
+        if (status == 'CONFIRMED')
+          Expanded(
+            child: FilledButton(
+              onPressed: _busy ? null : () => _setStatus('COMPLETED'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF577590),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Terminer', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+
+        const SizedBox(width: 8),
+
+        // Bouton OTP
+        if (status == 'PENDING' || status == 'CONFIRMED')
+          SizedBox(
+            width: 48,
+            child: FilledButton(
+              onPressed: _busy ? null : () async {
+                final result = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => ProVerifyOtpDialog(
+                    bookingId: (widget.m['id'] ?? '').toString(),
+                    clientName: clientName,
+                    serviceTitle: serviceTitle,
+                  ),
+                );
+                if (result == true) await widget.onRefresh();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFF36C6C),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Icon(Icons.pin, size: 18),
+            ),
+          ),
+
+        const SizedBox(width: 8),
+
+        // Bouton Annuler
+        if (status == 'PENDING' || status == 'CONFIRMED')
+          SizedBox(
+            width: 48,
+            child: OutlinedButton(
+              onPressed: _busy ? null : () => _confirmCancel(),
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                side: BorderSide(color: Colors.grey.shade300),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Icon(Icons.close, size: 18, color: Colors.grey.shade600),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _confirmCancel() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Annuler ce RDV ?'),
+        content: const Text('Cette action est irréversible.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Non'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _setStatus('CANCELLED');
+    }
   }
 }
