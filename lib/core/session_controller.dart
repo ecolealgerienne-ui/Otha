@@ -107,7 +107,8 @@ class SessionController extends Notifier<SessionState> {
 
   Future<void> logout() async {
     await ref.read(apiProvider).setToken(null);
-    state = const SessionState();
+    // ✅ Garder bootstrapped = true pour eviter le loading infini
+    state = const SessionState(bootstrapped: true);
     // Reset les flags de session du home screen
     resetHomeSessionFlags();
   }
