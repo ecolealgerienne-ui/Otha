@@ -645,6 +645,7 @@ class HomeScreen extends ConsumerWidget {
   Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
     // Eviter le spam si deja montre cette session (refresh, etc.)
     if (_trustRestrictionShownThisSession) return;
+    _trustRestrictionShownThisSession = true; // Marquer IMMEDIATEMENT pour eviter double appel
 
     try {
       final api = ref.read(apiProvider);
@@ -664,8 +665,6 @@ class HomeScreen extends ConsumerWidget {
       debugPrint('[TRUST] Status: $trustStatus, RestrictedUntil: $restrictedUntil');
 
       if (trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now()) && context.mounted) {
-        _trustRestrictionShownThisSession = true; // Marquer comme montre
-
         // Calculer le temps restant
         final remaining = restrictedUntil.difference(DateTime.now());
         final days = remaining.inDays;

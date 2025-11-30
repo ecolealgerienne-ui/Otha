@@ -92,8 +92,10 @@ export class AuthService {
   }
 
   private async issueTokens(userId: string, role: string) {
-    const accessTtl = this.config.get<string>('JWT_ACCESS_TTL', '900s');
-    const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL', '7d');
+    // ✅ Token d'acces valide 30 jours pour rester connecte longtemps
+    const accessTtl = this.config.get<string>('JWT_ACCESS_TTL', '30d');
+    // ✅ Refresh token valide 60 jours (backup)
+    const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL', '60d');
     const access = await this.jwt.signAsync({ sub: userId, role }, { secret: this.config.get<string>('JWT_ACCESS_SECRET')!, expiresIn: accessTtl });
     const refresh = await this.jwt.signAsync({ sub: userId, typ: 'refresh' }, { secret: this.config.get<string>('JWT_REFRESH_SECRET')!, expiresIn: refreshTtl });
     return { accessToken: access, refreshToken: refresh };

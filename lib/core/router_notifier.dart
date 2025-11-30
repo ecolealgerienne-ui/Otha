@@ -14,6 +14,7 @@ class RouterNotifier extends ChangeNotifier {
   }
 
   bool get isLoggedIn => _ref.read(sessionProvider).user != null;
+  bool get isBootstrapped => _ref.read(sessionProvider).bootstrapped;
 
   String? get userRole => _ref.read(sessionProvider).user?['role']?.toString();
 }
