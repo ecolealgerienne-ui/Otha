@@ -8,6 +8,7 @@ class SessionState {
   final String? error;
   final bool isCompletingProRegistration; // Flag pour bloquer les redirections pendant l'inscription PRO
   final bool bootstrapped; // ✅ True quand le bootstrap initial est termine
+  final String? providerType; // ✅ 'vet', 'daycare', 'petshop' pour les PRO
 
   const SessionState({
     this.user,
@@ -15,6 +16,7 @@ class SessionState {
     this.error,
     this.isCompletingProRegistration = false,
     this.bootstrapped = false,
+    this.providerType,
   });
 
   SessionState copyWith({
@@ -23,6 +25,7 @@ class SessionState {
     String? error,
     bool? isCompletingProRegistration,
     bool? bootstrapped,
+    String? providerType,
   }) =>
       SessionState(
         user: user ?? this.user,
@@ -30,6 +33,7 @@ class SessionState {
         error: error,
         isCompletingProRegistration: isCompletingProRegistration ?? this.isCompletingProRegistration,
         bootstrapped: bootstrapped ?? this.bootstrapped,
+        providerType: providerType ?? this.providerType,
       );
 }
 
@@ -47,7 +51,22 @@ class SessionController extends Notifier<SessionState> {
       await api.setToken(token);
       try {
         final me = await api.me();
-        state = state.copyWith(user: me, bootstrapped: true);
+        final role = (me['role'] ?? '').toString().toUpperCase();
+
+        // ✅ Si PRO, recuperer le type de provider
+        String? provType;
+        if (role == 'PRO') {
+          try {
+            final prov = await api.myProvider();
+            if (prov != null) {
+              provType = _detectProviderType(prov);
+            }
+          } catch (_) {
+            // Ignorer si erreur - on redirigera vers /pro/home par defaut
+          }
+        }
+
+        state = state.copyWith(user: me, bootstrapped: true, providerType: provType);
         return; // ✅ Bootstrap reussi avec user
       } catch (_) {
         // token invalide — rester déconnecté
@@ -55,6 +74,21 @@ class SessionController extends Notifier<SessionState> {
     }
     // ✅ Bootstrap termine (sans user connecte)
     state = state.copyWith(bootstrapped: true);
+  }
+
+  /// Detecte le type de provider (vet, daycare, petshop)
+  String _detectProviderType(Map<String, dynamic> prov) {
+    // Verifier les champs specifiques
+    if (prov['isDaycare'] == true) return 'daycare';
+    if (prov['isPetshop'] == true) return 'petshop';
+
+    // Verifier le champ type
+    final t = (prov['type'] ?? prov['providerType'] ?? '').toString().toLowerCase();
+    if (t.contains('daycare') || t.contains('garderie')) return 'daycare';
+    if (t.contains('petshop') || t.contains('shop')) return 'petshop';
+
+    // Par defaut: vet
+    return 'vet';
   }
 
   Future<bool> login(String email, String password) async {
@@ -122,3 +156,24 @@ class SessionController extends Notifier<SessionState> {
 
 final sessionProvider =
     NotifierProvider<SessionController, SessionState>(SessionController.new);
+
+/// Helper pour determiner la route home selon le role et le type de provider
+String getHomeRouteForSession(SessionState session) {
+  final user = session.user;
+  if (user == null) return '/gate';
+
+  final role = (user['role'] ?? 'USER').toString().toUpperCase();
+
+  if (role == 'ADMIN') return '/admin/hub';
+
+  if (role == 'PRO') {
+    final provType = session.providerType ?? 'vet';
+    return switch (provType) {
+      'daycare' => '/daycare/home',
+      'petshop' => '/petshop/home',
+      _ => '/pro/home',
+    };
+  }
+
+  return '/home';
+}

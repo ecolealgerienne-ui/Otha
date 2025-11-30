@@ -33,16 +33,12 @@ class RoleGateScreen extends ConsumerWidget {
       );
     }
 
-    // ✅ Si deja connecte, rediriger vers home (le router devrait gerer ca mais au cas ou)
+    // ✅ Si deja connecte, rediriger vers la bonne page selon le role
     if (session.user != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) {
-          final role = (session.user?['role'] ?? 'USER').toString();
-          if (role == 'admin') {
-            context.go('/admin/hub');
-          } else {
-            context.go('/home');
-          }
+          final targetRoute = getHomeRouteForSession(session);
+          context.go(targetRoute);
         }
       });
       return const Scaffold(
