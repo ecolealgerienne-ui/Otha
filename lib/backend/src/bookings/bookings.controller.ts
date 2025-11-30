@@ -178,6 +178,12 @@ export class BookingsController {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si l'utilisateur peut réserver
+    const trustCheck = await this.svc.checkUserCanBook(req.user.sub);
+    if (!trustCheck.canBook) {
+      throw new ForbiddenException(trustCheck.reason || 'Vous ne pouvez pas réserver pour le moment');
+    }
+
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
 
