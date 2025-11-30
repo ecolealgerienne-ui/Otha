@@ -47,10 +47,6 @@ class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
   // Focus transmis depuis Home
   String? _focusBookingId;
 
-  // Scroll pour timeline
-  final ScrollController _scrollCtl = ScrollController();
-  final Map<String, GlobalKey> _rowKeys = {};
-
   @override
   void initState() {
     super.initState();
@@ -79,7 +75,6 @@ class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
-    _scrollCtl.dispose();
     super.dispose();
   }
 
@@ -155,11 +150,10 @@ class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
                 itemBuilder: (context, page) {
                   final date = _dateForPage(page);
                   return _DayTimeline(
+                    key: ValueKey(date.toIso8601String().substring(0, 10)),
                     date: date,
                     args: _argsForDate(date),
-                    scrollController: _scrollCtl,
                     focusBookingId: _focusBookingId,
-                    rowKeys: _rowKeys,
                     onRefresh: _refreshDay,
                   );
                 },
@@ -288,26 +282,37 @@ class _AgendaHeader extends StatelessWidget {
 }
 
 /// ---------- Timeline d'une journée ----------
-class _DayTimeline extends ConsumerWidget {
+class _DayTimeline extends ConsumerStatefulWidget {
   final DateTime date;
   final _AgendaArgs args;
-  final ScrollController scrollController;
   final String? focusBookingId;
-  final Map<String, GlobalKey> rowKeys;
   final Future<void> Function() onRefresh;
 
   const _DayTimeline({
+    super.key,
     required this.date,
     required this.args,
-    required this.scrollController,
     required this.focusBookingId,
-    required this.rowKeys,
     required this.onRefresh,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_agendaProvider(args));
+  ConsumerState<_DayTimeline> createState() => _DayTimelineState();
+}
+
+class _DayTimelineState extends ConsumerState<_DayTimeline> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _rowKeys = {};
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(_agendaProvider(widget.args));
 
     return async.when(
       loading: () => const Center(
@@ -322,7 +327,7 @@ class _DayTimeline extends ConsumerWidget {
             Text('Erreur: $e', style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 12),
             TextButton.icon(
-              onPressed: onRefresh,
+              onPressed: widget.onRefresh,
               icon: const Icon(Icons.refresh),
               label: const Text('Réessayer'),
             ),
@@ -351,13 +356,19 @@ class _DayTimeline extends ConsumerWidget {
       byHour.putIfAbsent(hour, () => []).add(item);
     }
 
-    // Heures de travail (8h - 20h)
-    const startHour = 8;
-    const endHour = 20;
+    // Heures de travail (8h - 20h) + heures avec RDV
+    int startHour = 8;
+    int endHour = 20;
+
+    // Étendre la plage si des RDV sont en dehors
+    for (final h in byHour.keys) {
+      if (h < startHour) startHour = h;
+      if (h >= endHour) endHour = h + 1;
+    }
 
     if (items.isEmpty) {
       return RefreshIndicator(
-        onRefresh: onRefresh,
+        onRefresh: widget.onRefresh,
         color: const Color(0xFFF36C6C),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -390,10 +401,10 @@ class _DayTimeline extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       color: const Color(0xFFF36C6C),
       child: ListView.builder(
-        controller: scrollController,
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         itemCount: endHour - startHour,
@@ -404,9 +415,9 @@ class _DayTimeline extends ConsumerWidget {
           return _TimeSlot(
             hour: hour,
             bookings: bookings,
-            focusBookingId: focusBookingId,
-            rowKeys: rowKeys,
-            onRefresh: onRefresh,
+            focusBookingId: widget.focusBookingId,
+            rowKeys: _rowKeys,
+            onRefresh: widget.onRefresh,
           );
         },
       ),
