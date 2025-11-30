@@ -56,6 +56,13 @@ enum AdoptRequestStatus {
   REJECTED  // Refusé par le propriétaire
 }
 
+// Système de confiance utilisateur (anti-troll)
+enum TrustStatus {
+  NEW        // Nouveau user - 1 RDV test max, peut annuler > 12h avant
+  VERIFIED   // User vérifié - RDV illimités
+  RESTRICTED // User restreint - bloqué X jours après no-show
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
@@ -102,6 +109,13 @@ model User {
   dailyPostCount  Int      @default(0)
   lastSwipeDate   DateTime?
   lastPostDate    DateTime?
+
+  // Système de confiance (anti-troll)
+  trustStatus        TrustStatus @default(NEW)    // NEW → VERIFIED après 1er RDV honoré
+  restrictedUntil    DateTime?                    // Date fin de restriction (si RESTRICTED)
+  noShowCount        Int         @default(0)     // Compteur de no-shows consécutifs
+  verifiedAt         DateTime?                    // Date de vérification
+  lastModifiedBooking String?                     // ID du dernier booking modifié (limite 1 modif pour NEW)
 
   @@index([email])
   @@index([city])
