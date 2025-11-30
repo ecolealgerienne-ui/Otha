@@ -1,16 +1,139 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { TrustStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDaycareBookingDto } from './dto/create-booking.dto';
 import { DaycareBookingStatus } from './dto/update-status.dto';
+
+// Durées de restriction progressives (en jours) - mêmes que bookings
+const RESTRICTION_DURATIONS = [3, 7, 14, 30];
 
 @Injectable()
 export class DaycareService {
   constructor(private prisma: PrismaService) {}
 
+  // ==================== TRUST SYSTEM HELPERS ====================
+
+  private getRestrictionDays(noShowCount: number): number {
+    const index = Math.min(noShowCount - 1, RESTRICTION_DURATIONS.length - 1);
+    return RESTRICTION_DURATIONS[Math.max(0, index)];
+  }
+
+  private async applyNoShowPenalty(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { noShowCount: true },
+    });
+    if (!user) return;
+
+    const newNoShowCount = user.noShowCount + 1;
+    const restrictionDays = this.getRestrictionDays(newNoShowCount);
+    const restrictedUntil = new Date();
+    restrictedUntil.setDate(restrictedUntil.getDate() + restrictionDays);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        noShowCount: newNoShowCount,
+        trustStatus: 'RESTRICTED',
+        restrictedUntil,
+      },
+    });
+  }
+
+  private async verifyUserIfNeeded(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true },
+    });
+    if (!user) return;
+
+    if (user.trustStatus === 'NEW') {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          trustStatus: 'VERIFIED',
+          verifiedAt: new Date(),
+          noShowCount: 0,
+        },
+      });
+    }
+  }
+
+  async checkUserCanBookDaycare(userId: string): Promise<{
+    canBook: boolean;
+    reason?: string;
+    isFirstBooking?: boolean;
+    trustStatus?: TrustStatus;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true, restrictedUntil: true, noShowCount: true },
+    });
+
+    if (!user) return { canBook: false, reason: 'Utilisateur non trouvé' };
+
+    // Vérifier restriction expirée
+    if (user.trustStatus === 'RESTRICTED') {
+      if (user.restrictedUntil && user.restrictedUntil <= new Date()) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { trustStatus: 'NEW', restrictedUntil: null },
+        });
+      } else {
+        const remainingDays = user.restrictedUntil
+          ? Math.ceil((user.restrictedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : 0;
+        return {
+          canBook: false,
+          reason: `Votre compte est restreint pour encore ${remainingDays} jour(s).`,
+          trustStatus: user.trustStatus,
+        };
+      }
+    }
+
+    // NEW user: vérifier s'il a déjà un RDV actif (garderie ou véto)
+    if (user.trustStatus === 'NEW') {
+      // Vérifier bookings véto actifs
+      const activeVetBooking = await this.prisma.booking.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+        },
+      });
+
+      // Vérifier bookings garderie actifs
+      const activeDaycareBooking = await this.prisma.daycareBooking.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PENDING_DROP_VALIDATION', 'PENDING_PICKUP_VALIDATION'] },
+        },
+      });
+
+      if (activeVetBooking || activeDaycareBooking) {
+        return {
+          canBook: false,
+          reason: 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours.',
+          trustStatus: user.trustStatus,
+          isFirstBooking: false,
+        };
+      }
+
+      return { canBook: true, trustStatus: user.trustStatus, isFirstBooking: true };
+    }
+
+    return { canBook: true, trustStatus: user.trustStatus, isFirstBooking: false };
+  }
+
   /**
    * Créer une réservation garderie (client)
    */
   async createBooking(userId: string, dto: CreateDaycareBookingDto) {
+    // ✅ TRUST SYSTEM: Vérifier si l'utilisateur peut réserver
+    const trustCheck = await this.checkUserCanBookDaycare(userId);
+    if (!trustCheck.canBook) {
+      throw new ForbiddenException(trustCheck.reason || 'Réservation non autorisée');
+    }
+
     // Vérifier que le pet appartient au user
     const pet = await this.prisma.pet.findUnique({
       where: { id: dto.petId },
@@ -176,7 +299,7 @@ export class DaycareService {
       throw new NotFoundException('Profil professionnel non trouvé');
     }
 
-    return this.prisma.daycareBooking.findMany({
+    const bookings = await this.prisma.daycareBooking.findMany({
       where: { providerId: provider.id },
       include: {
         pet: true,
@@ -187,11 +310,31 @@ export class DaycareService {
             lastName: true,
             email: true,
             phone: true,
+            trustStatus: true, // ✅ TRUST SYSTEM
           },
         },
       },
       orderBy: { startDate: 'desc' },
     });
+
+    // ✅ TRUST SYSTEM: Ajouter isFirstBooking pour chaque réservation
+    const userIds = [...new Set(bookings.map(b => b.user.id))];
+    const completedCounts = await Promise.all(
+      userIds.map(async (uid) => ({
+        userId: uid,
+        vetCount: await this.prisma.booking.count({ where: { userId: uid, status: 'COMPLETED' } }),
+        daycareCount: await this.prisma.daycareBooking.count({ where: { userId: uid, status: 'COMPLETED' } }),
+      }))
+    );
+    const completedMap = new Map(completedCounts.map(c => [c.userId, c.vetCount + c.daycareCount]));
+
+    return bookings.map((b: any) => ({
+      ...b,
+      user: {
+        ...b.user,
+        isFirstBooking: b.user.trustStatus === 'NEW' && (completedMap.get(b.user.id) ?? 0) === 0,
+      },
+    }));
   }
 
   /**
@@ -433,6 +576,20 @@ export class DaycareService {
       throw new BadRequestException('Impossible d\'annuler une réservation terminée');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si annulation tardive pour NEW user (< 24h pour garderie)
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true },
+    });
+
+    if (user?.trustStatus === 'NEW') {
+      const hoursUntilStart = (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
+      if (hoursUntilStart < 24) {
+        // Annulation < 24h avant le début → appliquer pénalité no-show
+        await this.applyNoShowPenalty(userId);
+      }
+    }
+
     // Annuler la réservation
     return this.prisma.daycareBooking.update({
       where: { id: bookingId },
@@ -668,7 +825,7 @@ export class DaycareService {
 
       return updatedBooking;
     } else {
-      // ❌ REFUSER = CLIENT MENT
+      // ❌ REFUSER = CLIENT MENT (NO-SHOW)
       await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
@@ -684,6 +841,9 @@ export class DaycareService {
           note: 'Pro claims client did not arrive for daycare drop-off (DISPUTED)',
         },
       });
+
+      // ❌ TRUST SYSTEM: Appliquer la pénalité no-show
+      await this.applyNoShowPenalty(booking.userId);
 
       return { disputed: true, message: 'Réservation marquée en litige' };
     }
@@ -718,7 +878,7 @@ export class DaycareService {
     }
 
     if (approved) {
-      return this.prisma.daycareBooking.update({
+      const updatedBooking = await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           status: 'COMPLETED',
@@ -727,6 +887,11 @@ export class DaycareService {
         },
         include: { pet: true, user: { select: { id: true, firstName: true, lastName: true } } },
       });
+
+      // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+      await this.verifyUserIfNeeded(booking.userId);
+
+      return updatedBooking;
     } else {
       await this.prisma.daycareBooking.update({
         where: { id: bookingId },
@@ -743,6 +908,9 @@ export class DaycareService {
           note: 'Pro claims client did not arrive for daycare pickup (DISPUTED)',
         },
       });
+
+      // ❌ TRUST SYSTEM: Appliquer la pénalité no-show
+      await this.applyNoShowPenalty(booking.userId);
 
       return { disputed: true, message: 'Réservation marquée en litige' };
     }
