@@ -49,6 +49,9 @@ bool _adoptionCheckDone = false;
 // Tracker si on a déjà vérifié les confirmations de bookings (une fois par session)
 bool _bookingConfirmationCheckDone = false;
 
+// Tracker si on a déjà vérifié le statut de restriction (une fois par session)
+bool _trustRestrictionCheckDone = false;
+
 // Provider pour charger les notifications depuis le backend
 final notificationsProvider = FutureProvider.autoDispose<List<_Notif>>((ref) async {
   try {
@@ -631,6 +634,135 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
+  /// Verifie si l'utilisateur est restreint et affiche un popup avec le timer
+  Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
+    // Ne verifier qu'une seule fois par session
+    if (_trustRestrictionCheckDone) return;
+    _trustRestrictionCheckDone = true;
+
+    try {
+      final api = ref.read(apiProvider);
+      final trustInfo = await api.checkUserCanBook();
+
+      final trustStatus = (trustInfo['trustStatus'] ?? '').toString();
+      final restrictedUntilStr = (trustInfo['restrictedUntil'] ?? '').toString();
+
+      if (trustStatus == 'RESTRICTED' && restrictedUntilStr.isNotEmpty && context.mounted) {
+        final restrictedUntil = DateTime.tryParse(restrictedUntilStr);
+        if (restrictedUntil != null && restrictedUntil.isAfter(DateTime.now())) {
+          // Calculer le temps restant
+          final remaining = restrictedUntil.difference(DateTime.now());
+          final days = remaining.inDays;
+          final hours = remaining.inHours % 24;
+          final minutes = remaining.inMinutes % 60;
+
+          String timerText;
+          if (days > 0) {
+            timerText = '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+          } else if (hours > 0) {
+            timerText = '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+          } else {
+            timerText = '$minutes minute${minutes > 1 ? 's' : ''}';
+          }
+
+          await showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              icon: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade400, size: 36),
+              ),
+              title: const Text(
+                'Compte restreint',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Vous n\'etes pas venu a votre dernier rendez-vous.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.timer_outlined, color: Colors.red.shade400, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          timerText,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Veuillez patienter avant de pouvoir reprendre un rendez-vous.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4),
+                  ),
+                ],
+              ),
+              actions: [
+                Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red.shade400,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('J\'ai compris'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        // TODO: Naviguer vers la page de contact support
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Le support sera bientot disponible.')),
+                        );
+                      },
+                      child: Text(
+                        'Contacter le support',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Ignorer les erreurs silencieusement
+    }
+  }
+
   Future<void> _refreshAll(WidgetRef ref) async {
     // Invalide les providers pour forcer un vrai refresh
     ref.invalidate(topVetsProvider);
@@ -671,6 +803,7 @@ class HomeScreen extends ConsumerWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadNotifications(ref);
       if (!isPro) {
+        _checkTrustRestriction(context, ref); // ✅ Verifier si l'utilisateur est restreint
         _checkPendingAdoptions(context, ref);
         _checkPendingBookingConfirmations(context, ref);
         // ✅ Rafraîchir les bookings à chaque affichage du home pour détecter les confirmations
