@@ -93,6 +93,7 @@ class _ProviderAgendaScreenState extends ConsumerState<ProviderAgendaScreen>
   _AgendaArgs _argsForDate(DateTime date) {
     final fromUtc = DateTime.utc(date.year, date.month, date.day);
     final toUtc = fromUtc.add(const Duration(days: 1));
+    debugPrint('🔍 API Args for ${date.toString().substring(0, 10)}: from=${fromUtc.toIso8601String()} to=${toUtc.toIso8601String()}');
     return _AgendaArgs(fromUtc.toIso8601String(), toUtc.toIso8601String());
   }
 
@@ -339,22 +340,31 @@ class _DayTimelineState extends ConsumerState<_DayTimeline> {
   }
 
   Widget _buildTimeline(BuildContext context, List<Map<String, dynamic>> items) {
-    // Trier par heure
+    // DEBUG: Afficher les items reçus
+    debugPrint('📅 Timeline items count: ${items.length}');
+    for (final item in items) {
+      debugPrint('  - ${item['scheduledAt']} | ${item['status']} | ${item['service']?['title']}');
+    }
+
+    // Trier par heure (UTC naïf - on garde l'heure telle quelle)
     final sorted = [...items];
     sorted.sort((a, b) {
-      final A = DateTime.parse((a['scheduledAt'] ?? a['scheduled_at']).toString());
-      final B = DateTime.parse((b['scheduledAt'] ?? b['scheduled_at']).toString());
+      final A = DateTime.parse((a['scheduledAt'] ?? a['scheduled_at']).toString()).toUtc();
+      final B = DateTime.parse((b['scheduledAt'] ?? b['scheduled_at']).toString()).toUtc();
       return A.compareTo(B);
     });
 
-    // Grouper par heure
+    // Grouper par heure (UTC naïf)
     final Map<int, List<Map<String, dynamic>>> byHour = {};
     for (final item in sorted) {
       final iso = (item['scheduledAt'] ?? item['scheduled_at']).toString();
-      final dt = DateTime.parse(iso);
+      final dt = DateTime.parse(iso).toUtc(); // UTC naïf : 8h UTC = 8h réel
       final hour = dt.hour;
+      debugPrint('  → Grouping: $iso -> hour $hour');
       byHour.putIfAbsent(hour, () => []).add(item);
     }
+
+    debugPrint('📊 byHour keys: ${byHour.keys.toList()}');
 
     // Heures de travail (8h - 20h) + heures avec RDV
     int startHour = 8;
