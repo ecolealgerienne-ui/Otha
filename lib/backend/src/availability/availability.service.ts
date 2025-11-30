@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+// Temps minimum d'avance pour reserver (en minutes)
+// Ex: si 60, on ne peut pas reserver un creneau qui commence dans moins de 60 min
+const MIN_ADVANCE_MINUTES = 60;
+
 @Injectable()
 export class AvailabilityService {
   constructor(private prisma: PrismaService) {}
@@ -198,6 +202,8 @@ export class AvailabilityService {
     // NOTE: on reste côté serveur ; on n'impose rien au front.
     const tz = prov.timezone || 'Africa/Algiers';
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
+    // ✅ Temps minimum d'avance pour reserver
+    const minAdvanceTime = new Date(Date.now() + MIN_ADVANCE_MINUTES * 60_000);
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
     for (const w of weekly) {
@@ -221,6 +227,9 @@ export class AvailabilityService {
          slotStart < to;
          slotStart = this.addMinutes(slotStart, stepMin)) {
       const longEnd = this.addMinutes(slotStart, fullDur);
+
+      // ✅ Filtrer les creneaux trop proches
+      if (slotStart < minAdvanceTime) continue;
 
       if (bookingIntervals.some(b => this.overlaps(slotStart, longEnd, b.start, b.end))) continue;
       if (timeOffIntervals.some(o => this.overlaps(slotStart, longEnd, o.start, o.end))) continue;
@@ -284,7 +293,9 @@ export class AvailabilityService {
     if (!prov) throw new NotFoundException('Provider not found');
 
     const fullDur = Math.max(stepMin, Number(durationMin || stepMin));
-    const now = new Date(); // ✅ Pour filtrer les créneaux passés
+    const now = new Date();
+    // ✅ Temps minimum d'avance: ne pas afficher les creneaux trop proches
+    const minAdvanceTime = new Date(now.getTime() + MIN_ADVANCE_MINUTES * 60_000);
 
     const byDay = new Map<number, { startMin: number; endMin: number }[]>();
     for (const w of weekly) {
@@ -347,8 +358,8 @@ export class AvailabilityService {
             // Vérifier qu'on ne dépasse pas la fin demandée
             if (slotStart >= to) continue;
 
-            // ✅ Filtrer les créneaux passés (ne pas afficher 8h00 quand il est 10h16)
-            if (slotStart < now) continue;
+            // ✅ Filtrer les creneaux passes ET trop proches (ex: pas de creneau dans moins de 60 min)
+            if (slotStart < minAdvanceTime) continue;
 
             // Vérifier les chevauchements avec bookings et time-offs
             if (bookingIntervals.some(b => this.overlaps(slotStart, longEnd, b.start, b.end))) continue;
