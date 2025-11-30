@@ -64,7 +64,7 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
 
   void _goToNextScreen() {
     if (!mounted) return;
-    context.go('/pets/add');
+    context.go('/auth/trust-explanation');
   }
 
   @override

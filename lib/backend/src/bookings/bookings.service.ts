@@ -1866,16 +1866,25 @@ export class BookingsService {
       }
     }
 
-    // Vérifier si NEW user a déjà un RDV actif
+    // Vérifier si NEW user a déjà un RDV actif (véto OU garderie)
     if (user.trustStatus === 'NEW') {
-      const activeBooking = await this.prisma.booking.findFirst({
+      // ✅ CROSS-SERVICE: Vérifier bookings véto actifs
+      const activeVetBooking = await this.prisma.booking.findFirst({
         where: {
           userId,
           status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
         },
       });
 
-      if (activeBooking) {
+      // ✅ CROSS-SERVICE: Vérifier bookings garderie actifs
+      const activeDaycareBooking = await this.prisma.daycareBooking.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PENDING_DROP_VALIDATION', 'PENDING_PICKUP_VALIDATION'] },
+        },
+      });
+
+      if (activeVetBooking || activeDaycareBooking) {
         return {
           canBook: false,
           reason: 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant de pouvoir en réserver un autre.',
