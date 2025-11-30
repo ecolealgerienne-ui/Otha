@@ -186,14 +186,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Si connecté et sur /gate ou /start → rediriger vers home approprié
       if (isLoggedIn && (currentPath == '/gate' || currentPath.startsWith('/start/'))) {
-        final role = user['role']?.toString() ?? 'user';
-
-        // Admin → admin hub
-        if (role == 'admin') return '/admin/hub';
-
-        // User normal → home
-        // PRO (vet/daycare/petshop) → home aussi (login_screen.dart gérera la redirection)
-        return '/home';
+        // ✅ Utiliser le helper pour determiner la bonne route
+        return getHomeRouteForSession(session);
       }
 
       return null; // Pas de redirection
