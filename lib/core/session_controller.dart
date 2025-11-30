@@ -94,9 +94,25 @@ class SessionController extends Notifier<SessionState> {
   Future<bool> login(String email, String password) async {
     state = state.copyWith(loading: true, error: null);
     try {
-      await ref.read(apiProvider).login(email: email, password: password);
-      final me = await ref.read(apiProvider).me();
-      state = state.copyWith(user: me, loading: false, bootstrapped: true);
+      final api = ref.read(apiProvider);
+      await api.login(email: email, password: password);
+      final me = await api.me();
+      final role = (me['role'] ?? '').toString().toUpperCase();
+
+      // ✅ Si PRO, recuperer le type de provider
+      String? provType;
+      if (role == 'PRO') {
+        try {
+          final prov = await api.myProvider();
+          if (prov != null) {
+            provType = _detectProviderType(prov);
+          }
+        } catch (_) {
+          // Ignorer si erreur - on redirigera vers /pro/home par defaut
+        }
+      }
+
+      state = state.copyWith(user: me, loading: false, bootstrapped: true, providerType: provType);
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
