@@ -43,8 +43,10 @@ class ProviderMapScreen extends StatelessWidget {
         mapController: controller,
         options: MapOptions(initialCenter: center, initialZoom: 14),
         children: [
+          // ✅ CartoDB Light - Style minimaliste
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.vethome.app',
           ),
           MarkerLayer(markers: [

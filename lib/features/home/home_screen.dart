@@ -2828,9 +2828,21 @@ class _ExploreCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Stack(
               children: [
+                // ✅ Gradient sombre en bas pour lisibilite du texte (sans filtre rose)
                 if (hasBg)
                   Positioned.fill(
-                    child: Container(color: rose.withOpacity(0.18)), // voile pour lisibilité
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.4),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 Padding(
                   padding: const EdgeInsets.all(14),
@@ -2839,7 +2851,7 @@ class _ExploreCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Align(
-                          alignment: Alignment.topLeft,
+                          alignment: hasBg ? Alignment.bottomLeft : Alignment.topLeft,
                           child: Text(
                             title,
                             maxLines: 2,
@@ -2989,9 +3001,11 @@ class _MapPreview extends ConsumerWidget {
                           const InteractionOptions(flags: InteractiveFlag.none),
                     ),
                     children: [
+                      // ✅ Utiliser CartoDB Positron (theme clair)
                       TileLayer(
                         urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
                         userAgentPackageName: 'com.vethome.app',
                       ),
                       MarkerLayer(
@@ -3094,13 +3108,26 @@ class _MapPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Fond doux rose/blanc, sans texte
+    // ✅ Fond clair neutre avec icone de localisation
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFFFEEF0), Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.map_outlined, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              'Chargement de la carte...',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
