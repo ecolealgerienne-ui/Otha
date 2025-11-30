@@ -190,6 +190,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return getHomeRouteForSession(session);
       }
 
+      // ✅ FIX: Ne pas rediriger les PRO qui sont déjà sur une page home PRO valide
+      // Cela évite le bug où daycare/petshop se fait rediriger vers /pro/home
+      // après que le router re-évalue à cause du refreshListenable
+      final role = (user?['role'] ?? '').toString().toUpperCase();
+      if (role == 'PRO') {
+        final proHomePages = ['/pro/home', '/daycare/home', '/petshop/home'];
+        if (proHomePages.contains(currentPath)) {
+          // Déjà sur une page home PRO valide → pas de redirection
+          return null;
+        }
+      }
+
       return null; // Pas de redirection
     },
     routes: <RouteBase>[
