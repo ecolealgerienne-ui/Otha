@@ -343,7 +343,9 @@ class _DayTimelineState extends ConsumerState<_DayTimeline> {
     // DEBUG: Afficher les items reçus
     debugPrint('📅 Timeline items count: ${items.length}');
     for (final item in items) {
+      final user = item['user'];
       debugPrint('  - ${item['scheduledAt']} | ${item['status']} | ${item['service']?['title']}');
+      debugPrint('    👤 User: ${user?['displayName']} | trustStatus=${user?['trustStatus']} | isFirstBooking=${user?['isFirstBooking']}');
     }
 
     // Trier par heure (UTC naïf - on garde l'heure telle quelle)
