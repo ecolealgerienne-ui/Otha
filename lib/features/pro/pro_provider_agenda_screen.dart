@@ -627,18 +627,18 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Row(
-          children: [
-            // Barre colorée latérale
-            Container(
-              width: 5,
-              height: double.infinity,
-              constraints: const BoxConstraints(minHeight: 90),
-              color: statusColor,
-            ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Barre colorée latérale
+              Container(
+                width: 5,
+                color: statusColor,
+              ),
 
-            // Contenu
-            Expanded(
+              // Contenu
+              Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -766,7 +766,8 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
