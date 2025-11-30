@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api.dart';
+import '../features/home/home_screen.dart' show resetHomeSessionFlags;
 
 class SessionState {
   final Map<String, dynamic>? user; // { id, email, role, ... }
@@ -100,6 +101,8 @@ class SessionController extends Notifier<SessionState> {
   Future<void> logout() async {
     await ref.read(apiProvider).setToken(null);
     state = const SessionState();
+    // Reset les flags de session du home screen
+    resetHomeSessionFlags();
   }
 
   /// Active/désactive le flag isCompletingProRegistration
