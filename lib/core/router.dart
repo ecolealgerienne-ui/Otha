@@ -16,6 +16,7 @@ import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/otp_screen.dart';
 import '../features/auth/profile_completion_screen.dart';
 import '../features/auth/location_permission_screen.dart';
+import '../features/auth/trust_explanation_screen.dart';
 import '../features/pro/pro_register_screen.dart';
 
 // Home (client)
@@ -146,6 +147,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/auth/forgot-password',
         '/auth/otp',
         '/auth/location-permission',
+        '/auth/trust-explanation',
         '/auth/profile-completion',
         '/pets/add',  // Onboarding pet après inscription
         '/pro/application/submitted',  // Page publique pour les PRO en attente
@@ -288,6 +290,11 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/auth/location-permission',
         name: 'locationPermission',
         builder: (context, state) => const LocationPermissionScreen(),
+      ),
+      GoRoute(
+        path: '/auth/trust-explanation',
+        name: 'trustExplanation',
+        builder: (context, state) => const TrustExplanationScreen(),
       ),
 
       // -------- States d'application PRO --------

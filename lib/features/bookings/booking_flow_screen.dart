@@ -132,6 +132,48 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
     else if (p is String) _selPriceDa = int.tryParse(p);
   }
 
+  /// ✅ TRUST SYSTEM: Popup restriction nouveau client
+  void _showTrustRestrictionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFEEF0),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.schedule, color: Color(0xFFF36C6C), size: 32),
+        ),
+        title: const Text(
+          'Une étape à la fois',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant d\'en réserver un autre.\n\nCela nous aide à garantir un service de qualité pour tous.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFF36C6C),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('J\'ai compris'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final details  = ref.watch(_providerDetailsProvider(widget.providerId));
@@ -351,9 +393,19 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Erreur: $e')),
-                        );
+                        final errorMsg = e.toString();
+                        // ✅ TRUST SYSTEM: Afficher popup si restriction
+                        if (errorMsg.contains('403') ||
+                            errorMsg.contains('nouveau client') ||
+                            errorMsg.contains('honorer') ||
+                            errorMsg.contains('restreint') ||
+                            errorMsg.contains('Forbidden')) {
+                          _showTrustRestrictionDialog(context);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Erreur: $e')),
+                          );
+                        }
                       }
                     } finally {
                       if (mounted) setState(()=> _booking = false);
