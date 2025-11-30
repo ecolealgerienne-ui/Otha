@@ -7,12 +7,14 @@ class SessionState {
   final bool loading;
   final String? error;
   final bool isCompletingProRegistration; // Flag pour bloquer les redirections pendant l'inscription PRO
+  final bool bootstrapped; // ✅ True quand le bootstrap initial est termine
 
   const SessionState({
     this.user,
     this.loading = false,
     this.error,
     this.isCompletingProRegistration = false,
+    this.bootstrapped = false,
   });
 
   SessionState copyWith({
@@ -20,12 +22,14 @@ class SessionState {
     bool? loading,
     String? error,
     bool? isCompletingProRegistration,
+    bool? bootstrapped,
   }) =>
       SessionState(
         user: user ?? this.user,
         loading: loading ?? this.loading,
         error: error,
         isCompletingProRegistration: isCompletingProRegistration ?? this.isCompletingProRegistration,
+        bootstrapped: bootstrapped ?? this.bootstrapped,
       );
 }
 
@@ -43,11 +47,14 @@ class SessionController extends Notifier<SessionState> {
       await api.setToken(token);
       try {
         final me = await api.me();
-        state = state.copyWith(user: me);
+        state = state.copyWith(user: me, bootstrapped: true);
+        return; // ✅ Bootstrap reussi avec user
       } catch (_) {
         // token invalide — rester déconnecté
       }
     }
+    // ✅ Bootstrap termine (sans user connecte)
+    state = state.copyWith(bootstrapped: true);
   }
 
   Future<bool> login(String email, String password) async {
@@ -55,7 +62,7 @@ class SessionController extends Notifier<SessionState> {
     try {
       await ref.read(apiProvider).login(email: email, password: password);
       final me = await ref.read(apiProvider).me();
-      state = state.copyWith(user: me, loading: false);
+      state = state.copyWith(user: me, loading: false, bootstrapped: true);
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -70,7 +77,7 @@ class SessionController extends Notifier<SessionState> {
       await ref.read(apiProvider).register(email: email, password: password);
       await ref.read(apiProvider).login(email: email, password: password);
       final me = await ref.read(apiProvider).me();
-      state = state.copyWith(user: me, loading: false);
+      state = state.copyWith(user: me, loading: false, bootstrapped: true);
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());

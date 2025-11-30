@@ -131,6 +131,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = user != null;
       final currentPath = state.uri.path;
 
+      // ✅ Ne pas rediriger si le bootstrap n'est pas termine (sauf vers /gate)
+      if (!session.bootstrapped && currentPath != '/gate') {
+        return '/gate';
+      }
+
       // IMPORTANT: Bloquer TOUTES les redirections pendant l'inscription PRO
       if (session.isCompletingProRegistration) {
         return null;
