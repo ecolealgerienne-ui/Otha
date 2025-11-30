@@ -78,6 +78,15 @@ class SessionController extends Notifier<SessionState> {
 
   /// Detecte le type de provider (vet, daycare, petshop)
   String _detectProviderType(Map<String, dynamic> prov) {
+    // ✅ Verifier specialties.kind (utilisé par login_screen)
+    final specialties = prov['specialties'];
+    if (specialties is Map) {
+      final kind = (specialties['kind'] ?? '').toString().toLowerCase();
+      if (kind == 'daycare' || kind == 'garderie') return 'daycare';
+      if (kind == 'petshop' || kind == 'shop') return 'petshop';
+      if (kind.isNotEmpty) return kind;
+    }
+
     // Verifier les champs specifiques
     if (prov['isDaycare'] == true) return 'daycare';
     if (prov['isPetshop'] == true) return 'petshop';
