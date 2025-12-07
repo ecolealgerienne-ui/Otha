@@ -475,80 +475,73 @@ export function LandingPage() {
 
         {/* Footer */}
         <footer className="footer">
-          <div className="footer-side-1">
-            <div className="footer-logo">
-              <i className="fa-solid fa-paw footer-logo-paw"></i>
+          <div className="footer-main">
+            {/* Brand Section */}
+            <div className="footer-brand">
+              <div className="footer-logo">
+                <i className="fa-solid fa-paw footer-logo-paw"></i>
+                <span className="footer-name">VEGECE</span>
+              </div>
+              <p className="footer-tagline">
+                La santé de vos animaux, simplifiée. Tout ce dont vous avez besoin, en une seule application.
+              </p>
             </div>
-            <span className="footer-name">
-              VEGECE<br />
-              2025©
-            </span>
-          </div>
 
-          <div className="footer-side-2">
-            <ul className="footer-nav">
-              <li className="footer-nav-item">
-                <a
-                  href="#navigation"
-                  className="nav-item-link"
-                  onClick={(e) => { e.preventDefault(); scrollToSection('navigation'); }}
-                >
-                  Acceuil
+            {/* Navigation Section */}
+            <div className="footer-nav-section">
+              <div className="footer-nav-column">
+                <span className="footer-nav-title">Navigation</span>
+                <a href="#navigation" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('navigation'); }}>
+                  Accueil
                 </a>
-              </li>
-              <li className="footer-nav-item">
-                <a
-                  href="#showcase"
-                  className="nav-item-link"
-                  onClick={(e) => { e.preventDefault(); scrollToSection('showcase'); }}
-                >
+                <a href="#showcase" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('showcase'); }}>
                   Présentation
                 </a>
-              </li>
-              <li className="footer-nav-item">
-                <a
-                  href="#about"
-                  className="nav-item-link"
-                  onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
-                >
-                  A propos
+                <a href="#about" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
+                  À propos
                 </a>
-              </li>
-              <li className="footer-nav-item">
-                <a
-                  href="#download"
-                  className="nav-item-link"
-                  onClick={(e) => { e.preventDefault(); scrollToSection('download'); }}
-                >
+                <a href="#download" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('download'); }}>
                   Téléchargement
                 </a>
-              </li>
-            </ul>
-          </div>
+              </div>
 
-          <div className="footer-side-3">
-            <ul className="footer-nav-social">
-              <li className="footer-nav-social">
-                <a href="#" className="nav-item-link">
+              <div className="footer-nav-column">
+                <span className="footer-nav-title">Support</span>
+                <a href="#" className="footer-nav-link">Centre d'aide</a>
+                <a href="#" className="footer-nav-link">Contact</a>
+                <a href="#" className="footer-nav-link">FAQ</a>
+              </div>
+            </div>
+
+            {/* Social Section */}
+            <div className="footer-social">
+              <span className="footer-social-title">Suivez-nous</span>
+              <div className="footer-social-links">
+                <a href="#" className="footer-social-link" aria-label="TikTok">
                   <i className="fa-brands fa-tiktok"></i>
                 </a>
-              </li>
-              <li className="footer-nav-social">
-                <a href="#" className="nav-item-link">
-                  <i className="fa-brands fa-facebook"></i>
+                <a href="#" className="footer-social-link" aria-label="Facebook">
+                  <i className="fa-brands fa-facebook-f"></i>
                 </a>
-              </li>
-              <li className="footer-nav-social">
-                <a href="#" className="nav-item-link">
+                <a href="#" className="footer-social-link" aria-label="Twitter">
                   <i className="fa-brands fa-x-twitter"></i>
                 </a>
-              </li>
-              <li className="footer-nav-social">
-                <a href="#" className="nav-item-link">
+                <a href="#" className="footer-social-link" aria-label="Instagram">
                   <i className="fa-brands fa-instagram"></i>
                 </a>
-              </li>
-            </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="footer-divider"></div>
+
+          <div className="footer-bottom">
+            <span className="footer-copyright">© 2025 VEGECE. Tous droits réservés.</span>
+            <div className="footer-legal">
+              <a href="#" className="footer-legal-link">Mentions légales</a>
+              <a href="#" className="footer-legal-link">Politique de confidentialité</a>
+              <a href="#" className="footer-legal-link">CGU</a>
+            </div>
           </div>
         </footer>
       </main>
