@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage, Language } from '../i18n';
+import { useLanguage } from '../i18n';
+import type { Language } from '../i18n';
 import './landing.css';
 
 // Types pour le sélecteur de langue
