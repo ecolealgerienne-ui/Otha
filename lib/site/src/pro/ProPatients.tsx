@@ -25,15 +25,26 @@ import {
   Trash2,
   Edit2,
   AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Prescription, DiseaseTracking } from '../types';
-import { format } from 'date-fns';
+import type { Prescription, DiseaseTracking, Booking, Pet } from '../types';
+import { format, differenceInHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useScannedPet } from '../contexts/ScannedPetContext';
+
+// Access window in hours for recent patients
+const ACCESS_WINDOW_HOURS = 24;
+
+interface RecentPatient {
+  booking: Booking;
+  pet: Pet;
+  accessExpiresAt: Date;
+  hoursRemaining: number;
+}
 
 // View modes for the pet card
 type ViewMode = 'hub' | 'medical-history' | 'vaccinations' | 'prescriptions' | 'health-stats' | 'diseases';
@@ -102,12 +113,127 @@ export function ProPatients() {
   const [savingDisease, setSavingDisease] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Get current provider ID on mount
+  // Recent patients state (24h access)
+  const [recentPatients, setRecentPatients] = useState<RecentPatient[]>([]);
+  const [loadingRecentPatients, setLoadingRecentPatients] = useState(true);
+
+  // Get current provider ID and load recent patients on mount
   useEffect(() => {
     api.myProvider().then((provider) => {
       if (provider) setCurrentProviderId(provider.id);
     });
+    loadRecentPatients();
   }, []);
+
+  // Refresh countdown every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRecentPatients((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            hoursRemaining: Math.max(0, differenceInHours(p.accessExpiresAt, new Date())),
+          }))
+          .filter((p) => p.hoursRemaining > 0)
+      );
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function loadRecentPatients() {
+    setLoadingRecentPatients(true);
+    try {
+      const now = new Date();
+      const yesterday = new Date(now.getTime() - ACCESS_WINDOW_HOURS * 60 * 60 * 1000);
+      const fromIso = format(yesterday, 'yyyy-MM-dd');
+      const toIso = format(now, 'yyyy-MM-dd');
+
+      const bookings = await api.providerAgenda(fromIso, toIso);
+
+      // Filter only CONFIRMED or COMPLETED bookings with a pet
+      const validBookings = bookings.filter(
+        (b: Booking) =>
+          (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
+          b.pet &&
+          b.pet.id
+      );
+
+      // Calculate access expiration for each
+      const patients: RecentPatient[] = validBookings
+        .map((b: Booking) => {
+          const bookingTime = new Date(b.scheduledAt);
+          const accessExpiresAt = new Date(bookingTime.getTime() + ACCESS_WINDOW_HOURS * 60 * 60 * 1000);
+          const hoursRemaining = Math.max(0, differenceInHours(accessExpiresAt, now));
+
+          return {
+            booking: b,
+            pet: b.pet!,
+            accessExpiresAt,
+            hoursRemaining,
+          };
+        })
+        .filter((p: RecentPatient) => p.hoursRemaining > 0);
+
+      // Deduplicate by pet ID (keep most recent booking)
+      const uniquePatients = new Map<string, RecentPatient>();
+      patients.forEach((p: RecentPatient) => {
+        const existing = uniquePatients.get(p.pet.id);
+        if (!existing || new Date(p.booking.scheduledAt) > new Date(existing.booking.scheduledAt)) {
+          uniquePatients.set(p.pet.id, p);
+        }
+      });
+
+      setRecentPatients(Array.from(uniquePatients.values()));
+    } catch (error) {
+      console.error('Error loading recent patients:', error);
+    } finally {
+      setLoadingRecentPatients(false);
+    }
+  }
+
+  // Select a recent patient (load into scanned pet context)
+  async function selectRecentPatient(patient: RecentPatient) {
+    setScanLoading(true);
+    try {
+      // Generate access token for this pet
+      const token = await api.generatePetAccessToken(patient.pet.id);
+
+      if (!token) {
+        throw new Error('Impossible de générer le token d\'accès');
+      }
+
+      // Load pet data via token
+      const result = await api.getPetByToken(token);
+      if (!result || !result.pet) {
+        throw new Error('Impossible de charger les données du patient');
+      }
+
+      // Load additional data
+      const [presc, stats, dis] = await Promise.all([
+        api.getPetPrescriptions(result.pet.id).catch(() => []),
+        api.getPetHealthStats(result.pet.id).catch(() => null),
+        api.getPetDiseases(result.pet.id).catch(() => []),
+      ]);
+
+      setPetData(
+        result.pet,
+        token,
+        result.medicalRecords || [],
+        result.vaccinations || [],
+        presc,
+        stats,
+        dis
+      );
+
+      // Set the booking info
+      setBooking(patient.booking, patient.booking.status === 'COMPLETED' || patient.booking.status === 'CONFIRMED');
+    } catch (error) {
+      console.error('Error selecting patient:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors du chargement');
+    } finally {
+      setScanLoading(false);
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -484,12 +610,11 @@ export function ProPatients() {
                       {scannedPet.gender && (
                         <span>{scannedPet.gender === 'MALE' ? '♂️ Mâle' : '♀️ Femelle'}</span>
                       )}
+                      {scannedPet.birthDate && (
+                        <span>🎂 {format(new Date(scannedPet.birthDate), 'dd/MM/yyyy')}</span>
+                      )}
                     </div>
-                    {scannedPet.user && (
-                      <p className="text-sm text-gray-500 mt-2">
-                        👤 {scannedPet.user.firstName || 'Client'} {scannedPet.user.phone && `• ${scannedPet.user.phone}`}
-                      </p>
-                    )}
+                    {/* Note: User info (name, phone) not shown for privacy */}
                   </div>
                 </div>
 
@@ -924,6 +1049,69 @@ export function ProPatients() {
               </div>
             )}
           </Card>
+        )}
+
+        {/* Recent Patients Section (24h access) - Only show when no pet is scanned */}
+        {!scannedPet && !isPolling && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Patients récents</h2>
+                <p className="text-sm text-gray-500 flex items-center gap-1">
+                  <Clock size={14} />
+                  Accès limité à 24h après le RDV
+                </p>
+              </div>
+            </div>
+
+            {loadingRecentPatients ? (
+              <Card className="text-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto" />
+                <p className="text-gray-500 mt-3 text-sm">Chargement...</p>
+              </Card>
+            ) : recentPatients.length === 0 ? (
+              <Card className="text-center py-8">
+                <p className="text-gray-500">Aucun patient récent</p>
+                <p className="text-xs text-gray-400 mt-1">Les patients apparaîtront après un RDV confirmé</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentPatients.map((patient) => (
+                  <Card
+                    key={patient.pet.id}
+                    className="cursor-pointer hover:border-primary-300 hover:shadow-md transition-all"
+                    onClick={() => selectRecentPatient(patient)}
+                    padding="sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                        {getSpeciesEmoji(patient.pet.species)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="font-bold text-gray-900 truncate">{patient.pet.name}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 ${
+                            patient.hoursRemaining <= 2 ? 'bg-red-100 text-red-700' :
+                            patient.hoursRemaining <= 6 ? 'bg-orange-100 text-orange-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            <Clock size={10} />
+                            {patient.hoursRemaining}h
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 truncate">
+                          {patient.pet.species} {patient.pet.breed && `• ${patient.pet.breed}`}
+                        </p>
+                        <p className="text-xs text-primary-600 mt-1 truncate">
+                          🩺 {patient.booking.service?.title || 'Consultation'}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

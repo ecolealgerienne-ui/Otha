@@ -352,6 +352,29 @@ class ApiClient {
     await this.client.delete(`/pets/medical-records/${recordId}`);
   }
 
+  async createMedicalRecordForPet(petId: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {
+    const { data } = await this.client.post(`/pets/${petId}/medical-records`, record);
+    return data?.data || data;
+  }
+
+  async createPrescriptionForPet(petId: string, prescription: { title: string; description?: string; imageUrl?: string }): Promise<Prescription> {
+    // Use the token-based endpoint via a generated token
+    const tokenResponse = await this.client.post(`/pets/${petId}/access-token`);
+    const token = tokenResponse.data?.token || tokenResponse.data?.data?.token;
+    if (!token) throw new Error('Could not generate access token');
+    const { data } = await this.client.post(`/pets/by-token/${token}/prescriptions`, prescription);
+    return data?.data || data;
+  }
+
+  async createDiseaseForPet(petId: string, disease: { name: string; description?: string; status?: string }): Promise<DiseaseTracking> {
+    // Use the token-based endpoint via a generated token
+    const tokenResponse = await this.client.post(`/pets/${petId}/access-token`);
+    const token = tokenResponse.data?.token || tokenResponse.data?.data?.token;
+    if (!token) throw new Error('Could not generate access token');
+    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
+    return data?.data || data;
+  }
+
   // ==================== PRESCRIPTIONS ====================
   async getPetPrescriptions(petId: string): Promise<Prescription[]> {
     const { data } = await this.client.get(`/pets/${petId}/prescriptions`);
@@ -414,6 +437,11 @@ class ApiClient {
 
   async deleteDisease(diseaseId: string): Promise<void> {
     await this.client.delete(`/pets/diseases/${diseaseId}`);
+  }
+
+  async generatePetAccessToken(petId: string): Promise<string> {
+    const { data } = await this.client.post(`/pets/${petId}/access-token`);
+    return data?.token || data?.data?.token;
   }
 
   // ==================== SCANNED PET SYNC (Flutter <-> Website) ====================
