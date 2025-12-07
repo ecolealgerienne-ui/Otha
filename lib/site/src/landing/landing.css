@@ -531,8 +531,8 @@ html.landing-active body {
 
 .landing-page .iphone-frame {
     position: relative;
-    width: 180px;
-    height: 368px;
+    width: 200px;
+    height: 410px;
     animation: floatPhone 4s ease-in-out infinite;
 }
 
@@ -548,36 +548,49 @@ html.landing-active body {
 
 .landing-page .iphone-screen {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    border-radius: 22px;
+    top: 9px;
+    left: 9px;
+    right: 9px;
+    bottom: 9px;
+    border-radius: 24px;
     overflow: hidden;
     background: #000;
     z-index: 1;
-    transition: background 0.5s ease;
 }
 
 .landing-page .iphone-screen img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-/* Animation de transition scroll pour l'écran du téléphone */
+/* Animation de transition scroll - les deux images collées */
+.landing-page .iphone-screen img.screen-exit {
+    animation: screenSlideOut 0.5s ease-in-out forwards;
+}
+
 .landing-page .iphone-screen img.screen-enter {
-    animation: screenSlideIn 0.5s ease-out forwards;
+    animation: screenSlideIn 0.5s ease-in-out forwards;
+}
+
+@keyframes screenSlideOut {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-100%);
+    }
 }
 
 @keyframes screenSlideIn {
     0% {
         transform: translateY(100%);
-        opacity: 0;
     }
     100% {
         transform: translateY(0);
-        opacity: 1;
     }
 }
 
