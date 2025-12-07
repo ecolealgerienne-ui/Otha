@@ -218,44 +218,71 @@ export function LandingPage() {
 
         {/* About Section */}
         <div className="about" id="about">
-          <div className="about-grid">
-            <div className="page-selector page-selector-pos-2">
-              <div className="selector-bg">
-                <div className="selector-case"></div>
-                <div className="selector-active"></div>
-                <div className="selector-case"></div>
+          <div className="about-circle-container">
+            {/* Phone au centre */}
+            <div className="about-phone-center">
+              <img src="/assets/img/phone.png" alt="VEGECE App" />
+            </div>
+
+            {/* Features en cercle */}
+            <div className="about-feature feature-1">
+              <div className="feature-icon">
+                <i className="fa-solid fa-map-location-dot"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Trouvez autour de vous</span>
+                <span className="feature-desc">Vétérinaires, garderies, pet shops près de chez vous</span>
               </div>
             </div>
 
-            <div className="div2">
-              <i className="fa-solid fa-magnifying-glass grid-icon"></i>
-              <span className="about-grid-text">
-                Powerful Research
-              </span>
+            <div className="about-feature feature-2">
+              <div className="feature-icon">
+                <i className="fa-solid fa-paw"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Tous vos animaux</span>
+                <span className="feature-desc">Chiens, chats, NAC... gérez tous vos compagnons</span>
+              </div>
             </div>
-            <div className="div3">
-              <i className="fa-solid fa-paw grid-icon"></i>
-              <span className="about-grid-text">
-                For all pet
-              </span>
+
+            <div className="about-feature feature-3">
+              <div className="feature-icon">
+                <i className="fa-solid fa-calendar-check"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Rendez-vous facile</span>
+                <span className="feature-desc">Réservez en quelques clics chez votre vétérinaire</span>
+              </div>
             </div>
-            <div className="div4">
-              <i className="fa-solid fa-hospital grid-icon"></i>
-              <span className="about-grid-text">
-                Find Best Practician
-              </span>
+
+            <div className="about-feature feature-4">
+              <div className="feature-icon">
+                <i className="fa-solid fa-file-medical"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Carnet de santé</span>
+                <span className="feature-desc">Vaccins, ordonnances, historique médical centralisé</span>
+              </div>
             </div>
-            <div className="div5">
-              <i className="fa-solid fa-folder grid-icon"></i>
-              <span className="about-grid-text">
-                Pet medical history
-              </span>
+
+            <div className="about-feature feature-5">
+              <div className="feature-icon">
+                <i className="fa-solid fa-heart"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Adoption</span>
+                <span className="feature-desc">Trouvez votre futur compagnon ou proposez à l'adoption</span>
+              </div>
             </div>
-            <div className="div6">
-              <i className="fa-solid fa-dog grid-icon"></i>
-              <span className="about-grid-text">
-                Adoption
-              </span>
+
+            <div className="about-feature feature-6">
+              <div className="feature-icon">
+                <i className="fa-solid fa-house"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Garderie</span>
+                <span className="feature-desc">Trouvez une garderie de confiance pour vos absences</span>
+              </div>
             </div>
           </div>
         </div>
