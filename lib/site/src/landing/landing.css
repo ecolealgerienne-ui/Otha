@@ -1994,3 +1994,195 @@ html.landing-active body {
         gap: 20px; /* Augmenter l'espace */
     }
 }
+
+/* --------------------------------------------------- */
+/* RTL Support (Arabic) */
+/* --------------------------------------------------- */
+
+/* Global RTL direction */
+.landing-page.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+/* Navigation RTL */
+.landing-page.rtl .navigation {
+    flex-direction: row-reverse;
+}
+
+.landing-page.rtl .navigation ul {
+    flex-direction: row-reverse;
+}
+
+/* Language selector - move to left side in RTL */
+.landing-page.rtl #language-selector {
+    right: auto;
+    left: 30px;
+}
+
+.landing-page.rtl .sub-flags {
+    flex-direction: row;
+    right: auto;
+    left: 0;
+}
+
+.landing-page.rtl #language-selector.open .sub-flags {
+    transform: translateX(calc(25px * 2 + 15px * 2));
+}
+
+/* Showcase RTL */
+.landing-page.rtl .showcase {
+    grid-template-columns: 55% 45%;
+}
+
+.landing-page.rtl .showcase-image-container {
+    order: 2;
+}
+
+.landing-page.rtl .showcase-content {
+    order: 1;
+    text-align: right;
+    align-items: flex-end;
+    padding: 0 60px 0 40px;
+}
+
+.landing-page.rtl .showcase-benefit {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+.landing-page.rtl .benefit-text {
+    align-items: flex-end;
+}
+
+/* About section RTL */
+.landing-page.rtl .about-feature {
+    flex-direction: row-reverse;
+}
+
+.landing-page.rtl .feature-content {
+    text-align: right;
+    align-items: flex-end;
+}
+
+/* Download section RTL */
+.landing-page.rtl .store-btn {
+    flex-direction: row-reverse;
+}
+
+.landing-page.rtl .store-text {
+    text-align: right;
+    align-items: flex-end;
+}
+
+/* Footer RTL */
+.landing-page.rtl .footer-main {
+    direction: rtl;
+}
+
+.landing-page.rtl .footer-brand {
+    align-items: flex-end;
+}
+
+.landing-page.rtl .footer-logo {
+    flex-direction: row-reverse;
+}
+
+.landing-page.rtl .footer-tagline {
+    text-align: right;
+}
+
+.landing-page.rtl .footer-nav-column {
+    align-items: flex-end;
+}
+
+.landing-page.rtl .footer-social {
+    align-items: flex-end;
+}
+
+.landing-page.rtl .footer-bottom {
+    flex-direction: row-reverse;
+}
+
+.landing-page.rtl .footer-legal {
+    flex-direction: row-reverse;
+}
+
+/* Arabic font support */
+.landing-page.rtl .main-title,
+.landing-page.rtl .main-slogan,
+.landing-page.rtl .showcase-headline,
+.landing-page.rtl .download-title {
+    font-family: "SFPRO Bold", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+
+.landing-page.rtl .nav-item-link,
+.landing-page.rtl .nav-pro-login,
+.landing-page.rtl .showcase-subtext,
+.landing-page.rtl .benefit-title,
+.landing-page.rtl .benefit-desc,
+.landing-page.rtl .feature-title,
+.landing-page.rtl .feature-desc,
+.landing-page.rtl .download-label,
+.landing-page.rtl .download-desc,
+.landing-page.rtl .store-label,
+.landing-page.rtl .store-name,
+.landing-page.rtl .stat-label,
+.landing-page.rtl .footer-tagline,
+.landing-page.rtl .footer-nav-title,
+.landing-page.rtl .footer-nav-link,
+.landing-page.rtl .footer-social-title,
+.landing-page.rtl .footer-copyright,
+.landing-page.rtl .footer-legal-link {
+    font-family: "SFPRO Regular", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+
+/* Mobile RTL adjustments */
+@media screen and (max-width: 768px) {
+    .landing-page.rtl .showcase-content {
+        text-align: center;
+        align-items: center;
+        padding: 30px 25px 60px;
+    }
+
+    .landing-page.rtl .showcase-benefit {
+        text-align: right;
+    }
+
+    .landing-page.rtl .footer-main {
+        text-align: center;
+    }
+
+    .landing-page.rtl .footer-brand {
+        align-items: center;
+    }
+
+    .landing-page.rtl .footer-nav-column {
+        align-items: center;
+    }
+
+    .landing-page.rtl .footer-social {
+        align-items: center;
+    }
+
+    .landing-page.rtl .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .landing-page.rtl .footer-legal {
+        flex-direction: row;
+        justify-content: center;
+    }
+}
+
+/* 2K RTL adjustments */
+@media screen and (min-width: 2000px) {
+    .landing-page.rtl #language-selector {
+        left: 50px;
+    }
+
+    .landing-page.rtl #language-selector.open .sub-flags {
+        transform: translateX(calc(70px * 2 + 20px * 2));
+    }
+}
