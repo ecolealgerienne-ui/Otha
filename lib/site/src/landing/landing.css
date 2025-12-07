@@ -587,7 +587,7 @@ html.landing-active body {
 
 @keyframes screenSlideIn {
     0% {
-        transform: translateY(100%);
+        transform: translateY(calc(100% - 2px));
     }
     100% {
         transform: translateY(0);
