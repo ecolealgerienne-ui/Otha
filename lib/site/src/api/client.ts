@@ -25,7 +25,7 @@ import type {
   AdoptPostStatus,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.piecespro.com/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.vegece.com/api/v1';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
