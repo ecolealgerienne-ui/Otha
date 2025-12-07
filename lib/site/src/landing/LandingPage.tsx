@@ -37,14 +37,19 @@ export function LandingPage() {
     }
   ]);
 
-  // Charger FontAwesome
+  // Charger FontAwesome et configurer le HTML
   useEffect(() => {
+    // Ajouter classe sur html pour le scroll
+    document.documentElement.classList.add('landing-active');
+
+    // Charger FontAwesome
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
     document.head.appendChild(link);
 
     return () => {
+      document.documentElement.classList.remove('landing-active');
       document.head.removeChild(link);
     };
   }, []);

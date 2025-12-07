@@ -41,28 +41,23 @@
     overflow-x: hidden;
 }
 
-html {
+html.landing-active {
     scroll-behavior: smooth;
+    overflow-x: hidden;
 }
 
-/* width */
+html.landing-active body {
+    overflow-x: hidden;
+}
+
+/* Hide custom scrollbar - use browser default */
 .landing-page ::-webkit-scrollbar {
-    width: 3px;
+    display: none;
 }
 
-/* Track */
-.landing-page ::-webkit-scrollbar-track {
-    background: var(--color-pink-light);
-}
-
-/* Handle */
-.landing-page ::-webkit-scrollbar-thumb {
-    background: var(--color-pink-dark);
-}
-
-/* Handle on hover */
-.landing-page ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-pink);
+.landing-page {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
 
 /* --------------------------------------------------- */
