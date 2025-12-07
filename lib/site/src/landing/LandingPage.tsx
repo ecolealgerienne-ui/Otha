@@ -323,32 +323,57 @@ export function LandingPage() {
           </button>
         </div>
 
-        {/* Showcase Section */}
+        {/* Showcase Section - Emotional */}
         <div className="showcase" id="showcase">
-          <div className="page-selector page-selector-pos">
-            <div className="selector-bg">
-              <div className="selector-active"></div>
-              <div className="selector-case"></div>
-              <div className="selector-case"></div>
+          <div className="showcase-image-container">
+            <img
+              src="/assets/img/fille-tenant-chat.png"
+              alt="Propriétaire avec son animal"
+              className="showcase-emotional-img"
+            />
+            <div className="showcase-image-overlay"></div>
+          </div>
+
+          <div className="showcase-content">
+            <span className="showcase-headline">
+              Parce qu'ils comptent<br />sur vous
+            </span>
+
+            <p className="showcase-subtext">
+              Offrez-leur le meilleur avec une gestion simplifiée de leur santé et bien-être.
+            </p>
+
+            <div className="showcase-benefits">
+              <div className="showcase-benefit">
+                <div className="benefit-icon">
+                  <i className="fa-solid fa-bell"></i>
+                </div>
+                <div className="benefit-text">
+                  <span className="benefit-title">Fini les oublis</span>
+                  <span className="benefit-desc">Rappels automatiques pour les vaccins et rendez-vous</span>
+                </div>
+              </div>
+
+              <div className="showcase-benefit">
+                <div className="benefit-icon">
+                  <i className="fa-solid fa-folder-open"></i>
+                </div>
+                <div className="benefit-text">
+                  <span className="benefit-title">Tout centralisé</span>
+                  <span className="benefit-desc">Carnet de santé, ordonnances, historique médical</span>
+                </div>
+              </div>
+
+              <div className="showcase-benefit">
+                <div className="benefit-icon">
+                  <i className="fa-solid fa-clock"></i>
+                </div>
+                <div className="benefit-text">
+                  <span className="benefit-title">Gagnez du temps</span>
+                  <span className="benefit-desc">Trouvez un vétérinaire et réservez en 30 secondes</span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="showcase-img">
-            <img src="/assets/img/phone.png" alt="" className="showcase-img-size" />
-          </div>
-
-          <div className="showcase-desc">
-            <span className="showcase-desc-title">
-              Titre explication page 1
-            </span>
-            <span className="showcase-desc-text">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit.<br />
-              Donec pharetra diam non tempor bibendum.<br />
-              In vestibulum, magna eu blandit viverra, dui arcu vestibulum nisl,<br />
-              id pretium tellus neque vitae diam.<br />
-              Ut tristique felis ac maximus ullamcorper.<br />
-              Fusce lacinia tellus ut ligula viverra blandit.
-            </span>
           </div>
         </div>
 
