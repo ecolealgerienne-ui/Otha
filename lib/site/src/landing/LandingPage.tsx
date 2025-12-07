@@ -48,23 +48,14 @@ export function LandingPage() {
     }
   ]);
 
-  // État pour l'animation de transition de l'écran du téléphone
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [previousFeature, setPreviousFeature] = useState(0);
+  // Compteur pour forcer la re-animation à chaque changement
+  const [animationKey, setAnimationKey] = useState(0);
 
   // Gérer le changement de feature avec animation de scroll
   const handleFeatureClick = (index: number) => {
-    if (index !== selectedFeature && !isTransitioning) {
-      setPreviousFeature(selectedFeature);
-      setIsTransitioning(true);
-
-      // Délai pour laisser l'animation se produire
-      setTimeout(() => {
-        setSelectedFeature(index);
-        setTimeout(() => {
-          setIsTransitioning(false);
-        }, 400);
-      }, 100);
+    if (index !== selectedFeature) {
+      setSelectedFeature(index);
+      setAnimationKey(prev => prev + 1);
     }
   };
 
@@ -360,12 +351,12 @@ export function LandingPage() {
             <div className="about-phone-center">
               <div className="iphone-frame">
                 <img src="/assets/img/iphone.png" alt="iPhone Frame" className="iphone-border" />
-                <div className={`iphone-screen ${isTransitioning ? 'transitioning' : ''}`}>
+                <div className="iphone-screen">
                   <img
-                    key={selectedFeature}
+                    key={animationKey}
                     src={features[selectedFeature].screen}
                     alt={features[selectedFeature].title}
-                    className={isTransitioning ? 'screen-slide-in' : ''}
+                    className="screen-enter"
                   />
                 </div>
               </div>
