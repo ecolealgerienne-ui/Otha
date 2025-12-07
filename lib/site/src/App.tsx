@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './auth/LoginPage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 
+// Landing
+import { LandingPage } from './landing';
+
 // Contexts
 import { ScannedPetProvider } from './contexts/ScannedPetContext';
 
@@ -48,6 +51,7 @@ function App() {
         <Router>
           <Routes>
           {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* Admin routes */}
@@ -159,8 +163,7 @@ function App() {
           />
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </ScannedPetProvider>
