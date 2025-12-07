@@ -186,7 +186,7 @@ export function LandingPage() {
           </span>
 
           <span className="main-slogan">
-            SLOGAN
+            La santé de votre animal, simplifiée
           </span>
 
           <button

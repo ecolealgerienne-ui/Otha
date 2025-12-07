@@ -172,13 +172,11 @@
     overflow-x: hidden;
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
-    /* Scroll snap avec transition smooth */
+    /* Scroll snap */
     height: 100vh;
     overflow-y: scroll;
-    scroll-snap-type: y proximity;
+    scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
-    /* Améliorer le scroll sur mobile */
-    -webkit-overflow-scrolling: touch;
 }
 
 /* Hide custom scrollbar - use browser default */
@@ -522,8 +520,8 @@ html.landing-active body {
 
 .landing-page .about-circle-container {
     position: relative;
-    width: 900px;
-    height: 900px;
+    width: 700px;
+    height: 700px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -537,8 +535,8 @@ html.landing-active body {
 
 .landing-page .iphone-frame {
     position: relative;
-    width: 280px;
-    height: 570px;
+    width: 220px;
+    height: 450px;
     animation: floatPhone 4s ease-in-out infinite;
 }
 
@@ -554,11 +552,11 @@ html.landing-active body {
 
 .landing-page .iphone-screen {
     position: absolute;
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    border-radius: 35px;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 28px;
     overflow: hidden;
     background: #000;
     z-index: 1;
@@ -713,8 +711,8 @@ html.landing-active body {
 .landing-page .about-circle-container::before {
     content: '';
     position: absolute;
-    width: 550px;
-    height: 550px;
+    width: 450px;
+    height: 450px;
     border: 1px dashed rgba(242, 150, 143, 0.2);
     border-radius: 50%;
     pointer-events: none;
@@ -1114,21 +1112,49 @@ html.landing-active body {
     }
 
     .landing-page .about-circle-container {
-        width: 700px;
-        height: 700px;
+        width: 600px;
+        height: 600px;
     }
 
-    .landing-page .about-phone-center img {
-        height: 350px;
+    .landing-page .iphone-frame {
+        width: 180px;
+        height: 368px;
+    }
+
+    .landing-page .iphone-screen {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        border-radius: 22px;
+    }
+
+    .landing-page .about-circle-container::before {
+        width: 380px;
+        height: 380px;
     }
 
     .landing-page .feature-title {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .landing-page .feature-desc {
-        font-size: 10px;
-        max-width: 140px;
+        font-size: 9px;
+        max-width: 120px;
+    }
+
+    .landing-page .feature-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .landing-page .feature-icon i {
+        font-size: 18px;
+    }
+
+    .landing-page .about-feature {
+        padding: 10px 15px;
+        gap: 10px;
     }
 }
 
@@ -1209,35 +1235,44 @@ html.landing-active body {
 
     /* --- Section A Propos (About) --- */
     .landing-page .about-circle-container {
-        width: 1000px;
-        height: 1000px;
+        width: 850px;
+        height: 850px;
     }
 
-    .landing-page .about-phone-center img {
-        height: 550px;
+    .landing-page .iphone-frame {
+        width: 280px;
+        height: 570px;
+    }
+
+    .landing-page .iphone-screen {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        border-radius: 35px;
     }
 
     .landing-page .feature-icon {
-        width: 60px;
-        height: 60px;
+        width: 55px;
+        height: 55px;
     }
 
     .landing-page .feature-icon i {
-        font-size: 26px;
+        font-size: 24px;
     }
 
     .landing-page .feature-title {
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .landing-page .feature-desc {
-        font-size: 13px;
-        max-width: 220px;
+        font-size: 12px;
+        max-width: 200px;
     }
 
     .landing-page .about-circle-container::before {
-        width: 650px;
-        height: 650px;
+        width: 550px;
+        height: 550px;
     }
 
 
