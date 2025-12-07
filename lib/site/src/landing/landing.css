@@ -35,10 +35,13 @@
 
 /* --------------------------------------------------- */
 .landing-page {
-    color: var(--white)
+    color: var(--white);
+    background: var(--bg-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
-.landing-page html {
+html {
     scroll-behavior: smooth;
 }
 
@@ -65,12 +68,10 @@
 /* --------------------------------------------------- */
 .landing-page .primary-main {
     width: 100%;
-    height: 100vh;
-    background: url(/assets/img/bg.jpg);
-    background-repeat: no-repeat;
-    background-position: bottom;
-    background-size: cover;
+    min-height: 100vh;
 }
+
+/* Hero section with background */
 
 .landing-page .navigation {
     width: 100%;
@@ -110,6 +111,12 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    background: url(/assets/img/bg.jpg);
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-size: cover;
 }
 
 .landing-page .main-title {
@@ -147,11 +154,13 @@
 
 /* --------------------------------------------------- */
 .landing-page .showcase {
-    margin-top: 24vh;
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     padding-top: 200px;
     background: url(/assets/img/bg1.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
     display: grid;
     grid-template-columns: repeat(2, 100px) 50px 33% 50px 1fr 100px;
     grid-template-rows: 1fr;
@@ -226,16 +235,17 @@
 /* --------------------------------------------------- */
 .landing-page .about {
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     background: url(/assets/img/phone_2.png);
     background-repeat: no-repeat;
     background-size: cover;
+    background-position: center;
 }
 
 .landing-page .about-grid {
     padding-top: 150px;
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     display: grid;
     grid-template-columns: repeat(2, 100px) repeat(5, 220px) 1fr 100px;
     grid-template-rows: 1fr 220px 100px;
@@ -324,8 +334,11 @@
 /* --------------------------------------------------- */
 .landing-page .download {
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     background: url(/assets/img/bg3.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
     padding-top: 150px;
     display: flex;
     flex-direction: column;
@@ -487,6 +500,215 @@
 }
 
 /* --------------------------------------------------- */
+/* Adaptation pour petits écrans (Mobile) */
+/* --------------------------------------------------- */
+
+@media screen and (max-width: 768px) {
+    .landing-page .navigation {
+        padding: 0 20px;
+        height: 10vh;
+    }
+
+    .landing-page .navigation ul {
+        display: none;
+    }
+
+    .landing-page .nav-pro-login {
+        font-size: 10px;
+    }
+
+    .landing-page .main-title {
+        font-size: 48px;
+        letter-spacing: 10px;
+        margin-top: 100px;
+        text-align: center;
+    }
+
+    .landing-page .main-slogan {
+        font-size: 18px;
+        margin-top: 150px;
+    }
+
+    .landing-page .main-btn {
+        padding: 12px 30px;
+        font-size: 14px;
+    }
+
+    .landing-page .showcase {
+        display: flex;
+        flex-direction: column;
+        padding: 80px 20px;
+        min-height: auto;
+    }
+
+    .landing-page .page-selector-pos,
+    .landing-page .page-selector-pos-2 {
+        display: none;
+    }
+
+    .landing-page .showcase-img {
+        order: 1;
+        margin-bottom: 30px;
+    }
+
+    .landing-page .showcase-img img {
+        max-width: 250px;
+        height: auto;
+    }
+
+    .landing-page .showcase-desc {
+        order: 2;
+        text-align: center;
+        padding: 0 20px;
+    }
+
+    .landing-page .showcase-desc-title {
+        font-size: 28px;
+    }
+
+    .landing-page .showcase-desc-text {
+        font-size: 14px;
+    }
+
+    .landing-page .about {
+        min-height: auto;
+        padding: 60px 20px;
+    }
+
+    .landing-page .about-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-height: auto;
+        padding: 40px 20px;
+    }
+
+    .landing-page .div2,
+    .landing-page .div3,
+    .landing-page .div4,
+    .landing-page .div5,
+    .landing-page .div6 {
+        width: 100%;
+        padding: 30px;
+        margin: 0;
+    }
+
+    .landing-page .grid-icon {
+        font-size: 36px;
+    }
+
+    .landing-page .about-grid-text {
+        font-size: 16px;
+    }
+
+    .landing-page .download {
+        min-height: auto;
+        padding: 60px 20px;
+    }
+
+    .landing-page .download-title {
+        font-size: 28px;
+        margin: 30px 0;
+        text-align: center;
+    }
+
+    .landing-page .download-desc {
+        font-size: 14px;
+    }
+
+    .landing-page .download-btn {
+        padding: 15px 40px;
+        font-size: 16px;
+    }
+
+    .landing-page .footer {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        padding: 40px 20px;
+        text-align: center;
+    }
+
+    .landing-page .footer-side-1,
+    .landing-page .footer-side-2,
+    .landing-page .footer-side-3 {
+        width: 100%;
+        justify-content: center;
+        margin: 20px 0;
+    }
+
+    .landing-page .footer-logo-paw {
+        font-size: 60px;
+    }
+
+    .landing-page .footer-nav {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .landing-page .footer-nav-item {
+        margin: 10px 0;
+    }
+
+    .landing-page .footer-nav-social {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+}
+
+/* --------------------------------------------------- */
+/* Adaptation pour tablettes */
+/* --------------------------------------------------- */
+
+@media screen and (min-width: 769px) and (max-width: 1200px) {
+    .landing-page .navigation {
+        padding: 0 50px;
+    }
+
+    .landing-page .nav-item {
+        padding: 20px;
+    }
+
+    .landing-page .main-title {
+        font-size: 80px;
+        letter-spacing: 20px;
+    }
+
+    .landing-page .main-slogan {
+        margin-top: 200px;
+        font-size: 24px;
+    }
+
+    .landing-page .showcase {
+        grid-template-columns: 50px 50px 30px 40% 30px 1fr 50px;
+        padding-top: 100px;
+    }
+
+    .landing-page .showcase-desc-title {
+        font-size: 32px;
+    }
+
+    .landing-page .showcase-desc-text {
+        font-size: 16px;
+    }
+
+    .landing-page .about-grid {
+        grid-template-columns: 50px 50px repeat(5, 150px) 1fr 50px;
+        grid-column-gap: 20px;
+        grid-template-rows: 1fr 150px 50px;
+    }
+
+    .landing-page .grid-icon {
+        font-size: 36px;
+    }
+
+    .landing-page .about-grid-text {
+        font-size: 14px;
+    }
+}
+
+/* --------------------------------------------------- */
 /* Adaptation pour écrans très larges (2K - 2560px et au-delà) */
 /* --------------------------------------------------- */
 
@@ -535,7 +757,6 @@
     /* --- Section Présentation (Showcase) --- */
     /* On réajuste la grille pour qu'elle s'étire mieux */
     .landing-page .showcase {
-        margin-top: 30vh; /* Plus d'espace au-dessus */
         /* Nouvelle grille : on augmente les colonnes fixes (100px -> 150px) et on ajuste la proportion */
         grid-template-columns: 150px 150px 70px 30% 70px 1fr 150px;
     }
