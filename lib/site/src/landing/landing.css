@@ -172,6 +172,10 @@
     overflow-x: hidden;
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+    /* Scroll snap */
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
 }
 
 /* Hide custom scrollbar - use browser default */
@@ -186,9 +190,6 @@ html.landing-active {
 
 html.landing-active body {
     overflow-x: hidden;
-    height: 100vh;
-    overflow-y: scroll;
-    scroll-snap-type: y mandatory;
 }
 
 /* --------------------------------------------------- */
