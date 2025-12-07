@@ -48,7 +48,27 @@ export function LandingPage() {
     }
   ]);
 
-  // Charger FontAwesome et configurer le HTML
+  // État pour l'animation de transition de l'écran du téléphone
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [previousFeature, setPreviousFeature] = useState(0);
+
+  // Gérer le changement de feature avec animation de scroll
+  const handleFeatureClick = (index: number) => {
+    if (index !== selectedFeature && !isTransitioning) {
+      setPreviousFeature(selectedFeature);
+      setIsTransitioning(true);
+
+      // Délai pour laisser l'animation se produire
+      setTimeout(() => {
+        setSelectedFeature(index);
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 400);
+      }, 100);
+    }
+  };
+
+  // Charger FontAwesome et configurer le scroll personnalisé
   useEffect(() => {
     // Ajouter classe sur html pour le scroll
     document.documentElement.classList.add('landing-active');
@@ -59,9 +79,88 @@ export function LandingPage() {
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
     document.head.appendChild(link);
 
+    // Gestionnaire de scroll personnalisé pour une animation lente
+    const container = document.querySelector('.landing-page');
+    let isScrolling = false;
+    let scrollTimeout: ReturnType<typeof setTimeout>;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (isScrolling) {
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+      isScrolling = true;
+
+      const sections = container?.querySelectorAll('.main, .showcase, .about, .download, .footer');
+      if (!sections || !container) return;
+
+      const currentScroll = (container as HTMLElement).scrollTop;
+      const viewportHeight = window.innerHeight;
+
+      // Trouver la section actuelle
+      let currentIndex = 0;
+      sections.forEach((section, index) => {
+        const sectionTop = (section as HTMLElement).offsetTop;
+        if (currentScroll >= sectionTop - viewportHeight / 2) {
+          currentIndex = index;
+        }
+      });
+
+      // Déterminer la direction et la cible
+      let targetIndex = currentIndex;
+      if (e.deltaY > 0 && currentIndex < sections.length - 1) {
+        targetIndex = currentIndex + 1;
+      } else if (e.deltaY < 0 && currentIndex > 0) {
+        targetIndex = currentIndex - 1;
+      }
+
+      if (targetIndex !== currentIndex) {
+        const targetSection = sections[targetIndex] as HTMLElement;
+        const targetPosition = targetSection.offsetTop;
+        const startPosition = (container as HTMLElement).scrollTop;
+        const distance = targetPosition - startPosition;
+        const duration = 1200; // Animation lente de 1.2 secondes
+        let startTime: number | null = null;
+
+        const easeInOutCubic = (t: number): number => {
+          return t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        };
+
+        const animation = (currentTime: number) => {
+          if (startTime === null) startTime = currentTime;
+          const timeElapsed = currentTime - startTime;
+          const progress = Math.min(timeElapsed / duration, 1);
+          const easedProgress = easeInOutCubic(progress);
+
+          (container as HTMLElement).scrollTop = startPosition + distance * easedProgress;
+
+          if (timeElapsed < duration) {
+            requestAnimationFrame(animation);
+          } else {
+            // Permettre un nouveau scroll après un délai
+            scrollTimeout = setTimeout(() => {
+              isScrolling = false;
+            }, 100);
+          }
+        };
+
+        requestAnimationFrame(animation);
+      } else {
+        isScrolling = false;
+      }
+    };
+
+    container?.addEventListener('wheel', handleWheel as EventListener, { passive: false });
+
     return () => {
       document.documentElement.classList.remove('landing-active');
       document.head.removeChild(link);
+      container?.removeEventListener('wheel', handleWheel as EventListener);
+      clearTimeout(scrollTimeout);
     };
   }, []);
 
@@ -88,11 +187,38 @@ export function LandingPage() {
     console.log(`Nouvelle langue sélectionnée : ${clickedSubFlag.lang}`);
   };
 
-  // Scroll smooth vers une section
+  // Scroll smooth vers une section avec animation lente personnalisée
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    const container = document.querySelector('.landing-page');
+    if (element && container) {
+      const targetPosition = element.offsetTop;
+      const startPosition = container.scrollTop;
+      const distance = targetPosition - startPosition;
+      const duration = 1200; // Durée en ms - plus lent et fluide
+      let startTime: number | null = null;
+
+      // Easing function - easeInOutCubic pour une animation très fluide
+      const easeInOutCubic = (t: number): number => {
+        return t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
+
+      const animation = (currentTime: number) => {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        const easedProgress = easeInOutCubic(progress);
+
+        container.scrollTop = startPosition + distance * easedProgress;
+
+        if (timeElapsed < duration) {
+          requestAnimationFrame(animation);
+        }
+      };
+
+      requestAnimationFrame(animation);
     }
   };
 
@@ -234,11 +360,12 @@ export function LandingPage() {
             <div className="about-phone-center">
               <div className="iphone-frame">
                 <img src="/assets/img/iphone.png" alt="iPhone Frame" className="iphone-border" />
-                <div className="iphone-screen">
+                <div className={`iphone-screen ${isTransitioning ? 'transitioning' : ''}`}>
                   <img
                     key={selectedFeature}
                     src={features[selectedFeature].screen}
                     alt={features[selectedFeature].title}
+                    className={isTransitioning ? 'screen-slide-in' : ''}
                   />
                 </div>
               </div>
@@ -250,7 +377,7 @@ export function LandingPage() {
                 <div
                   key={index}
                   className={`about-feature feature-${index + 1} ${selectedFeature === index ? 'active' : ''}`}
-                  onClick={() => setSelectedFeature(index)}
+                  onClick={() => handleFeatureClick(index)}
                 >
                   <div className="feature-icon">
                     <i className={`fa-solid ${feature.icon}`}></i>

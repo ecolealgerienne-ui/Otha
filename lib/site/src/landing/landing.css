@@ -172,11 +172,9 @@
     overflow-x: hidden;
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
-    /* Scroll snap avec animation smooth */
+    /* Scroll géré par JavaScript pour animation lente et fluide */
     height: 100vh;
     overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
 }
 
 /* Hide custom scrollbar - use browser default */
@@ -299,7 +297,6 @@ html.landing-active body {
     background-repeat: no-repeat;
     background-position: bottom;
     background-size: cover;
-    scroll-snap-align: start;
 }
 
 .landing-page .main-title {
@@ -433,7 +430,6 @@ html.landing-active body {
     grid-template-rows: 1fr;
     grid-column-gap: 0px;
     grid-row-gap: 0px;
-    scroll-snap-align: start;
 }
 
 .landing-page .page-selector-pos {
@@ -515,13 +511,12 @@ html.landing-active body {
     z-index: 1;
     /* Empêcher les features de passer sur la navbar */
     clip-path: inset(0);
-    scroll-snap-align: start;
 }
 
 .landing-page .about-circle-container {
     position: relative;
-    width: 700px;
-    height: 700px;
+    width: 550px;
+    height: 550px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -535,8 +530,8 @@ html.landing-active body {
 
 .landing-page .iphone-frame {
     position: relative;
-    width: 220px;
-    height: 450px;
+    width: 180px;
+    height: 368px;
     animation: floatPhone 4s ease-in-out infinite;
 }
 
@@ -552,11 +547,11 @@ html.landing-active body {
 
 .landing-page .iphone-screen {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    border-radius: 28px;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border-radius: 22px;
     overflow: hidden;
     background: #000;
     z-index: 1;
@@ -567,7 +562,38 @@ html.landing-active body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: opacity 0.4s ease;
+    transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+/* Animation de transition scroll pour l'écran du téléphone */
+.landing-page .iphone-screen.transitioning img {
+    animation: screenSlideOut 0.3s ease forwards;
+}
+
+.landing-page .iphone-screen img.screen-slide-in {
+    animation: screenSlideIn 0.4s ease forwards;
+}
+
+@keyframes screenSlideOut {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+}
+
+@keyframes screenSlideIn {
+    0% {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* Placeholder pour l'écran quand pas d'image */
@@ -629,12 +655,12 @@ html.landing-active body {
     position: absolute;
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 15px 25px;
+    gap: 10px;
+    padding: 10px 15px;
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    border-radius: 16px;
     cursor: pointer;
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     /* Contre-rotation pour garder le texte lisible */
@@ -685,9 +711,9 @@ html.landing-active body {
 
 /* Icône de la feature */
 .landing-page .feature-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 15px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%);
     display: flex;
     justify-content: center;
@@ -697,7 +723,7 @@ html.landing-active body {
 }
 
 .landing-page .feature-icon i {
-    font-size: 22px;
+    font-size: 18px;
     color: var(--white);
 }
 
@@ -710,16 +736,16 @@ html.landing-active body {
 
 .landing-page .feature-title {
     font-family: "SFPRO Bold";
-    font-size: 14px;
+    font-size: 12px;
     color: var(--white);
     white-space: nowrap;
 }
 
 .landing-page .feature-desc {
     font-family: "SFPRO Regular";
-    font-size: 11px;
+    font-size: 9px;
     color: var(--grey-light);
-    max-width: 180px;
+    max-width: 140px;
     line-height: 1.3;
 }
 
@@ -740,8 +766,8 @@ html.landing-active body {
 .landing-page .about-circle-container::before {
     content: '';
     position: absolute;
-    width: 450px;
-    height: 450px;
+    width: 350px;
+    height: 350px;
     border: 1px dashed rgba(242, 150, 143, 0.2);
     border-radius: 50%;
     pointer-events: none;
@@ -760,7 +786,6 @@ html.landing-active body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    scroll-snap-align: start;
 }
 
 .landing-page .download-title {
@@ -816,7 +841,6 @@ html.landing-active body {
     grid-column-gap: 0px;
     grid-row-gap: 0px;
     background: var(--pink-darker);
-    scroll-snap-align: end;
 }
 
 .landing-page .footer-side-1 {
