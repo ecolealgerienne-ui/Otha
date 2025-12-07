@@ -17,12 +17,12 @@ export function LandingPage() {
 
   // Features avec leurs écrans associés
   const features = [
-    { icon: 'fa-map-location-dot', title: 'Trouvez autour de vous', desc: 'Vétérinaires, garderies, pet shops près de chez vous', screen: '/assets/img/screens/map.png', color: '#4A90D9' },
-    { icon: 'fa-paw', title: 'Tous vos animaux', desc: 'Chiens, chats, NAC... gérez tous vos compagnons', screen: '/assets/img/screens/pets.png', color: '#F2968F' },
-    { icon: 'fa-calendar-check', title: 'Rendez-vous facile', desc: 'Réservez en quelques clics chez votre vétérinaire', screen: '/assets/img/screens/rdv.png', color: '#5CB85C' },
-    { icon: 'fa-file-medical', title: 'Carnet de santé', desc: 'Vaccins, ordonnances, historique médical centralisé', screen: '/assets/img/screens/sante.png', color: '#F0AD4E' },
-    { icon: 'fa-heart', title: 'Adoption', desc: 'Trouvez votre futur compagnon ou proposez à l\'adoption', screen: '/assets/img/screens/adopt.png', color: '#E74C3C' },
-    { icon: 'fa-house', title: 'Garderie', desc: 'Trouvez une garderie de confiance pour vos absences', screen: '/assets/img/screens/garderie.png', color: '#9B59B6' },
+    { icon: 'fa-map-location-dot', title: 'Trouvez autour de vous', desc: 'Vétérinaires, garderies, pet shops près de chez vous', screen: '/assets/img/screens/map.jpeg' },
+    { icon: 'fa-paw', title: 'Tous vos animaux', desc: 'Chiens, chats, NAC... gérez tous vos compagnons', screen: '/assets/img/screens/home.jpeg' },
+    { icon: 'fa-calendar-check', title: 'Rendez-vous facile', desc: 'Réservez en quelques clics chez votre vétérinaire', screen: '/assets/img/screens/home.jpeg' },
+    { icon: 'fa-file-medical', title: 'Carnet de santé', desc: 'Vaccins, ordonnances, historique médical centralisé', screen: '/assets/img/screens/santé.jpeg' },
+    { icon: 'fa-heart', title: 'Adoption', desc: 'Trouvez votre futur compagnon ou proposez à l\'adoption', screen: '/assets/img/screens/adopt.jpeg' },
+    { icon: 'fa-house', title: 'Garderie', desc: 'Trouvez une garderie de confiance pour vos absences', screen: '/assets/img/screens/home.jpeg' },
   ];
 
   // État pour les drapeaux
@@ -59,49 +59,9 @@ export function LandingPage() {
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
     document.head.appendChild(link);
 
-    // Scroll smooth personnalisé
-    const landingPage = document.querySelector('.landing-page');
-    let isScrolling = false;
-    let scrollTimeout: NodeJS.Timeout;
-
-    const handleWheel = (e: WheelEvent) => {
-      if (isScrolling) return;
-
-      const sections = document.querySelectorAll('.main, .showcase, .about, .download, .footer');
-      const currentScroll = landingPage?.scrollTop || 0;
-      const viewportHeight = window.innerHeight;
-
-      // Trouver la section actuelle
-      let currentIndex = 0;
-      sections.forEach((section, index) => {
-        const rect = section.getBoundingClientRect();
-        if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
-          currentIndex = index;
-        }
-      });
-
-      // Déterminer la direction
-      const direction = e.deltaY > 0 ? 1 : -1;
-      const targetIndex = Math.max(0, Math.min(sections.length - 1, currentIndex + direction));
-
-      if (targetIndex !== currentIndex) {
-        isScrolling = true;
-        sections[targetIndex].scrollIntoView({ behavior: 'smooth' });
-
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-          isScrolling = false;
-        }, 1000);
-      }
-    };
-
-    landingPage?.addEventListener('wheel', handleWheel, { passive: true });
-
     return () => {
       document.documentElement.classList.remove('landing-active');
       document.head.removeChild(link);
-      landingPage?.removeEventListener('wheel', handleWheel);
-      clearTimeout(scrollTimeout);
     };
   }, []);
 
@@ -274,14 +234,12 @@ export function LandingPage() {
             <div className="about-phone-center">
               <div className="iphone-frame">
                 <img src="/assets/img/iphone.png" alt="iPhone Frame" className="iphone-border" />
-                <div
-                  className="iphone-screen"
-                  style={{ background: `linear-gradient(135deg, ${features[selectedFeature].color} 0%, ${features[selectedFeature].color}dd 100%)` }}
-                >
-                  <div className="screen-placeholder">
-                    <i className={`fa-solid ${features[selectedFeature].icon}`}></i>
-                    <span>{features[selectedFeature].title}</span>
-                  </div>
+                <div className="iphone-screen">
+                  <img
+                    key={selectedFeature}
+                    src={features[selectedFeature].screen}
+                    alt={features[selectedFeature].title}
+                  />
                 </div>
               </div>
             </div>
