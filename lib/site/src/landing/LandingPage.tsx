@@ -13,49 +13,6 @@ interface LanguageData {
 export function LandingPage() {
   const navigate = useNavigate();
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
-  const [activeFeature, setActiveFeature] = useState(0);
-
-  // Features data
-  const features = [
-    {
-      icon: 'fa-map-location-dot',
-      title: 'Trouvez autour de vous',
-      desc: 'Vétérinaires, garderies, pet shops près de chez vous'
-    },
-    {
-      icon: 'fa-paw',
-      title: 'Tous vos animaux',
-      desc: 'Chiens, chats, NAC... gérez tous vos compagnons'
-    },
-    {
-      icon: 'fa-calendar-check',
-      title: 'Rendez-vous facile',
-      desc: 'Réservez en quelques clics chez votre vétérinaire'
-    },
-    {
-      icon: 'fa-file-medical',
-      title: 'Carnet de santé',
-      desc: 'Vaccins, ordonnances, historique médical centralisé'
-    },
-    {
-      icon: 'fa-heart',
-      title: 'Adoption',
-      desc: 'Trouvez votre futur compagnon ou proposez à l\'adoption'
-    },
-    {
-      icon: 'fa-house',
-      title: 'Garderie',
-      desc: 'Trouvez une garderie de confiance pour vos absences'
-    }
-  ];
-
-  // Auto-rotation du carousel
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveFeature((prev) => (prev + 1) % features.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [features.length]);
 
   // État pour les drapeaux
   const [mainFlag, setMainFlag] = useState<LanguageData>({
@@ -259,73 +216,73 @@ export function LandingPage() {
           </div>
         </div>
 
-        {/* About Section - Carousel */}
+        {/* About Section */}
         <div className="about" id="about">
-          <div className="about-carousel-container">
-            {/* Flèche gauche */}
-            <button
-              className="carousel-arrow carousel-arrow-left"
-              onClick={() => setActiveFeature((prev) => (prev - 1 + features.length) % features.length)}
-            >
-              <i className="fa-solid fa-chevron-left"></i>
-            </button>
-
-            {/* Feature card gauche */}
-            <div className="carousel-feature carousel-feature-left">
-              <div className="feature-icon">
-                <i className={`fa-solid ${features[(activeFeature - 1 + features.length) % features.length].icon}`}></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">{features[(activeFeature - 1 + features.length) % features.length].title}</span>
-                <span className="feature-desc">{features[(activeFeature - 1 + features.length) % features.length].desc}</span>
-              </div>
-            </div>
-
+          <div className="about-circle-container">
             {/* Phone au centre */}
             <div className="about-phone-center">
               <img src="/assets/img/phone.png" alt="VEGECE App" />
-              {/* Ligne de connexion */}
-              <div className="connection-line connection-line-left"></div>
-              <div className="connection-line connection-line-right"></div>
             </div>
 
-            {/* Feature card droite */}
-            <div className="carousel-feature carousel-feature-right">
+            {/* Features en cercle */}
+            <div className="about-feature feature-1">
               <div className="feature-icon">
-                <i className={`fa-solid ${features[(activeFeature + 1) % features.length].icon}`}></i>
+                <i className="fa-solid fa-map-location-dot"></i>
               </div>
               <div className="feature-content">
-                <span className="feature-title">{features[(activeFeature + 1) % features.length].title}</span>
-                <span className="feature-desc">{features[(activeFeature + 1) % features.length].desc}</span>
+                <span className="feature-title">Trouvez autour de vous</span>
+                <span className="feature-desc">Vétérinaires, garderies, pet shops près de chez vous</span>
               </div>
             </div>
 
-            {/* Flèche droite */}
-            <button
-              className="carousel-arrow carousel-arrow-right"
-              onClick={() => setActiveFeature((prev) => (prev + 1) % features.length)}
-            >
-              <i className="fa-solid fa-chevron-right"></i>
-            </button>
-
-            {/* Feature active en haut */}
-            <div className="carousel-feature-active">
-              <div className="feature-icon-large">
-                <i className={`fa-solid ${features[activeFeature].icon}`}></i>
+            <div className="about-feature feature-2">
+              <div className="feature-icon">
+                <i className="fa-solid fa-paw"></i>
               </div>
-              <span className="feature-title-large">{features[activeFeature].title}</span>
-              <span className="feature-desc-large">{features[activeFeature].desc}</span>
+              <div className="feature-content">
+                <span className="feature-title">Tous vos animaux</span>
+                <span className="feature-desc">Chiens, chats, NAC... gérez tous vos compagnons</span>
+              </div>
             </div>
 
-            {/* Dots de navigation */}
-            <div className="carousel-dots">
-              {features.map((_, index) => (
-                <button
-                  key={index}
-                  className={`carousel-dot ${index === activeFeature ? 'active' : ''}`}
-                  onClick={() => setActiveFeature(index)}
-                />
-              ))}
+            <div className="about-feature feature-3">
+              <div className="feature-icon">
+                <i className="fa-solid fa-calendar-check"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Rendez-vous facile</span>
+                <span className="feature-desc">Réservez en quelques clics chez votre vétérinaire</span>
+              </div>
+            </div>
+
+            <div className="about-feature feature-4">
+              <div className="feature-icon">
+                <i className="fa-solid fa-file-medical"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Carnet de santé</span>
+                <span className="feature-desc">Vaccins, ordonnances, historique médical centralisé</span>
+              </div>
+            </div>
+
+            <div className="about-feature feature-5">
+              <div className="feature-icon">
+                <i className="fa-solid fa-heart"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Adoption</span>
+                <span className="feature-desc">Trouvez votre futur compagnon ou proposez à l'adoption</span>
+              </div>
+            </div>
+
+            <div className="about-feature feature-6">
+              <div className="feature-icon">
+                <i className="fa-solid fa-house"></i>
+              </div>
+              <div className="feature-content">
+                <span className="feature-title">Garderie</span>
+                <span className="feature-desc">Trouvez une garderie de confiance pour vos absences</span>
+              </div>
             </div>
           </div>
         </div>

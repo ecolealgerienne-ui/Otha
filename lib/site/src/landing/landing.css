@@ -501,12 +501,12 @@ html.landing-active body {
 }
 
 /* --------------------------------------------------- */
-/* SECTION ABOUT - Carousel Layout */
+/* SECTION ABOUT - Layout circulaire */
 /* --------------------------------------------------- */
 .landing-page .about {
     width: 100%;
     min-height: 100vh;
-    background: linear-gradient(135deg, rgba(11, 11, 11, 0.98) 0%, rgba(20, 20, 20, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(11, 11, 11, 0.95) 0%, rgba(30, 30, 30, 0.9) 100%);
     scroll-snap-align: start;
     display: flex;
     justify-content: center;
@@ -515,28 +515,26 @@ html.landing-active body {
     overflow: hidden;
 }
 
-.landing-page .about-carousel-container {
+.landing-page .about-circle-container {
     position: relative;
-    width: 100%;
-    max-width: 1200px;
-    height: 80vh;
+    width: 800px;
+    height: 800px;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 60px;
 }
 
 /* Téléphone au centre */
 .landing-page .about-phone-center {
-    position: relative;
+    position: absolute;
     z-index: 10;
     animation: floatPhone 4s ease-in-out infinite;
 }
 
 .landing-page .about-phone-center img {
-    height: 500px;
+    height: 450px;
     width: auto;
-    filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.6));
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
 }
 
 @keyframes floatPhone {
@@ -548,83 +546,71 @@ html.landing-active body {
     }
 }
 
-/* Lignes de connexion */
-.landing-page .connection-line {
+/* Features positionnées en cercle */
+.landing-page .about-feature {
     position: absolute;
-    top: 50%;
-    width: 80px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--pink), transparent);
-    opacity: 0.5;
-}
-
-.landing-page .connection-line-left {
-    left: -80px;
-}
-
-.landing-page .connection-line-right {
-    right: -80px;
-}
-
-/* Features carousel (gauche et droite) */
-.landing-page .carousel-feature {
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 15px;
-    padding: 30px;
-    background: rgba(255, 255, 255, 0.03);
+    padding: 15px 25px;
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 25px;
-    width: 220px;
-    text-align: center;
-    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    opacity: 0.5;
-    transform: scale(0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    opacity: 0;
+    animation: fadeInFeature 0.8s ease-out forwards;
 }
 
-.landing-page .carousel-feature-left,
-.landing-page .carousel-feature-right {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%) scale(0.9);
+@keyframes fadeInFeature {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
-.landing-page .carousel-feature-left {
-    left: 5%;
-}
-
-.landing-page .carousel-feature-right {
-    right: 5%;
-}
-
-/* Feature active en haut */
-.landing-page .carousel-feature-active {
-    position: absolute;
-    top: 8%;
+/* Positions des 6 features autour du cercle */
+.landing-page .about-feature.feature-1 {
+    top: 5%;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    padding: 30px 50px;
-    background: rgba(242, 150, 143, 0.1);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(242, 150, 143, 0.3);
-    border-radius: 30px;
-    text-align: center;
-    animation: pulseGlow 3s ease-in-out infinite;
+    animation-delay: 0.1s;
 }
 
-@keyframes pulseGlow {
-    0%, 100% {
-        box-shadow: 0 0 30px rgba(242, 150, 143, 0.2);
-    }
-    50% {
-        box-shadow: 0 0 50px rgba(242, 150, 143, 0.4);
-    }
+.landing-page .about-feature.feature-2 {
+    top: 20%;
+    right: 0;
+    animation-delay: 0.2s;
+}
+
+.landing-page .about-feature.feature-3 {
+    bottom: 20%;
+    right: 0;
+    animation-delay: 0.3s;
+}
+
+.landing-page .about-feature.feature-4 {
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    animation-delay: 0.4s;
+}
+
+.landing-page .about-feature.feature-5 {
+    bottom: 20%;
+    left: 0;
+    animation-delay: 0.5s;
+}
+
+.landing-page .about-feature.feature-6 {
+    top: 20%;
+    left: 0;
+    animation-delay: 0.6s;
 }
 
 /* Icône de la feature */
@@ -645,118 +631,58 @@ html.landing-active body {
     color: var(--white);
 }
 
-.landing-page .feature-icon-large {
-    width: 70px;
-    height: 70px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 10px 30px rgba(242, 150, 143, 0.4);
-}
-
-.landing-page .feature-icon-large i {
-    font-size: 32px;
-    color: var(--white);
-}
-
 /* Contenu de la feature */
 .landing-page .feature-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
 .landing-page .feature-title {
     font-family: "SFPRO Bold";
     font-size: 14px;
     color: var(--white);
-}
-
-.landing-page .feature-title-large {
-    font-family: "SFPRO Bold";
-    font-size: 22px;
-    color: var(--white);
+    white-space: nowrap;
 }
 
 .landing-page .feature-desc {
     font-family: "SFPRO Regular";
     font-size: 11px;
     color: var(--grey-light);
-    line-height: 1.4;
+    max-width: 180px;
+    line-height: 1.3;
 }
 
-.landing-page .feature-desc-large {
-    font-family: "SFPRO Regular";
-    font-size: 14px;
-    color: var(--grey-light);
-    max-width: 300px;
-    line-height: 1.5;
-}
-
-/* Flèches de navigation */
-.landing-page .carousel-arrow {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--white);
-    font-size: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.landing-page .carousel-arrow:hover {
-    background: var(--pink);
+/* Hover effect */
+.landing-page .about-feature:hover {
+    background: rgba(242, 150, 143, 0.15);
     border-color: var(--pink);
-    transform: translateY(-50%) scale(1.1);
+    transform: scale(1.05);
+    box-shadow: 0 10px 30px rgba(242, 150, 143, 0.2);
 }
 
-.landing-page .carousel-arrow-left {
-    left: 2%;
+.landing-page .about-feature:hover .feature-icon {
+    transform: rotate(10deg) scale(1.1);
 }
 
-.landing-page .carousel-arrow-right {
-    right: 2%;
-}
-
-/* Dots de navigation */
-.landing-page .carousel-dots {
+/* Lignes de connexion vers le téléphone (optionnel - décoratif) */
+.landing-page .about-circle-container::before {
+    content: '';
     position: absolute;
-    bottom: 8%;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 12px;
-}
-
-.landing-page .carousel-dot {
-    width: 12px;
-    height: 12px;
+    width: 500px;
+    height: 500px;
+    border: 1px dashed rgba(242, 150, 143, 0.2);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    animation: rotateSlow 60s linear infinite;
 }
 
-.landing-page .carousel-dot:hover {
-    background: rgba(255, 255, 255, 0.4);
-}
-
-.landing-page .carousel-dot.active {
-    background: var(--pink);
-    transform: scale(1.3);
-    box-shadow: 0 0 15px rgba(242, 150, 143, 0.5);
+@keyframes rotateSlow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* --------------------------------------------------- */
@@ -1002,72 +928,43 @@ html.landing-active body {
 
     .landing-page .about {
         min-height: auto;
-        padding: 40px 15px;
+        padding: 60px 20px;
     }
 
-    .landing-page .about-carousel-container {
+    .landing-page .about-circle-container {
+        width: 100%;
         height: auto;
         flex-direction: column;
         gap: 20px;
-        padding: 20px 10px;
+        padding: 20px;
     }
 
     .landing-page .about-phone-center {
         position: relative;
-        order: 2;
+        margin-bottom: 30px;
     }
 
     .landing-page .about-phone-center img {
-        height: 250px;
+        height: 280px;
     }
 
-    .landing-page .connection-line {
-        display: none;
-    }
-
-    .landing-page .carousel-feature-left,
-    .landing-page .carousel-feature-right {
-        display: none;
-    }
-
-    .landing-page .carousel-feature-active {
+    .landing-page .about-feature {
         position: relative;
-        top: auto;
-        left: auto;
-        transform: none;
-        order: 1;
-        padding: 20px 30px;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: none !important;
         width: 100%;
+        animation-delay: 0s !important;
     }
 
-    .landing-page .feature-icon-large {
-        width: 60px;
-        height: 60px;
-    }
-
-    .landing-page .feature-icon-large i {
-        font-size: 26px;
-    }
-
-    .landing-page .feature-title-large {
-        font-size: 18px;
-    }
-
-    .landing-page .feature-desc-large {
-        font-size: 12px;
-    }
-
-    .landing-page .carousel-arrow {
+    .landing-page .about-circle-container::before {
         display: none;
     }
 
-    .landing-page .carousel-dots {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        transform: none;
-        order: 3;
-        margin-top: 20px;
+    .landing-page .feature-desc {
+        max-width: 100%;
     }
 
     .landing-page .download {
@@ -1162,40 +1059,22 @@ html.landing-active body {
         font-size: 16px;
     }
 
-    .landing-page .about-carousel-container {
-        max-width: 900px;
-        height: 70vh;
+    .landing-page .about-circle-container {
+        width: 700px;
+        height: 700px;
     }
 
     .landing-page .about-phone-center img {
-        height: 380px;
-    }
-
-    .landing-page .carousel-feature {
-        width: 180px;
-        padding: 20px;
-    }
-
-    .landing-page .carousel-feature-left {
-        left: 2%;
-    }
-
-    .landing-page .carousel-feature-right {
-        right: 2%;
+        height: 350px;
     }
 
     .landing-page .feature-title {
-        font-size: 12px;
+        font-size: 13px;
     }
 
     .landing-page .feature-desc {
         font-size: 10px;
-    }
-
-    .landing-page .carousel-arrow {
-        width: 40px;
-        height: 40px;
-        font-size: 16px;
+        max-width: 140px;
     }
 }
 
@@ -1275,22 +1154,13 @@ html.landing-active body {
     }
 
     /* --- Section A Propos (About) --- */
-    .landing-page .about-carousel-container {
-        max-width: 1600px;
-        height: 85vh;
+    .landing-page .about-circle-container {
+        width: 1000px;
+        height: 1000px;
     }
 
     .landing-page .about-phone-center img {
-        height: 600px;
-    }
-
-    .landing-page .carousel-feature {
-        width: 280px;
-        padding: 40px;
-    }
-
-    .landing-page .carousel-feature-active {
-        padding: 40px 70px;
+        height: 550px;
     }
 
     .landing-page .feature-icon {
@@ -1302,41 +1172,18 @@ html.landing-active body {
         font-size: 26px;
     }
 
-    .landing-page .feature-icon-large {
-        width: 90px;
-        height: 90px;
-    }
-
-    .landing-page .feature-icon-large i {
-        font-size: 40px;
-    }
-
     .landing-page .feature-title {
-        font-size: 18px;
-    }
-
-    .landing-page .feature-title-large {
-        font-size: 28px;
+        font-size: 16px;
     }
 
     .landing-page .feature-desc {
-        font-size: 14px;
+        font-size: 13px;
+        max-width: 220px;
     }
 
-    .landing-page .feature-desc-large {
-        font-size: 18px;
-        max-width: 400px;
-    }
-
-    .landing-page .carousel-arrow {
-        width: 60px;
-        height: 60px;
-        font-size: 24px;
-    }
-
-    .landing-page .carousel-dot {
-        width: 16px;
-        height: 16px;
+    .landing-page .about-circle-container::before {
+        width: 650px;
+        height: 650px;
     }
 
 
