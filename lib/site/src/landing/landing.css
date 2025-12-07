@@ -172,10 +172,9 @@
     overflow-x: hidden;
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
-    /* Scroll snap */
+    /* Scroll géré par JavaScript pour plus de fluidité */
     height: 100vh;
     overflow-y: scroll;
-    scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
 }
 
@@ -299,7 +298,6 @@ html.landing-active body {
     background-repeat: no-repeat;
     background-position: bottom;
     background-size: cover;
-    scroll-snap-align: start;
 }
 
 .landing-page .main-title {
@@ -433,7 +431,6 @@ html.landing-active body {
     grid-template-rows: 1fr;
     grid-column-gap: 0px;
     grid-row-gap: 0px;
-    scroll-snap-align: start;
 }
 
 .landing-page .page-selector-pos {
@@ -507,7 +504,6 @@ html.landing-active body {
     width: 100%;
     min-height: 100vh;
     background: linear-gradient(135deg, rgba(11, 11, 11, 0.95) 0%, rgba(30, 30, 30, 0.9) 100%);
-    scroll-snap-align: start;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -560,6 +556,7 @@ html.landing-active body {
     overflow: hidden;
     background: #000;
     z-index: 1;
+    transition: background 0.5s ease;
 }
 
 .landing-page .iphone-screen img {
@@ -567,6 +564,34 @@ html.landing-active body {
     height: 100%;
     object-fit: cover;
     transition: opacity 0.4s ease;
+}
+
+/* Placeholder pour l'écran quand pas d'image */
+.landing-page .screen-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    transition: all 0.4s ease;
+}
+
+.landing-page .screen-placeholder i {
+    font-size: 60px;
+    opacity: 0.9;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+.landing-page .screen-placeholder span {
+    font-family: "SFPRO Bold";
+    font-size: 18px;
+    opacity: 0.95;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 @keyframes floatPhone {
@@ -731,7 +756,6 @@ html.landing-active body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    scroll-snap-align: start;
 }
 
 .landing-page .download-title {
@@ -787,7 +811,6 @@ html.landing-active body {
     grid-column-gap: 0px;
     grid-row-gap: 0px;
     background: var(--pink-darker);
-    scroll-snap-align: end;
 }
 
 .landing-page .footer-side-1 {
