@@ -71,7 +71,10 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
   const pollForScannedPet = useCallback(async () => {
     try {
       const result = await api.getScannedPet();
+      console.log('[ScannedPetContext] Poll result:', result);
+
       if (result.pet && result.scannedAt !== lastScannedAt) {
+        console.log('[ScannedPetContext] New scanned pet detected:', result.pet.name);
         setLastScannedAt(result.scannedAt);
         const petData = result.pet as Pet & {
           medicalRecords?: MedicalRecord[];
@@ -84,10 +87,11 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         let healthStats: HealthStatsAggregated | null = null;
         try {
           healthStats = await api.getPetHealthStats(petData.id);
-        } catch {
-          // Ignore health stats fetch errors
+        } catch (err) {
+          console.log('[ScannedPetContext] Failed to load health stats:', err);
         }
 
+        console.log('[ScannedPetContext] Setting pet data from polling');
         setState({
           pet: petData,
           token: '', // Token is handled by backend
@@ -102,9 +106,10 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
 
         setIsPolling(false);
         api.clearScannedPet().catch(() => {});
+        console.log('[ScannedPetContext] Polling stopped, pet loaded');
       }
     } catch (error) {
-      console.log('Poll error:', error);
+      console.log('[ScannedPetContext] Poll error:', error);
     }
   }, [lastScannedAt]);
 
@@ -137,6 +142,15 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
       healthStats: HealthStatsAggregated | null = null,
       diseases: DiseaseTracking[] = []
     ) => {
+      console.log('[ScannedPetContext] setPetData called:', {
+        petName: pet?.name,
+        petId: pet?.id,
+        recordsCount: records.length,
+        vaccinationsCount: vaccinations.length,
+        prescriptionsCount: prescriptions.length,
+        hasHealthStats: !!healthStats,
+        diseasesCount: diseases.length,
+      });
       setState({
         pet,
         token,
@@ -148,6 +162,7 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         activeBooking: null,
         bookingConfirmed: false,
       });
+      console.log('[ScannedPetContext] State updated');
     },
     []
   );
