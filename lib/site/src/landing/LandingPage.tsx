@@ -179,10 +179,11 @@ export function LandingPage() {
           </span>
 
           <button
-            className="main-btn"
+            className="main-btn scroll-arrow"
             onClick={() => scrollToSection('showcase')}
+            aria-label="Défiler vers le bas"
           >
-            Btn Accès Content
+            <i className="fa-solid fa-chevron-down"></i>
           </button>
         </div>
 

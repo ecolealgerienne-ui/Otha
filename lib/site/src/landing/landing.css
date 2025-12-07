@@ -134,6 +134,35 @@
     }
 }
 
+/* Animation de rebond pour la flèche de scroll */
+@keyframes bounceArrow {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(10px);
+    }
+    60% {
+        transform: translateY(5px);
+    }
+}
+
+/* Animation fade + bounce combinée */
+@keyframes fadeInBounce {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* --------------------------------------------------- */
 /* Styles principaux de la landing page */
 .landing-page {
@@ -338,6 +367,49 @@ html.landing-active body {
 .landing-page .main-btn:active {
     transform: translateY(-1px);
     box-shadow: 0 4px 15px rgba(251, 103, 109, 0.3);
+}
+
+/* Styles spécifiques pour la flèche de scroll */
+.landing-page .main-btn.scroll-arrow {
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid var(--pink);
+    margin-top: 40px;
+    animation: fadeInBounce 0.8s ease-out 1.6s forwards,
+               bounceArrow 2s ease-in-out 2.5s infinite;
+    box-shadow: 0 0 20px rgba(242, 150, 143, 0.2);
+}
+
+.landing-page .main-btn.scroll-arrow i {
+    font-size: 24px;
+    color: var(--pink);
+    transition: all 0.3s ease;
+}
+
+.landing-page .main-btn.scroll-arrow::before {
+    display: none;
+}
+
+.landing-page .main-btn.scroll-arrow:hover {
+    background: var(--pink);
+    transform: translateY(5px);
+    box-shadow: 0 0 30px rgba(242, 150, 143, 0.5);
+    animation: none;
+}
+
+.landing-page .main-btn.scroll-arrow:hover i {
+    color: var(--white);
+    transform: translateY(3px);
+}
+
+.landing-page .main-btn.scroll-arrow:active {
+    transform: translateY(8px);
 }
 
 /* --------------------------------------------------- */
