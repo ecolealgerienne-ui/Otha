@@ -1,13 +1,7 @@
 /* --------------------------------------------------- */
-*,
-::before,
-::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-:root {
+/* Variables CSS pour la landing page */
+/* --------------------------------------------------- */
+.landing-page {
     --bg-primary: rgb(11, 11, 11);
     --grey-light: #595959;
     --grey: #5959597c;
@@ -16,6 +10,15 @@
     --pink-darker: #b44a4e;
     --pink: #F2968F;
     --pink-light: #FDBDB9;
+}
+
+/* Reset CSS scopé uniquement à la landing page */
+.landing-page *,
+.landing-page *::before,
+.landing-page *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 @font-face {
@@ -34,11 +37,19 @@
 }
 
 /* --------------------------------------------------- */
+/* Styles principaux de la landing page */
 .landing-page {
     color: var(--white);
     background: var(--bg-primary);
     min-height: 100vh;
     overflow-x: hidden;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide custom scrollbar - use browser default */
+.landing-page::-webkit-scrollbar {
+    display: none;
 }
 
 html.landing-active {
@@ -48,16 +59,6 @@ html.landing-active {
 
 html.landing-active body {
     overflow-x: hidden;
-}
-
-/* Hide custom scrollbar - use browser default */
-.landing-page ::-webkit-scrollbar {
-    display: none;
-}
-
-.landing-page {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
 }
 
 /* --------------------------------------------------- */
