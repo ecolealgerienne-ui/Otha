@@ -401,6 +401,7 @@ html.landing-active body {
     transform: translateY(5px);
     box-shadow: 0 0 30px rgba(242, 150, 143, 0.5);
     animation: none;
+    opacity: 1;
 }
 
 .landing-page .main-btn.scroll-arrow:hover i {
