@@ -186,6 +186,9 @@ html.landing-active {
 
 html.landing-active body {
     overflow-x: hidden;
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
 }
 
 /* --------------------------------------------------- */
@@ -294,6 +297,7 @@ html.landing-active body {
     background-repeat: no-repeat;
     background-position: bottom;
     background-size: cover;
+    scroll-snap-align: start;
 }
 
 .landing-page .main-title {
@@ -427,6 +431,7 @@ html.landing-active body {
     grid-template-rows: 1fr;
     grid-column-gap: 0px;
     grid-row-gap: 0px;
+    scroll-snap-align: start;
 }
 
 .landing-page .page-selector-pos {
@@ -501,6 +506,7 @@ html.landing-active body {
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
+    scroll-snap-align: start;
 }
 
 .landing-page .about-grid {
@@ -605,6 +611,7 @@ html.landing-active body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    scroll-snap-align: start;
 }
 
 .landing-page .download-title {
@@ -660,6 +667,7 @@ html.landing-active body {
     grid-column-gap: 0px;
     grid-row-gap: 0px;
     background: var(--pink-darker);
+    scroll-snap-align: end;
 }
 
 .landing-page .footer-side-1 {
