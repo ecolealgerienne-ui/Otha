@@ -172,11 +172,13 @@
     overflow-x: hidden;
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
-    /* Scroll snap */
+    /* Scroll snap avec transition smooth */
     height: 100vh;
     overflow-y: scroll;
-    scroll-snap-type: y mandatory;
+    scroll-snap-type: y proximity;
     scroll-behavior: smooth;
+    /* Améliorer le scroll sur mobile */
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Hide custom scrollbar - use browser default */
@@ -501,7 +503,7 @@ html.landing-active body {
 }
 
 /* --------------------------------------------------- */
-/* SECTION ABOUT - Layout circulaire */
+/* SECTION ABOUT - Layout circulaire avec rotation */
 /* --------------------------------------------------- */
 .landing-page .about {
     width: 100%;
@@ -513,28 +515,60 @@ html.landing-active body {
     align-items: center;
     position: relative;
     overflow: hidden;
+    z-index: 1;
+    /* Empêcher les features de passer sur la navbar */
+    clip-path: inset(0);
 }
 
 .landing-page .about-circle-container {
     position: relative;
-    width: 800px;
-    height: 800px;
+    width: 900px;
+    height: 900px;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-/* Téléphone au centre */
+/* Téléphone au centre avec frame iPhone */
 .landing-page .about-phone-center {
     position: absolute;
     z-index: 10;
+}
+
+.landing-page .iphone-frame {
+    position: relative;
+    width: 280px;
+    height: 570px;
     animation: floatPhone 4s ease-in-out infinite;
 }
 
-.landing-page .about-phone-center img {
-    height: 450px;
-    width: auto;
-    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+.landing-page .iphone-border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.landing-page .iphone-screen {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    border-radius: 35px;
+    overflow: hidden;
+    background: #000;
+    z-index: 1;
+}
+
+.landing-page .iphone-screen img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.4s ease;
 }
 
 @keyframes floatPhone {
@@ -543,6 +577,23 @@ html.landing-active body {
     }
     50% {
         transform: translateY(-15px);
+    }
+}
+
+/* Orbit des features qui tourne */
+.landing-page .features-orbit {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    animation: orbitRotate 60s linear infinite;
+}
+
+@keyframes orbitRotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
     }
 }
 
@@ -559,58 +610,50 @@ html.landing-active body {
     border-radius: 20px;
     cursor: pointer;
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    opacity: 0;
-    animation: fadeInFeature 0.8s ease-out forwards;
+    /* Contre-rotation pour garder le texte lisible */
+    animation: counterRotate 60s linear infinite;
 }
 
-@keyframes fadeInFeature {
+@keyframes counterRotate {
     from {
-        opacity: 0;
-        transform: scale(0.8);
+        transform: rotate(0deg);
     }
     to {
-        opacity: 1;
-        transform: scale(1);
+        transform: rotate(-360deg);
     }
 }
 
 /* Positions des 6 features autour du cercle */
 .landing-page .about-feature.feature-1 {
-    top: 5%;
+    top: 2%;
     left: 50%;
-    transform: translateX(-50%);
-    animation-delay: 0.1s;
+    margin-left: -140px;
 }
 
 .landing-page .about-feature.feature-2 {
-    top: 20%;
-    right: 0;
-    animation-delay: 0.2s;
+    top: 22%;
+    right: -5%;
 }
 
 .landing-page .about-feature.feature-3 {
-    bottom: 20%;
-    right: 0;
-    animation-delay: 0.3s;
+    bottom: 22%;
+    right: -5%;
 }
 
 .landing-page .about-feature.feature-4 {
-    bottom: 5%;
+    bottom: 2%;
     left: 50%;
-    transform: translateX(-50%);
-    animation-delay: 0.4s;
+    margin-left: -140px;
 }
 
 .landing-page .about-feature.feature-5 {
-    bottom: 20%;
-    left: 0;
-    animation-delay: 0.5s;
+    bottom: 22%;
+    left: -5%;
 }
 
 .landing-page .about-feature.feature-6 {
-    top: 20%;
-    left: 0;
-    animation-delay: 0.6s;
+    top: 22%;
+    left: -5%;
 }
 
 /* Icône de la feature */
@@ -654,35 +697,27 @@ html.landing-active body {
 }
 
 /* Hover effect */
-.landing-page .about-feature:hover {
+.landing-page .about-feature:hover,
+.landing-page .about-feature.active {
     background: rgba(242, 150, 143, 0.15);
     border-color: var(--pink);
-    transform: scale(1.05);
-    box-shadow: 0 10px 30px rgba(242, 150, 143, 0.2);
+    box-shadow: 0 10px 30px rgba(242, 150, 143, 0.3);
 }
 
-.landing-page .about-feature:hover .feature-icon {
+.landing-page .about-feature:hover .feature-icon,
+.landing-page .about-feature.active .feature-icon {
     transform: rotate(10deg) scale(1.1);
 }
 
-/* Lignes de connexion vers le téléphone (optionnel - décoratif) */
+/* Cercle décoratif */
 .landing-page .about-circle-container::before {
     content: '';
     position: absolute;
-    width: 500px;
-    height: 500px;
+    width: 550px;
+    height: 550px;
     border: 1px dashed rgba(242, 150, 143, 0.2);
     border-radius: 50%;
-    animation: rotateSlow 60s linear infinite;
-}
-
-@keyframes rotateSlow {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    pointer-events: none;
 }
 
 /* --------------------------------------------------- */
@@ -944,8 +979,27 @@ html.landing-active body {
         margin-bottom: 30px;
     }
 
-    .landing-page .about-phone-center img {
-        height: 280px;
+    .landing-page .iphone-frame {
+        width: 200px;
+        height: 410px;
+    }
+
+    .landing-page .iphone-screen {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        border-radius: 25px;
+    }
+
+    .landing-page .features-orbit {
+        position: relative;
+        width: 100%;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        animation: none;
     }
 
     .landing-page .about-feature {
@@ -954,9 +1008,9 @@ html.landing-active body {
         left: auto !important;
         right: auto !important;
         bottom: auto !important;
-        transform: none !important;
+        margin: 0 !important;
         width: 100%;
-        animation-delay: 0s !important;
+        animation: none;
     }
 
     .landing-page .about-circle-container::before {
