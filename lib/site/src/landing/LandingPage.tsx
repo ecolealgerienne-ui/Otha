@@ -48,14 +48,22 @@ export function LandingPage() {
     }
   ]);
 
-  // Compteur pour forcer la re-animation à chaque changement
-  const [animationKey, setAnimationKey] = useState(0);
+  // État pour l'animation de scroll entre deux images
+  const [previousFeature, setPreviousFeature] = useState<number | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Gérer le changement de feature avec animation de scroll
   const handleFeatureClick = (index: number) => {
-    if (index !== selectedFeature) {
+    if (index !== selectedFeature && !isAnimating) {
+      setPreviousFeature(selectedFeature);
+      setIsAnimating(true);
       setSelectedFeature(index);
-      setAnimationKey(prev => prev + 1);
+
+      // Supprimer l'ancienne image après l'animation
+      setTimeout(() => {
+        setPreviousFeature(null);
+        setIsAnimating(false);
+      }, 500);
     }
   };
 
@@ -352,11 +360,21 @@ export function LandingPage() {
               <div className="iphone-frame">
                 <img src="/assets/img/iphone.png" alt="iPhone Frame" className="iphone-border" />
                 <div className="iphone-screen">
+                  {/* Image précédente qui sort vers le haut */}
+                  {previousFeature !== null && (
+                    <img
+                      key={`exit-${previousFeature}`}
+                      src={features[previousFeature].screen}
+                      alt={features[previousFeature].title}
+                      className="screen-exit"
+                    />
+                  )}
+                  {/* Image actuelle qui entre par le bas */}
                   <img
-                    key={animationKey}
+                    key={`enter-${selectedFeature}`}
                     src={features[selectedFeature].screen}
                     alt={features[selectedFeature].title}
-                    className="screen-enter"
+                    className={isAnimating ? 'screen-enter' : ''}
                   />
                 </div>
               </div>
