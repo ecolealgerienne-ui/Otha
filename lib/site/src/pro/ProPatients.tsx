@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   FileText,
   Syringe,
@@ -30,7 +30,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStatsAggregated, DiseaseTracking, Booking } from '../types';
+import type { Prescription, DiseaseTracking } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useScannedPet } from '../contexts/ScannedPetContext';
@@ -1099,7 +1099,7 @@ export function ProPatients() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                <select value={editingDisease.status} onChange={(e) => setEditingDisease({ ...editingDisease, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                <select value={editingDisease.status} onChange={(e) => setEditingDisease({ ...editingDisease, status: e.target.value as "ACTIVE" | "MONITORING" | "RESOLVED" })} className="w-full px-3 py-2 border rounded-lg">
                   <option value="ACTIVE">Actif</option>
                   <option value="MONITORING">Surveillance</option>
                   <option value="RESOLVED">Résolu</option>
