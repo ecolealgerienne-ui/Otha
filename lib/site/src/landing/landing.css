@@ -417,84 +417,182 @@ html.landing-active body {
 }
 
 /* --------------------------------------------------- */
+/* SECTION PRÉSENTATION - Design Émotionnel Prestige */
+/* --------------------------------------------------- */
 .landing-page .showcase {
     width: 100%;
     height: 100vh;
-    padding-top: 100px;
     box-sizing: border-box;
-    background: url(/assets/img/bg1.jpg);
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(135deg, rgba(11, 11, 11, 0.97) 0%, rgba(20, 20, 20, 0.95) 100%);
     display: grid;
-    grid-template-columns: repeat(2, 100px) 50px 33% 50px 1fr 100px;
-    grid-template-rows: 1fr;
-    grid-column-gap: 0px;
-    grid-row-gap: 0px;
-}
-
-.landing-page .page-selector-pos {
-    grid-area: 1 / 2 / 2 / 3;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-.landing-page .selector-bg {
-    background: var(--white);
-    width: 30px;
-    height: 90px;
-    border-radius: 25px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.137);
-}
-
-.landing-page .selector-active {
-    width: 15px;
-    height: 15px;
-    background: var(--pink);
-    border: solid 2px var(--pink-dark);
-    border-radius: 25px;
-}
-
-.landing-page .selector-case {
-    width: 15px;
-    height: 15px;
-    background: transparent;
-    border: solid 2px var(--pink);
-    border-radius: 25px;
-}
-
-.landing-page .showcase-img {
-    grid-area: 1 / 4 / 2 / 5;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
     overflow: hidden;
-    display: flex;
-    justify-content: center;
 }
 
-.landing-page .showcase-desc {
-    grid-area: 1 / 6 / 2 / 7;
+/* Container de l'image émotionnelle */
+.landing-page .showcase-image-container {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+}
+
+.landing-page .showcase-emotional-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0;
+    animation: fadeInImage 1.5s ease-out 0.3s forwards;
+}
+
+@keyframes fadeInImage {
+    0% {
+        opacity: 0;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Overlay gradient sur l'image */
+.landing-page .showcase-image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        transparent 60%,
+        rgba(11, 11, 11, 0.8) 85%,
+        rgba(11, 11, 11, 1) 100%
+    );
+    pointer-events: none;
+}
+
+/* Contenu texte */
+.landing-page .showcase-content {
     display: flex;
     flex-direction: column;
     justify-content: center;
-
+    padding: 0 80px 0 60px;
+    position: relative;
+    z-index: 2;
 }
 
-.landing-page .showcase-desc-title {
-    font-size: 48px;
-    font-family: "SFPRO Medium";
-    margin-bottom: 15px;
-    text-shadow: 0 5px 10px #0000001f;
+/* Titre émotionnel */
+.landing-page .showcase-headline {
+    font-family: "SFPRO Bold";
+    font-size: 52px;
+    line-height: 1.15;
+    color: var(--white);
+    margin-bottom: 25px;
+    opacity: 0;
+    animation: slideInText 1s ease-out 0.6s forwards;
 }
 
-.landing-page .showcase-desc-text {
-    font-size: 24px;
+@keyframes slideInText {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Sous-titre */
+.landing-page .showcase-subtext {
     font-family: "SFPRO Regular";
-    text-shadow: 0 5px 10px #0000001f;
+    font-size: 18px;
+    color: var(--grey-light);
+    line-height: 1.6;
+    margin-bottom: 50px;
+    max-width: 400px;
+    opacity: 0;
+    animation: slideInText 1s ease-out 0.8s forwards;
+}
+
+/* Container des bénéfices */
+.landing-page .showcase-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* Chaque bénéfice */
+.landing-page .showcase-benefit {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    opacity: 0;
+    animation: slideInBenefit 0.8s ease-out forwards;
+}
+
+.landing-page .showcase-benefit:nth-child(1) {
+    animation-delay: 1s;
+}
+
+.landing-page .showcase-benefit:nth-child(2) {
+    animation-delay: 1.15s;
+}
+
+.landing-page .showcase-benefit:nth-child(3) {
+    animation-delay: 1.3s;
+}
+
+@keyframes slideInBenefit {
+    0% {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Icône du bénéfice */
+.landing-page .benefit-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 25px rgba(242, 150, 143, 0.25);
+}
+
+.landing-page .benefit-icon i {
+    font-size: 20px;
+    color: var(--white);
+}
+
+/* Texte du bénéfice */
+.landing-page .benefit-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.landing-page .benefit-title {
+    font-family: "SFPRO Bold";
+    font-size: 16px;
+    color: var(--white);
+}
+
+.landing-page .benefit-desc {
+    font-family: "SFPRO Regular";
+    font-size: 14px;
+    color: var(--grey-light);
+    line-height: 1.4;
 }
 
 /* --------------------------------------------------- */
@@ -975,39 +1073,67 @@ html.landing-active body {
     }
 
     .landing-page .showcase {
-        display: flex;
-        flex-direction: column;
-        padding: 80px 20px;
-        min-height: auto;
-    }
-
-    .landing-page .page-selector-pos,
-    .landing-page .page-selector-pos-2 {
-        display: none;
-    }
-
-    .landing-page .showcase-img {
-        order: 1;
-        margin-bottom: 30px;
-    }
-
-    .landing-page .showcase-img img {
-        max-width: 250px;
+        grid-template-columns: 1fr;
+        grid-template-rows: 40vh 1fr;
         height: auto;
+        min-height: 100vh;
     }
 
-    .landing-page .showcase-desc {
-        order: 2;
+    .landing-page .showcase-image-container {
+        height: 40vh;
+    }
+
+    .landing-page .showcase-image-overlay {
+        background: linear-gradient(
+            180deg,
+            transparent 0%,
+            transparent 50%,
+            rgba(11, 11, 11, 0.9) 90%,
+            rgba(11, 11, 11, 1) 100%
+        );
+    }
+
+    .landing-page .showcase-content {
+        padding: 30px 25px 60px;
         text-align: center;
-        padding: 0 20px;
+        align-items: center;
     }
 
-    .landing-page .showcase-desc-title {
-        font-size: 28px;
+    .landing-page .showcase-headline {
+        font-size: 32px;
+        text-align: center;
     }
 
-    .landing-page .showcase-desc-text {
+    .landing-page .showcase-subtext {
+        font-size: 15px;
+        text-align: center;
+        margin-bottom: 35px;
+    }
+
+    .landing-page .showcase-benefits {
+        gap: 20px;
+        width: 100%;
+    }
+
+    .landing-page .showcase-benefit {
+        text-align: left;
+    }
+
+    .landing-page .benefit-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .landing-page .benefit-icon i {
+        font-size: 18px;
+    }
+
+    .landing-page .benefit-title {
         font-size: 14px;
+    }
+
+    .landing-page .benefit-desc {
+        font-size: 12px;
     }
 
     .landing-page .about {
@@ -1150,16 +1276,33 @@ html.landing-active body {
     }
 
     .landing-page .showcase {
-        grid-template-columns: 50px 50px 30px 40% 30px 1fr 50px;
-        padding-top: 100px;
+        grid-template-columns: 45% 55%;
     }
 
-    .landing-page .showcase-desc-title {
-        font-size: 32px;
+    .landing-page .showcase-content {
+        padding: 0 40px 0 30px;
     }
 
-    .landing-page .showcase-desc-text {
+    .landing-page .showcase-headline {
+        font-size: 38px;
+    }
+
+    .landing-page .showcase-subtext {
         font-size: 16px;
+        margin-bottom: 35px;
+    }
+
+    .landing-page .benefit-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .landing-page .benefit-title {
+        font-size: 14px;
+    }
+
+    .landing-page .benefit-desc {
+        font-size: 13px;
     }
 
     .landing-page .about-circle-container {
@@ -1258,30 +1401,41 @@ html.landing-active body {
 
 
     /* --- Section Présentation (Showcase) --- */
-    /* On réajuste la grille pour qu'elle s'étire mieux */
-    .landing-page .showcase {
-        /* Nouvelle grille : on augmente les colonnes fixes (100px -> 150px) et on ajuste la proportion */
-        grid-template-columns: 150px 150px 70px 30% 70px 1fr 150px;
+    .landing-page .showcase-content {
+        padding: 0 120px 0 80px;
     }
 
-    .landing-page .selector-bg {
-        width: 40px; /* Agrandir les sélecteurs de page */
-        height: 120px;
+    .landing-page .showcase-headline {
+        font-size: 68px;
+        margin-bottom: 35px;
     }
 
-    .landing-page .selector-active,
-    .landing-page .selector-case {
-        width: 20px;
-        height: 20px;
+    .landing-page .showcase-subtext {
+        font-size: 22px;
+        margin-bottom: 60px;
+        max-width: 500px;
     }
 
-    .landing-page .showcase-desc-title {
-        font-size: 64px; /* Agrandir le titre de la description */
-        margin-bottom: 25px;
+    .landing-page .showcase-benefits {
+        gap: 35px;
     }
 
-    .landing-page .showcase-desc-text {
-        font-size: 30px; /* Agrandir le texte de la description */
+    .landing-page .benefit-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+    }
+
+    .landing-page .benefit-icon i {
+        font-size: 26px;
+    }
+
+    .landing-page .benefit-title {
+        font-size: 20px;
+    }
+
+    .landing-page .benefit-desc {
+        font-size: 16px;
     }
 
     /* --- Section A Propos (About) --- */
