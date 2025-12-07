@@ -601,7 +601,7 @@ html.landing-active body {
 .landing-page .about {
     width: 100%;
     min-height: 100vh;
-    background: linear-gradient(135deg, rgba(11, 11, 11, 0.95) 0%, rgba(30, 30, 30, 0.9) 100%);
+    background: linear-gradient(135deg, rgba(11, 11, 11, 0.97) 0%, rgba(20, 20, 20, 0.95) 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -610,6 +610,31 @@ html.landing-active body {
     z-index: 1;
     /* Empêcher les features de passer sur la navbar */
     clip-path: inset(0);
+}
+
+/* Accents décoratifs roses subtils - cohérent avec Download */
+.landing-page .about::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -15%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(242, 150, 143, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.landing-page .about::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(251, 103, 109, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .landing-page .about-circle-container {
@@ -1060,52 +1085,192 @@ html.landing-active body {
 }
 
 /* --------------------------------------------------- */
+/* --------------------------------------------------- */
+/* FOOTER - Design Prestige */
+/* --------------------------------------------------- */
 .landing-page .footer {
     width: 100%;
-    height: 25vh;
-    display: grid;
-    grid-template-columns: 100px repeat(3, 1fr) 100px;
-    grid-template-rows: 1fr;
-    grid-column-gap: 0px;
-    grid-row-gap: 0px;
-    background: var(--pink-darker);
+    background: linear-gradient(180deg, rgba(11, 11, 11, 1) 0%, rgba(8, 8, 8, 1) 100%);
+    padding: 80px 150px 40px;
+    position: relative;
+    overflow: hidden;
 }
 
-.landing-page .footer-side-1 {
-    grid-area: 1 / 2 / 2 / 3;
+/* Ligne décorative rose en haut */
+.landing-page .footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--pink) 50%, transparent 100%);
+}
+
+/* Container principal du footer */
+.landing-page .footer-main {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 60px;
+    margin-bottom: 60px;
+}
+
+/* Section Logo & Brand */
+.landing-page .footer-brand {
     display: flex;
-    align-self: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.landing-page .footer-logo {
+    display: flex;
     align-items: center;
+    gap: 15px;
+}
+
+.landing-page .footer-logo-paw {
+    font-size: 48px;
+    color: var(--pink);
 }
 
 .landing-page .footer-name {
     font-family: "SFPRO Bold";
+    font-size: 24px;
+    letter-spacing: 3px;
 }
 
-.landing-page .footer-logo-paw {
-    font-size: 100px;
+.landing-page .footer-tagline {
+    font-family: "SFPRO Regular";
+    font-size: 14px;
+    color: var(--grey-light);
+    line-height: 1.6;
+    max-width: 250px;
 }
 
-.landing-page .footer-side-2 {
-    grid-area: 1 / 3 / 2 / 4;
+/* Section Navigation */
+.landing-page .footer-nav-section {
+    display: flex;
+    justify-content: center;
+    gap: 80px;
+}
+
+.landing-page .footer-nav-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.landing-page .footer-nav-title {
+    font-family: "SFPRO Bold";
+    font-size: 14px;
+    color: var(--white);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.landing-page .footer-nav-link {
+    font-family: "SFPRO Regular";
+    font-size: 14px;
+    color: var(--grey-light);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.landing-page .footer-nav-link:hover {
+    color: var(--pink-light);
+    padding-left: 10px;
+}
+
+/* Section Social */
+.landing-page .footer-social {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 20px;
+}
+
+.landing-page .footer-social-title {
+    font-family: "SFPRO Bold";
+    font-size: 14px;
+    color: var(--white);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.landing-page .footer-social-links {
+    display: flex;
+    gap: 15px;
+}
+
+.landing-page .footer-social-link {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: center;
     align-items: center;
+    color: var(--white);
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
-.landing-page .footer-nav-item{
-    display: block;
-    margin: 25px;
-        font-family: "SFPRO Bold";
+
+.landing-page .footer-social-link i {
+    font-size: 18px;
+    transition: all 0.3s ease;
 }
-.landing-page .footer-side-3 {
-    grid-area: 1 / 4 / 2 / 5;
-        display: flex;
+
+.landing-page .footer-social-link:hover {
+    background: rgba(242, 150, 143, 0.15);
+    border-color: var(--pink);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(242, 150, 143, 0.2);
+}
+
+.landing-page .footer-social-link:hover i {
+    color: var(--pink);
+}
+
+/* Barre de séparation */
+.landing-page .footer-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+    margin-bottom: 30px;
+}
+
+/* Section Copyright */
+.landing-page .footer-bottom {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: flex-end;
 }
-.landing-page .footer-nav-social{
-    display: block;
-    margin-top: 15px;
+
+.landing-page .footer-copyright {
+    font-family: "SFPRO Regular";
+    font-size: 13px;
+    color: var(--grey-light);
+}
+
+.landing-page .footer-legal {
+    display: flex;
+    gap: 30px;
+}
+
+.landing-page .footer-legal-link {
+    font-family: "SFPRO Regular";
+    font-size: 13px;
+    color: var(--grey-light);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.landing-page .footer-legal-link:hover {
+    color: var(--pink-light);
 }
 /* --------------------------------------------------- */
 .landing-page #language-selector {
@@ -1398,38 +1563,69 @@ html.landing-active body {
     }
 
     .landing-page .footer {
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        padding: 40px 20px;
+        padding: 50px 25px 30px;
+    }
+
+    .landing-page .footer-main {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        margin-bottom: 40px;
         text-align: center;
     }
 
-    .landing-page .footer-side-1,
-    .landing-page .footer-side-2,
-    .landing-page .footer-side-3 {
-        width: 100%;
+    .landing-page .footer-brand {
+        align-items: center;
+    }
+
+    .landing-page .footer-logo {
         justify-content: center;
-        margin: 20px 0;
     }
 
     .landing-page .footer-logo-paw {
-        font-size: 60px;
+        font-size: 36px;
     }
 
-    .landing-page .footer-nav {
-        display: flex;
+    .landing-page .footer-name {
+        font-size: 20px;
+    }
+
+    .landing-page .footer-tagline {
+        text-align: center;
+        max-width: 100%;
+    }
+
+    .landing-page .footer-nav-section {
         flex-direction: column;
+        gap: 30px;
     }
 
-    .landing-page .footer-nav-item {
-        margin: 10px 0;
+    .landing-page .footer-nav-column {
+        align-items: center;
     }
 
-    .landing-page .footer-nav-social {
-        display: flex;
+    .landing-page .footer-social {
+        align-items: center;
+    }
+
+    .landing-page .footer-social-links {
         justify-content: center;
+    }
+
+    .landing-page .footer-social-link {
+        width: 40px;
+        height: 40px;
+    }
+
+    .landing-page .footer-bottom {
+        flex-direction: column;
         gap: 20px;
+        text-align: center;
+    }
+
+    .landing-page .footer-legal {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
     }
 }
 
@@ -1726,31 +1922,53 @@ html.landing-active body {
 
     /* --- Footer --- */
     .landing-page .footer {
-        height: 30vh;
-        /* Nouvelle grille : plus de marges latérales */
-        grid-template-columns: 150px repeat(3, 1fr) 150px;
+        padding: 100px 250px 50px;
+    }
+
+    .landing-page .footer-main {
+        gap: 80px;
+        margin-bottom: 80px;
     }
 
     .landing-page .footer-logo-paw {
-        font-size: 130px;
+        font-size: 60px;
     }
 
     .landing-page .footer-name {
-        font-size: 18px;
+        font-size: 30px;
+        letter-spacing: 4px;
     }
 
-    .landing-page .footer-nav-item {
-        margin: 35px;
-    }
-    .landing-page .footer-nav-item a {
-        font-size: 18px;
+    .landing-page .footer-tagline {
+        font-size: 16px;
+        max-width: 300px;
     }
 
-    .landing-page .footer-nav-social a i {
-        font-size: 24px; /* Agrandir les icônes sociales */
+    .landing-page .footer-nav-section {
+        gap: 120px;
     }
-    .landing-page .footer-nav-social {
-        margin-top: 20px;
+
+    .landing-page .footer-nav-title {
+        font-size: 16px;
+    }
+
+    .landing-page .footer-nav-link {
+        font-size: 16px;
+    }
+
+    .landing-page .footer-social-link {
+        width: 55px;
+        height: 55px;
+        border-radius: 14px;
+    }
+
+    .landing-page .footer-social-link i {
+        font-size: 22px;
+    }
+
+    .landing-page .footer-copyright,
+    .landing-page .footer-legal-link {
+        font-size: 14px;
     }
 
 
