@@ -1,52 +1,58 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage, Language } from '../i18n';
 import './landing.css';
 
 // Types pour le sélecteur de langue
 interface LanguageData {
-  lang: string;
+  lang: Language;
   imgSrc: string;
   altText: string;
   dataImg: string;
 }
 
+// Configuration des drapeaux
+const FLAGS: Record<Language, LanguageData> = {
+  fr: {
+    lang: 'fr',
+    imgSrc: '/assets/img/french.png',
+    altText: 'Français',
+    dataImg: 'france'
+  },
+  en: {
+    lang: 'en',
+    imgSrc: '/assets/img/english.png',
+    altText: 'English',
+    dataImg: 'uk'
+  },
+  ar: {
+    lang: 'ar',
+    imgSrc: '/assets/img/algeria.png',
+    altText: 'العربية',
+    dataImg: 'algeria'
+  }
+};
+
 export function LandingPage() {
   const navigate = useNavigate();
+  const { language, setLanguage, t, isRTL } = useLanguage();
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState(0);
 
-  // Features avec leurs écrans associés
+  // Features avec leurs écrans associés (traduits)
   const features = [
-    { icon: 'fa-map-location-dot', title: 'Trouvez autour de vous', desc: 'Vétérinaires, garderies, pet shops près de chez vous', screen: '/assets/img/screens/map.jpeg' },
-    { icon: 'fa-paw', title: 'Tous vos animaux', desc: 'Chiens, chats, NAC... gérez tous vos compagnons', screen: '/assets/img/screens/home.jpeg' },
-    { icon: 'fa-calendar-check', title: 'Rendez-vous facile', desc: 'Réservez en quelques clics chez votre vétérinaire', screen: '/assets/img/screens/home.jpeg' },
-    { icon: 'fa-file-medical', title: 'Carnet de santé', desc: 'Vaccins, ordonnances, historique médical centralisé', screen: '/assets/img/screens/santé.jpeg' },
-    { icon: 'fa-heart', title: 'Adoption', desc: 'Trouvez votre futur compagnon ou proposez à l\'adoption', screen: '/assets/img/screens/adopt.jpeg' },
-    { icon: 'fa-house', title: 'Garderie', desc: 'Trouvez une garderie de confiance pour vos absences', screen: '/assets/img/screens/home.jpeg' },
+    { icon: 'fa-map-location-dot', title: t.features.findNearby.title, desc: t.features.findNearby.desc, screen: '/assets/img/screens/map.jpeg' },
+    { icon: 'fa-paw', title: t.features.allPets.title, desc: t.features.allPets.desc, screen: '/assets/img/screens/home.jpeg' },
+    { icon: 'fa-calendar-check', title: t.features.easyBooking.title, desc: t.features.easyBooking.desc, screen: '/assets/img/screens/home.jpeg' },
+    { icon: 'fa-file-medical', title: t.features.healthRecord.title, desc: t.features.healthRecord.desc, screen: '/assets/img/screens/santé.jpeg' },
+    { icon: 'fa-heart', title: t.features.adoption.title, desc: t.features.adoption.desc, screen: '/assets/img/screens/adopt.jpeg' },
+    { icon: 'fa-house', title: t.features.daycare.title, desc: t.features.daycare.desc, screen: '/assets/img/screens/home.jpeg' },
   ];
 
-  // État pour les drapeaux
-  const [mainFlag, setMainFlag] = useState<LanguageData>({
-    lang: 'fr',
-    imgSrc: '/assets/img/french.png',
-    altText: 'Drapeau Français',
-    dataImg: 'france'
-  });
-
-  const [subFlags, setSubFlags] = useState<LanguageData[]>([
-    {
-      lang: 'en',
-      imgSrc: '/assets/img/english.png',
-      altText: 'Drapeau Anglais',
-      dataImg: 'uk'
-    },
-    {
-      lang: 'dz',
-      imgSrc: '/assets/img/algeria.png',
-      altText: 'Drapeau Algérien',
-      dataImg: 'algeria'
-    }
-  ]);
+  // Obtenir les drapeaux disponibles (excluant la langue actuelle)
+  const getOtherFlags = (): LanguageData[] => {
+    return Object.values(FLAGS).filter(flag => flag.lang !== language);
+  };
 
   // État pour l'animation de scroll entre deux images
   const [previousFeature, setPreviousFeature] = useState<number | null>(null);
@@ -169,21 +175,9 @@ export function LandingPage() {
   };
 
   // Gestion du changement de langue
-  const handleSubFlagClick = (index: number) => {
-    const clickedSubFlag = subFlags[index];
-    const currentMainFlag = mainFlag;
-
-    // Swap les drapeaux
-    setMainFlag(clickedSubFlag);
-
-    const newSubFlags = [...subFlags];
-    newSubFlags[index] = currentMainFlag;
-    setSubFlags(newSubFlags);
-
-    // Fermer le sélecteur
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     setIsLanguageSelectorOpen(false);
-
-    console.log(`Nouvelle langue sélectionnée : ${clickedSubFlag.lang}`);
   };
 
   // Scroll smooth vers une section avec animation lente personnalisée
@@ -221,8 +215,18 @@ export function LandingPage() {
     }
   };
 
+  // Fonction pour afficher le texte avec retour à la ligne
+  const renderWithLineBreaks = (text: string) => {
+    return text.split('\n').map((line, index, array) => (
+      <span key={index}>
+        {line}
+        {index < array.length - 1 && <br />}
+      </span>
+    ));
+  };
+
   return (
-    <div className="landing-page">
+    <div className={`landing-page ${isRTL ? 'rtl' : ''}`}>
       {/* Language Selector */}
       <div
         id="language-selector"
@@ -230,21 +234,21 @@ export function LandingPage() {
       >
         <div
           className="flag-circle main-flag"
-          data-lang={mainFlag.lang}
-          data-img={mainFlag.dataImg}
+          data-lang={language}
+          data-img={FLAGS[language].dataImg}
           onClick={handleMainFlagClick}
         >
-          <img src={mainFlag.imgSrc} alt={mainFlag.altText} />
+          <img src={FLAGS[language].imgSrc} alt={FLAGS[language].altText} />
         </div>
 
         <div className="sub-flags">
-          {subFlags.map((flag, index) => (
+          {getOtherFlags().map((flag) => (
             <div
               key={flag.lang}
               className="flag-circle sub-flag"
               data-lang={flag.lang}
               data-img={flag.dataImg}
-              onClick={() => handleSubFlagClick(index)}
+              onClick={() => handleLanguageChange(flag.lang)}
             >
               <img src={flag.imgSrc} alt={flag.altText} />
             </div>
@@ -272,7 +276,7 @@ export function LandingPage() {
                 className="nav-item-link"
                 onClick={(e) => { e.preventDefault(); scrollToSection('showcase'); }}
               >
-                Présentation
+                {t.nav.presentation}
               </a>
             </li>
             <li className="nav-item">
@@ -281,7 +285,7 @@ export function LandingPage() {
                 className="nav-item-link"
                 onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
               >
-                A propos
+                {t.nav.about}
               </a>
             </li>
             <li className="nav-item">
@@ -290,7 +294,7 @@ export function LandingPage() {
                 className="nav-item-link"
                 onClick={(e) => { e.preventDefault(); scrollToSection('download'); }}
               >
-                Téléchargement
+                {t.nav.download}
               </a>
             </li>
           </ul>
@@ -300,7 +304,7 @@ export function LandingPage() {
             style={{ cursor: 'pointer' }}
             onClick={() => navigate('/login')}
           >
-            Vous êtes un professionnel ?
+            {t.nav.professional}
           </div>
         </nav>
 
@@ -311,13 +315,13 @@ export function LandingPage() {
           </span>
 
           <span className="main-slogan">
-            La santé de votre animal, simplifiée
+            {t.hero.slogan}
           </span>
 
           <button
             className="main-btn scroll-arrow"
             onClick={() => scrollToSection('showcase')}
-            aria-label="Défiler vers le bas"
+            aria-label={t.hero.scrollDown}
           >
             <i className="fa-solid fa-chevron-down"></i>
           </button>
@@ -328,7 +332,7 @@ export function LandingPage() {
           <div className="showcase-image-container">
             <img
               src="/assets/img/fille-tenant-chat.png"
-              alt="Propriétaire avec son animal"
+              alt="Pet owner"
               className="showcase-emotional-img"
             />
             <div className="showcase-image-overlay"></div>
@@ -336,11 +340,11 @@ export function LandingPage() {
 
           <div className="showcase-content">
             <span className="showcase-headline">
-              Parce qu'ils comptent<br />sur vous
+              {renderWithLineBreaks(t.showcase.headline)}
             </span>
 
             <p className="showcase-subtext">
-              Offrez-leur le meilleur avec une gestion simplifiée de leur santé et bien-être.
+              {t.showcase.subtext}
             </p>
 
             <div className="showcase-benefits">
@@ -349,8 +353,8 @@ export function LandingPage() {
                   <i className="fa-solid fa-bell"></i>
                 </div>
                 <div className="benefit-text">
-                  <span className="benefit-title">Fini les oublis</span>
-                  <span className="benefit-desc">Rappels automatiques pour les vaccins et rendez-vous</span>
+                  <span className="benefit-title">{t.showcase.benefits.noForget.title}</span>
+                  <span className="benefit-desc">{t.showcase.benefits.noForget.desc}</span>
                 </div>
               </div>
 
@@ -359,8 +363,8 @@ export function LandingPage() {
                   <i className="fa-solid fa-folder-open"></i>
                 </div>
                 <div className="benefit-text">
-                  <span className="benefit-title">Tout centralisé</span>
-                  <span className="benefit-desc">Carnet de santé, ordonnances, historique médical</span>
+                  <span className="benefit-title">{t.showcase.benefits.centralized.title}</span>
+                  <span className="benefit-desc">{t.showcase.benefits.centralized.desc}</span>
                 </div>
               </div>
 
@@ -369,8 +373,8 @@ export function LandingPage() {
                   <i className="fa-solid fa-clock"></i>
                 </div>
                 <div className="benefit-text">
-                  <span className="benefit-title">Gagnez du temps</span>
-                  <span className="benefit-desc">Trouvez un vétérinaire et réservez en 30 secondes</span>
+                  <span className="benefit-title">{t.showcase.benefits.saveTime.title}</span>
+                  <span className="benefit-desc">{t.showcase.benefits.saveTime.desc}</span>
                 </div>
               </div>
             </div>
@@ -429,27 +433,27 @@ export function LandingPage() {
         {/* Download Section */}
         <div className="download" id="download">
           <div className="download-content">
-            <span className="download-label">Téléchargement</span>
+            <span className="download-label">{t.download.label}</span>
             <h2 className="download-title">
-              Prêt à simplifier<br />la vie de vos animaux ?
+              {renderWithLineBreaks(t.download.title)}
             </h2>
             <p className="download-desc">
-              Rejoignez des milliers de propriétaires qui font confiance à VEGECE pour prendre soin de leurs compagnons.
+              {t.download.desc}
             </p>
 
             <div className="download-buttons">
               <a href="#" className="store-btn app-store">
                 <i className="fa-brands fa-apple"></i>
                 <div className="store-text">
-                  <span className="store-label">Télécharger sur</span>
-                  <span className="store-name">App Store</span>
+                  <span className="store-label">{t.download.downloadOn}</span>
+                  <span className="store-name">{t.download.appStore}</span>
                 </div>
               </a>
               <a href="#" className="store-btn google-play">
                 <i className="fa-brands fa-google-play"></i>
                 <div className="store-text">
-                  <span className="store-label">Disponible sur</span>
-                  <span className="store-name">Google Play</span>
+                  <span className="store-label">{t.download.availableOn}</span>
+                  <span className="store-name">{t.download.googlePlay}</span>
                 </div>
               </a>
             </div>
@@ -457,17 +461,17 @@ export function LandingPage() {
             <div className="download-stats">
               <div className="stat-item">
                 <span className="stat-number">10K+</span>
-                <span className="stat-label">Téléchargements</span>
+                <span className="stat-label">{t.download.stats.downloads}</span>
               </div>
               <div className="stat-divider"></div>
               <div className="stat-item">
                 <span className="stat-number">4.8</span>
-                <span className="stat-label">Note moyenne</span>
+                <span className="stat-label">{t.download.stats.rating}</span>
               </div>
               <div className="stat-divider"></div>
               <div className="stat-item">
                 <span className="stat-number">500+</span>
-                <span className="stat-label">Vétérinaires</span>
+                <span className="stat-label">{t.download.stats.vets}</span>
               </div>
             </div>
           </div>
@@ -483,39 +487,39 @@ export function LandingPage() {
                 <span className="footer-name">VEGECE</span>
               </div>
               <p className="footer-tagline">
-                La santé de vos animaux, simplifiée. Tout ce dont vous avez besoin, en une seule application.
+                {t.footer.tagline}
               </p>
             </div>
 
             {/* Navigation Section */}
             <div className="footer-nav-section">
               <div className="footer-nav-column">
-                <span className="footer-nav-title">Navigation</span>
+                <span className="footer-nav-title">{t.footer.navigation}</span>
                 <a href="#navigation" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('navigation'); }}>
-                  Accueil
+                  {t.footer.home}
                 </a>
                 <a href="#showcase" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('showcase'); }}>
-                  Présentation
+                  {t.nav.presentation}
                 </a>
                 <a href="#about" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
-                  À propos
+                  {t.nav.about}
                 </a>
                 <a href="#download" className="footer-nav-link" onClick={(e) => { e.preventDefault(); scrollToSection('download'); }}>
-                  Téléchargement
+                  {t.nav.download}
                 </a>
               </div>
 
               <div className="footer-nav-column">
-                <span className="footer-nav-title">Support</span>
-                <a href="#" className="footer-nav-link">Centre d'aide</a>
-                <a href="#" className="footer-nav-link">Contact</a>
-                <a href="#" className="footer-nav-link">FAQ</a>
+                <span className="footer-nav-title">{t.footer.support}</span>
+                <a href="#" className="footer-nav-link">{t.footer.helpCenter}</a>
+                <a href="#" className="footer-nav-link">{t.footer.contact}</a>
+                <a href="#" className="footer-nav-link">{t.footer.faq}</a>
               </div>
             </div>
 
             {/* Social Section */}
             <div className="footer-social">
-              <span className="footer-social-title">Suivez-nous</span>
+              <span className="footer-social-title">{t.footer.followUs}</span>
               <div className="footer-social-links">
                 <a href="#" className="footer-social-link" aria-label="TikTok">
                   <i className="fa-brands fa-tiktok"></i>
@@ -536,11 +540,11 @@ export function LandingPage() {
           <div className="footer-divider"></div>
 
           <div className="footer-bottom">
-            <span className="footer-copyright">© 2025 VEGECE. Tous droits réservés.</span>
+            <span className="footer-copyright">{t.footer.copyright}</span>
             <div className="footer-legal">
-              <a href="#" className="footer-legal-link">Mentions légales</a>
-              <a href="#" className="footer-legal-link">Politique de confidentialité</a>
-              <a href="#" className="footer-legal-link">CGU</a>
+              <a href="#" className="footer-legal-link">{t.footer.legal}</a>
+              <a href="#" className="footer-legal-link">{t.footer.privacy}</a>
+              <a href="#" className="footer-legal-link">{t.footer.terms}</a>
             </div>
           </div>
         </footer>

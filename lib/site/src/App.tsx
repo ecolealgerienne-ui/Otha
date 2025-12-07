@@ -10,6 +10,7 @@ import { LandingPage } from './landing';
 
 // Contexts
 import { ScannedPetProvider } from './contexts/ScannedPetContext';
+import { LanguageProvider } from './i18n';
 
 // Admin pages
 import {
@@ -47,8 +48,9 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ScannedPetProvider>
-        <Router>
+      <LanguageProvider>
+        <ScannedPetProvider>
+          <Router>
           <Routes>
           {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
@@ -165,8 +167,9 @@ function App() {
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Router>
-      </ScannedPetProvider>
+          </Router>
+        </ScannedPetProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
