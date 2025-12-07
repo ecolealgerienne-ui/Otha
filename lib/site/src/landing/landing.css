@@ -113,6 +113,7 @@ html {
     flex-direction: column;
     width: 100%;
     min-height: 100vh;
+    padding-top: 12.5vh; /* Compense la hauteur de la navigation fixe */
     background: url(/assets/img/bg.jpg);
     background-repeat: no-repeat;
     background-position: bottom;
@@ -120,7 +121,6 @@ html {
 }
 
 .landing-page .main-title {
-    margin-top: 150px;
     font-size: 150px;
     font-family: "SFPRO Bold";
     letter-spacing: 50px;
@@ -132,7 +132,7 @@ html {
     font-family: "SFPRO Bold";
     letter-spacing: 3px;
     text-shadow: 0 5px 10px #0000001f;
-    margin-top: 300px;
+    margin-top: 200px;
 }
 
 .landing-page .main-btn {
@@ -732,17 +732,16 @@ html {
 
     /* --- Section Principale (Hero) --- */
     .landing-page .main {
-        margin-top: 5vh; /* Ajuster la marge supérieure si la nav est plus haute */
+        padding-top: 15vh; /* Compense la hauteur de navigation 2K */
     }
 
     .landing-page .main-title {
-        margin-top: 180px; /* Plus d'espace au-dessus du titre */
         font-size: 200px; /* Rendre le titre BEAUCOUP plus gros */
         letter-spacing: 60px; /* Écartement des lettres encore plus grand */
     }
 
     .landing-page .main-slogan {
-        margin-top: 400px; /* Repousser le slogan vers le bas */
+        margin-top: 250px; /* Repousser le slogan vers le bas */
         font-size: 40px; /* Agrandir le slogan */
         letter-spacing: 5px;
     }
