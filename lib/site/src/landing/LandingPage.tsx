@@ -428,23 +428,49 @@ export function LandingPage() {
 
         {/* Download Section */}
         <div className="download" id="download">
-          <span className="download-title">
-            Titre explication page 3
-          </span>
-          <span className="download-desc">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit.<br />
-            Donec pharetra diam non tempor bibendum.<br />
-            In vestibulum, magna eu blandit viverra, dui arcu vestibulum nisl,<br />
-            id pretium tellus neque vitae diam.<br />
-            Ut tristique felis ac maximus ullamcorper.<br />
-            Fusce lacinia tellus ut ligula viverra blandit.
-          </span>
-          <button className="download-btn">
-            Download App
-          </button>
-          <span className="download-os">
-            iOS, Android
-          </span>
+          <div className="download-content">
+            <span className="download-label">Téléchargement</span>
+            <h2 className="download-title">
+              Prêt à simplifier<br />la vie de vos animaux ?
+            </h2>
+            <p className="download-desc">
+              Rejoignez des milliers de propriétaires qui font confiance à VEGECE pour prendre soin de leurs compagnons.
+            </p>
+
+            <div className="download-buttons">
+              <a href="#" className="store-btn app-store">
+                <i className="fa-brands fa-apple"></i>
+                <div className="store-text">
+                  <span className="store-label">Télécharger sur</span>
+                  <span className="store-name">App Store</span>
+                </div>
+              </a>
+              <a href="#" className="store-btn google-play">
+                <i className="fa-brands fa-google-play"></i>
+                <div className="store-text">
+                  <span className="store-label">Disponible sur</span>
+                  <span className="store-name">Google Play</span>
+                </div>
+              </a>
+            </div>
+
+            <div className="download-stats">
+              <div className="stat-item">
+                <span className="stat-number">10K+</span>
+                <span className="stat-label">Téléchargements</span>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <span className="stat-number">4.8</span>
+                <span className="stat-label">Note moyenne</span>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <span className="stat-number">500+</span>
+                <span className="stat-label">Vétérinaires</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
