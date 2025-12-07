@@ -419,8 +419,9 @@ html.landing-active body {
 /* --------------------------------------------------- */
 .landing-page .showcase {
     width: 100%;
-    min-height: 100vh;
-    padding-top: 200px;
+    height: 100vh;
+    padding-top: 100px;
+    box-sizing: border-box;
     background: url(/assets/img/bg1.jpg);
     background-repeat: no-repeat;
     background-size: cover;
@@ -562,32 +563,16 @@ html.landing-active body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
 /* Animation de transition scroll pour l'écran du téléphone */
-.landing-page .iphone-screen.transitioning img {
-    animation: screenSlideOut 0.3s ease forwards;
-}
-
-.landing-page .iphone-screen img.screen-slide-in {
-    animation: screenSlideIn 0.4s ease forwards;
-}
-
-@keyframes screenSlideOut {
-    0% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-30px);
-        opacity: 0;
-    }
+.landing-page .iphone-screen img.screen-enter {
+    animation: screenSlideIn 0.5s ease-out forwards;
 }
 
 @keyframes screenSlideIn {
     0% {
-        transform: translateY(30px);
+        transform: translateY(100%);
         opacity: 0;
     }
     100% {
