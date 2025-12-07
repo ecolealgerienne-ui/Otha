@@ -1,17 +1,22 @@
 // User & Auth Types
 export type Role = 'USER' | 'PRO' | 'ADMIN';
 
+export type TrustStatus = 'NEW' | 'VERIFIED' | 'RESTRICTED';
+
 export interface User {
   id: string;
   email: string;
   phone?: string;
   firstName?: string;
   lastName?: string;
+  displayName?: string;
   city?: string;
   lat?: number;
   lng?: number;
   photoUrl?: string;
   role: Role;
+  isFirstBooking?: boolean;
+  trustStatus?: TrustStatus;
   createdAt: string;
   updatedAt: string;
 }

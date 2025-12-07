@@ -24,13 +24,29 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameDay,
-  parseISO,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Html5Qrcode } from 'html5-qrcode';
 
 // Commission fixe (doit matcher pro_services_screen dans Flutter)
 const COMMISSION_DA = 100;
+
+/**
+ * UTC naïf : traite l'heure UTC comme heure locale (pas de conversion)
+ * Exemple: "2024-01-01T17:00:00.000Z" → affiche 17:00 (pas 18:00 en GMT+1)
+ * Correspond au comportement Flutter: DateTime.parse(iso).toUtc()
+ */
+function parseISOAsLocal(isoString: string): Date {
+  const d = new Date(isoString);
+  return new Date(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds()
+  );
+}
 
 export function ProAgenda() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -82,7 +98,7 @@ export function ProAgenda() {
   }
 
   const getBookingsForDay = (date: Date) => {
-    return bookings.filter((booking) => isSameDay(parseISO(booking.scheduledAt), date));
+    return bookings.filter((booking) => isSameDay(parseISOAsLocal(booking.scheduledAt), date));
   };
 
   const handlePrevWeek = () => {
@@ -375,9 +391,16 @@ export function ProAgenda() {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium">
-                            {format(parseISO(booking.scheduledAt), 'HH:mm')}
+                            {format(parseISOAsLocal(booking.scheduledAt), 'HH:mm')}
                           </span>
-                          {getStatusBadge(booking.status)}
+                          <div className="flex items-center gap-1">
+                            {booking.user?.isFirstBooking && (
+                              <span className="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                <span>★</span> Nouveau
+                              </span>
+                            )}
+                            {getStatusBadge(booking.status)}
+                          </div>
                         </div>
                         <p className="text-gray-600 truncate">
                           {booking.service?.title || 'Consultation'}
@@ -413,7 +436,7 @@ export function ProAgenda() {
                   <div>
                     <p className="text-sm text-gray-500">Date & Heure</p>
                     <p className="font-medium">
-                      {format(parseISO(selectedBooking.scheduledAt), "EEEE d MMMM yyyy 'à' HH:mm", {
+                      {format(parseISOAsLocal(selectedBooking.scheduledAt), "EEEE d MMMM yyyy 'à' HH:mm", {
                         locale: fr,
                       })}
                     </p>
@@ -448,7 +471,16 @@ export function ProAgenda() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Client</p>
-                    <p className="font-medium">{selectedBooking.user?.email || 'Client'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {selectedBooking.user?.displayName || selectedBooking.user?.email || 'Client'}
+                      </p>
+                      {selectedBooking.user?.isFirstBooking && (
+                        <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span>★</span> Nouveau client
+                        </span>
+                      )}
+                    </div>
                     {/* Show phone only when CONFIRMED */}
                     {isConfirmed(selectedBooking.status) && selectedBooking.user?.phone && (
                       <a
