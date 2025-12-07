@@ -13,6 +13,17 @@ interface LanguageData {
 export function LandingPage() {
   const navigate = useNavigate();
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState(0);
+
+  // Features avec leurs écrans associés
+  const features = [
+    { icon: 'fa-map-location-dot', title: 'Trouvez autour de vous', desc: 'Vétérinaires, garderies, pet shops près de chez vous', screen: '/assets/img/screens/map.png' },
+    { icon: 'fa-paw', title: 'Tous vos animaux', desc: 'Chiens, chats, NAC... gérez tous vos compagnons', screen: '/assets/img/screens/pets.png' },
+    { icon: 'fa-calendar-check', title: 'Rendez-vous facile', desc: 'Réservez en quelques clics chez votre vétérinaire', screen: '/assets/img/screens/rdv.png' },
+    { icon: 'fa-file-medical', title: 'Carnet de santé', desc: 'Vaccins, ordonnances, historique médical centralisé', screen: '/assets/img/screens/sante.png' },
+    { icon: 'fa-heart', title: 'Adoption', desc: 'Trouvez votre futur compagnon ou proposez à l\'adoption', screen: '/assets/img/screens/adopt.png' },
+    { icon: 'fa-house', title: 'Garderie', desc: 'Trouvez une garderie de confiance pour vos absences', screen: '/assets/img/screens/garderie.png' },
+  ];
 
   // État pour les drapeaux
   const [mainFlag, setMainFlag] = useState<LanguageData>({
@@ -219,70 +230,39 @@ export function LandingPage() {
         {/* About Section */}
         <div className="about" id="about">
           <div className="about-circle-container">
-            {/* Phone au centre */}
+            {/* Phone au centre avec frame iPhone */}
             <div className="about-phone-center">
-              <img src="/assets/img/phone.png" alt="VEGECE App" />
-            </div>
-
-            {/* Features en cercle */}
-            <div className="about-feature feature-1">
-              <div className="feature-icon">
-                <i className="fa-solid fa-map-location-dot"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Trouvez autour de vous</span>
-                <span className="feature-desc">Vétérinaires, garderies, pet shops près de chez vous</span>
-              </div>
-            </div>
-
-            <div className="about-feature feature-2">
-              <div className="feature-icon">
-                <i className="fa-solid fa-paw"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Tous vos animaux</span>
-                <span className="feature-desc">Chiens, chats, NAC... gérez tous vos compagnons</span>
+              <div className="iphone-frame">
+                <img src="/assets/img/iphone.png" alt="iPhone Frame" className="iphone-border" />
+                <div className="iphone-screen">
+                  <img
+                    src={features[selectedFeature].screen}
+                    alt={features[selectedFeature].title}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/assets/img/phone.png';
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="about-feature feature-3">
-              <div className="feature-icon">
-                <i className="fa-solid fa-calendar-check"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Rendez-vous facile</span>
-                <span className="feature-desc">Réservez en quelques clics chez votre vétérinaire</span>
-              </div>
-            </div>
-
-            <div className="about-feature feature-4">
-              <div className="feature-icon">
-                <i className="fa-solid fa-file-medical"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Carnet de santé</span>
-                <span className="feature-desc">Vaccins, ordonnances, historique médical centralisé</span>
-              </div>
-            </div>
-
-            <div className="about-feature feature-5">
-              <div className="feature-icon">
-                <i className="fa-solid fa-heart"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Adoption</span>
-                <span className="feature-desc">Trouvez votre futur compagnon ou proposez à l'adoption</span>
-              </div>
-            </div>
-
-            <div className="about-feature feature-6">
-              <div className="feature-icon">
-                <i className="fa-solid fa-house"></i>
-              </div>
-              <div className="feature-content">
-                <span className="feature-title">Garderie</span>
-                <span className="feature-desc">Trouvez une garderie de confiance pour vos absences</span>
-              </div>
+            {/* Features en cercle - rotation */}
+            <div className="features-orbit">
+              {features.map((feature, index) => (
+                <div
+                  key={index}
+                  className={`about-feature feature-${index + 1} ${selectedFeature === index ? 'active' : ''}`}
+                  onClick={() => setSelectedFeature(index)}
+                >
+                  <div className="feature-icon">
+                    <i className={`fa-solid ${feature.icon}`}></i>
+                  </div>
+                  <div className="feature-content">
+                    <span className="feature-title">{feature.title}</span>
+                    <span className="feature-desc">{feature.desc}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
