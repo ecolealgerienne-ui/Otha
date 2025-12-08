@@ -10,14 +10,17 @@ import '../../core/locale_provider.dart';
 
 enum StartVariant { user, pro }
 
-// Couleurs Vegece
+// Couleurs Vegece - Thème Clair
 class _VegeceColors {
+  static const Color bgLight = Color(0xFFFFFFFF);
   static const Color bgDark = Color(0xFF0A0A0A);
   static const Color white = Color(0xFFFFFFFF);
+  static const Color textDark = Color(0xFF1A1A1A);
   static const Color pink = Color(0xFFF2968F);
   static const Color pinkDark = Color(0xFFE8817A);
-  static const Color textGrey = Color(0xFF9CA3AF);
+  static const Color textGrey = Color(0xFF6B7280);
   static const Color pinkGlow = Color(0xFFFFC2BE);
+  static const Color cardBg = Color(0xFFF9FAFB);
 }
 
 class StartScreen extends ConsumerStatefulWidget {
@@ -184,31 +187,41 @@ class _StartScreenState extends ConsumerState<StartScreen>
     final subtitle = isUser ? l10n.petsDeserveBest : l10n.yourCareMakesDifference;
 
     return Scaffold(
-      backgroundColor: _VegeceColors.bgDark,
+      backgroundColor: _VegeceColors.bgLight,
       body: AnimatedBuilder(
         animation: _mainController,
         builder: (context, child) {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Fond avec gradient subtil
-              Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topRight,
-                    radius: 1.5,
-                    colors: [
-                      _VegeceColors.pink.withOpacity(0.08),
-                      _VegeceColors.bgDark,
-                    ],
+              // Fond blanc pur
+              Container(color: _VegeceColors.bgLight),
+
+              // Glow rose en haut à droite
+              Positioned(
+                top: -100,
+                right: -100,
+                child: Container(
+                  width: 350,
+                  height: 350,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _VegeceColors.pinkGlow.withOpacity(0.3),
+                        _VegeceColors.pinkGlow.withOpacity(0.1),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.4, 1.0],
+                    ),
                   ),
                 ),
               ),
 
-              // Glow en bas
+              // Glow rose en bas à gauche
               Positioned(
-                bottom: -150,
-                left: -50,
+                bottom: -120,
+                left: -80,
                 child: Container(
                   width: 300,
                   height: 300,
@@ -216,9 +229,11 @@ class _StartScreenState extends ConsumerState<StartScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        _VegeceColors.pinkGlow.withOpacity(0.15),
+                        _VegeceColors.pinkGlow.withOpacity(0.25),
+                        _VegeceColors.pinkGlow.withOpacity(0.08),
                         Colors.transparent,
                       ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
@@ -245,7 +260,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                                   fontSize: 36,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 14,
-                                  color: _VegeceColors.white,
+                                  color: _VegeceColors.textDark,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -276,14 +291,14 @@ class _StartScreenState extends ConsumerState<StartScreen>
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
-                                  color: _VegeceColors.white,
+                                  color: _VegeceColors.textDark,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 subtitle,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontFamily: 'SFPRO',
                                   fontSize: 15,
                                   fontWeight: FontWeight.w400,
@@ -302,124 +317,125 @@ class _StartScreenState extends ConsumerState<StartScreen>
                         offset: Offset(0, _cardSlide.value),
                         child: Opacity(
                           opacity: _cardFade.value,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: _VegeceColors.white.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                    color: _VegeceColors.white.withOpacity(0.1),
-                                    width: 1,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: _VegeceColors.cardBg,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _VegeceColors.textGrey.withOpacity(0.1),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _VegeceColors.pink.withOpacity(0.08),
+                                  blurRadius: 40,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Bouton Se connecter
+                                Opacity(
+                                  opacity: _btn1Fade.value,
+                                  child: _AnimatedButton(
+                                    label: l10n.login,
+                                    isPrimary: true,
+                                    onPressed: () {
+                                      context.push('/auth/login?as=$_loginQuery');
+                                    },
                                   ),
                                 ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Bouton Se connecter
-                                    Opacity(
-                                      opacity: _btn1Fade.value,
-                                      child: _AnimatedButton(
-                                        label: l10n.login,
-                                        isPrimary: true,
-                                        onPressed: () {
-                                          context.push('/auth/login?as=$_loginQuery');
-                                        },
-                                      ),
-                                    ),
 
-                                    if (isUser) ...[
-                                      const SizedBox(height: 16),
+                                if (isUser) ...[
+                                  const SizedBox(height: 16),
 
-                                      // Séparateur OU
-                                      Opacity(
-                                        opacity: _btn2Fade.value,
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Container(
-                                                height: 1,
-                                                color: _VegeceColors.white.withOpacity(0.15),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                                              child: Text(
-                                                l10n.or,
-                                                style: TextStyle(
-                                                  fontFamily: 'SFPRO',
-                                                  fontSize: 13,
-                                                  color: _VegeceColors.textGrey,
-                                                ),
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Container(
-                                                height: 1,
-                                                color: _VegeceColors.white.withOpacity(0.15),
-                                              ),
-                                            ),
-                                          ],
+                                  // Séparateur OU
+                                  Opacity(
+                                    opacity: _btn2Fade.value,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            height: 1,
+                                            color: _VegeceColors.textGrey.withOpacity(0.15),
+                                          ),
                                         ),
-                                      ),
-
-                                      const SizedBox(height: 16),
-
-                                      // Bouton Google
-                                      Opacity(
-                                        opacity: _btn2Fade.value,
-                                        child: _GoogleButton(
-                                          label: l10n.signInWithGoogle,
-                                          loading: _loading,
-                                          onPressed: _handleGoogleSignIn,
-                                        ),
-                                      ),
-                                    ],
-
-                                    const SizedBox(height: 20),
-
-                                    // Lien inscription
-                                    Opacity(
-                                      opacity: _footerFade.value,
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            '${l10n.noAccount} ',
-                                            style: TextStyle(
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                                          child: Text(
+                                            l10n.or,
+                                            style: const TextStyle(
                                               fontFamily: 'SFPRO',
-                                              fontSize: 14,
+                                              fontSize: 13,
                                               color: _VegeceColors.textGrey,
                                             ),
                                           ),
-                                          GestureDetector(
-                                            onTap: () {
-                                              if (isUser) {
-                                                context.pushNamed('registerUser');
-                                              } else {
-                                                context.pushNamed('registerPro');
-                                              }
-                                            },
-                                            child: Text(
-                                              l10n.signUp,
-                                              style: const TextStyle(
-                                                fontFamily: 'SFPRO',
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: _VegeceColors.pink,
-                                              ),
-                                            ),
+                                        ),
+                                        Expanded(
+                                          child: Container(
+                                            height: 1,
+                                            color: _VegeceColors.textGrey.withOpacity(0.15),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+
+                                  const SizedBox(height: 16),
+
+                                  // Bouton Google
+                                  Opacity(
+                                    opacity: _btn2Fade.value,
+                                    child: _GoogleButton(
+                                      label: l10n.signInWithGoogle,
+                                      loading: _loading,
+                                      onPressed: _handleGoogleSignIn,
+                                    ),
+                                  ),
+                                ],
+
+                                const SizedBox(height: 20),
+
+                                // Lien inscription
+                                Opacity(
+                                  opacity: _footerFade.value,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        '${l10n.noAccount} ',
+                                        style: const TextStyle(
+                                          fontFamily: 'SFPRO',
+                                          fontSize: 14,
+                                          color: _VegeceColors.textGrey,
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (isUser) {
+                                            context.pushNamed('registerUser');
+                                          } else {
+                                            context.pushNamed('registerPro');
+                                          }
+                                        },
+                                        child: Text(
+                                          l10n.signUp,
+                                          style: const TextStyle(
+                                            fontFamily: 'SFPRO',
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: _VegeceColors.pink,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),
@@ -517,7 +533,7 @@ class _AnimatedButtonState extends State<_AnimatedButton>
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: _VegeceColors.pink.withOpacity(_isPressed ? 0.2 : 0.4),
+                    color: _VegeceColors.pink.withOpacity(_isPressed ? 0.2 : 0.35),
                     blurRadius: _isPressed ? 8 : 20,
                     offset: Offset(0, _isPressed ? 2 : 8),
                   ),
@@ -543,7 +559,7 @@ class _AnimatedButtonState extends State<_AnimatedButton>
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BOUTON GOOGLE
+// BOUTON GOOGLE - THÈME CLAIR
 // ═══════════════════════════════════════════════════════════════
 
 class _GoogleButton extends StatefulWidget {
@@ -612,11 +628,11 @@ class _GoogleButtonState extends State<_GoogleButton>
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: _isPressed
-                    ? _VegeceColors.white.withOpacity(0.15)
-                    : _VegeceColors.white.withOpacity(0.08),
+                    ? _VegeceColors.textGrey.withOpacity(0.08)
+                    : _VegeceColors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _VegeceColors.white.withOpacity(0.2),
+                  color: _VegeceColors.textGrey.withOpacity(0.2),
                   width: 1,
                 ),
               ),
@@ -630,6 +646,10 @@ class _GoogleButtonState extends State<_GoogleButton>
                     decoration: BoxDecoration(
                       color: _VegeceColors.white,
                       borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: _VegeceColors.textGrey.withOpacity(0.1),
+                        width: 1,
+                      ),
                     ),
                     child: const Center(
                       child: Text(
@@ -649,7 +669,7 @@ class _GoogleButtonState extends State<_GoogleButton>
                       fontFamily: 'SFPRO',
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: _VegeceColors.white,
+                      color: _VegeceColors.textDark,
                     ),
                   ),
                 ],
