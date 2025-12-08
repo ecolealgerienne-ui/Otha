@@ -1,16 +1,28 @@
-
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
-const _coral = Color(0xFFF36C6C);
+// Couleurs Vegece
+class _VegeceColors {
+  static const Color bgLight = Color(0xFFFFFFFF);
+  static const Color bgDark = Color(0xFF0A0A0A);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color textDark = Color(0xFF1A1A1A);
+  static const Color pink = Color(0xFFF2968F);
+  static const Color pinkDark = Color(0xFFE8817A);
+  static const Color textGrey = Color(0xFF6B7280);
+  static const Color pinkGlow = Color(0xFFFFC2BE);
+  static const Color cardBg = Color(0xFFF9FAFB);
+  static const Color cardDark = Color(0xFF1A1A1A);
+  static const Color errorRed = Color(0xFFEF4444);
+}
 
 /* ========================= Helpers front ========================= */
 
@@ -22,138 +34,537 @@ bool _isValidHttpUrl(String s) {
 
 /* ========================= Écran catégories ========================= */
 
-class ProRegisterScreen extends ConsumerWidget {
+class ProRegisterScreen extends ConsumerStatefulWidget {
   const ProRegisterScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Créer un compte professionnel'),
-      ),
-      body: _buildProCategoriesPage(context),
-    );
-  }
-
-  Widget _buildProCategoriesPage(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          Text(
-            'Choisissez votre catégorie',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              children: [
-                _CategoryCard(
-                  color: _coral,
-                  icon: Icons.local_hospital_outlined,
-                  label: 'Vétérinaire',
-                  onTap: () async {
-                    final ok = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(fullscreenDialog: true, builder: (_) => const _VetWizard3Steps()),
-                    );
-                    if (ok == true && context.mounted) context.go('/pro/application/submitted');
-                  },
-                ),
-                _CategoryCard(
-                  color: Colors.black87,
-                  icon: Icons.pets_outlined,
-                  label: 'Garderie',
-                  onTap: () async {
-                    final ok = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(fullscreenDialog: true, builder: (_) => const _DaycareWizard3Steps()),
-                    );
-                    if (ok == true && context.mounted) context.go('/pro/application/submitted');
-                  },
-                ),
-                _CategoryCard(
-                  color: Colors.black54,
-                  icon: Icons.storefront_outlined,
-                  label: 'Animalerie',
-                  onTap: () async {
-                    final ok = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(fullscreenDialog: true, builder: (_) => const _PetshopWizard3Steps()),
-                    );
-                    if (ok == true && context.mounted) context.go('/pro/application/submitted');
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<ProRegisterScreen> createState() => _ProRegisterScreenState();
 }
 
-class _CategoryCard extends StatelessWidget {
-  final Color color;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _CategoryCard({required this.color, required this.icon, required this.label, required this.onTap});
+class _ProRegisterScreenState extends ConsumerState<ProRegisterScreen>
+    with TickerProviderStateMixin {
+  String? _selectedCategory;
+
+  late AnimationController _mainController;
+  late Animation<double> _headerFade;
+  late Animation<double> _headerSlide;
+  late Animation<double> _cardsFade;
+  late Animation<double> _cardsSlide;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    )..forward();
+
+    _headerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
+      ),
+    );
+    _headerSlide = Tween<double>(begin: -20.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+    _cardsFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.2, 0.7, curve: Curves.easeOut),
+      ),
+    );
+    _cardsSlide = Tween<double>(begin: 30.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _mainController.dispose();
+    super.dispose();
+  }
+
+  void _onCategorySelected(String category) async {
+    setState(() => _selectedCategory = category);
+
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    if (!mounted) return;
+
+    Widget wizard;
+    switch (category) {
+      case 'vet':
+        wizard = const _VetWizard3Steps();
+        break;
+      case 'daycare':
+        wizard = const _DaycareWizard3Steps();
+        break;
+      case 'petshop':
+        wizard = const _PetshopWizard3Steps();
+        break;
+      default:
+        return;
+    }
+
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(fullscreenDialog: true, builder: (_) => wizard),
+    );
+
+    if (!mounted) return;
+    setState(() => _selectedCategory = null);
+
+    if (ok == true && mounted) {
+      context.go('/pro/application/submitted');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.25)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    final bgColor = isDark ? _VegeceColors.bgDark : _VegeceColors.bgLight;
+    final textColor = isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final subtitleColor = _VegeceColors.textGrey;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: AnimatedBuilder(
+        animation: _mainController,
+        builder: (context, child) {
+          return Stack(
+            fit: StackFit.expand,
             children: [
-              Icon(icon, size: 26, color: color),
-              const SizedBox(height: 8),
-              Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                color: bgColor,
+              ),
+
+              // Glow rose en haut
+              Positioned(
+                top: -120,
+                right: -80,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.15 : 0.3),
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.05 : 0.1),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
+              SafeArea(
+                child: Column(
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => context.pop(),
+                            icon: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: textColor,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 20),
+
+                            // Logo + Titre
+                            Transform.translate(
+                              offset: Offset(0, _headerSlide.value),
+                              child: Opacity(
+                                opacity: _headerFade.value,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'VEGECE',
+                                          style: TextStyle(
+                                            fontFamily: 'SFPRO',
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 6,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _VegeceColors.pink.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'PRO',
+                                            style: TextStyle(
+                                              fontFamily: 'SFPRO',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 2,
+                                              color: _VegeceColors.pink,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: 36,
+                                      height: 1.5,
+                                      color: _VegeceColors.pink,
+                                    ),
+                                    const SizedBox(height: 32),
+                                    Text(
+                                      l10n.createProAccount,
+                                      style: TextStyle(
+                                        fontFamily: 'SFPRO',
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      l10n.chooseCategory,
+                                      style: TextStyle(
+                                        fontFamily: 'SFPRO',
+                                        fontSize: 15,
+                                        color: subtitleColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 40),
+
+                            // Cards "Burger" style
+                            Transform.translate(
+                              offset: Offset(0, _cardsSlide.value),
+                              child: Opacity(
+                                opacity: _cardsFade.value,
+                                child: Column(
+                                  children: [
+                                    _CategoryCard(
+                                      icon: Icons.medical_services_outlined,
+                                      label: l10n.veterinarian,
+                                      description: l10n.vetDescription,
+                                      isSelected: _selectedCategory == 'vet',
+                                      isDark: isDark,
+                                      delay: 0,
+                                      onTap: () => _onCategorySelected('vet'),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _CategoryCard(
+                                      icon: Icons.pets_outlined,
+                                      label: l10n.daycare,
+                                      description: l10n.daycareDescription,
+                                      isSelected: _selectedCategory == 'daycare',
+                                      isDark: isDark,
+                                      delay: 1,
+                                      onTap: () => _onCategorySelected('daycare'),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _CategoryCard(
+                                      icon: Icons.storefront_outlined,
+                                      label: l10n.petshop,
+                                      description: l10n.petshopDescription,
+                                      isSelected: _selectedCategory == 'petshop',
+                                      isDark: isDark,
+                                      delay: 2,
+                                      onTap: () => _onCategorySelected('petshop'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const Spacer(),
+
+                            // Footer
+                            Opacity(
+                              opacity: _cardsFade.value * 0.6,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 28),
+                                child: Center(
+                                  child: Text(
+                                    l10n.proAccountNote,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily: 'SFPRO',
+                                      fontSize: 12,
+                                      color: subtitleColor.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-class _DotsIndicator extends StatelessWidget {
+/* ========================= Category Card (Burger Style) ========================= */
+
+class _CategoryCard extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool isSelected;
+  final bool isDark;
+  final int delay;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.isSelected,
+    required this.isDark,
+    required this.delay,
+    required this.onTap,
+  });
+
+  @override
+  State<_CategoryCard> createState() => _CategoryCardState();
+}
+
+class _CategoryCardState extends State<_CategoryCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.98).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.isDark
+        ? (widget.isSelected
+            ? _VegeceColors.pink.withOpacity(0.15)
+            : _VegeceColors.cardDark)
+        : (widget.isSelected
+            ? _VegeceColors.pink.withOpacity(0.08)
+            : _VegeceColors.cardBg);
+
+    final borderColor = widget.isSelected
+        ? _VegeceColors.pink
+        : (widget.isDark
+            ? _VegeceColors.white.withOpacity(0.08)
+            : _VegeceColors.textGrey.withOpacity(0.1));
+
+    final iconColor = widget.isSelected
+        ? _VegeceColors.pink
+        : (widget.isDark ? _VegeceColors.white : _VegeceColors.textDark);
+
+    final textColor = widget.isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final descColor = _VegeceColors.textGrey;
+
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? (widget.isDark
+                        ? _VegeceColors.white.withOpacity(0.05)
+                        : _VegeceColors.textGrey.withOpacity(0.05))
+                    : bgColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: borderColor,
+                  width: widget.isSelected ? 2 : 1,
+                ),
+                boxShadow: widget.isSelected
+                    ? [
+                        BoxShadow(
+                          color: _VegeceColors.pink.withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  // Icon container
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: widget.isSelected
+                          ? _VegeceColors.pink.withOpacity(0.15)
+                          : (widget.isDark
+                              ? _VegeceColors.white.withOpacity(0.08)
+                              : _VegeceColors.textGrey.withOpacity(0.08)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      size: 24,
+                      color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // Text
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.label,
+                          style: TextStyle(
+                            fontFamily: 'SFPRO',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.description,
+                          style: TextStyle(
+                            fontFamily: 'SFPRO',
+                            fontSize: 13,
+                            color: descColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Arrow
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: widget.isSelected
+                        ? _VegeceColors.pink
+                        : descColor.withOpacity(0.5),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/* ========================= Step Indicator ========================= */
+
+class _StepIndicator extends StatelessWidget {
   final int current;
   final int total;
-  const _DotsIndicator({required this.current, required this.total});
+  final bool isDark;
+
+  const _StepIndicator({
+    required this.current,
+    required this.total,
+    required this.isDark,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: List.generate(total, (i) {
-        final active = i == current;
+        final isActive = i == current;
+        final isPast = i < current;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 200),
           margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: 8,
+          width: isActive ? 24 : 8,
           height: 8,
-          decoration: BoxDecoration(color: active ? Colors.black87 : Colors.black26, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: isActive || isPast
+                ? _VegeceColors.pink
+                : (isDark
+                    ? _VegeceColors.white.withOpacity(0.2)
+                    : _VegeceColors.textGrey.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(4),
+          ),
         );
       }),
     );
@@ -184,15 +595,9 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   bool _obscureConfirm = true;
   bool _registered = false;
 
-  // Carte AVN (recto-verso)
   File? _avnFront;
   File? _avnBack;
-  String? _avnFrontUrl;
-  String? _avnBackUrl;
-
-  // Photo de profil
   File? _profilePhoto;
-  String? _profilePhotoUrl;
 
   final _picker = ImagePicker();
 
@@ -200,10 +605,6 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
-  bool _isValidPhone(String s) {
-    final d = s.replaceAll(RegExp(r'[^0-9+]'), '');
-    return d.length >= 8 && d.length <= 16;
-  }
 
   @override
   void dispose() {
@@ -219,57 +620,24 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   }
 
   bool _validateStep(int step) {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       if (step == 0) {
         final first = _firstName.text.trim();
         final last = _lastName.text.trim();
-        if (first.isEmpty) {
-          _errFirst = 'Prénom requis';
-        } else if (first.length < 3) {
-          _errFirst = 'Prénom: minimum 3 caractères';
-        } else if (first.length > 15) {
-          _errFirst = 'Prénom: maximum 15 caractères';
-        } else {
-          _errFirst = null;
-        }
-        if (last.isEmpty) {
-          _errLast = 'Nom requis';
-        } else if (last.length < 3) {
-          _errLast = 'Nom: minimum 3 caractères';
-        } else if (last.length > 15) {
-          _errLast = 'Nom: maximum 15 caractères';
-        } else {
-          _errLast = null;
-        }
+        _errFirst = first.isEmpty ? l10n.errorFirstNameRequired : (first.length < 3 ? l10n.errorFirstNameMin : (first.length > 15 ? l10n.errorFirstNameMax : null));
+        _errLast = last.isEmpty ? l10n.errorLastNameRequired : (last.length < 3 ? l10n.errorLastNameMin : (last.length > 15 ? l10n.errorLastNameMax : null));
       } else if (step == 1) {
-        _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
-        _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        if (_passConfirm.text.isEmpty) {
-          _errPassConfirm = 'Confirmation requise';
-        } else if (_passConfirm.text != _pass.text) {
-          _errPassConfirm = 'Les mots de passe ne correspondent pas';
-        } else {
-          _errPassConfirm = null;
-        }
+        _errEmail = _isValidEmail(_email.text) ? null : l10n.errorEmailInvalid;
+        _errPass = _isValidPassword(_pass.text) ? null : l10n.errorPasswordWeak;
+        _errPassConfirm = _passConfirm.text.isEmpty ? l10n.errorConfirmRequired : (_passConfirm.text != _pass.text ? l10n.errorPasswordMismatch : null);
         final phone = _phone.text.trim();
-        if (phone.isEmpty) {
-          _errPhone = 'Téléphone requis';
-        } else if (!phone.startsWith('0')) {
-          _errPhone = 'Le numéro doit commencer par 0';
-        } else if (phone.length < 9 || phone.length > 10) {
-          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
-        } else {
-          _errPhone = null;
-        }
+        _errPhone = phone.isEmpty ? l10n.errorPhoneRequired : (!phone.startsWith('0') ? l10n.errorPhoneFormat : (phone.length < 9 || phone.length > 10 ? l10n.errorPhoneLength : null));
       } else if (step == 2) {
-        _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
-        final mapsOk = _isValidHttpUrl(_mapsUrl.text);
-        _errMapsUrl = mapsOk
-            ? null
-            : (_mapsUrl.text.trim().isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)');
+        _errAddress = _address.text.trim().isEmpty ? l10n.errorAddressRequired : null;
+        _errMapsUrl = _isValidHttpUrl(_mapsUrl.text) ? null : l10n.errorMapsUrlRequired;
       } else if (step == 3) {
-        // Validation carte AVN (recto obligatoire, verso obligatoire)
-        _errAvn = (_avnFront == null || _avnBack == null) ? 'Carte AVN recto-verso obligatoire' : null;
+        _errAvn = (_avnFront == null || _avnBack == null) ? l10n.errorAvnRequired : null;
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
@@ -280,6 +648,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   }
 
   Future<void> _next() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(_step)) return;
 
     if (_step == 1 && !_registered) {
@@ -290,13 +659,10 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
           if (err.contains('409') || err.contains('already in use') || err.contains('email')) {
-            setState(() => _errEmail = 'Email déjà utilisé');
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cet email est déjà utilisé.')));
+            setState(() => _errEmail = l10n.errorEmailTaken);
             return;
           }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ref.read(sessionProvider).error ?? 'Inscription impossible')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.read(sessionProvider).error ?? l10n.error)));
           return;
         }
         _registered = true;
@@ -309,35 +675,26 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
   }
 
   Future<void> _submitFinal() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(3)) return;
     setState(() => _loading = true);
 
     try {
-      // IMPORTANT: Activer le flag pour bloquer les redirections du router
       ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
 
-      // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
       if (!loginOk) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erreur de connexion')),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorConnection)));
         return;
       }
 
       final api = ref.read(apiProvider);
 
-      // Upload photo de profil (si présente)
       String? photoUrl;
       if (_profilePhoto != null) {
         try {
           photoUrl = await api.uploadLocalFile(_profilePhoto!, folder: 'avatars');
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload photo: $e')));
-          // On continue même si l'upload photo échoue (optionnel)
-        }
+        } catch (_) {}
       }
 
       try {
@@ -351,11 +708,7 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
         final status = e.response?.statusCode;
         final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? '');
         if (status == 409 || msg.toLowerCase().contains('phone')) {
-          setState(() {
-            _errPhone = 'Téléphone déjà utilisé';
-            _step = 1;
-          });
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce numéro est déjà utilisé.')));
+          setState(() { _errPhone = l10n.errorPhoneTaken; _step = 1; });
           return;
         }
         rethrow;
@@ -364,220 +717,40 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
       final display = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
       final displayName = display.isEmpty ? _email.text.split('@').first : display;
 
-      final finalMaps = _mapsUrl.text.trim();
-      if (finalMaps.isEmpty || !_isValidHttpUrl(finalMaps)) {
-        setState(() {
-          _errMapsUrl = finalMaps.isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)';
-          _step = 2;
-        });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errMapsUrl!)));
-        return;
-      }
-
-      // Upload cartes AVN
       String? frontUrl, backUrl;
-      if (_avnFront != null) {
-        try {
-          frontUrl = await api.uploadLocalFile(_avnFront!, folder: 'avn');
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload recto: $e')));
-          return;
-        }
-      }
-      if (_avnBack != null) {
-        try {
-          backUrl = await api.uploadLocalFile(_avnBack!, folder: 'avn');
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur upload verso: $e')));
-          return;
-        }
-      }
+      if (_avnFront != null) frontUrl = await api.uploadLocalFile(_avnFront!, folder: 'avn');
+      if (_avnBack != null) backUrl = await api.uploadLocalFile(_avnBack!, folder: 'avn');
 
       await api.upsertMyProvider(
         displayName: displayName,
         address: _address.text.trim(),
-        specialties: {
-          'kind': 'vet',
-          'visible': true,
-          'mapsUrl': finalMaps,
-        },
+        specialties: {'kind': 'vet', 'visible': true, 'mapsUrl': _mapsUrl.text.trim()},
         avnCardFront: frontUrl,
         avnCardBack: backUrl,
       );
 
-      // Refresh user pour mettre à jour le role (user → provider)
       await ref.read(sessionProvider.notifier).refreshMe();
-
-      // Déconnexion immédiate pour éviter la redirection automatique
-      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
-
-      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
 
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
+      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? l10n.error);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $msg')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: null,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          children: [
-            Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: _buildStep())),
-            const SizedBox(height: 8),
-            _DotsIndicator(current: _step, total: 4),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (_step > 0)
-                  OutlinedButton(onPressed: _loading ? null : () => setState(() => _step -= 1), child: const Text('Précédent')),
-                const Spacer(),
-                FilledButton(onPressed: _loading ? null : (_step < 3 ? _next : _submitFinal), child: Text(_step < 3 ? 'Suivant' : 'Soumettre')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStep() {
-    if (_step == 0) {
-      return _centeredForm([
-        _label('Photo de profil (optionnelle)'),
-        const SizedBox(height: 6),
-        Center(
-          child: GestureDetector(
-            onTap: () => _pickProfilePhoto(),
-            child: CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey[200],
-              backgroundImage: _profilePhoto != null ? FileImage(_profilePhoto!) : null,
-              child: _profilePhoto == null
-                  ? Icon(Icons.add_a_photo, size: 30, color: Colors.grey[600])
-                  : null,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _label('Prénom'),
-        _input(_firstName, errorText: _errFirst, maxLength: 15),
-        const SizedBox(height: 12),
-        _label('Nom'),
-        _input(_lastName, errorText: _errLast, maxLength: 15),
-      ], key: const ValueKey('vet0'));
-    }
-
-    if (_step == 1) {
-      return _centeredForm([
-        _label('Adresse email'),
-        _input(_email, keyboard: TextInputType.emailAddress, errorText: _errEmail),
-        const SizedBox(height: 12),
-        _label('Mot de passe'),
-        TextField(
-          controller: _pass,
-          obscureText: _obscure,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPass,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility)),
-            helperText: 'Min. 8 caractères avec une MAJUSCULE et une minuscule',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Confirmer le mot de passe'),
-        TextField(
-          controller: _passConfirm,
-          obscureText: _obscureConfirm,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPassConfirm,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
-      ], key: const ValueKey('vet1'));
-    }
-
-    if (_step == 2) {
-      return _centeredForm([
-        _label('Adresse du vétérinaire'),
-        _input(_address, errorText: _errAddress),
-        const SizedBox(height: 12),
-        _label('Lien Google Maps (obligatoire)'),
-        TextField(
-          controller: _mapsUrl,
-          keyboardType: TextInputType.url,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errMapsUrl,
-            hintText: 'https://maps.google.com/...',
-          ),
-        ),
-      ], key: const ValueKey('vet2'));
-    }
-
-    // Step 3: Upload carte AVN
-    return _centeredForm([
-      _label('Carte AVN (Attestation Vétérinaire Nationale)'),
-      const SizedBox(height: 8),
-      Text('Recto', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
-      const SizedBox(height: 6),
-      _buildImagePicker(
-        image: _avnFront,
-        onTap: () => _pickImage(isBack: false),
-        label: 'Téléverser recto',
-      ),
-      const SizedBox(height: 16),
-      Text('Verso', style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600)),
-      const SizedBox(height: 6),
-      _buildImagePicker(
-        image: _avnBack,
-        onTap: () => _pickImage(isBack: true),
-        label: 'Téléverser verso',
-      ),
-      if (_errAvn != null) ...[
-        const SizedBox(height: 12),
-        Text(_errAvn!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-      ],
-    ], key: const ValueKey('vet3'));
   }
 
   Future<void> _pickProfilePhoto() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 90);
       if (image == null) return;
-
-      setState(() {
-        _profilePhoto = File(image.path);
-      });
+      setState(() => _profilePhoto = File(image.path));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -585,108 +758,173 @@ class _VetWizard3StepsState extends ConsumerState<_VetWizard3Steps> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, imageQuality: 85);
       if (image == null) return;
-
       setState(() {
-        if (isBack) {
-          _avnBack = File(image.path);
-        } else {
-          _avnFront = File(image.path);
-        }
+        if (isBack) _avnBack = File(image.path); else _avnFront = File(image.path);
         _errAvn = null;
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  Widget _buildImagePicker({required File? image, required VoidCallback onTap, required String label}) {
-    if (image != null) {
-      return Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(image, height: 150, width: double.infinity, fit: BoxFit.cover),
-          ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: CircleAvatar(
-              backgroundColor: Colors.black54,
-              radius: 16,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.close, size: 18, color: Colors.white),
-                onPressed: () => setState(() {
-                  if (image == _avnFront) {
-                    _avnFront = null;
-                  } else {
-                    _avnBack = null;
-                  }
-                }),
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    final bgColor = isDark ? _VegeceColors.bgDark : _VegeceColors.bgLight;
+    final textColor = isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final cardBgColor = isDark ? _VegeceColors.cardDark : _VegeceColors.cardBg;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      if (_step > 0) setState(() => _step -= 1); else Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+                  ),
+                  const Spacer(),
+                  _StepIndicator(current: _step, total: 4, isDark: isDark),
+                  const Spacer(),
+                  const SizedBox(width: 48),
+                ],
               ),
             ),
-          ),
-        ],
-      );
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 150,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.upload_file, size: 40, color: Colors.grey[600]),
-            const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.veterinarian, style: TextStyle(fontFamily: 'SFPRO', fontSize: 24, fontWeight: FontWeight.w700, color: textColor)),
+                    const SizedBox(height: 24),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: cardBgColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: isDark ? _VegeceColors.white.withOpacity(0.08) : _VegeceColors.textGrey.withOpacity(0.1)),
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: _buildStep(l10n, isDark, textColor),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildButton(l10n, isDark),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _centeredForm(List<Widget> children, {Key? key}) {
-    return SingleChildScrollView(
-      key: key,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const SizedBox(height: 8), ...children]),
-        ),
-      ),
-    );
+  Widget _buildStep(AppLocalizations l10n, bool isDark, Color textColor) {
+    final inputBg = isDark ? _VegeceColors.white.withOpacity(0.05) : _VegeceColors.white;
+    final inputBorder = isDark ? _VegeceColors.white.withOpacity(0.12) : _VegeceColors.textGrey.withOpacity(0.2);
+
+    if (_step == 0) {
+      return Column(key: const ValueKey('v0'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: GestureDetector(
+          onTap: _pickProfilePhoto,
+          child: CircleAvatar(
+            radius: 45, backgroundColor: isDark ? _VegeceColors.white.withOpacity(0.1) : _VegeceColors.textGrey.withOpacity(0.1),
+            backgroundImage: _profilePhoto != null ? FileImage(_profilePhoto!) : null,
+            child: _profilePhoto == null ? Icon(Icons.add_a_photo, size: 26, color: _VegeceColors.textGrey) : null,
+          ),
+        )),
+        const SizedBox(height: 20),
+        _buildInput(l10n.firstName, _firstName, _errFirst, isDark, textColor, inputBg, inputBorder, maxLength: 15),
+        const SizedBox(height: 16),
+        _buildInput(l10n.lastName, _lastName, _errLast, isDark, textColor, inputBg, inputBorder, maxLength: 15),
+      ]);
+    }
+    if (_step == 1) {
+      return Column(key: const ValueKey('v1'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _buildInput(l10n.email, _email, _errEmail, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.emailAddress),
+        const SizedBox(height: 16),
+        _buildInput(l10n.password, _pass, _errPass, isDark, textColor, inputBg, inputBorder, obscure: _obscure, helperText: l10n.passwordHelper, suffixIcon: GestureDetector(onTap: () => setState(() => _obscure = !_obscure), child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))),
+        const SizedBox(height: 16),
+        _buildInput(l10n.confirmPassword, _passConfirm, _errPassConfirm, isDark, textColor, inputBg, inputBorder, obscure: _obscureConfirm, suffixIcon: GestureDetector(onTap: () => setState(() => _obscureConfirm = !_obscureConfirm), child: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))),
+        const SizedBox(height: 16),
+        _buildInput(l10n.phone, _phone, _errPhone, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.phone, maxLength: 10),
+      ]);
+    }
+    if (_step == 2) {
+      return Column(key: const ValueKey('v2'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _buildInput(l10n.address, _address, _errAddress, isDark, textColor, inputBg, inputBorder),
+        const SizedBox(height: 16),
+        _buildInput(l10n.googleMapsUrl, _mapsUrl, _errMapsUrl, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.url, hintText: 'https://maps.google.com/...'),
+      ]);
+    }
+    return Column(key: const ValueKey('v3'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(l10n.avnCard, style: TextStyle(fontFamily: 'SFPRO', fontSize: 15, fontWeight: FontWeight.w600, color: textColor)),
+      const SizedBox(height: 16),
+      _buildImagePicker(l10n.front, _avnFront, () => _pickImage(isBack: false), () => setState(() => _avnFront = null), isDark),
+      const SizedBox(height: 12),
+      _buildImagePicker(l10n.back, _avnBack, () => _pickImage(isBack: true), () => setState(() => _avnBack = null), isDark),
+      if (_errAvn != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_errAvn!, style: const TextStyle(color: _VegeceColors.errorRed, fontSize: 12))),
+    ]);
   }
 
-  Widget _label(String s) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(s, style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 13)));
+  Widget _buildInput(String label, TextEditingController controller, String? error, bool isDark, Color textColor, Color inputBg, Color inputBorder, {bool obscure = false, TextInputType? keyboardType, int? maxLength, String? helperText, String? hintText, Widget? suffixIcon}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, fontWeight: FontWeight.w500, color: textColor.withOpacity(0.7))),
+      const SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(14), border: Border.all(color: error != null ? _VegeceColors.errorRed.withOpacity(0.5) : inputBorder)),
+        child: TextField(
+          controller: controller, obscureText: obscure, keyboardType: keyboardType, maxLength: maxLength,
+          style: TextStyle(fontFamily: 'SFPRO', fontSize: 15, color: textColor),
+          decoration: InputDecoration(border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), counterText: '', hintText: hintText, hintStyle: TextStyle(color: _VegeceColors.textGrey.withOpacity(0.5)), suffixIcon: suffixIcon != null ? Padding(padding: const EdgeInsets.only(right: 12), child: suffixIcon) : null, suffixIconConstraints: const BoxConstraints(maxHeight: 24)),
+        ),
+      ),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.errorRed))),
+      if (helperText != null && error == null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(helperText, style: TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.textGrey.withOpacity(0.8)))),
+    ]);
+  }
 
-  Widget _input(
-    TextEditingController c, {
-    bool obscure = false,
-    TextInputType? keyboard,
-    String? errorText,
-    String? hintText,
-    int? maxLength,
-  }) {
-    return TextField(
-      controller: c,
-      obscureText: obscure,
-      keyboardType: keyboard,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        isDense: true,
-        errorText: errorText,
-        hintText: hintText,
-        counterText: '',
+  Widget _buildImagePicker(String label, File? image, VoidCallback onPick, VoidCallback onRemove, bool isDark) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontFamily: 'SFPRO', fontSize: 12, fontWeight: FontWeight.w500, color: _VegeceColors.textGrey)),
+      const SizedBox(height: 6),
+      if (image != null)
+        Stack(children: [
+          ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(image, height: 120, width: double.infinity, fit: BoxFit.cover)),
+          Positioned(top: 6, right: 6, child: GestureDetector(onTap: onRemove, child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: _VegeceColors.errorRed, borderRadius: BorderRadius.circular(6)), child: const Icon(Icons.close, size: 16, color: _VegeceColors.white)))),
+        ])
+      else
+        GestureDetector(
+          onTap: onPick,
+          child: Container(
+            height: 100, decoration: BoxDecoration(color: isDark ? _VegeceColors.white.withOpacity(0.05) : _VegeceColors.textGrey.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? _VegeceColors.white.withOpacity(0.1) : _VegeceColors.textGrey.withOpacity(0.15))),
+            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.upload_file_outlined, size: 28, color: _VegeceColors.textGrey), const SizedBox(height: 6), Text('Upload', style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, color: _VegeceColors.textGrey))])),
+          ),
+        ),
+    ]);
+  }
+
+  Widget _buildButton(AppLocalizations l10n, bool isDark) {
+    return GestureDetector(
+      onTap: _loading ? null : (_step < 3 ? _next : _submitFinal),
+      child: Container(
+        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(gradient: LinearGradient(colors: [_VegeceColors.pink, _VegeceColors.pinkDark]), borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: _VegeceColors.pink.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))]),
+        child: Center(child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _VegeceColors.white)) : Text(_step < 3 ? l10n.next : l10n.submit, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 16, fontWeight: FontWeight.w600, color: _VegeceColors.white))),
       ),
     );
   }
@@ -707,7 +945,6 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   final _pass = TextEditingController();
   final _passConfirm = TextEditingController();
   final _phone = TextEditingController();
-
   final _shopName = TextEditingController();
   final _address = TextEditingController();
   final _mapsUrl = TextEditingController();
@@ -718,83 +955,39 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
   bool _obscureConfirm = true;
   bool _registered = false;
 
-  final List<File> _daycareImages = [];
+  final List<File> _images = [];
   final _picker = ImagePicker();
 
   String? _errFirst, _errLast, _errEmail, _errPass, _errPassConfirm, _errPhone, _errShop, _errAddress, _errMapsUrl, _errImages;
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
-  bool _isValidPhone(String s) {
-    final d = s.replaceAll(RegExp(r'[^0-9+]'), '');
-    return d.length >= 8 && d.length <= 16;
-  }
 
   @override
   void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
-    _pass.dispose();
-    _passConfirm.dispose();
-    _phone.dispose();
-    _shopName.dispose();
-    _address.dispose();
-    _mapsUrl.dispose();
+    _firstName.dispose(); _lastName.dispose(); _email.dispose(); _pass.dispose(); _passConfirm.dispose(); _phone.dispose(); _shopName.dispose(); _address.dispose(); _mapsUrl.dispose();
     super.dispose();
   }
 
   bool _validateStep(int step) {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       if (step == 0) {
         final first = _firstName.text.trim();
         final last = _lastName.text.trim();
-        if (first.isEmpty) {
-          _errFirst = 'Prénom requis';
-        } else if (first.length < 3) {
-          _errFirst = 'Prénom: minimum 3 caractères';
-        } else if (first.length > 15) {
-          _errFirst = 'Prénom: maximum 15 caractères';
-        } else {
-          _errFirst = null;
-        }
-        if (last.isEmpty) {
-          _errLast = 'Nom requis';
-        } else if (last.length < 3) {
-          _errLast = 'Nom: minimum 3 caractères';
-        } else if (last.length > 15) {
-          _errLast = 'Nom: maximum 15 caractères';
-        } else {
-          _errLast = null;
-        }
+        _errFirst = first.isEmpty ? l10n.errorFirstNameRequired : (first.length < 3 ? l10n.errorFirstNameMin : (first.length > 15 ? l10n.errorFirstNameMax : null));
+        _errLast = last.isEmpty ? l10n.errorLastNameRequired : (last.length < 3 ? l10n.errorLastNameMin : (last.length > 15 ? l10n.errorLastNameMax : null));
       } else if (step == 1) {
-        _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
-        _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        if (_passConfirm.text.isEmpty) {
-          _errPassConfirm = 'Confirmation requise';
-        } else if (_passConfirm.text != _pass.text) {
-          _errPassConfirm = 'Les mots de passe ne correspondent pas';
-        } else {
-          _errPassConfirm = null;
-        }
+        _errEmail = _isValidEmail(_email.text) ? null : l10n.errorEmailInvalid;
+        _errPass = _isValidPassword(_pass.text) ? null : l10n.errorPasswordWeak;
+        _errPassConfirm = _passConfirm.text.isEmpty ? l10n.errorConfirmRequired : (_passConfirm.text != _pass.text ? l10n.errorPasswordMismatch : null);
         final phone = _phone.text.trim();
-        if (phone.isEmpty) {
-          _errPhone = 'Téléphone requis';
-        } else if (!phone.startsWith('0')) {
-          _errPhone = 'Le numéro doit commencer par 0';
-        } else if (phone.length < 9 || phone.length > 10) {
-          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
-        } else {
-          _errPhone = null;
-        }
+        _errPhone = phone.isEmpty ? l10n.errorPhoneRequired : (!phone.startsWith('0') ? l10n.errorPhoneFormat : (phone.length < 9 || phone.length > 10 ? l10n.errorPhoneLength : null));
       } else {
-        _errShop = _shopName.text.trim().isEmpty ? 'Nom de la boutique requis' : null;
-        _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
-        final mapsOk = _isValidHttpUrl(_mapsUrl.text);
-        _errMapsUrl = mapsOk
-            ? null
-            : (_mapsUrl.text.trim().isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)');
-        _errImages = _daycareImages.isEmpty ? 'Au moins 1 photo requise' : null;
+        _errShop = _shopName.text.trim().isEmpty ? l10n.errorShopNameRequired : null;
+        _errAddress = _address.text.trim().isEmpty ? l10n.errorAddressRequired : null;
+        _errMapsUrl = _isValidHttpUrl(_mapsUrl.text) ? null : l10n.errorMapsUrlRequired;
+        _errImages = _images.isEmpty ? l10n.errorPhotoRequired : null;
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
@@ -802,44 +995,18 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
     return _errShop == null && _errAddress == null && _errMapsUrl == null && _errImages == null;
   }
 
-  Future<void> _pickDaycareImage() async {
-    if (_daycareImages.length >= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximum 3 photos')),
-      );
-      return;
-    }
-
+  Future<void> _pickImage() async {
+    if (_images.length >= 3) return;
     try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        imageQuality: 85,
-      );
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, imageQuality: 85);
       if (image == null) return;
-
-      setState(() {
-        _daycareImages.add(File(image.path));
-        _errImages = null;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  void _removeDaycareImage(int index) {
-    setState(() {
-      _daycareImages.removeAt(index);
-    });
+      setState(() { _images.add(File(image.path)); _errImages = null; });
+    } catch (_) {}
   }
 
   Future<void> _next() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(_step)) return;
-
     if (_step == 1 && !_registered) {
       setState(() => _loading = true);
       try {
@@ -847,315 +1014,119 @@ class _DaycareWizard3StepsState extends ConsumerState<_DaycareWizard3Steps> {
         if (!mounted) return;
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
-          if (err.contains('409') || err.contains('already in use') || err.contains('email')) {
-            setState(() => _errEmail = 'Email déjà utilisé');
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cet email est déjà utilisé.')));
-            return;
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ref.read(sessionProvider).error ?? 'Inscription impossible')),
-          );
+          if (err.contains('409') || err.contains('already in use') || err.contains('email')) { setState(() => _errEmail = l10n.errorEmailTaken); return; }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.read(sessionProvider).error ?? l10n.error)));
           return;
         }
         _registered = true;
-      } finally {
-        if (mounted) setState(() => _loading = false);
-      }
+      } finally { if (mounted) setState(() => _loading = false); }
     }
-
     setState(() => _step = (_step + 1).clamp(0, 2));
   }
 
   Future<void> _submitFinal() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(2)) return;
     setState(() => _loading = true);
-
     try {
-      // IMPORTANT: Activer le flag pour bloquer les redirections du router
       ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
-
-      // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
-      if (!loginOk) {
-        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erreur de connexion')),
-          );
-        }
-        return;
-      }
-
+      if (!loginOk) { ref.read(sessionProvider.notifier).setCompletingProRegistration(false); if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorConnection))); return; }
       final api = ref.read(apiProvider);
-
       try {
-        await api.updateMe(
-          firstName: _firstName.text.trim(),
-          lastName: _lastName.text.trim(),
-          phone: _phone.text.trim(),
-        );
+        await api.updateMe(firstName: _firstName.text.trim(), lastName: _lastName.text.trim(), phone: _phone.text.trim());
       } on DioException catch (e) {
         ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         final status = e.response?.statusCode;
         final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? '');
-        if (status == 409 || msg.toLowerCase().contains('phone')) {
-          setState(() {
-            _errPhone = 'Téléphone déjà utilisé';
-            _step = 1;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce numéro est déjà utilisé.')));
-          return;
-        }
+        if (status == 409 || msg.toLowerCase().contains('phone')) { setState(() { _errPhone = l10n.errorPhoneTaken; _step = 1; }); return; }
         rethrow;
       }
-
       final display = _shopName.text.trim().isEmpty ? _email.text.split('@').first : _shopName.text.trim();
-
-      final finalMaps = _mapsUrl.text.trim();
-      if (finalMaps.isEmpty || !_isValidHttpUrl(finalMaps)) {
-        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-        setState(() {
-          _errMapsUrl = finalMaps.isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)';
-          _step = 2;
-        });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errMapsUrl!)));
-        return;
-      }
-
-      // Upload des photos de la garderie
       final List<String> imageUrls = [];
-      for (int i = 0; i < _daycareImages.length; i++) {
-        try {
-          final url = await api.uploadLocalFile(_daycareImages[i], folder: 'daycare');
-          imageUrls.add(url);
-        } catch (e) {
-          ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erreur upload photo ${i + 1}: $e')),
-            );
-          }
-          return;
-        }
-      }
-
-      await api.upsertMyProvider(
-        displayName: display,
-        address: _address.text.trim(),
-        specialties: {
-          'kind': 'daycare',
-          'visible': true,
-          'mapsUrl': finalMaps,
-          'images': imageUrls,
-        },
-      );
-
-      // Refresh user pour mettre à jour le role (user → provider)
+      for (final img in _images) { imageUrls.add(await api.uploadLocalFile(img, folder: 'daycare')); }
+      await api.upsertMyProvider(displayName: display, address: _address.text.trim(), specialties: {'kind': 'daycare', 'visible': true, 'mapsUrl': _mapsUrl.text.trim(), 'images': imageUrls});
       await ref.read(sessionProvider.notifier).refreshMe();
-
-      // Déconnexion immédiate pour éviter la redirection automatique
-      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
-
-      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? l10n.error);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $msg')));
+    } finally { if (mounted) setState(() => _loading = false); }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final bgColor = isDark ? _VegeceColors.bgDark : _VegeceColors.bgLight;
+    final textColor = isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final cardBgColor = isDark ? _VegeceColors.cardDark : _VegeceColors.cardBg;
+    final inputBg = isDark ? _VegeceColors.white.withOpacity(0.05) : _VegeceColors.white;
+    final inputBorder = isDark ? _VegeceColors.white.withOpacity(0.12) : _VegeceColors.textGrey.withOpacity(0.2);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text('Inscription Garderie'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          children: [
-            Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: _buildStep())),
-            const SizedBox(height: 8),
-            _DotsIndicator(current: _step, total: 3),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (_step > 0)
-                  OutlinedButton(onPressed: _loading ? null : () => setState(() => _step -= 1), child: const Text('Précédent')),
-                const Spacer(),
-                FilledButton(onPressed: _loading ? null : (_step < 2 ? _next : _submitFinal), child: Text(_step < 2 ? 'Suivant' : 'Soumettre')),
-              ],
-            )
-          ],
-        ),
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), child: Row(children: [
+            IconButton(onPressed: () { if (_step > 0) setState(() => _step -= 1); else Navigator.pop(context); }, icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20)),
+            const Spacer(), _StepIndicator(current: _step, total: 3, isDark: isDark), const Spacer(), const SizedBox(width: 48),
+          ])),
+          Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l10n.daycare, style: TextStyle(fontFamily: 'SFPRO', fontSize: 24, fontWeight: FontWeight.w700, color: textColor)),
+            const SizedBox(height: 24),
+            AnimatedContainer(duration: const Duration(milliseconds: 300), padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: cardBgColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: isDark ? _VegeceColors.white.withOpacity(0.08) : _VegeceColors.textGrey.withOpacity(0.1))),
+              child: AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: _buildStepContent(l10n, isDark, textColor, inputBg, inputBorder)),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _loading ? null : (_step < 2 ? _next : _submitFinal),
+              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(gradient: LinearGradient(colors: [_VegeceColors.pink, _VegeceColors.pinkDark]), borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: _VegeceColors.pink.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))]),
+                child: Center(child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _VegeceColors.white)) : Text(_step < 2 ? l10n.next : l10n.submit, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 16, fontWeight: FontWeight.w600, color: _VegeceColors.white))),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ]))),
+        ]),
       ),
     );
   }
 
-  Widget _buildStep() {
-    if (_step == 0) {
-      return _centeredForm([
-        _label('Prénom'),
-        _input(_firstName, errorText: _errFirst, maxLength: 15),
-        const SizedBox(height: 12),
-        _label('Nom'),
-        _input(_lastName, errorText: _errLast, maxLength: 15),
-      ], key: const ValueKey('day0'));
-    }
-
-    if (_step == 1) {
-      return _centeredForm([
-        _label('Adresse email'),
-        _input(_email, keyboard: TextInputType.emailAddress, errorText: _errEmail),
-        const SizedBox(height: 12),
-        _label('Mot de passe'),
-        TextField(
-          controller: _pass,
-          obscureText: _obscure,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPass,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility)),
-            helperText: 'Min. 8 caractères avec une MAJUSCULE et une minuscule',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Confirmer le mot de passe'),
-        TextField(
-          controller: _passConfirm,
-          obscureText: _obscureConfirm,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPassConfirm,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
-      ], key: const ValueKey('day1'));
-    }
-
-    return _centeredForm([
-      _label('Nom de la garderie'),
-      _input(_shopName, errorText: _errShop),
-      const SizedBox(height: 12),
-      _label('Adresse de la garderie'),
-      _input(_address, errorText: _errAddress),
-      const SizedBox(height: 12),
-      _label('Lien Google Maps (obligatoire)'),
-      TextField(
-        controller: _mapsUrl,
-        keyboardType: TextInputType.url,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-          isDense: true,
-          errorText: _errMapsUrl,
-          hintText: 'https://maps.google.com/...',
-        ),
-      ),
-      const SizedBox(height: 16),
-      _label('Photos de la garderie (1 à 3 photos)'),
+  Widget _buildStepContent(AppLocalizations l10n, bool isDark, Color textColor, Color inputBg, Color inputBorder) {
+    if (_step == 0) return Column(key: const ValueKey('d0'), crossAxisAlignment: CrossAxisAlignment.start, children: [_buildInput(l10n.firstName, _firstName, _errFirst, isDark, textColor, inputBg, inputBorder, maxLength: 15), const SizedBox(height: 16), _buildInput(l10n.lastName, _lastName, _errLast, isDark, textColor, inputBg, inputBorder, maxLength: 15)]);
+    if (_step == 1) return Column(key: const ValueKey('d1'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _buildInput(l10n.email, _email, _errEmail, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.emailAddress), const SizedBox(height: 16),
+      _buildInput(l10n.password, _pass, _errPass, isDark, textColor, inputBg, inputBorder, obscure: _obscure, helperText: l10n.passwordHelper, suffixIcon: GestureDetector(onTap: () => setState(() => _obscure = !_obscure), child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))), const SizedBox(height: 16),
+      _buildInput(l10n.confirmPassword, _passConfirm, _errPassConfirm, isDark, textColor, inputBg, inputBorder, obscure: _obscureConfirm, suffixIcon: GestureDetector(onTap: () => setState(() => _obscureConfirm = !_obscureConfirm), child: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))), const SizedBox(height: 16),
+      _buildInput(l10n.phone, _phone, _errPhone, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.phone, maxLength: 10),
+    ]);
+    return Column(key: const ValueKey('d2'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _buildInput(l10n.shopName, _shopName, _errShop, isDark, textColor, inputBg, inputBorder), const SizedBox(height: 16),
+      _buildInput(l10n.address, _address, _errAddress, isDark, textColor, inputBg, inputBorder), const SizedBox(height: 16),
+      _buildInput(l10n.googleMapsUrl, _mapsUrl, _errMapsUrl, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.url, hintText: 'https://maps.google.com/...'), const SizedBox(height: 16),
+      Text(l10n.daycarePhotos, style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, fontWeight: FontWeight.w500, color: textColor.withOpacity(0.7))),
       const SizedBox(height: 8),
-      ..._daycareImages.asMap().entries.map((entry) {
-        final index = entry.key;
-        final image = entry.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  image,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: CircleAvatar(
-                  backgroundColor: Colors.red,
-                  radius: 18,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.white),
-                    padding: EdgeInsets.zero,
-                    onPressed: () => _removeDaycareImage(index),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
-      if (_daycareImages.length < 3)
-        OutlinedButton.icon(
-          onPressed: _pickDaycareImage,
-          icon: const Icon(Icons.add_photo_alternate),
-          label: Text(_daycareImages.isEmpty ? 'Ajouter une photo' : 'Ajouter une autre photo'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      if (_errImages != null) ...[
-        const SizedBox(height: 8),
-        Text(_errImages!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-      ],
-    ], key: const ValueKey('day2'));
+      ..._images.asMap().entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Stack(children: [ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(e.value, height: 100, width: double.infinity, fit: BoxFit.cover)), Positioned(top: 6, right: 6, child: GestureDetector(onTap: () => setState(() => _images.removeAt(e.key)), child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: _VegeceColors.errorRed, borderRadius: BorderRadius.circular(6)), child: const Icon(Icons.close, size: 14, color: _VegeceColors.white))))]))),
+      if (_images.length < 3) GestureDetector(onTap: _pickImage, child: Container(height: 60, decoration: BoxDecoration(color: isDark ? _VegeceColors.white.withOpacity(0.05) : _VegeceColors.textGrey.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: _errImages != null ? _VegeceColors.errorRed.withOpacity(0.5) : (isDark ? _VegeceColors.white.withOpacity(0.1) : _VegeceColors.textGrey.withOpacity(0.15)))), child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.add_photo_alternate_outlined, size: 20, color: _VegeceColors.textGrey), const SizedBox(width: 8), Text(l10n.addPhoto, style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, color: _VegeceColors.textGrey))])))),
+      if (_errImages != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_errImages!, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.errorRed))),
+    ]);
   }
 
-  Widget _centeredForm(List<Widget> children, {Key? key}) {
-    return SingleChildScrollView(
-      key: key,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const SizedBox(height: 8), ...children]),
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String s) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(s, style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 13)));
-
-  Widget _input(
-    TextEditingController c, {
-    bool obscure = false,
-    TextInputType? keyboard,
-    String? errorText,
-    String? hintText,
-    int? maxLength,
-  }) {
-    return TextField(
-      controller: c,
-      obscureText: obscure,
-      keyboardType: keyboard,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        isDense: true,
-        errorText: errorText,
-        hintText: hintText,
-        counterText: '',
-      ),
-    );
+  Widget _buildInput(String label, TextEditingController controller, String? error, bool isDark, Color textColor, Color inputBg, Color inputBorder, {bool obscure = false, TextInputType? keyboardType, int? maxLength, String? helperText, String? hintText, Widget? suffixIcon}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, fontWeight: FontWeight.w500, color: textColor.withOpacity(0.7))),
+      const SizedBox(height: 8),
+      Container(decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(14), border: Border.all(color: error != null ? _VegeceColors.errorRed.withOpacity(0.5) : inputBorder)),
+        child: TextField(controller: controller, obscureText: obscure, keyboardType: keyboardType, maxLength: maxLength, style: TextStyle(fontFamily: 'SFPRO', fontSize: 15, color: textColor),
+          decoration: InputDecoration(border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), counterText: '', hintText: hintText, hintStyle: TextStyle(color: _VegeceColors.textGrey.withOpacity(0.5)), suffixIcon: suffixIcon != null ? Padding(padding: const EdgeInsets.only(right: 12), child: suffixIcon) : null, suffixIconConstraints: const BoxConstraints(maxHeight: 24)))),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.errorRed))),
+      if (helperText != null && error == null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(helperText, style: TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.textGrey.withOpacity(0.8)))),
+    ]);
   }
 }
 
@@ -1174,7 +1145,6 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
   final _pass = TextEditingController();
   final _passConfirm = TextEditingController();
   final _phone = TextEditingController();
-
   final _shopName = TextEditingController();
   final _address = TextEditingController();
   final _mapsUrl = TextEditingController();
@@ -1189,75 +1159,31 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
 
   bool _isValidEmail(String s) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(s.trim());
   bool _isValidPassword(String s) => s.length >= 8 && s.contains(RegExp(r'[A-Z]')) && s.contains(RegExp(r'[a-z]'));
-  bool _isValidPhone(String s) {
-    final d = s.replaceAll(RegExp(r'[^0-9+]'), '');
-    return d.length >= 8 && d.length <= 16;
-  }
 
   @override
   void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
-    _pass.dispose();
-    _passConfirm.dispose();
-    _phone.dispose();
-    _shopName.dispose();
-    _address.dispose();
-    _mapsUrl.dispose();
+    _firstName.dispose(); _lastName.dispose(); _email.dispose(); _pass.dispose(); _passConfirm.dispose(); _phone.dispose(); _shopName.dispose(); _address.dispose(); _mapsUrl.dispose();
     super.dispose();
   }
 
   bool _validateStep(int step) {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       if (step == 0) {
         final first = _firstName.text.trim();
         final last = _lastName.text.trim();
-        if (first.isEmpty) {
-          _errFirst = 'Prénom requis';
-        } else if (first.length < 3) {
-          _errFirst = 'Prénom: minimum 3 caractères';
-        } else if (first.length > 15) {
-          _errFirst = 'Prénom: maximum 15 caractères';
-        } else {
-          _errFirst = null;
-        }
-        if (last.isEmpty) {
-          _errLast = 'Nom requis';
-        } else if (last.length < 3) {
-          _errLast = 'Nom: minimum 3 caractères';
-        } else if (last.length > 15) {
-          _errLast = 'Nom: maximum 15 caractères';
-        } else {
-          _errLast = null;
-        }
+        _errFirst = first.isEmpty ? l10n.errorFirstNameRequired : (first.length < 3 ? l10n.errorFirstNameMin : (first.length > 15 ? l10n.errorFirstNameMax : null));
+        _errLast = last.isEmpty ? l10n.errorLastNameRequired : (last.length < 3 ? l10n.errorLastNameMin : (last.length > 15 ? l10n.errorLastNameMax : null));
       } else if (step == 1) {
-        _errEmail = _isValidEmail(_email.text) ? null : 'Email invalide';
-        _errPass = _isValidPassword(_pass.text) ? null : 'Mot de passe trop faible';
-        if (_passConfirm.text.isEmpty) {
-          _errPassConfirm = 'Confirmation requise';
-        } else if (_passConfirm.text != _pass.text) {
-          _errPassConfirm = 'Les mots de passe ne correspondent pas';
-        } else {
-          _errPassConfirm = null;
-        }
+        _errEmail = _isValidEmail(_email.text) ? null : l10n.errorEmailInvalid;
+        _errPass = _isValidPassword(_pass.text) ? null : l10n.errorPasswordWeak;
+        _errPassConfirm = _passConfirm.text.isEmpty ? l10n.errorConfirmRequired : (_passConfirm.text != _pass.text ? l10n.errorPasswordMismatch : null);
         final phone = _phone.text.trim();
-        if (phone.isEmpty) {
-          _errPhone = 'Téléphone requis';
-        } else if (!phone.startsWith('0')) {
-          _errPhone = 'Le numéro doit commencer par 0';
-        } else if (phone.length < 9 || phone.length > 10) {
-          _errPhone = 'Le numéro doit contenir 9 ou 10 chiffres';
-        } else {
-          _errPhone = null;
-        }
+        _errPhone = phone.isEmpty ? l10n.errorPhoneRequired : (!phone.startsWith('0') ? l10n.errorPhoneFormat : (phone.length < 9 || phone.length > 10 ? l10n.errorPhoneLength : null));
       } else {
-        _errShop = _shopName.text.trim().isEmpty ? 'Nom de la boutique requis' : null;
-        _errAddress = _address.text.trim().isEmpty ? 'Adresse requise' : null;
-        final mapsOk = _isValidHttpUrl(_mapsUrl.text);
-        _errMapsUrl = mapsOk
-            ? null
-            : (_mapsUrl.text.trim().isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)');
+        _errShop = _shopName.text.trim().isEmpty ? l10n.errorShopNameRequired : null;
+        _errAddress = _address.text.trim().isEmpty ? l10n.errorAddressRequired : null;
+        _errMapsUrl = _isValidHttpUrl(_mapsUrl.text) ? null : l10n.errorMapsUrlRequired;
       }
     });
     if (step == 0) return _errFirst == null && _errLast == null;
@@ -1266,8 +1192,8 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
   }
 
   Future<void> _next() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(_step)) return;
-
     if (_step == 1 && !_registered) {
       setState(() => _loading = true);
       try {
@@ -1275,246 +1201,111 @@ class _PetshopWizard3StepsState extends ConsumerState<_PetshopWizard3Steps> {
         if (!mounted) return;
         if (!ok) {
           final err = (ref.read(sessionProvider).error ?? '').toLowerCase();
-          if (err.contains('409') || err.contains('already in use') || err.contains('email')) {
-            setState(() => _errEmail = 'Email déjà utilisé');
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cet email est déjà utilisé.')));
-            return;
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ref.read(sessionProvider).error ?? 'Inscription impossible')),
-          );
+          if (err.contains('409') || err.contains('already in use') || err.contains('email')) { setState(() => _errEmail = l10n.errorEmailTaken); return; }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ref.read(sessionProvider).error ?? l10n.error)));
           return;
         }
         _registered = true;
-      } finally {
-        if (mounted) setState(() => _loading = false);
-      }
+      } finally { if (mounted) setState(() => _loading = false); }
     }
-
     setState(() => _step = (_step + 1).clamp(0, 2));
   }
 
   Future<void> _submitFinal() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validateStep(2)) return;
     setState(() => _loading = true);
-
     try {
-      // IMPORTANT: Activer le flag pour bloquer les redirections du router
       ref.read(sessionProvider.notifier).setCompletingProRegistration(true);
-
-      // Login d'abord (avec les identifiants de l'étape 1)
       final loginOk = await ref.read(sessionProvider.notifier).login(_email.text.trim(), _pass.text);
-      if (!loginOk) {
-        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erreur de connexion')),
-          );
-        }
-        return;
-      }
-
+      if (!loginOk) { ref.read(sessionProvider.notifier).setCompletingProRegistration(false); if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.errorConnection))); return; }
       final api = ref.read(apiProvider);
-
       try {
-        await api.updateMe(
-          firstName: _firstName.text.trim(),
-          lastName: _lastName.text.trim(),
-          phone: _phone.text.trim(),
-        );
+        await api.updateMe(firstName: _firstName.text.trim(), lastName: _lastName.text.trim(), phone: _phone.text.trim());
       } on DioException catch (e) {
         ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
         final status = e.response?.statusCode;
         final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? '');
-        if (status == 409 || msg.toLowerCase().contains('phone')) {
-          setState(() {
-            _errPhone = 'Téléphone déjà utilisé';
-            _step = 1;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce numéro est déjà utilisé.')));
-          return;
-        }
+        if (status == 409 || msg.toLowerCase().contains('phone')) { setState(() { _errPhone = l10n.errorPhoneTaken; _step = 1; }); return; }
         rethrow;
       }
-
       final display = _shopName.text.trim().isEmpty ? _email.text.split('@').first : _shopName.text.trim();
-
-      final finalMaps = _mapsUrl.text.trim();
-      if (finalMaps.isEmpty || !_isValidHttpUrl(finalMaps)) {
-        ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-        setState(() {
-          _errMapsUrl = finalMaps.isEmpty ? 'Lien Google Maps requis' : 'URL invalide (http/https)';
-          _step = 2;
-        });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errMapsUrl!)));
-        return;
-      }
-
-      await api.upsertMyProvider(
-        displayName: display,
-        address: _address.text.trim(),
-        specialties: {
-          'kind': 'petshop',
-          'visible': true,
-          'mapsUrl': finalMaps,
-        },
-      );
-
-      // Refresh user pour mettre à jour le role (user → provider)
+      await api.upsertMyProvider(displayName: display, address: _address.text.trim(), specialties: {'kind': 'petshop', 'visible': true, 'mapsUrl': _mapsUrl.text.trim()});
       await ref.read(sessionProvider.notifier).refreshMe();
-
-      // Déconnexion immédiate pour éviter la redirection automatique
-      // L'utilisateur doit attendre l'approbation admin avant de pouvoir se connecter
       await ref.read(sessionProvider.notifier).logout();
-
-      // Désactiver le flag (normalement déjà fait par logout, mais pour être sûr)
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-
       if (!mounted) return;
       Navigator.pop(context, true);
     } on DioException catch (e) {
       ref.read(sessionProvider.notifier).setCompletingProRegistration(false);
-      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? 'Erreur');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $msg')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      final msg = (e.response?.data is Map) ? (e.response?.data['message']?.toString() ?? '') : (e.message ?? l10n.error);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $msg')));
+    } finally { if (mounted) setState(() => _loading = false); }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final bgColor = isDark ? _VegeceColors.bgDark : _VegeceColors.bgLight;
+    final textColor = isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final cardBgColor = isDark ? _VegeceColors.cardDark : _VegeceColors.cardBg;
+    final inputBg = isDark ? _VegeceColors.white.withOpacity(0.05) : _VegeceColors.white;
+    final inputBorder = isDark ? _VegeceColors.white.withOpacity(0.12) : _VegeceColors.textGrey.withOpacity(0.2);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text('Inscription Animalerie'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          children: [
-            Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: _buildStep())),
-            const SizedBox(height: 8),
-            _DotsIndicator(current: _step, total: 3),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (_step > 0)
-                  OutlinedButton(onPressed: _loading ? null : () => setState(() => _step -= 1), child: const Text('Précédent')),
-                const Spacer(),
-                FilledButton(onPressed: _loading ? null : (_step < 2 ? _next : _submitFinal), child: Text(_step < 2 ? 'Suivant' : 'Soumettre')),
-              ],
-            )
-          ],
-        ),
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), child: Row(children: [
+            IconButton(onPressed: () { if (_step > 0) setState(() => _step -= 1); else Navigator.pop(context); }, icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20)),
+            const Spacer(), _StepIndicator(current: _step, total: 3, isDark: isDark), const Spacer(), const SizedBox(width: 48),
+          ])),
+          Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(l10n.petshop, style: TextStyle(fontFamily: 'SFPRO', fontSize: 24, fontWeight: FontWeight.w700, color: textColor)),
+            const SizedBox(height: 24),
+            AnimatedContainer(duration: const Duration(milliseconds: 300), padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: cardBgColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: isDark ? _VegeceColors.white.withOpacity(0.08) : _VegeceColors.textGrey.withOpacity(0.1))),
+              child: AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: _buildStepContent(l10n, isDark, textColor, inputBg, inputBorder)),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _loading ? null : (_step < 2 ? _next : _submitFinal),
+              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(gradient: LinearGradient(colors: [_VegeceColors.pink, _VegeceColors.pinkDark]), borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: _VegeceColors.pink.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))]),
+                child: Center(child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _VegeceColors.white)) : Text(_step < 2 ? l10n.next : l10n.submit, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 16, fontWeight: FontWeight.w600, color: _VegeceColors.white))),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ]))),
+        ]),
       ),
     );
   }
 
-  Widget _buildStep() {
-    if (_step == 0) {
-      return _centeredForm([
-        _label('Prénom'),
-        _input(_firstName, errorText: _errFirst, maxLength: 15),
-        const SizedBox(height: 12),
-        _label('Nom'),
-        _input(_lastName, errorText: _errLast, maxLength: 15),
-      ], key: const ValueKey('pet0'));
-    }
-
-    if (_step == 1) {
-      return _centeredForm([
-        _label('Adresse email'),
-        _input(_email, keyboard: TextInputType.emailAddress, errorText: _errEmail),
-        const SizedBox(height: 12),
-        _label('Mot de passe'),
-        TextField(
-          controller: _pass,
-          obscureText: _obscure,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPass,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility)),
-            helperText: 'Min. 8 caractères avec une MAJUSCULE et une minuscule',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Confirmer le mot de passe'),
-        TextField(
-          controller: _passConfirm,
-          obscureText: _obscureConfirm,
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            isDense: true,
-            errorText: _errPassConfirm,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _label('Téléphone'),
-        _input(_phone, keyboard: TextInputType.phone, errorText: _errPhone, maxLength: 10),
-      ], key: const ValueKey('pet1'));
-    }
-
-    return _centeredForm([
-      _label('Nom de la boutique'),
-      _input(_shopName, errorText: _errShop),
-      const SizedBox(height: 12),
-      _label('Adresse de la boutique'),
-      _input(_address, errorText: _errAddress),
-      const SizedBox(height: 12),
-      _label('Lien Google Maps (obligatoire)'),
-      TextField(
-        controller: _mapsUrl,
-        keyboardType: TextInputType.url,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-          isDense: true,
-          errorText: _errMapsUrl,
-          hintText: 'https://maps.google.com/...',
-        ),
-      ),
-    ], key: const ValueKey('pet2'));
+  Widget _buildStepContent(AppLocalizations l10n, bool isDark, Color textColor, Color inputBg, Color inputBorder) {
+    if (_step == 0) return Column(key: const ValueKey('p0'), crossAxisAlignment: CrossAxisAlignment.start, children: [_buildInput(l10n.firstName, _firstName, _errFirst, isDark, textColor, inputBg, inputBorder, maxLength: 15), const SizedBox(height: 16), _buildInput(l10n.lastName, _lastName, _errLast, isDark, textColor, inputBg, inputBorder, maxLength: 15)]);
+    if (_step == 1) return Column(key: const ValueKey('p1'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _buildInput(l10n.email, _email, _errEmail, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.emailAddress), const SizedBox(height: 16),
+      _buildInput(l10n.password, _pass, _errPass, isDark, textColor, inputBg, inputBorder, obscure: _obscure, helperText: l10n.passwordHelper, suffixIcon: GestureDetector(onTap: () => setState(() => _obscure = !_obscure), child: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))), const SizedBox(height: 16),
+      _buildInput(l10n.confirmPassword, _passConfirm, _errPassConfirm, isDark, textColor, inputBg, inputBorder, obscure: _obscureConfirm, suffixIcon: GestureDetector(onTap: () => setState(() => _obscureConfirm = !_obscureConfirm), child: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _VegeceColors.textGrey, size: 20))), const SizedBox(height: 16),
+      _buildInput(l10n.phone, _phone, _errPhone, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.phone, maxLength: 10),
+    ]);
+    return Column(key: const ValueKey('p2'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _buildInput(l10n.shopName, _shopName, _errShop, isDark, textColor, inputBg, inputBorder), const SizedBox(height: 16),
+      _buildInput(l10n.address, _address, _errAddress, isDark, textColor, inputBg, inputBorder), const SizedBox(height: 16),
+      _buildInput(l10n.googleMapsUrl, _mapsUrl, _errMapsUrl, isDark, textColor, inputBg, inputBorder, keyboardType: TextInputType.url, hintText: 'https://maps.google.com/...'),
+    ]);
   }
 
-  Widget _centeredForm(List<Widget> children, {Key? key}) {
-    return SingleChildScrollView(
-      key: key,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const SizedBox(height: 8), ...children]),
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String s) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(s, style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 13)));
-
-  Widget _input(
-    TextEditingController c, {
-    bool obscure = false,
-    TextInputType? keyboard,
-    String? errorText,
-    String? hintText,
-    int? maxLength,
-  }) {
-    return TextField(
-      controller: c,
-      obscureText: obscure,
-      keyboardType: keyboard,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        isDense: true,
-        errorText: errorText,
-        hintText: hintText,
-        counterText: '',
-      ),
-    );
+  Widget _buildInput(String label, TextEditingController controller, String? error, bool isDark, Color textColor, Color inputBg, Color inputBorder, {bool obscure = false, TextInputType? keyboardType, int? maxLength, String? helperText, String? hintText, Widget? suffixIcon}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: TextStyle(fontFamily: 'SFPRO', fontSize: 13, fontWeight: FontWeight.w500, color: textColor.withOpacity(0.7))),
+      const SizedBox(height: 8),
+      Container(decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(14), border: Border.all(color: error != null ? _VegeceColors.errorRed.withOpacity(0.5) : inputBorder)),
+        child: TextField(controller: controller, obscureText: obscure, keyboardType: keyboardType, maxLength: maxLength, style: TextStyle(fontFamily: 'SFPRO', fontSize: 15, color: textColor),
+          decoration: InputDecoration(border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), counterText: '', hintText: hintText, hintStyle: TextStyle(color: _VegeceColors.textGrey.withOpacity(0.5)), suffixIcon: suffixIcon != null ? Padding(padding: const EdgeInsets.only(right: 12), child: suffixIcon) : null, suffixIconConstraints: const BoxConstraints(maxHeight: 24)))),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error, style: const TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.errorRed))),
+      if (helperText != null && error == null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(helperText, style: TextStyle(fontFamily: 'SFPRO', fontSize: 12, color: _VegeceColors.textGrey.withOpacity(0.8)))),
+    ]);
   }
 }

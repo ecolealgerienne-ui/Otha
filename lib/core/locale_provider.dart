@@ -223,6 +223,29 @@ class AppLocalizations {
       'signInWithGoogle': 'Se connecter avec Google',
       'errorGoogleSignIn': 'Erreur lors de la connexion Google',
       'errorProfileRetrieval': 'Erreur lors de la récupération du profil',
+      'veterinarian': 'Vétérinaire',
+      'daycare': 'Garderie',
+      'petshop': 'Animalerie',
+      'vetDescription': 'Clinique vétérinaire et soins pour animaux',
+      'daycareDescription': 'Garde et pension pour vos compagnons',
+      'petshopDescription': 'Boutique d\'accessoires et alimentation',
+      'chooseCategory': 'Choisissez votre catégorie',
+      'proAccountNote': 'Votre demande sera examinée sous 24-48h',
+      'address': 'Adresse',
+      'googleMapsUrl': 'Lien Google Maps',
+      'shopName': 'Nom de l\'établissement',
+      'avnCard': 'Carte AVN (Autorisation Vétérinaire)',
+      'front': 'Recto',
+      'back': 'Verso',
+      'daycarePhotos': 'Photos de l\'établissement',
+      'addPhoto': 'Ajouter une photo',
+      'submit': 'Soumettre',
+      'errorAddressRequired': 'Adresse requise',
+      'errorMapsUrlRequired': 'Lien Google Maps invalide',
+      'errorAvnRequired': 'Les deux faces de la carte AVN sont requises',
+      'errorShopNameRequired': 'Nom de l\'établissement requis',
+      'errorPhotoRequired': 'Au moins une photo requise',
+      'errorConnection': 'Erreur de connexion',
     },
     'en': {
       'appName': 'Vegece',
@@ -304,6 +327,29 @@ class AppLocalizations {
       'signInWithGoogle': 'Sign in with Google',
       'errorGoogleSignIn': 'Error during Google sign-in',
       'errorProfileRetrieval': 'Error retrieving profile',
+      'veterinarian': 'Veterinarian',
+      'daycare': 'Daycare',
+      'petshop': 'Pet Shop',
+      'vetDescription': 'Veterinary clinic and animal care',
+      'daycareDescription': 'Boarding and daycare for your companions',
+      'petshopDescription': 'Accessories and food shop',
+      'chooseCategory': 'Choose your category',
+      'proAccountNote': 'Your request will be reviewed within 24-48h',
+      'address': 'Address',
+      'googleMapsUrl': 'Google Maps link',
+      'shopName': 'Business name',
+      'avnCard': 'AVN Card (Veterinary Authorization)',
+      'front': 'Front',
+      'back': 'Back',
+      'daycarePhotos': 'Business photos',
+      'addPhoto': 'Add a photo',
+      'submit': 'Submit',
+      'errorAddressRequired': 'Address required',
+      'errorMapsUrlRequired': 'Invalid Google Maps link',
+      'errorAvnRequired': 'Both sides of the AVN card are required',
+      'errorShopNameRequired': 'Business name required',
+      'errorPhotoRequired': 'At least one photo required',
+      'errorConnection': 'Connection error',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -385,6 +431,29 @@ class AppLocalizations {
       'signInWithGoogle': 'تسجيل الدخول بجوجل',
       'errorGoogleSignIn': 'خطأ أثناء تسجيل الدخول بجوجل',
       'errorProfileRetrieval': 'خطأ في استرجاع الملف الشخصي',
+      'veterinarian': 'طبيب بيطري',
+      'daycare': 'حضانة',
+      'petshop': 'متجر حيوانات',
+      'vetDescription': 'عيادة بيطرية ورعاية الحيوانات',
+      'daycareDescription': 'إقامة ورعاية نهارية لرفاقك',
+      'petshopDescription': 'متجر إكسسوارات وطعام',
+      'chooseCategory': 'اختر فئتك',
+      'proAccountNote': 'سيتم مراجعة طلبك خلال 24-48 ساعة',
+      'address': 'العنوان',
+      'googleMapsUrl': 'رابط خرائط جوجل',
+      'shopName': 'اسم المؤسسة',
+      'avnCard': 'بطاقة AVN (ترخيص بيطري)',
+      'front': 'الوجه الأمامي',
+      'back': 'الوجه الخلفي',
+      'daycarePhotos': 'صور المؤسسة',
+      'addPhoto': 'إضافة صورة',
+      'submit': 'إرسال',
+      'errorAddressRequired': 'العنوان مطلوب',
+      'errorMapsUrlRequired': 'رابط خرائط جوجل غير صالح',
+      'errorAvnRequired': 'كلا وجهي بطاقة AVN مطلوبان',
+      'errorShopNameRequired': 'اسم المؤسسة مطلوب',
+      'errorPhotoRequired': 'صورة واحدة على الأقل مطلوبة',
+      'errorConnection': 'خطأ في الاتصال',
     },
   };
 
@@ -474,6 +543,29 @@ class AppLocalizations {
   String get signInWithGoogle => _get('signInWithGoogle');
   String get errorGoogleSignIn => _get('errorGoogleSignIn');
   String get errorProfileRetrieval => _get('errorProfileRetrieval');
+  String get veterinarian => _get('veterinarian');
+  String get daycare => _get('daycare');
+  String get petshop => _get('petshop');
+  String get vetDescription => _get('vetDescription');
+  String get daycareDescription => _get('daycareDescription');
+  String get petshopDescription => _get('petshopDescription');
+  String get chooseCategory => _get('chooseCategory');
+  String get proAccountNote => _get('proAccountNote');
+  String get address => _get('address');
+  String get googleMapsUrl => _get('googleMapsUrl');
+  String get shopName => _get('shopName');
+  String get avnCard => _get('avnCard');
+  String get front => _get('front');
+  String get back => _get('back');
+  String get daycarePhotos => _get('daycarePhotos');
+  String get addPhoto => _get('addPhoto');
+  String get submit => _get('submit');
+  String get errorAddressRequired => _get('errorAddressRequired');
+  String get errorMapsUrlRequired => _get('errorMapsUrlRequired');
+  String get errorAvnRequired => _get('errorAvnRequired');
+  String get errorShopNameRequired => _get('errorShopNameRequired');
+  String get errorPhotoRequired => _get('errorPhotoRequired');
+  String get errorConnection => _get('errorConnection');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
