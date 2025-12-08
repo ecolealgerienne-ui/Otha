@@ -7,7 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const String kDefaultApiBase =
-    String.fromEnvironment('API_BASE', defaultValue: 'https://api.piecespro.com/api/v1');
+    String.fromEnvironment('API_BASE', defaultValue: 'https://api.vegece.com/api/v1');
 
 /// Provider global pour l'ApiClient
 final apiProvider = Provider<ApiClient>((ref) {
