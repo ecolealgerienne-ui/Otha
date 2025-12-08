@@ -246,117 +246,84 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // ÉCRAN DE SÉLECTION (THÈME CLAIR)
+  // ÉCRAN DE SÉLECTION MINIMALISTE
   // ═══════════════════════════════════════════════════════════════
   Widget _buildSelectionScreen(BuildContext context) {
     return Scaffold(
       backgroundColor: VegeceColors.bgLight,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              const Spacer(flex: 3),
 
-              // Logo VEGECE
+              // Logo VEGECE minimaliste
               const Text(
                 'VEGECE',
                 style: TextStyle(
                   fontFamily: 'SFPRO',
-                  fontSize: 38,
+                  fontSize: 32,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 10,
+                  letterSpacing: 12,
                   color: VegeceColors.textDark,
                 ),
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
 
-              // Ligne décorative
+              // Ligne décorative fine
               Container(
-                width: 40,
-                height: 2,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [VegeceColors.pink, VegeceColors.pinkDark],
-                  ),
-                  borderRadius: BorderRadius.circular(1),
+                width: 50,
+                height: 1.5,
+                color: VegeceColors.pink,
+              ),
+
+              const Spacer(flex: 4),
+
+              // Question simple
+              Text(
+                'Vous êtes',
+                style: TextStyle(
+                  fontFamily: 'SFPRO',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 1,
+                  color: VegeceColors.textGrey,
                 ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 32),
 
-              // Tagline
-              Text(
-                'Le bien-être de vos animaux',
-                style: TextStyle(
-                  fontFamily: 'SFPRO',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 0.5,
-                  color: VegeceColors.textGrey,
-                ),
+              // Bouton Particulier - style épuré
+              _MinimalButton(
+                label: 'Particulier',
+                isPrimary: true,
+                onPressed: () => context.push('/start/user'),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Bouton Professionnel - style épuré
+              _MinimalButton(
+                label: 'Professionnel',
+                isPrimary: false,
+                onPressed: () => context.push('/start/pro'),
               ),
 
               const Spacer(flex: 3),
 
-              // Texte d'intro
-              const Text(
-                'Bienvenue',
-                style: TextStyle(
-                  fontFamily: 'SFPRO',
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: VegeceColors.textDark,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Choisissez votre profil pour continuer',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'SFPRO',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: VegeceColors.textGrey,
-                  height: 1.4,
-                ),
-              ),
-
-              const SizedBox(height: 36),
-
-              // Bouton Particulier
-              _VegecePrimaryButtonLight(
-                label: 'Particulier',
-                subtitle: 'Propriétaire d\'animaux',
-                icon: Icons.person_outline,
-                onPressed: () => context.push('/start/user'),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Bouton Professionnel
-              _VegeceSecondaryButtonLight(
-                label: 'Professionnel',
-                subtitle: 'Vétérinaire, toiletteur...',
-                icon: Icons.medical_services_outlined,
-                onPressed: () => context.push('/start/pro'),
-              ),
-
-              const Spacer(flex: 2),
-
-              // Footer
+              // Footer discret
               Padding(
-                padding: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.only(bottom: 24),
                 child: Text(
-                  'En continuant, vous acceptez nos conditions d\'utilisation',
-                  textAlign: TextAlign.center,
+                  'Conditions d\'utilisation',
                   style: TextStyle(
                     fontFamily: 'SFPRO',
                     fontSize: 11,
-                    color: VegeceColors.textGrey.withOpacity(0.6),
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.5,
+                    color: VegeceColors.textGrey.withOpacity(0.5),
                   ),
                 ),
               ),
@@ -369,27 +336,25 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BOUTONS
+// BOUTON MINIMALISTE
 // ═══════════════════════════════════════════════════════════════
 
-class _VegecePrimaryButtonLight extends StatefulWidget {
+class _MinimalButton extends StatefulWidget {
   final String label;
-  final String subtitle;
-  final IconData icon;
+  final bool isPrimary;
   final VoidCallback onPressed;
 
-  const _VegecePrimaryButtonLight({
+  const _MinimalButton({
     required this.label,
-    required this.subtitle,
-    required this.icon,
+    required this.isPrimary,
     required this.onPressed,
   });
 
   @override
-  State<_VegecePrimaryButtonLight> createState() => _VegecePrimaryButtonLightState();
+  State<_MinimalButton> createState() => _MinimalButtonState();
 }
 
-class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
+class _MinimalButtonState extends State<_MinimalButton> {
   bool _isPressed = false;
 
   @override
@@ -400,174 +365,36 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
       onTapCancel: () => setState(() => _isPressed = false),
       onTap: widget.onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 120),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [VegeceColors.pink, VegeceColors.pinkDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: widget.isPrimary
+              ? (_isPressed ? VegeceColors.pinkDark : VegeceColors.pink)
+              : (_isPressed ? const Color(0xFFF5F5F5) : Colors.transparent),
+          borderRadius: BorderRadius.circular(8),
+          border: widget.isPrimary
+              ? null
+              : Border.all(
+                  color: _isPressed
+                      ? VegeceColors.textGrey.withOpacity(0.3)
+                      : VegeceColors.textGrey.withOpacity(0.15),
+                  width: 1,
+                ),
+        ),
+        child: Center(
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontFamily: 'SFPRO',
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+              color: widget.isPrimary
+                  ? VegeceColors.white
+                  : VegeceColors.textDark,
+            ),
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: VegeceColors.pink.withOpacity(_isPressed ? 0.15 : 0.3),
-              blurRadius: _isPressed ? 8 : 16,
-              offset: Offset(0, _isPressed ? 2 : 6),
-            ),
-          ],
-        ),
-        transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: VegeceColors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                widget.icon,
-                color: VegeceColors.white,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.label,
-                    style: const TextStyle(
-                      fontFamily: 'SFPRO',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: VegeceColors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.subtitle,
-                    style: TextStyle(
-                      fontFamily: 'SFPRO',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: VegeceColors.white.withOpacity(0.8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: VegeceColors.white.withOpacity(0.7),
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _VegeceSecondaryButtonLight extends StatefulWidget {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  const _VegeceSecondaryButtonLight({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  @override
-  State<_VegeceSecondaryButtonLight> createState() => _VegeceSecondaryButtonLightState();
-}
-
-class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: _isPressed ? VegeceColors.pinkSoft : VegeceColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: VegeceColors.pink.withOpacity(_isPressed ? 0.5 : 0.25),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: VegeceColors.pinkSoft,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                widget.icon,
-                color: VegeceColors.pinkDark,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.label,
-                    style: const TextStyle(
-                      fontFamily: 'SFPRO',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: VegeceColors.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.subtitle,
-                    style: TextStyle(
-                      fontFamily: 'SFPRO',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: VegeceColors.textGrey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: VegeceColors.textGrey.withOpacity(0.5),
-              size: 16,
-            ),
-          ],
         ),
       ),
     );
