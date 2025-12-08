@@ -239,15 +239,25 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   Widget _buildSelectionScreen(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final currentLang = ref.watch(localeProvider.notifier).currentLanguage;
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    // Couleurs dynamiques selon le thème
+    final bgColor = isDark ? VegeceColors.bgDark : VegeceColors.bgLight;
+    final textColor = isDark ? VegeceColors.white : VegeceColors.textDark;
+    final subtitleColor = isDark ? VegeceColors.textGrey : VegeceColors.textGrey;
 
     return Scaffold(
-      backgroundColor: VegeceColors.bgLight,
+      backgroundColor: bgColor,
       body: AnimatedBuilder(
         animation: _selectionController,
         builder: (context, child) {
           return Stack(
             children: [
-              Container(color: VegeceColors.bgLight),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                color: bgColor,
+              ),
 
               // Ombre rose en bas à droite
               Positioned(
@@ -260,8 +270,8 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        VegeceColors.pinkGlow.withOpacity(0.25),
-                        VegeceColors.pinkGlow.withOpacity(0.08),
+                        VegeceColors.pinkGlow.withOpacity(isDark ? 0.15 : 0.25),
+                        VegeceColors.pinkGlow.withOpacity(isDark ? 0.05 : 0.08),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.5, 1.0],
@@ -270,17 +280,30 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                 ),
               ),
 
-              // Bouton de langue en haut à droite
+              // Boutons langue et thème en haut à droite
               Positioned(
                 top: MediaQuery.of(context).padding.top + 16,
                 right: 20,
                 child: Opacity(
                   opacity: _contentFade.value,
-                  child: _LanguageSelector(
-                    currentLanguage: currentLang,
-                    onChanged: (lang) {
-                      ref.read(localeProvider.notifier).setLocale(lang);
-                    },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ThemeToggle(
+                        isDark: isDark,
+                        onToggle: () {
+                          ref.read(themeProvider.notifier).toggleTheme();
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      _LanguageSelector(
+                        currentLanguage: currentLang,
+                        isDark: isDark,
+                        onChanged: (lang) {
+                          ref.read(localeProvider.notifier).setLocale(lang);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -300,14 +323,14 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                           opacity: _contentFade.value,
                           child: Column(
                             children: [
-                              const Text(
+                              Text(
                                 'VEGECE',
                                 style: TextStyle(
                                   fontFamily: 'SFPRO',
                                   fontSize: 28,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 10,
-                                  color: VegeceColors.textDark,
+                                  color: textColor,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -328,12 +351,12 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                         opacity: _contentFade.value,
                         child: Text(
                           l10n.youAre,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'SFPRO',
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 2,
-                            color: VegeceColors.textGrey,
+                            color: subtitleColor,
                           ),
                         ),
                       ),
@@ -348,6 +371,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                           child: _SelectionButton(
                             label: l10n.individual,
                             isPrimary: true,
+                            isDark: isDark,
                             onPressed: () => context.push('/start/user'),
                           ),
                         ),
@@ -363,6 +387,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                           child: _SelectionButton(
                             label: l10n.professional,
                             isPrimary: false,
+                            isDark: isDark,
                             onPressed: () => context.push('/start/pro'),
                           ),
                         ),
@@ -381,7 +406,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                               fontFamily: 'SFPRO',
                               fontSize: 11,
                               fontWeight: FontWeight.w400,
-                              color: VegeceColors.textGrey.withOpacity(0.6),
+                              color: subtitleColor.withOpacity(0.6),
                             ),
                           ),
                         ),
@@ -399,15 +424,118 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TOGGLE THÈME
+// ═══════════════════════════════════════════════════════════════
+
+class _ThemeToggle extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback onToggle;
+
+  const _ThemeToggle({
+    required this.isDark,
+    required this.onToggle,
+  });
+
+  @override
+  State<_ThemeToggle> createState() => _ThemeToggleState();
+}
+
+class _ThemeToggleState extends State<_ThemeToggle>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.isDark
+        ? VegeceColors.white.withOpacity(0.1)
+        : VegeceColors.textDark.withOpacity(0.05);
+    final borderColor = widget.isDark
+        ? VegeceColors.white.withOpacity(0.15)
+        : VegeceColors.textGrey.withOpacity(0.15);
+    final iconColor = widget.isDark ? VegeceColors.white : VegeceColors.textDark;
+
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onToggle();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _isPressed ? bgColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor, width: 1),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) {
+                  return RotationTransition(
+                    turns: Tween(begin: 0.5, end: 1.0).animate(animation),
+                    child: FadeTransition(opacity: animation, child: child),
+                  );
+                },
+                child: Icon(
+                  widget.isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  key: ValueKey(widget.isDark),
+                  size: 18,
+                  color: iconColor,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SÉLECTEUR DE LANGUE
 // ═══════════════════════════════════════════════════════════════
 
 class _LanguageSelector extends StatefulWidget {
   final AppLanguage currentLanguage;
+  final bool isDark;
   final ValueChanged<AppLanguage> onChanged;
 
   const _LanguageSelector({
     required this.currentLanguage,
+    required this.isDark,
     required this.onChanged,
   });
 
@@ -489,6 +617,15 @@ class _LanguageSelectorState extends State<_LanguageSelector>
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = widget.isDark
+        ? VegeceColors.white.withOpacity(0.1)
+        : VegeceColors.textGrey.withOpacity(0.08);
+    final borderColor = widget.isDark
+        ? VegeceColors.white.withOpacity(0.15)
+        : VegeceColors.textGrey.withOpacity(0.15);
+    final textColor = widget.isDark ? VegeceColors.white : VegeceColors.textDark;
+    final iconColor = widget.isDark ? VegeceColors.white.withOpacity(0.7) : VegeceColors.textGrey;
+
     return GestureDetector(
       onTapDown: (_) {
         setState(() => _isPressed = true);
@@ -508,17 +645,13 @@ class _LanguageSelectorState extends State<_LanguageSelector>
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: _isPressed
-                    ? VegeceColors.textGrey.withOpacity(0.08)
-                    : Colors.transparent,
+                color: _isPressed ? bgColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: VegeceColors.textGrey.withOpacity(0.15),
-                  width: 1,
-                ),
+                border: Border.all(color: borderColor, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -530,18 +663,18 @@ class _LanguageSelectorState extends State<_LanguageSelector>
                   const SizedBox(width: 6),
                   Text(
                     widget.currentLanguage.code.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'SFPRO',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: VegeceColors.textDark,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Icon(
                     Icons.keyboard_arrow_down,
                     size: 18,
-                    color: VegeceColors.textGrey,
+                    color: iconColor,
                   ),
                 ],
               ),
@@ -625,11 +758,13 @@ class _LoadingDotsState extends State<_LoadingDots>
 class _SelectionButton extends StatefulWidget {
   final String label;
   final bool isPrimary;
+  final bool isDark;
   final VoidCallback onPressed;
 
   const _SelectionButton({
     required this.label,
     required this.isPrimary,
+    required this.isDark,
     required this.onPressed,
   });
 
@@ -678,6 +813,15 @@ class _SelectionButtonState extends State<_SelectionButton>
 
   @override
   Widget build(BuildContext context) {
+    // Couleurs dynamiques pour le bouton secondaire selon le thème
+    final secondaryBgColor = widget.isDark
+        ? (_isPressed ? VegeceColors.white.withOpacity(0.1) : Colors.transparent)
+        : (_isPressed ? const Color(0xFFFAFAFA) : VegeceColors.bgLight);
+    final secondaryBorderColor = widget.isDark
+        ? (_isPressed ? VegeceColors.white.withOpacity(0.25) : VegeceColors.white.withOpacity(0.15))
+        : (_isPressed ? VegeceColors.textGrey.withOpacity(0.25) : VegeceColors.textGrey.withOpacity(0.12));
+    final secondaryTextColor = widget.isDark ? VegeceColors.white : VegeceColors.textDark;
+
     return GestureDetector(
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
@@ -695,16 +839,11 @@ class _SelectionButtonState extends State<_SelectionButton>
               decoration: BoxDecoration(
                 color: widget.isPrimary
                     ? (_isPressed ? VegeceColors.pinkDark : VegeceColors.pink)
-                    : (_isPressed ? const Color(0xFFFAFAFA) : VegeceColors.bgLight),
+                    : secondaryBgColor,
                 borderRadius: BorderRadius.circular(10),
                 border: widget.isPrimary
                     ? null
-                    : Border.all(
-                        color: _isPressed
-                            ? VegeceColors.textGrey.withOpacity(0.25)
-                            : VegeceColors.textGrey.withOpacity(0.12),
-                        width: 1,
-                      ),
+                    : Border.all(color: secondaryBorderColor, width: 1),
                 boxShadow: widget.isPrimary
                     ? [
                         BoxShadow(
@@ -723,9 +862,7 @@ class _SelectionButtonState extends State<_SelectionButton>
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.3,
-                    color: widget.isPrimary
-                        ? VegeceColors.white
-                        : VegeceColors.textDark,
+                    color: widget.isPrimary ? VegeceColors.white : secondaryTextColor,
                   ),
                 ),
               ),
