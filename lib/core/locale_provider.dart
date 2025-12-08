@@ -24,15 +24,17 @@ enum AppLanguage {
 }
 
 // Provider pour la locale
-final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {
+final localeProvider = NotifierProvider<LocaleNotifier, Locale>(() {
   return LocaleNotifier();
 });
 
-class LocaleNotifier extends StateNotifier<Locale> {
+class LocaleNotifier extends Notifier<Locale> {
   static const String _key = 'app_locale';
 
-  LocaleNotifier() : super(const Locale('fr')) {
+  @override
+  Locale build() {
     _loadSavedLocale();
+    return const Locale('fr');
   }
 
   Future<void> _loadSavedLocale() async {
