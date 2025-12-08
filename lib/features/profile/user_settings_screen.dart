@@ -9,10 +9,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 
-const _coral = Color(0xFFF36C6C);
+const _coral = Color(0xFFF2968F);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+const _darkBg = Color(0xFF0A0A0A);
+const _darkCard = Color(0xFF1A1A1A);
+const _darkBorder = Color(0xFF2A2A2A);
 
 // Storage keys for delivery info
 const _kDeliveryAddress = 'user_delivery_address';
@@ -152,21 +156,31 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     );
   }
 
-  Future<void> _logout() async {
+  Future<void> _logout(AppLocalizations tr) async {
+    final themeMode = ref.read(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Déconnexion'),
-        content: const Text('Voulez-vous vraiment vous déconnecter ?'),
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        title: Text(
+          tr.logout,
+          style: TextStyle(color: isDark ? Colors.white : _ink),
+        ),
+        content: Text(
+          tr.confirmLogoutMessage,
+          style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[700]),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(tr.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: _coral),
-            child: const Text('Déconnexion'),
+            child: Text(tr.logout),
           ),
         ],
       ),
@@ -178,15 +192,27 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
       if (!mounted) return;
       context.go('/gate');
     } catch (_) {
-      _showSnackBar('Impossible de se déconnecter', Colors.red);
+      _showSnackBar(tr.unableToLogout, Colors.red);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Theme support
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : _ink;
+    final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    // Translations
+    final locale = ref.watch(localeProvider);
+    final tr = AppLocalizations(locale);
+
     if (_loading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
+        backgroundColor: bgColor,
         body: const Center(
           child: CircularProgressIndicator(color: _coral),
         ),
@@ -199,7 +225,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     final displayName = [firstName, lastName].where((e) => e.isNotEmpty).join(' ');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
           // Header
@@ -207,12 +233,12 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
             expandedHeight: 200,
             pinned: true,
             elevation: 0,
-            backgroundColor: Colors.white,
+            backgroundColor: cardColor,
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _coralSoft,
+                  color: isDark ? _darkCard : _coralSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.arrow_back, color: _coral, size: 20),
@@ -221,11 +247,13 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [_coralSoft, Colors.white],
+                    colors: isDark
+                        ? [_darkCard, _darkBg]
+                        : [_coralSoft, Colors.white],
                   ),
                 ),
                 child: SafeArea(
@@ -240,10 +268,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                           children: [
                             CircleAvatar(
                               radius: 50,
-                              backgroundColor: Colors.white,
+                              backgroundColor: cardColor,
                               child: CircleAvatar(
                                 radius: 46,
-                                backgroundColor: _coralSoft,
+                                backgroundColor: isDark ? _darkBorder : _coralSoft,
                                 backgroundImage: _avatarProvider(),
                                 child: _avatarProvider() == null
                                     ? const Icon(Icons.person, size: 40, color: _coral)
@@ -258,7 +286,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: _coral,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
+                                  border: Border.all(color: cardColor, width: 2),
                                 ),
                                 child: const Icon(
                                   Icons.camera_alt,
@@ -272,18 +300,18 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        displayName.isNotEmpty ? displayName : 'Mon Profil',
-                        style: const TextStyle(
+                        displayName.isNotEmpty ? displayName : tr.myProfile,
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: _ink,
+                          color: textColor,
                         ),
                       ),
                       Text(
                         email,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: subtitleColor,
                         ),
                       ),
                     ],
@@ -298,14 +326,39 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // Section: Apparence (Theme & Language)
+                _buildSectionTitle(tr.appearance, isDark: isDark),
+                const SizedBox(height: 12),
+
+                // Theme selector
+                _buildAppearanceCard(
+                  icon: isDark ? Icons.dark_mode : Icons.light_mode,
+                  title: tr.theme,
+                  subtitle: isDark ? tr.darkMode : tr.lightMode,
+                  trailing: Switch(
+                    value: isDark,
+                    onChanged: (_) => ref.read(themeProvider.notifier).toggleTheme(),
+                    activeColor: _coral,
+                    activeTrackColor: _coral.withOpacity(0.3),
+                  ),
+                  isDark: isDark,
+                ),
+
+                const SizedBox(height: 12),
+
+                // Language selector
+                _buildLanguageSelector(tr, isDark),
+
+                const SizedBox(height: 24),
+
                 // Section: Informations personnelles
-                _buildSectionTitle('Informations personnelles'),
+                _buildSectionTitle(tr.personalInfo, isDark: isDark),
                 const SizedBox(height: 12),
 
                 // Phone
                 _buildEditableField(
                   icon: Icons.phone_outlined,
-                  label: 'Téléphone',
+                  label: tr.phone,
                   controller: _phoneController,
                   isEditing: _editingPhone,
                   onEdit: () => setState(() => _editingPhone = true),
@@ -320,6 +373,8 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                     LengthLimitingTextInputFormatter(10),
                   ],
                   hint: '0555 00 00 00',
+                  isDark: isDark,
+                  tr: tr,
                 ),
 
                 const SizedBox(height: 12),
@@ -327,26 +382,27 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 // Email (read-only info)
                 _buildInfoField(
                   icon: Icons.email_outlined,
-                  label: 'Email',
+                  label: tr.email,
                   value: email,
-                  helperText: 'L\'email ne peut pas être modifié',
+                  helperText: tr.emailCannotBeChanged,
+                  isDark: isDark,
                 ),
 
                 const SizedBox(height: 24),
 
                 // Section: Livraison Petshop
-                _buildSectionTitle('Adresse de livraison'),
+                _buildSectionTitle(tr.deliveryAddress, isDark: isDark),
                 const SizedBox(height: 8),
                 Text(
-                  'Cette adresse sera utilisée par défaut lors de vos commandes',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  tr.deliveryAddressHint,
+                  style: TextStyle(fontSize: 12, color: subtitleColor),
                 ),
                 const SizedBox(height: 12),
 
                 // Delivery address
                 _buildEditableField(
                   icon: Icons.location_on_outlined,
-                  label: 'Adresse',
+                  label: tr.address,
                   controller: _addressController,
                   isEditing: _editingAddress,
                   onEdit: () => setState(() => _editingAddress = true),
@@ -357,38 +413,43 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                     setState(() => _editingAddress = false);
                   },
                   maxLines: 2,
-                  hint: 'Numéro, rue, quartier, wilaya...',
+                  hint: tr.addressHint,
+                  isDark: isDark,
+                  tr: tr,
                 ),
 
                 const SizedBox(height: 24),
 
                 // Section: Accès rapides
-                _buildSectionTitle('Accès rapides'),
+                _buildSectionTitle(tr.quickAccess, isDark: isDark),
                 const SizedBox(height: 12),
 
                 // Quick access buttons
                 _buildQuickAccessCard(
                   icon: Icons.pets,
-                  title: 'Mes animaux',
-                  subtitle: 'Gérer mes animaux de compagnie',
+                  title: tr.myPets,
+                  subtitle: tr.manageMyPets,
                   onTap: () => context.push('/pets/manage'),
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 10),
                 _buildQuickAccessCard(
                   icon: Icons.calendar_today,
-                  title: 'Mes rendez-vous',
-                  subtitle: 'Voir tous mes rendez-vous',
+                  title: tr.myAppointments,
+                  subtitle: tr.viewAllAppointments,
                   onTap: () => context.push('/me/bookings'),
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 10),
                 _buildQuickAccessCard(
                   icon: Icons.support_agent,
-                  title: 'Support',
-                  subtitle: 'Besoin d\'aide ?',
+                  title: tr.support,
+                  subtitle: tr.needHelp,
                   onTap: () {
-                    _showSnackBar('Bientôt disponible', Colors.grey);
+                    _showSnackBar(tr.comingSoon, Colors.grey);
                   },
                   disabled: true,
+                  isDark: isDark,
                 ),
 
                 const SizedBox(height: 32),
@@ -397,7 +458,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _logout,
+                    onPressed: () => _logout(tr),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
@@ -407,9 +468,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.logout),
-                    label: const Text(
-                      'Déconnexion',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    label: Text(
+                      tr.logout,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -423,13 +484,182 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {bool isDark = false}) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w800,
-        color: _ink,
+        color: isDark ? Colors.white : _ink,
+      ),
+    );
+  }
+
+  Widget _buildAppearanceCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? _darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: _darkBorder) : null,
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+              ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? _darkBorder : _coralSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _coral, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: isDark ? Colors.white : _ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey[400] : Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageSelector(AppLocalizations tr, bool isDark) {
+    final currentLang = ref.watch(localeProvider);
+    final currentLanguage = AppLanguage.fromCode(currentLang.languageCode);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? _darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: _darkBorder) : null,
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? _darkBorder : _coralSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.language, color: _coral, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr.language,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: isDark ? Colors.white : _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      currentLanguage.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey[400] : Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: AppLanguage.values.map((lang) {
+              final isSelected = lang == currentLanguage;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: lang == AppLanguage.values.first ? 0 : 4,
+                    right: lang == AppLanguage.values.last ? 0 : 4,
+                  ),
+                  child: GestureDetector(
+                    onTap: () => ref.read(localeProvider.notifier).setLocale(lang),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? _coral
+                            : (isDark ? _darkBorder : Colors.grey.shade100),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isSelected
+                            ? null
+                            : Border.all(
+                                color: isDark ? _darkBorder : Colors.grey.shade200,
+                              ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            lang.flag,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            lang.code.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -446,15 +676,20 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
     String? hint,
+    bool isDark = false,
+    AppLocalizations? tr,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
-        ],
+        border: isDark ? Border.all(color: _darkBorder) : null,
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,7 +699,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _coralSoft,
+                  color: isDark ? _darkBorder : _coralSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: _coral, size: 20),
@@ -473,10 +708,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: _ink,
+                    color: isDark ? Colors.white : _ink,
                   ),
                 ),
               ),
@@ -484,7 +719,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 TextButton(
                   onPressed: onEdit,
                   style: TextButton.styleFrom(foregroundColor: _coral),
-                  child: const Text('Modifier'),
+                  child: Text(tr?.edit ?? 'Modifier'),
                 ),
             ],
           ),
@@ -495,17 +730,19 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               keyboardType: keyboardType,
               inputFormatters: inputFormatters,
               maxLines: maxLines,
+              style: TextStyle(color: isDark ? Colors.white : _ink),
               decoration: InputDecoration(
                 hintText: hint,
+                hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400]),
                 filled: true,
-                fillColor: Colors.grey.shade50,
+                fillColor: isDark ? _darkBorder : Colors.grey.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: isDark ? _darkBorder : Colors.grey.shade300),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: isDark ? _darkBorder : Colors.grey.shade300),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -519,7 +756,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               children: [
                 TextButton(
                   onPressed: _saving ? null : onCancel,
-                  child: const Text('Annuler'),
+                  child: Text(tr?.cancel ?? 'Annuler'),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
@@ -539,7 +776,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Enregistrer'),
+                      : Text(tr?.save ?? 'Enregistrer'),
                 ),
               ],
             ),
@@ -548,14 +785,18 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: isDark ? _darkBorder : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                controller.text.trim().isEmpty ? 'Non renseigné' : controller.text,
+                controller.text.trim().isEmpty
+                    ? (tr?.notProvided ?? 'Non renseigné')
+                    : controller.text,
                 style: TextStyle(
                   fontSize: 15,
-                  color: controller.text.trim().isEmpty ? Colors.grey : _ink,
+                  color: controller.text.trim().isEmpty
+                      ? Colors.grey
+                      : (isDark ? Colors.white : _ink),
                 ),
               ),
             ),
@@ -570,15 +811,19 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     required String label,
     required String value,
     String? helperText,
+    bool isDark = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
-        ],
+        border: isDark ? Border.all(color: _darkBorder) : null,
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,7 +833,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _coralSoft,
+                  color: isDark ? _darkBorder : _coralSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: _coral, size: 20),
@@ -596,10 +841,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: _ink,
+                  color: isDark ? Colors.white : _ink,
                 ),
               ),
             ],
@@ -609,19 +854,25 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark ? _darkBorder : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               value.isEmpty ? '—' : value,
-              style: const TextStyle(fontSize: 15, color: _ink),
+              style: TextStyle(
+                fontSize: 15,
+                color: isDark ? Colors.white : _ink,
+              ),
             ),
           ),
           if (helperText != null) ...[
             const SizedBox(height: 6),
             Text(
               helperText,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.grey[400] : Colors.grey[500],
+              ),
             ),
           ],
         ],
@@ -635,9 +886,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
     bool disabled = false,
+    bool isDark = false,
   }) {
     return Material(
-      color: Colors.white,
+      color: isDark ? _darkCard : Colors.white,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       child: InkWell(
@@ -647,14 +899,18 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(
+              color: isDark ? _darkBorder : Colors.grey.shade200,
+            ),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: disabled ? Colors.grey.shade100 : _coralSoft,
+                  color: disabled
+                      ? (isDark ? _darkBorder : Colors.grey.shade100)
+                      : (isDark ? _darkBorder : _coralSoft),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -673,7 +929,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
-                        color: disabled ? Colors.grey : _ink,
+                        color: disabled
+                            ? Colors.grey
+                            : (isDark ? Colors.white : _ink),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -681,7 +939,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[500],
+                        color: isDark ? Colors.grey[400] : Colors.grey[500],
                       ),
                     ),
                   ],
@@ -689,7 +947,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: disabled ? Colors.grey.shade300 : Colors.grey[400],
+                color: disabled
+                    ? (isDark ? Colors.grey[700] : Colors.grey.shade300)
+                    : (isDark ? Colors.grey[500] : Colors.grey[400]),
               ),
             ],
           ),

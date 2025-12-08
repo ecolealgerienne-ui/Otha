@@ -257,6 +257,30 @@ class AppLocalizations {
       'adoptChangeLife': 'Adoptez, changez une vie',
       'boostCareer': 'Boostez votre carrière',
       'vethub': 'Vethub',
+      'personalInfo': 'Informations personnelles',
+      'deliveryAddress': 'Adresse de livraison',
+      'deliveryAddressHint': 'Cette adresse sera utilisée par défaut lors de vos commandes',
+      'quickAccess': 'Accès rapides',
+      'myAppointments': 'Mes rendez-vous',
+      'manageMyPets': 'Gérer mes animaux de compagnie',
+      'viewAllAppointments': 'Voir tous mes rendez-vous',
+      'support': 'Support',
+      'needHelp': 'Besoin d\'aide ?',
+      'comingSoon': 'Bientôt disponible',
+      'myProfile': 'Mon Profil',
+      'notProvided': 'Non renseigné',
+      'phoneUpdated': 'Téléphone mis à jour',
+      'photoUpdated': 'Photo mise à jour',
+      'addressUpdated': 'Adresse mise à jour',
+      'phoneRequired': 'Numéro de téléphone requis',
+      'emailCannotBeChanged': 'L\'email ne peut pas être modifié',
+      'confirmLogoutMessage': 'Voulez-vous vraiment vous déconnecter ?',
+      'unableToLogout': 'Impossible de se déconnecter',
+      'appearance': 'Apparence',
+      'theme': 'Thème',
+      'lightMode': 'Mode clair',
+      'darkMode': 'Mode sombre',
+      'addressHint': 'Numéro, rue, quartier, wilaya...',
     },
     'en': {
       'appName': 'Vegece',
@@ -372,6 +396,30 @@ class AppLocalizations {
       'adoptChangeLife': 'Adopt, change a life',
       'boostCareer': 'Boost your career',
       'vethub': 'Vethub',
+      'personalInfo': 'Personal information',
+      'deliveryAddress': 'Delivery address',
+      'deliveryAddressHint': 'This address will be used by default for your orders',
+      'quickAccess': 'Quick access',
+      'myAppointments': 'My appointments',
+      'manageMyPets': 'Manage my pets',
+      'viewAllAppointments': 'View all my appointments',
+      'support': 'Support',
+      'needHelp': 'Need help?',
+      'comingSoon': 'Coming soon',
+      'myProfile': 'My Profile',
+      'notProvided': 'Not provided',
+      'phoneUpdated': 'Phone updated',
+      'photoUpdated': 'Photo updated',
+      'addressUpdated': 'Address updated',
+      'phoneRequired': 'Phone number required',
+      'emailCannotBeChanged': 'Email cannot be changed',
+      'confirmLogoutMessage': 'Are you sure you want to log out?',
+      'unableToLogout': 'Unable to log out',
+      'appearance': 'Appearance',
+      'theme': 'Theme',
+      'lightMode': 'Light mode',
+      'darkMode': 'Dark mode',
+      'addressHint': 'Number, street, neighborhood, city...',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -487,6 +535,30 @@ class AppLocalizations {
       'adoptChangeLife': 'تبنَّ، غيّر حياة',
       'boostCareer': 'عزّز مسيرتك المهنية',
       'vethub': 'Vethub',
+      'personalInfo': 'المعلومات الشخصية',
+      'deliveryAddress': 'عنوان التوصيل',
+      'deliveryAddressHint': 'سيتم استخدام هذا العنوان افتراضياً لطلباتك',
+      'quickAccess': 'وصول سريع',
+      'myAppointments': 'مواعيدي',
+      'manageMyPets': 'إدارة حيواناتي',
+      'viewAllAppointments': 'عرض جميع مواعيدي',
+      'support': 'الدعم',
+      'needHelp': 'هل تحتاج مساعدة؟',
+      'comingSoon': 'قريباً',
+      'myProfile': 'ملفي الشخصي',
+      'notProvided': 'غير محدد',
+      'phoneUpdated': 'تم تحديث الهاتف',
+      'photoUpdated': 'تم تحديث الصورة',
+      'addressUpdated': 'تم تحديث العنوان',
+      'phoneRequired': 'رقم الهاتف مطلوب',
+      'emailCannotBeChanged': 'لا يمكن تغيير البريد الإلكتروني',
+      'confirmLogoutMessage': 'هل أنت متأكد أنك تريد تسجيل الخروج؟',
+      'unableToLogout': 'تعذر تسجيل الخروج',
+      'appearance': 'المظهر',
+      'theme': 'السمة',
+      'lightMode': 'الوضع الفاتح',
+      'darkMode': 'الوضع الداكن',
+      'addressHint': 'الرقم، الشارع، الحي، المدينة...',
     },
   };
 
@@ -610,6 +682,30 @@ class AppLocalizations {
   String get adoptChangeLife => _get('adoptChangeLife');
   String get boostCareer => _get('boostCareer');
   String get vethub => _get('vethub');
+  String get personalInfo => _get('personalInfo');
+  String get deliveryAddress => _get('deliveryAddress');
+  String get deliveryAddressHint => _get('deliveryAddressHint');
+  String get quickAccess => _get('quickAccess');
+  String get myAppointments => _get('myAppointments');
+  String get manageMyPets => _get('manageMyPets');
+  String get viewAllAppointments => _get('viewAllAppointments');
+  String get support => _get('support');
+  String get needHelp => _get('needHelp');
+  String get comingSoon => _get('comingSoon');
+  String get myProfile => _get('myProfile');
+  String get notProvided => _get('notProvided');
+  String get phoneUpdated => _get('phoneUpdated');
+  String get photoUpdated => _get('photoUpdated');
+  String get addressUpdated => _get('addressUpdated');
+  String get phoneRequired => _get('phoneRequired');
+  String get emailCannotBeChanged => _get('emailCannotBeChanged');
+  String get confirmLogoutMessage => _get('confirmLogoutMessage');
+  String get unableToLogout => _get('unableToLogout');
+  String get appearance => _get('appearance');
+  String get theme => _get('theme');
+  String get lightMode => _get('lightMode');
+  String get darkMode => _get('darkMode');
+  String get addressHint => _get('addressHint');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
