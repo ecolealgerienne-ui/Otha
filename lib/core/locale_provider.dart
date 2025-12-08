@@ -155,6 +155,13 @@ class AppLocalizations {
       'settings': 'Paramètres',
       'logout': 'Déconnexion',
       'animalWellbeing': 'Le bien-être animal',
+      'takeCareOfCompanion': 'Prenez soin de\nvotre compagnon',
+      'welcomeToVegece': 'Bienvenue\nsur Vegece',
+      'petsDeserveBest': 'Vos animaux méritent le meilleur !',
+      'yourCareMakesDifference': 'Parce que vos soins font toute la différence',
+      'signInWithGoogle': 'Se connecter avec Google',
+      'errorGoogleSignIn': 'Erreur lors de la connexion Google',
+      'errorProfileRetrieval': 'Erreur lors de la récupération du profil',
     },
     'en': {
       'appName': 'Vegece',
@@ -229,6 +236,13 @@ class AppLocalizations {
       'settings': 'Settings',
       'logout': 'Logout',
       'animalWellbeing': 'Animal wellbeing',
+      'takeCareOfCompanion': 'Take care of\nyour companion',
+      'welcomeToVegece': 'Welcome\nto Vegece',
+      'petsDeserveBest': 'Your pets deserve the best!',
+      'yourCareMakesDifference': 'Because your care makes all the difference',
+      'signInWithGoogle': 'Sign in with Google',
+      'errorGoogleSignIn': 'Error during Google sign-in',
+      'errorProfileRetrieval': 'Error retrieving profile',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -303,6 +317,13 @@ class AppLocalizations {
       'settings': 'الإعدادات',
       'logout': 'تسجيل الخروج',
       'animalWellbeing': 'رفاهية الحيوان',
+      'takeCareOfCompanion': 'اعتنِ\nبرفيقك',
+      'welcomeToVegece': 'مرحباً\nفي فيجيس',
+      'petsDeserveBest': 'حيواناتك تستحق الأفضل!',
+      'yourCareMakesDifference': 'لأن رعايتك تصنع الفرق',
+      'signInWithGoogle': 'تسجيل الدخول بجوجل',
+      'errorGoogleSignIn': 'خطأ أثناء تسجيل الدخول بجوجل',
+      'errorProfileRetrieval': 'خطأ في استرجاع الملف الشخصي',
     },
   };
 
@@ -385,6 +406,13 @@ class AppLocalizations {
   String get settings => _get('settings');
   String get logout => _get('logout');
   String get animalWellbeing => _get('animalWellbeing');
+  String get takeCareOfCompanion => _get('takeCareOfCompanion');
+  String get welcomeToVegece => _get('welcomeToVegece');
+  String get petsDeserveBest => _get('petsDeserveBest');
+  String get yourCareMakesDifference => _get('yourCareMakesDifference');
+  String get signInWithGoogle => _get('signInWithGoogle');
+  String get errorGoogleSignIn => _get('errorGoogleSignIn');
+  String get errorProfileRetrieval => _get('errorProfileRetrieval');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

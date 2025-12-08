@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import '../adopt/adoption_pet_creation_dialog.dart';
 
 class AuthLoginScreen extends ConsumerStatefulWidget {
@@ -60,16 +61,17 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   }
 
   bool _validate() {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _errId = null;
       _errPass = null;
 
       final id = _id.text.trim();
       if (id.isEmpty || (!_isValidEmail(id) && !_isValidPhoneLike(id))) {
-        _errId = 'Entrez un email (ou numéro) valide';
+        _errId = l10n.errorInvalidEmail;
       }
       if (_pass.text.isEmpty) {
-        _errPass = 'Mot de passe requis';
+        _errPass = l10n.errorPasswordRequired;
       }
     });
     return _errId == null && _errPass == null;
@@ -122,17 +124,15 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   }
 
   Future<void> _showDetectedProDialogAndRedirect() async {
+    final l10n = AppLocalizations.of(context);
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Compte pro détecté'),
-        content: const Text(
-          'Ce compte est configuré pour l’espace professionnel.\n'
-          'Voulez-vous passer à la connexion Pro ?',
-        ),
+        title: Text(l10n.proAccountDetected),
+        content: Text(l10n.proAccountMessage),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
           FilledButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -140,7 +140,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               if (!mounted) return;
               context.go('/auth/login?as=pro');
             },
-            child: const Text('Aller vers Pro'),
+            child: Text(l10n.goToPro),
           ),
         ],
       ),
@@ -148,15 +148,13 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   }
 
   Future<void> _showDetectedClientDialogAndRedirect() async {
+    final l10n = AppLocalizations.of(context);
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Compte client détecté'),
-        content: const Text(
-          'Ce compte n’a pas encore de profil professionnel.\n'
-          'Souhaitez-vous vous connecter côté Particulier, ou créer votre compte Pro ?',
-        ),
+        title: Text(l10n.clientAccountDetected),
+        content: Text(l10n.clientAccountMessage),
         actions: [
           TextButton(
             onPressed: () async {
@@ -165,7 +163,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               if (!mounted) return;
               context.go('/auth/login?as=user');
             },
-            child: const Text('Aller vers Particulier'),
+            child: Text(l10n.goToIndividual),
           ),
           FilledButton(
             onPressed: () {
@@ -174,7 +172,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               // ➜ Utilise les routes nommées pour register
               context.pushNamed('registerPro');
             },
-            child: const Text('Créer un compte Pro'),
+            child: Text(l10n.createProAccount),
           ),
         ],
       ),
@@ -182,15 +180,17 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   }
 
   Future<void> _incorrectAndLogout() async {
+    final l10n = AppLocalizations.of(context);
     if (!mounted) return;
-    setState(() => _authError = 'Email ou mot de passe incorrect.');
+    setState(() => _authError = l10n.errorIncorrectCredentials);
     await ref.read(sessionProvider.notifier).logout();
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (!_validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez corriger les champs en rouge.')),
+        SnackBar(content: Text(l10n.errorFixFields)),
       );
       return;
     }
@@ -231,7 +231,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
     setState(() => _loading = false);
 
     if (!ok) {
-      setState(() => _authError = 'Email ou mot de passe incorrect.');
+      setState(() => _authError = l10n.errorIncorrectCredentials);
       return;
     }
 
@@ -250,8 +250,8 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
         prov = await _safeMyProvider();
       } on DioException catch (e) {
         final msg = (e.response?.data is Map)
-            ? (e.response?.data['message']?.toString() ?? e.message ?? 'Erreur')
-            : (e.message ?? 'Erreur');
+            ? (e.response?.data['message']?.toString() ?? e.message ?? l10n.error)
+            : (e.message ?? l10n.error);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
         return;
@@ -331,6 +331,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _authError = null;
       _loading = true;
@@ -379,7 +380,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
         } catch (e) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Erreur lors de la récupération du profil')),
+            SnackBar(content: Text(l10n.errorProfileRetrieval)),
           );
           return;
         }
@@ -462,7 +463,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _authError = 'Erreur lors de la connexion Google: ${e.toString()}';
+        _authError = '${l10n.errorGoogleSignIn}: ${e.toString()}';
       });
     }
   }
@@ -479,11 +480,12 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   @override
   Widget build(BuildContext context) {
     const coral = Color(0xFFF36C6C);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: const Text('Se connecter'),
+        title: Text(l10n.login),
         surfaceTintColor: Colors.transparent,
       ),
       body: ListView(
@@ -492,7 +494,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
           const SizedBox(height: 12),
 
           _LabeledField(
-            label: 'Email / numéro de téléphone',
+            label: l10n.emailOrPhone,
             controller: _id,
             keyboard: TextInputType.emailAddress,
             errorText: _errId,
@@ -500,7 +502,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
           ),
 
           _LabeledField(
-            label: 'Mot de passe',
+            label: l10n.password,
             controller: _pass,
             obscure: _obscure,
             errorText: _errPass,
@@ -516,9 +518,9 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
             alignment: Alignment.centerRight,
             child: InkWell(
               onTap: () => context.push('/auth/forgot?as=${widget.asRole}'),
-              child: const Text(
-                'Mot de passe oublié ?',
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+              child: Text(
+                l10n.forgotPassword,
+                style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -546,7 +548,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               onPressed: _loading ? null : _submit,
-              child: Text(_loading ? '...' : 'Confirmer'),
+              child: Text(_loading ? '...' : l10n.confirm),
             ),
           ),
 
@@ -558,7 +560,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                 Expanded(child: Divider(color: Colors.grey[400])),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('OU', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  child: Text(l10n.or, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
                 ),
                 Expanded(child: Divider(color: Colors.grey[400])),
               ],
@@ -581,7 +583,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                   width: 24,
                   errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
                 ),
-                label: const Text('Continuer avec Google'),
+                label: Text(l10n.continueWithGoogle),
               ),
             ),
           ],
@@ -591,12 +593,12 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Pas de compte ? '),
+                Text('${l10n.noAccount} '),
                 GestureDetector(
                   onTap: _goToRegister, // ✅ utilise les routes nommées
-                  child: const Text(
-                    "S'inscrire",
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  child: Text(
+                    l10n.signUp,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 
 enum StartVariant { user, pro }
 
@@ -23,17 +24,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   String get _bg =>
       widget.variant == StartVariant.user ? 'assets/images/fond_d.png' : 'assets/images/fond_g.png';
 
-  String get _title => widget.variant == StartVariant.user
-      ? 'Prenez soin de\nvotre compagnon'
-      : 'Bienvenue\nsur vethome';
-
-  String get _subtitle => widget.variant == StartVariant.user
-      ? 'vos animaux méritent le meilleur !'
-      : 'Parce que vos soins font toute la différence';
-
   String get _loginQuery => widget.variant == StartVariant.user ? 'user' : 'pro';
 
   Future<void> _handleGoogleSignIn() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _loading = true);
 
     try {
@@ -80,7 +74,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la connexion Google: $e')),
+        SnackBar(content: Text('${l10n.errorGoogleSignIn}: $e')),
       );
     }
   }
@@ -88,6 +82,15 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   @override
   Widget build(BuildContext context) {
     const coral = Color(0xFFF36C6C);
+    final l10n = AppLocalizations.of(context);
+
+    final title = widget.variant == StartVariant.user
+        ? l10n.takeCareOfCompanion
+        : l10n.welcomeToVegece;
+
+    final subtitle = widget.variant == StartVariant.user
+        ? l10n.petsDeserveBest
+        : l10n.yourCareMakesDifference;
 
     return Scaffold(
       body: Stack(
@@ -114,7 +117,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _subtitle,
+                    subtitle,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
@@ -149,7 +152,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              _title,
+                              title,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,
@@ -182,7 +185,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                                   // Le login lit encore ?as=user|pro
                                   context.push('/auth/login?as=$_loginQuery');
                                 },
-                                child: const Text('Se connecter'),
+                                child: Text(l10n.login),
                               ),
                             ),
 
@@ -196,7 +199,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 10),
                                     child: Text(
-                                      'Ou',
+                                      l10n.or,
                                       style: TextStyle(
                                         color: Colors.black.withOpacity(0.55),
                                         fontWeight: FontWeight.w600,
@@ -231,9 +234,9 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                                       ),
                                     ),
                                   ),
-                                  label: const Text(
-                                    'Se connecter avec Google',
-                                    style: TextStyle(
+                                  label: Text(
+                                    l10n.signInWithGoogle,
+                                    style: const TextStyle(
                                       color: Colors.black87,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -247,14 +250,14 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    'Pas de compte ? ',
+                                    '${l10n.noAccount} ',
                                     style: TextStyle(color: Colors.black.withOpacity(0.6)),
                                   ),
                                   InkWell(
                                     onTap: () => context.pushNamed('registerUser'),
-                                    child: const Text(
-                                      "S'inscrire",
-                                      style: TextStyle(
+                                    child: Text(
+                                      l10n.signUp,
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.w800,
                                         color: Colors.black87,
                                       ),
@@ -280,9 +283,9 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                                     ),
                                   ),
                                   onPressed: () => context.pushNamed('registerPro'),
-                                  child: const Text(
-                                    "S'inscrire",
-                                    style: TextStyle(color: coral),
+                                  child: Text(
+                                    l10n.signUp,
+                                    style: const TextStyle(color: coral),
                                   ),
                                 ),
                               ),
