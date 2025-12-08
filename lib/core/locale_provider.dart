@@ -246,6 +246,17 @@ class AppLocalizations {
       'errorShopNameRequired': 'Nom de l\'établissement requis',
       'errorPhotoRequired': 'Au moins une photo requise',
       'errorConnection': 'Erreur de connexion',
+      'services': 'Services',
+      'veterinarians': 'Vétérinaires',
+      'shop': 'Boutique',
+      'daycares': 'Garderies',
+      'howIsYourCompanion': 'Comment va votre compagnon ?',
+      'myAnimals': 'Mes animaux',
+      'healthRecordQr': 'Carnet de santé & QR code vétérinaire',
+      'nearbyProfessionals': 'Professionnels à proximité',
+      'adoptChangeLife': 'Adoptez, changez une vie',
+      'boostCareer': 'Boostez votre carrière',
+      'vethub': 'Vethub',
     },
     'en': {
       'appName': 'Vegece',
@@ -350,6 +361,17 @@ class AppLocalizations {
       'errorShopNameRequired': 'Business name required',
       'errorPhotoRequired': 'At least one photo required',
       'errorConnection': 'Connection error',
+      'services': 'Services',
+      'veterinarians': 'Veterinarians',
+      'shop': 'Shop',
+      'daycares': 'Daycares',
+      'howIsYourCompanion': 'How is your companion?',
+      'myAnimals': 'My pets',
+      'healthRecordQr': 'Health record & veterinary QR code',
+      'nearbyProfessionals': 'Nearby professionals',
+      'adoptChangeLife': 'Adopt, change a life',
+      'boostCareer': 'Boost your career',
+      'vethub': 'Vethub',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -454,6 +476,17 @@ class AppLocalizations {
       'errorShopNameRequired': 'اسم المؤسسة مطلوب',
       'errorPhotoRequired': 'صورة واحدة على الأقل مطلوبة',
       'errorConnection': 'خطأ في الاتصال',
+      'services': 'الخدمات',
+      'veterinarians': 'الأطباء البيطريون',
+      'shop': 'المتجر',
+      'daycares': 'الحضانات',
+      'howIsYourCompanion': 'كيف حال رفيقك؟',
+      'myAnimals': 'حيواناتي',
+      'healthRecordQr': 'السجل الصحي ورمز QR البيطري',
+      'nearbyProfessionals': 'المختصون القريبون',
+      'adoptChangeLife': 'تبنَّ، غيّر حياة',
+      'boostCareer': 'عزّز مسيرتك المهنية',
+      'vethub': 'Vethub',
     },
   };
 
@@ -566,6 +599,17 @@ class AppLocalizations {
   String get errorShopNameRequired => _get('errorShopNameRequired');
   String get errorPhotoRequired => _get('errorPhotoRequired');
   String get errorConnection => _get('errorConnection');
+  String get services => _get('services');
+  String get veterinarians => _get('veterinarians');
+  String get shop => _get('shop');
+  String get daycares => _get('daycares');
+  String get howIsYourCompanion => _get('howIsYourCompanion');
+  String get myAnimals => _get('myAnimals');
+  String get healthRecordQr => _get('healthRecordQr');
+  String get nearbyProfessionals => _get('nearbyProfessionals');
+  String get adoptChangeLife => _get('adoptChangeLife');
+  String get boostCareer => _get('boostCareer');
+  String get vethub => _get('vethub');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
