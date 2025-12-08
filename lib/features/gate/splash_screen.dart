@@ -35,9 +35,21 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
+  // Délai minimum du splash screen (2 secondes)
+  bool _splashMinTimeElapsed = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Timer pour le délai minimum du splash
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) {
+        setState(() {
+          _splashMinTimeElapsed = true;
+        });
+      }
+    });
 
     // Animation de glow pulsant (rose)
     _glowController = AnimationController(
@@ -82,8 +94,8 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
 
-    // ✅ Si bootstrap pas encore terminé, afficher le splash animé
-    if (!session.bootstrapped) {
+    // ✅ Afficher le splash tant que le bootstrap n'est pas terminé OU que le délai minimum n'est pas écoulé
+    if (!session.bootstrapped || !_splashMinTimeElapsed) {
       return _buildAnimatedSplash();
     }
 
