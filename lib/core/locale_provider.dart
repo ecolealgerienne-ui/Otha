@@ -2,6 +2,67 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ═══════════════════════════════════════════════════════════════
+// THÈME (CLAIR / SOMBRE)
+// ═══════════════════════════════════════════════════════════════
+
+enum AppThemeMode {
+  light('light', 'Clair', Icons.light_mode),
+  dark('dark', 'Sombre', Icons.dark_mode);
+
+  final String code;
+  final String name;
+  final IconData icon;
+
+  const AppThemeMode(this.code, this.name, this.icon);
+
+  static AppThemeMode fromCode(String code) {
+    return AppThemeMode.values.firstWhere(
+      (mode) => mode.code == code,
+      orElse: () => AppThemeMode.light,
+    );
+  }
+}
+
+// Provider pour le thème
+final themeProvider = NotifierProvider<ThemeNotifier, AppThemeMode>(() {
+  return ThemeNotifier();
+});
+
+class ThemeNotifier extends Notifier<AppThemeMode> {
+  static const String _key = 'app_theme';
+
+  @override
+  AppThemeMode build() {
+    _loadSavedTheme();
+    return AppThemeMode.light;
+  }
+
+  Future<void> _loadSavedTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(_key);
+    if (code != null) {
+      state = AppThemeMode.fromCode(code);
+    }
+  }
+
+  Future<void> setTheme(AppThemeMode theme) async {
+    state = theme;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, theme.code);
+  }
+
+  void toggleTheme() {
+    setTheme(state == AppThemeMode.light ? AppThemeMode.dark : AppThemeMode.light);
+  }
+
+  bool get isDark => state == AppThemeMode.dark;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUES SUPPORTÉES
+// ═══════════════════════════════════════════════════════════════
+
 // Langues supportées
 enum AppLanguage {
   french('fr', 'Français', '🇫🇷'),
