@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Langues supportées
 enum AppLanguage {
   french('fr', 'Français', '🇫🇷'),
-  english('en', 'English', '🇬🇧');
+  english('en', 'English', '🇬🇧'),
+  arabic('ar', 'العربية', '🇩🇿');
 
   final String code;
   final String name;
@@ -76,6 +77,7 @@ class AppLocalizations {
   static const List<Locale> supportedLocales = [
     Locale('fr'),
     Locale('en'),
+    Locale('ar'),
   ];
 
   // Traductions
@@ -228,6 +230,80 @@ class AppLocalizations {
       'logout': 'Logout',
       'animalWellbeing': 'Animal wellbeing',
     },
+    'ar': {
+      'appName': 'فيجيس',
+      'youAre': 'أنت',
+      'individual': 'فرد',
+      'professional': 'محترف',
+      'termsOfUse': 'شروط الاستخدام',
+      'language': 'اللغة',
+      'login': 'تسجيل الدخول',
+      'emailOrPhone': 'البريد الإلكتروني / رقم الهاتف',
+      'password': 'كلمة المرور',
+      'forgotPassword': 'نسيت كلمة المرور؟',
+      'confirm': 'تأكيد',
+      'or': 'أو',
+      'continueWithGoogle': 'المتابعة مع جوجل',
+      'noAccount': 'ليس لديك حساب؟',
+      'signUp': 'إنشاء حساب',
+      'createAccount': 'إنشاء حساب جديد',
+      'firstName': 'الاسم الأول',
+      'lastName': 'اسم العائلة',
+      'email': 'البريد الإلكتروني',
+      'phone': 'الهاتف',
+      'confirmPassword': 'تأكيد كلمة المرور',
+      'next': 'التالي',
+      'previous': 'السابق',
+      'skip': 'تخطي',
+      'finish': 'إنهاء',
+      'cancel': 'إلغاء',
+      'save': 'حفظ',
+      'delete': 'حذف',
+      'edit': 'تعديل',
+      'close': 'إغلاق',
+      'loading': 'جاري التحميل...',
+      'error': 'خطأ',
+      'success': 'نجاح',
+      'errorInvalidEmail': 'أدخل بريد إلكتروني (أو رقم هاتف) صالح',
+      'errorPasswordRequired': 'كلمة المرور مطلوبة',
+      'errorIncorrectCredentials': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+      'errorFixFields': 'يرجى تصحيح الحقول المحددة باللون الأحمر.',
+      'errorFirstNameRequired': 'الاسم الأول مطلوب',
+      'errorFirstNameMin': 'الاسم الأول: 3 أحرف على الأقل',
+      'errorFirstNameMax': 'الاسم الأول: 15 حرفًا كحد أقصى',
+      'errorLastNameRequired': 'اسم العائلة مطلوب',
+      'errorLastNameMin': 'اسم العائلة: 3 أحرف على الأقل',
+      'errorLastNameMax': 'اسم العائلة: 15 حرفًا كحد أقصى',
+      'errorEmailInvalid': 'بريد إلكتروني غير صالح',
+      'errorPasswordWeak': 'كلمة المرور ضعيفة جدًا',
+      'errorPasswordMismatch': 'كلمات المرور غير متطابقة',
+      'errorConfirmRequired': 'التأكيد مطلوب',
+      'errorPhoneRequired': 'رقم الهاتف مطلوب',
+      'errorPhoneFormat': 'يجب أن يبدأ الرقم بـ 05 أو 06 أو 07',
+      'errorPhoneLength': 'يجب أن يحتوي الرقم على 10 أرقام',
+      'errorEmailTaken': 'البريد الإلكتروني مستخدم بالفعل',
+      'errorPhoneTaken': 'رقم الهاتف مستخدم بالفعل',
+      'passwordHelper': '8 أحرف على الأقل، مع حروف كبيرة وصغيرة',
+      'emailVerificationNote': 'نتحقق من البريد الإلكتروني وننشئ الحساب في هذه الخطوة.',
+      'profilePhotoOptional': 'صورة الملف الشخصي (اختياري)',
+      'choosePhoto': 'اختيار صورة',
+      'removePhoto': 'إزالة',
+      'skipPhotoNote': 'يمكنك تخطي هذه الخطوة وإضافة صورة لاحقًا.',
+      'proAccountDetected': 'تم اكتشاف حساب محترف',
+      'proAccountMessage': 'هذا الحساب مُعد للمساحة المهنية.\nهل تريد التحويل إلى تسجيل الدخول كمحترف؟',
+      'goToPro': 'الذهاب إلى المحترف',
+      'clientAccountDetected': 'تم اكتشاف حساب عميل',
+      'clientAccountMessage': 'هذا الحساب ليس لديه ملف تعريف مهني بعد.\nهل تريد تسجيل الدخول كفرد أو إنشاء حساب محترف؟',
+      'goToIndividual': 'الذهاب إلى الفرد',
+      'createProAccount': 'إنشاء حساب محترف',
+      'home': 'الرئيسية',
+      'myPets': 'حيواناتي',
+      'bookings': 'المواعيد',
+      'profile': 'الملف الشخصي',
+      'settings': 'الإعدادات',
+      'logout': 'تسجيل الخروج',
+      'animalWellbeing': 'رفاهية الحيوان',
+    },
   };
 
   String _get(String key) {
@@ -316,7 +392,7 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 
   @override
   bool isSupported(Locale locale) {
-    return ['fr', 'en'].contains(locale.languageCode);
+    return ['fr', 'en', 'ar'].contains(locale.languageCode);
   }
 
   @override
