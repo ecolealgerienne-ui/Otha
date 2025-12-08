@@ -1,4 +1,4 @@
-// lib/features/start/start_screen.dart
+// lib/features/auth/start_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +10,16 @@ import '../../core/locale_provider.dart';
 
 enum StartVariant { user, pro }
 
+// Couleurs Vegece
+class _VegeceColors {
+  static const Color bgDark = Color(0xFF0A0A0A);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color pink = Color(0xFFF2968F);
+  static const Color pinkDark = Color(0xFFE8817A);
+  static const Color textGrey = Color(0xFF9CA3AF);
+  static const Color pinkGlow = Color(0xFFFFC2BE);
+}
+
 class StartScreen extends ConsumerStatefulWidget {
   final StartVariant variant;
   const StartScreen({super.key, required this.variant});
@@ -18,13 +28,103 @@ class StartScreen extends ConsumerStatefulWidget {
   ConsumerState<StartScreen> createState() => _StartScreenState();
 }
 
-class _StartScreenState extends ConsumerState<StartScreen> {
+class _StartScreenState extends ConsumerState<StartScreen>
+    with TickerProviderStateMixin {
   bool _loading = false;
 
-  String get _bg =>
-      widget.variant == StartVariant.user ? 'assets/images/fond_d.png' : 'assets/images/fond_g.png';
+  // Animations
+  late AnimationController _mainController;
+  late Animation<double> _logoFade;
+  late Animation<double> _logoSlide;
+  late Animation<double> _titleFade;
+  late Animation<double> _titleSlide;
+  late Animation<double> _cardFade;
+  late Animation<double> _cardSlide;
+  late Animation<double> _btn1Fade;
+  late Animation<double> _btn2Fade;
+  late Animation<double> _footerFade;
 
   String get _loginQuery => widget.variant == StartVariant.user ? 'user' : 'pro';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    )..forward();
+
+    // Logo animations
+    _logoFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
+      ),
+    );
+    _logoSlide = Tween<double>(begin: -20.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // Title animations
+    _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.15, 0.45, curve: Curves.easeOut),
+      ),
+    );
+    _titleSlide = Tween<double>(begin: 20.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.15, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // Card animations
+    _cardFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.3, 0.6, curve: Curves.easeOut),
+      ),
+    );
+    _cardSlide = Tween<double>(begin: 40.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.3, 0.7, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // Button animations
+    _btn1Fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.5, 0.8, curve: Curves.easeOut),
+      ),
+    );
+    _btn2Fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.6, 0.9, curve: Curves.easeOut),
+      ),
+    );
+
+    // Footer animation
+    _footerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _mainController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleGoogleSignIn() async {
     final l10n = AppLocalizations.of(context);
@@ -51,23 +151,19 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         photoUrl: account.photoUrl,
       );
 
-      // Rafraîchir les données utilisateur
       await ref.read(sessionProvider.notifier).refreshMe();
 
       if (!mounted) return;
       setState(() => _loading = false);
 
-      // Vérifier si le profil est complet
       final user = ref.read(sessionProvider).user;
       final hasFirstName = (user?['firstName']?.toString().trim().isNotEmpty) ?? false;
       final hasLastName = (user?['lastName']?.toString().trim().isNotEmpty) ?? false;
       final hasPhone = (user?['phone']?.toString().trim().isNotEmpty) ?? false;
 
       if (!hasFirstName || !hasLastName || !hasPhone) {
-        // Profil incomplet -> rediriger vers complétion
         context.go('/auth/profile-completion');
       } else {
-        // Profil complet -> rediriger vers home
         context.go('/home');
       }
     } catch (e) {
@@ -81,227 +177,486 @@ class _StartScreenState extends ConsumerState<StartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const coral = Color(0xFFF36C6C);
     final l10n = AppLocalizations.of(context);
+    final isUser = widget.variant == StartVariant.user;
 
-    final title = widget.variant == StartVariant.user
-        ? l10n.takeCareOfCompanion
-        : l10n.welcomeToVegece;
-
-    final subtitle = widget.variant == StartVariant.user
-        ? l10n.petsDeserveBest
-        : l10n.yourCareMakesDifference;
+    final title = isUser ? l10n.takeCareOfCompanion : l10n.welcomeToVegece;
+    final subtitle = isUser ? l10n.petsDeserveBest : l10n.yourCareMakesDifference;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Fond photo
-          Image.asset(_bg, fit: BoxFit.cover),
-
-          // Légère superposition sombre pour lisibilité
-          Container(color: Colors.black.withOpacity(0.15)),
-
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Logo en haut
-                  Row(
-                    children: [
-                      Image.asset('assets/images/logo_vethome.png', height: 36),
-                      const SizedBox(width: 8),
+      backgroundColor: _VegeceColors.bgDark,
+      body: AnimatedBuilder(
+        animation: _mainController,
+        builder: (context, child) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Fond avec gradient subtil
+              Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topRight,
+                    radius: 1.5,
+                    colors: [
+                      _VegeceColors.pink.withOpacity(0.08),
+                      _VegeceColors.bgDark,
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                      shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
+                ),
+              ),
+
+              // Glow en bas
+              Positioned(
+                bottom: -150,
+                left: -50,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _VegeceColors.pinkGlow.withOpacity(0.15),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
+                ),
+              ),
 
-                  const Spacer(),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 60),
 
-                  // Carte "verre dépoli"
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.55),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                height: 1.15,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF4A4A4A),
-                                shadows: [Shadow(blurRadius: 4, color: Colors.black26)],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Se connecter (corail)
-                            SizedBox(
-                              height: 52,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: coral,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 6,
-                                  shadowColor: Colors.black45,
-                                  textStyle: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  // Le login lit encore ?as=user|pro
-                                  context.push('/auth/login?as=$_loginQuery');
-                                },
-                                child: Text(l10n.login),
-                              ),
-                            ),
-
-                            // Différent pour user et pro
-                            if (widget.variant == StartVariant.user) ...[
-                              // Pour les utilisateurs : Google Sign-In + lien inscription
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  const Expanded(child: Divider(thickness: 1.0)),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text(
-                                      l10n.or,
-                                      style: TextStyle(
-                                        color: Colors.black.withOpacity(0.55),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const Expanded(child: Divider(thickness: 1.0)),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-
-                              // Bouton Google Sign-In
-                              SizedBox(
-                                height: 50,
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    side: BorderSide(color: Colors.black.withOpacity(0.15)),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  onPressed: _loading ? null : _handleGoogleSignIn,
-                                  icon: const CircleAvatar(
-                                    radius: 11,
-                                    backgroundColor: Colors.transparent,
-                                    child: Text(
-                                      'G',
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  label: Text(
-                                    l10n.signInWithGoogle,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+                      // Logo VEGECE
+                      Transform.translate(
+                        offset: Offset(0, _logoSlide.value),
+                        child: Opacity(
+                          opacity: _logoFade.value,
+                          child: Column(
+                            children: [
+                              const Text(
+                                'VEGECE',
+                                style: TextStyle(
+                                  fontFamily: 'SFPRO',
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 14,
+                                  color: _VegeceColors.white,
                                 ),
                               ),
-
                               const SizedBox(height: 12),
-                              // Lien inscription pour user
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '${l10n.noAccount} ',
-                                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
-                                  ),
-                                  InkWell(
-                                    onTap: () => context.pushNamed('registerUser'),
-                                    child: Text(
-                                      l10n.signUp,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              Container(
+                                width: 40,
+                                height: 1.5,
+                                color: _VegeceColors.pink,
                               ),
-                            ] else ...[
-                              // Pour les pros : juste le bouton S'inscrire
-                              const SizedBox(height: 14),
-                              SizedBox(
-                                height: 52,
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    side: const BorderSide(color: coral, width: 2),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    textStyle: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  onPressed: () => context.pushNamed('registerPro'),
-                                  child: Text(
-                                    l10n.signUp,
-                                    style: const TextStyle(color: coral),
-                                  ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 50),
+
+                      // Titre + sous-titre
+                      Transform.translate(
+                        offset: Offset(0, _titleSlide.value),
+                        child: Opacity(
+                          opacity: _titleFade.value,
+                          child: Column(
+                            children: [
+                              Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontFamily: 'SFPRO',
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.2,
+                                  color: _VegeceColors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                subtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: 'SFPRO',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                  color: _VegeceColors.textGrey,
                                 ),
                               ),
                             ],
-                          ],
+                          ),
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      // Card avec boutons
+                      Transform.translate(
+                        offset: Offset(0, _cardSlide.value),
+                        child: Opacity(
+                          opacity: _cardFade.value,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: _VegeceColors.white.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: _VegeceColors.white.withOpacity(0.1),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Bouton Se connecter
+                                    Opacity(
+                                      opacity: _btn1Fade.value,
+                                      child: _AnimatedButton(
+                                        label: l10n.login,
+                                        isPrimary: true,
+                                        onPressed: () {
+                                          context.push('/auth/login?as=$_loginQuery');
+                                        },
+                                      ),
+                                    ),
+
+                                    if (isUser) ...[
+                                      const SizedBox(height: 16),
+
+                                      // Séparateur OU
+                                      Opacity(
+                                        opacity: _btn2Fade.value,
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                color: _VegeceColors.white.withOpacity(0.15),
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                l10n.or,
+                                                style: TextStyle(
+                                                  fontFamily: 'SFPRO',
+                                                  fontSize: 13,
+                                                  color: _VegeceColors.textGrey,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                color: _VegeceColors.white.withOpacity(0.15),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 16),
+
+                                      // Bouton Google
+                                      Opacity(
+                                        opacity: _btn2Fade.value,
+                                        child: _GoogleButton(
+                                          label: l10n.signInWithGoogle,
+                                          loading: _loading,
+                                          onPressed: _handleGoogleSignIn,
+                                        ),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 20),
+
+                                    // Lien inscription
+                                    Opacity(
+                                      opacity: _footerFade.value,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '${l10n.noAccount} ',
+                                            style: TextStyle(
+                                              fontFamily: 'SFPRO',
+                                              fontSize: 14,
+                                              color: _VegeceColors.textGrey,
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              if (isUser) {
+                                                context.pushNamed('registerUser');
+                                              } else {
+                                                context.pushNamed('registerPro');
+                                              }
+                                            },
+                                            child: Text(
+                                              l10n.signUp,
+                                              style: const TextStyle(
+                                                fontFamily: 'SFPRO',
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: _VegeceColors.pink,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOUTON ANIMÉ PRINCIPAL
+// ═══════════════════════════════════════════════════════════════
+
+class _AnimatedButton extends StatefulWidget {
+  final String label;
+  final bool isPrimary;
+  final VoidCallback onPressed;
+
+  const _AnimatedButton({
+    required this.label,
+    required this.isPrimary,
+    required this.onPressed,
+  });
+
+  @override
+  State<_AnimatedButton> createState() => _AnimatedButtonState();
+}
+
+class _AnimatedButtonState extends State<_AnimatedButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onPressed();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _isPressed
+                      ? [_VegeceColors.pinkDark, _VegeceColors.pink]
+                      : [_VegeceColors.pink, _VegeceColors.pinkDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: _VegeceColors.pink.withOpacity(_isPressed ? 0.2 : 0.4),
+                    blurRadius: _isPressed ? 8 : 20,
+                    offset: Offset(0, _isPressed ? 2 : 8),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  widget.label,
+                  style: const TextStyle(
+                    fontFamily: 'SFPRO',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _VegeceColors.white,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOUTON GOOGLE
+// ═══════════════════════════════════════════════════════════════
+
+class _GoogleButton extends StatefulWidget {
+  final String label;
+  final bool loading;
+  final VoidCallback onPressed;
+
+  const _GoogleButton({
+    required this.label,
+    required this.loading,
+    required this.onPressed,
+  });
+
+  @override
+  State<_GoogleButton> createState() => _GoogleButtonState();
+}
+
+class _GoogleButtonState extends State<_GoogleButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.loading ? null : (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: widget.loading ? null : (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        widget.onPressed();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scale.value,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? _VegeceColors.white.withOpacity(0.15)
+                    : _VegeceColors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _VegeceColors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google icon
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: _VegeceColors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'G',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFEA4335),
                         ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 18),
+                  const SizedBox(width: 12),
+                  Text(
+                    widget.loading ? '...' : widget.label,
+                    style: const TextStyle(
+                      fontFamily: 'SFPRO',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: _VegeceColors.white,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
