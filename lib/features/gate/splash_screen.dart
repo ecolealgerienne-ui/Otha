@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 
 // Couleurs Vegece
 class VegeceColors {
@@ -61,7 +63,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       vsync: this,
     )..forward();
 
-    // Logo fade in
     _logoFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _splashController,
@@ -69,7 +70,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       ),
     );
 
-    // Logo slide up
     _logoSlide = Tween<double>(begin: 20.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _splashController,
@@ -77,7 +77,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       ),
     );
 
-    // Line fade in
     _lineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _splashController,
@@ -85,7 +84,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       ),
     );
 
-    // Line width expansion
     _lineWidth = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _splashController,
@@ -93,7 +91,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       ),
     );
 
-    // Dot pulse (loading indicator)
     _dotPulse = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _splashController,
@@ -170,7 +167,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       return _buildSplashScreen();
     }
 
-    // Lancer les animations de l'écran de sélection
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSelectionAnimations();
     });
@@ -179,7 +175,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // SPLASH SCREEN - Élégant et minimaliste
+  // SPLASH SCREEN
   // ═══════════════════════════════════════════════════════════════
   Widget _buildSplashScreen() {
     return Scaffold(
@@ -189,10 +185,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
         builder: (context, child) {
           return Stack(
             children: [
-              // Fond noir pur
               Container(color: VegeceColors.bgDark),
-
-              // Contenu central
               Center(
                 child: Transform.translate(
                   offset: Offset(0, _logoSlide.value),
@@ -201,7 +194,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo VEGECE
                         const Text(
                           'VEGECE',
                           style: TextStyle(
@@ -212,10 +204,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                             color: VegeceColors.white,
                           ),
                         ),
-
                         const SizedBox(height: 24),
-
-                        // Ligne animée
                         Opacity(
                           opacity: _lineFade.value,
                           child: Container(
@@ -229,8 +218,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                   ),
                 ),
               ),
-
-              // Indicateur de chargement minimaliste (3 points)
               Positioned(
                 bottom: 80,
                 left: 0,
@@ -248,9 +235,12 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // ÉCRAN DE SÉLECTION - Fond blanc + ombre rose
+  // ÉCRAN DE SÉLECTION
   // ═══════════════════════════════════════════════════════════════
   Widget _buildSelectionScreen(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final currentLang = ref.watch(localeProvider.notifier).currentLanguage;
+
     return Scaffold(
       backgroundColor: VegeceColors.bgLight,
       body: AnimatedBuilder(
@@ -258,7 +248,6 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
         builder: (context, child) {
           return Stack(
             children: [
-              // Fond blanc
               Container(color: VegeceColors.bgLight),
 
               // Ombre rose en bas à droite
@@ -278,6 +267,21 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ),
+                  ),
+                ),
+              ),
+
+              // Bouton de langue en haut à droite
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                right: 20,
+                child: Opacity(
+                  opacity: _contentFade.value,
+                  child: _LanguageSelector(
+                    currentLanguage: currentLang,
+                    onChanged: (lang) {
+                      ref.read(localeProvider.notifier).setLocale(lang);
+                    },
                   ),
                 ),
               ),
@@ -324,8 +328,8 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                       Opacity(
                         opacity: _contentFade.value,
                         child: Text(
-                          'Vous êtes',
-                          style: TextStyle(
+                          l10n.youAre,
+                          style: const TextStyle(
                             fontFamily: 'SFPRO',
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
@@ -343,7 +347,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                         child: Transform.translate(
                           offset: Offset(0, 20 * (1 - _btn1Fade.value)),
                           child: _SelectionButton(
-                            label: 'Particulier',
+                            label: l10n.individual,
                             isPrimary: true,
                             onPressed: () => context.push('/start/user'),
                           ),
@@ -358,7 +362,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                         child: Transform.translate(
                           offset: Offset(0, 20 * (1 - _btn2Fade.value)),
                           child: _SelectionButton(
-                            label: 'Professionnel',
+                            label: l10n.professional,
                             isPrimary: false,
                             onPressed: () => context.push('/start/pro'),
                           ),
@@ -373,7 +377,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 28),
                           child: Text(
-                            'Conditions d\'utilisation',
+                            l10n.termsOfUse,
                             style: TextStyle(
                               fontFamily: 'SFPRO',
                               fontSize: 11,
@@ -396,7 +400,162 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LOADING DOTS - Animation minimaliste
+// SÉLECTEUR DE LANGUE
+// ═══════════════════════════════════════════════════════════════
+
+class _LanguageSelector extends StatefulWidget {
+  final AppLanguage currentLanguage;
+  final ValueChanged<AppLanguage> onChanged;
+
+  const _LanguageSelector({
+    required this.currentLanguage,
+    required this.onChanged,
+  });
+
+  @override
+  State<_LanguageSelector> createState() => _LanguageSelectorState();
+}
+
+class _LanguageSelectorState extends State<_LanguageSelector>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _showLanguageMenu() {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final Offset position = button.localToGlobal(Offset.zero, ancestor: overlay);
+
+    showMenu<AppLanguage>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy + button.size.height + 8,
+        overlay.size.width - position.dx - button.size.width,
+        0,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      items: AppLanguage.values.map((lang) {
+        final isSelected = lang == widget.currentLanguage;
+        return PopupMenuItem<AppLanguage>(
+          value: lang,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(lang.flag, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Text(
+                lang.name,
+                style: TextStyle(
+                  fontFamily: 'SFPRO',
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? VegeceColors.pink : VegeceColors.textDark,
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(width: 8),
+                Icon(Icons.check, size: 16, color: VegeceColors.pink),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((selected) {
+      if (selected != null && selected != widget.currentLanguage) {
+        widget.onChanged(selected);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _controller.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+        _showLanguageMenu();
+      },
+      onTapCancel: () {
+        setState(() => _isPressed = false);
+        _controller.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? VegeceColors.textGrey.withOpacity(0.08)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: VegeceColors.textGrey.withOpacity(0.15),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.currentLanguage.flag,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.currentLanguage.code.toUpperCase(),
+                    style: const TextStyle(
+                      fontFamily: 'SFPRO',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: VegeceColors.textDark,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: VegeceColors.textGrey,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOADING DOTS
 // ═══════════════════════════════════════════════════════════════
 
 class _LoadingDots extends StatefulWidget {
