@@ -183,19 +183,35 @@ class _StartScreenState extends ConsumerState<StartScreen>
     final l10n = AppLocalizations.of(context);
     final isUser = widget.variant == StartVariant.user;
 
+    // Thème dynamique
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    // Couleurs dynamiques selon le thème
+    final bgColor = isDark ? _VegeceColors.bgDark : _VegeceColors.bgLight;
+    final textColor = isDark ? _VegeceColors.white : _VegeceColors.textDark;
+    final subtitleColor = isDark ? _VegeceColors.textGrey : _VegeceColors.textGrey;
+    final cardBgColor = isDark ? const Color(0xFF1A1A1A) : _VegeceColors.cardBg;
+    final cardBorderColor = isDark
+        ? _VegeceColors.white.withOpacity(0.08)
+        : _VegeceColors.textGrey.withOpacity(0.1);
+
     final title = isUser ? l10n.takeCareOfCompanion : l10n.welcomeToVegece;
     final subtitle = isUser ? l10n.petsDeserveBest : l10n.yourCareMakesDifference;
 
     return Scaffold(
-      backgroundColor: _VegeceColors.bgLight,
+      backgroundColor: bgColor,
       body: AnimatedBuilder(
         animation: _mainController,
         builder: (context, child) {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Fond blanc pur
-              Container(color: _VegeceColors.bgLight),
+              // Fond avec transition
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                color: bgColor,
+              ),
 
               // Glow rose en haut à droite
               Positioned(
@@ -208,8 +224,8 @@ class _StartScreenState extends ConsumerState<StartScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        _VegeceColors.pinkGlow.withOpacity(0.3),
-                        _VegeceColors.pinkGlow.withOpacity(0.1),
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.15 : 0.3),
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.05 : 0.1),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.4, 1.0],
@@ -229,8 +245,8 @@ class _StartScreenState extends ConsumerState<StartScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        _VegeceColors.pinkGlow.withOpacity(0.25),
-                        _VegeceColors.pinkGlow.withOpacity(0.08),
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.12 : 0.25),
+                        _VegeceColors.pinkGlow.withOpacity(isDark ? 0.04 : 0.08),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.5, 1.0],
@@ -253,14 +269,14 @@ class _StartScreenState extends ConsumerState<StartScreen>
                           opacity: _logoFade.value,
                           child: Column(
                             children: [
-                              const Text(
+                              Text(
                                 'VEGECE',
                                 style: TextStyle(
                                   fontFamily: 'SFPRO',
                                   fontSize: 36,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 14,
-                                  color: _VegeceColors.textDark,
+                                  color: textColor,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -286,23 +302,23 @@ class _StartScreenState extends ConsumerState<StartScreen>
                               Text(
                                 title,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'SFPRO',
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
-                                  color: _VegeceColors.textDark,
+                                  color: textColor,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 subtitle,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'SFPRO',
                                   fontSize: 15,
                                   fontWeight: FontWeight.w400,
-                                  color: _VegeceColors.textGrey,
+                                  color: subtitleColor,
                                 ),
                               ),
                             ],
@@ -317,19 +333,20 @@ class _StartScreenState extends ConsumerState<StartScreen>
                         offset: Offset(0, _cardSlide.value),
                         child: Opacity(
                           opacity: _cardFade.value,
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: _VegeceColors.cardBg,
+                              color: cardBgColor,
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: _VegeceColors.textGrey.withOpacity(0.1),
+                                color: cardBorderColor,
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _VegeceColors.pink.withOpacity(0.08),
+                                  color: _VegeceColors.pink.withOpacity(isDark ? 0.15 : 0.08),
                                   blurRadius: 40,
                                   offset: const Offset(0, 20),
                                 ),
@@ -361,24 +378,28 @@ class _StartScreenState extends ConsumerState<StartScreen>
                                         Expanded(
                                           child: Container(
                                             height: 1,
-                                            color: _VegeceColors.textGrey.withOpacity(0.15),
+                                            color: isDark
+                                                ? _VegeceColors.white.withOpacity(0.1)
+                                                : _VegeceColors.textGrey.withOpacity(0.15),
                                           ),
                                         ),
                                         Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 16),
                                           child: Text(
                                             l10n.or,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontFamily: 'SFPRO',
                                               fontSize: 13,
-                                              color: _VegeceColors.textGrey,
+                                              color: subtitleColor,
                                             ),
                                           ),
                                         ),
                                         Expanded(
                                           child: Container(
                                             height: 1,
-                                            color: _VegeceColors.textGrey.withOpacity(0.15),
+                                            color: isDark
+                                                ? _VegeceColors.white.withOpacity(0.1)
+                                                : _VegeceColors.textGrey.withOpacity(0.15),
                                           ),
                                         ),
                                       ],
@@ -393,6 +414,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                                     child: _GoogleButton(
                                       label: l10n.signInWithGoogle,
                                       loading: _loading,
+                                      isDark: isDark,
                                       onPressed: _handleGoogleSignIn,
                                     ),
                                   ),
@@ -408,10 +430,10 @@ class _StartScreenState extends ConsumerState<StartScreen>
                                     children: [
                                       Text(
                                         '${l10n.noAccount} ',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontFamily: 'SFPRO',
                                           fontSize: 14,
-                                          color: _VegeceColors.textGrey,
+                                          color: subtitleColor,
                                         ),
                                       ),
                                       GestureDetector(
@@ -559,17 +581,19 @@ class _AnimatedButtonState extends State<_AnimatedButton>
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BOUTON GOOGLE - THÈME CLAIR
+// BOUTON GOOGLE - THÈME DYNAMIQUE
 // ═══════════════════════════════════════════════════════════════
 
 class _GoogleButton extends StatefulWidget {
   final String label;
   final bool loading;
+  final bool isDark;
   final VoidCallback onPressed;
 
   const _GoogleButton({
     required this.label,
     required this.loading,
+    required this.isDark,
     required this.onPressed,
   });
 
@@ -603,6 +627,15 @@ class _GoogleButtonState extends State<_GoogleButton>
 
   @override
   Widget build(BuildContext context) {
+    // Couleurs dynamiques selon le thème
+    final bgColor = widget.isDark
+        ? (_isPressed ? _VegeceColors.white.withOpacity(0.1) : Colors.transparent)
+        : (_isPressed ? _VegeceColors.textGrey.withOpacity(0.08) : _VegeceColors.white);
+    final borderColor = widget.isDark
+        ? _VegeceColors.white.withOpacity(0.15)
+        : _VegeceColors.textGrey.withOpacity(0.2);
+    final textColor = widget.isDark ? _VegeceColors.white : _VegeceColors.textDark;
+
     return GestureDetector(
       onTapDown: widget.loading ? null : (_) {
         setState(() => _isPressed = true);
@@ -627,12 +660,10 @@ class _GoogleButtonState extends State<_GoogleButton>
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: _isPressed
-                    ? _VegeceColors.textGrey.withOpacity(0.08)
-                    : _VegeceColors.white,
+                color: bgColor,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _VegeceColors.textGrey.withOpacity(0.2),
+                  color: borderColor,
                   width: 1,
                 ),
               ),
@@ -665,11 +696,11 @@ class _GoogleButtonState extends State<_GoogleButton>
                   const SizedBox(width: 12),
                   Text(
                     widget.loading ? '...' : widget.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'SFPRO',
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: _VegeceColors.textDark,
+                      color: textColor,
                     ),
                   ),
                 ],
