@@ -28,22 +28,23 @@ class RoleGateScreen extends ConsumerStatefulWidget {
 
 class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
     with TickerProviderStateMixin {
+  // Animation controllers
   late AnimationController _glowController;
   late AnimationController _fadeController;
-  late AnimationController _scaleController;
+  late AnimationController _lineController;
   late Animation<double> _glowAnimation;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late Animation<double> _lineAnimation;
 
-  // Délai minimum du splash screen (2 secondes)
+  // Délai minimum du splash screen (5 secondes)
   bool _splashMinTimeElapsed = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Timer pour le délai minimum du splash
-    Future.delayed(const Duration(milliseconds: 2000), () {
+    // Timer pour le délai minimum du splash (5 secondes)
+    Future.delayed(const Duration(milliseconds: 5000), () {
       if (mounted) {
         setState(() {
           _splashMinTimeElapsed = true;
@@ -51,9 +52,9 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       }
     });
 
-    // Animation de glow pulsant (rose)
+    // Animation de glow pulsant subtil
     _glowController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 3000),
       vsync: this,
     )..repeat(reverse: true);
 
@@ -61,9 +62,9 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
-    // Animation de fade in
+    // Animation de fade in élégant
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..forward();
 
@@ -71,14 +72,17 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
 
-    // Animation de scale subtle
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    // Animation de la ligne décorative
+    _lineController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..forward();
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    _lineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _lineController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
     );
   }
 
@@ -86,7 +90,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   void dispose() {
     _glowController.dispose();
     _fadeController.dispose();
-    _scaleController.dispose();
+    _lineController.dispose();
     super.dispose();
   }
 
@@ -96,7 +100,7 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
 
     // ✅ Afficher le splash tant que le bootstrap n'est pas terminé OU que le délai minimum n'est pas écoulé
     if (!session.bootstrapped || !_splashMinTimeElapsed) {
-      return _buildAnimatedSplash();
+      return _buildPrestigeSplash();
     }
 
     // ✅ Si déjà connecté, rediriger vers la bonne page selon le rôle
@@ -107,94 +111,143 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
           context.go(targetRoute);
         }
       });
-      return _buildAnimatedSplash();
+      return _buildPrestigeSplash();
     }
 
-    // Écran de choix (Particulier / Professionnel) - Design CLAIR
+    // Écran de choix (Particulier / Professionnel)
     return _buildSelectionScreen(context);
   }
 
-  // Splash screen sombre avec animation
-  Widget _buildAnimatedSplash() {
+  // ═══════════════════════════════════════════════════════════════
+  // SPLASH SCREEN PRESTIGE
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildPrestigeSplash() {
     return Scaffold(
       backgroundColor: VegeceColors.bgDark,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_glowAnimation, _fadeAnimation, _scaleAnimation]),
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Logo VEGECE avec effet glow rose
-                    ShaderMask(
-                      shaderCallback: (bounds) {
-                        return LinearGradient(
-                          colors: [
-                            VegeceColors.white,
-                            Color.lerp(
-                              VegeceColors.white,
-                              VegeceColors.pink,
-                              _glowAnimation.value * 0.3,
-                            )!,
-                            VegeceColors.white,
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ).createShader(bounds);
-                      },
-                      child: Text(
+      body: AnimatedBuilder(
+        animation: Listenable.merge([_glowAnimation, _fadeAnimation, _lineAnimation]),
+        builder: (context, child) {
+          return Stack(
+            children: [
+              // Fond avec gradient subtil
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.2,
+                      colors: [
+                        Color.lerp(
+                          VegeceColors.bgDark,
+                          VegeceColors.pink.withOpacity(0.03),
+                          _glowAnimation.value,
+                        )!,
+                        VegeceColors.bgDark,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Contenu central
+              Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Texte VEGECE
+                      Text(
                         'VEGECE',
                         style: TextStyle(
                           fontFamily: 'SFPRO',
-                          fontSize: 52,
+                          fontSize: 46,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 12,
+                          letterSpacing: 18,
                           color: VegeceColors.white,
                           shadows: [
                             Shadow(
-                              color: VegeceColors.pink.withOpacity(_glowAnimation.value * 0.6),
-                              blurRadius: 30 + (_glowAnimation.value * 20),
-                            ),
-                            Shadow(
-                              color: VegeceColors.pinkDark.withOpacity(_glowAnimation.value * 0.4),
-                              blurRadius: 60 + (_glowAnimation.value * 30),
+                              color: VegeceColors.pink.withOpacity(_glowAnimation.value * 0.4),
+                              blurRadius: 40 + (_glowAnimation.value * 20),
                             ),
                           ],
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 48),
+                      const SizedBox(height: 20),
 
-                    // Loading indicator avec glow rose
-                    SizedBox(
-                      width: 32,
-                      height: 32,
+                      // Ligne décorative animée
+                      SizeTransition(
+                        sizeFactor: _lineAnimation,
+                        axis: Axis.horizontal,
+                        child: Container(
+                          width: 60,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                VegeceColors.pink.withOpacity(0.8),
+                                Colors.transparent,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Tagline subtile
+                      Opacity(
+                        opacity: _fadeAnimation.value * 0.5,
+                        child: Text(
+                          'Le bien-être animal',
+                          style: TextStyle(
+                            fontFamily: 'SFPRO',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 4,
+                            color: VegeceColors.white.withOpacity(0.6),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Indicateur de chargement en bas (très discret)
+              Positioned(
+                bottom: 60,
+                left: 0,
+                right: 0,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
+                        strokeWidth: 1.5,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Color.lerp(
-                            VegeceColors.white.withOpacity(0.6),
-                            VegeceColors.pink,
-                            _glowAnimation.value,
-                          )!,
+                          VegeceColors.white.withOpacity(0.3),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  // Écran de sélection CLAIR
+  // ═══════════════════════════════════════════════════════════════
+  // ÉCRAN DE SÉLECTION (THÈME CLAIR)
+  // ═══════════════════════════════════════════════════════════════
   Widget _buildSelectionScreen(BuildContext context) {
     return Scaffold(
       backgroundColor: VegeceColors.bgLight,
@@ -203,70 +256,56 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             children: [
-              const Spacer(flex: 1),
-
-              // Icône patte avec fond rose
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [VegeceColors.pink, VegeceColors.pinkDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: VegeceColors.pink.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.pets,
-                  size: 40,
-                  color: VegeceColors.white,
-                ),
-              ),
-
-              const SizedBox(height: 24),
+              const Spacer(flex: 2),
 
               // Logo VEGECE
               const Text(
                 'VEGECE',
                 style: TextStyle(
                   fontFamily: 'SFPRO',
-                  fontSize: 42,
+                  fontSize: 38,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 8,
+                  letterSpacing: 10,
                   color: VegeceColors.textDark,
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+
+              // Ligne décorative
+              Container(
+                width: 40,
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [VegeceColors.pink, VegeceColors.pinkDark],
+                  ),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+
+              const SizedBox(height: 12),
 
               // Tagline
               Text(
                 'Le bien-être de vos animaux',
                 style: TextStyle(
                   fontFamily: 'SFPRO',
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 0.5,
                   color: VegeceColors.textGrey,
                 ),
               ),
 
-              const Spacer(flex: 2),
+              const Spacer(flex: 3),
 
               // Texte d'intro
-              Text(
+              const Text(
                 'Bienvenue',
                 style: TextStyle(
                   fontFamily: 'SFPRO',
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: VegeceColors.textDark,
                 ),
@@ -279,16 +318,16 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'SFPRO',
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w400,
                   color: VegeceColors.textGrey,
                   height: 1.4,
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 36),
 
-              // Bouton Particulier (primaire)
+              // Bouton Particulier
               _VegecePrimaryButtonLight(
                 label: 'Particulier',
                 subtitle: 'Propriétaire d\'animaux',
@@ -296,9 +335,9 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                 onPressed: () => context.push('/start/user'),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Bouton Professionnel (secondaire)
+              // Bouton Professionnel
               _VegeceSecondaryButtonLight(
                 label: 'Professionnel',
                 subtitle: 'Vétérinaire, toiletteur...',
@@ -306,18 +345,18 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
                 onPressed: () => context.push('/start/pro'),
               ),
 
-              const Spacer(flex: 1),
+              const Spacer(flex: 2),
 
               // Footer
               Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 20),
                 child: Text(
                   'En continuant, vous acceptez nos conditions d\'utilisation',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'SFPRO',
-                    fontSize: 12,
-                    color: VegeceColors.textGrey.withOpacity(0.7),
+                    fontSize: 11,
+                    color: VegeceColors.textGrey.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -329,7 +368,10 @@ class _RoleGateScreenState extends ConsumerState<RoleGateScreen>
   }
 }
 
-// Bouton primaire rose (thème clair)
+// ═══════════════════════════════════════════════════════════════
+// BOUTONS
+// ═══════════════════════════════════════════════════════════════
+
 class _VegecePrimaryButtonLight extends StatefulWidget {
   final String label;
   final String subtitle;
@@ -360,17 +402,17 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [VegeceColors.pink, VegeceColors.pinkDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: VegeceColors.pink.withOpacity(_isPressed ? 0.2 : 0.35),
+              color: VegeceColors.pink.withOpacity(_isPressed ? 0.15 : 0.3),
               blurRadius: _isPressed ? 8 : 16,
               offset: Offset(0, _isPressed ? 2 : 6),
             ),
@@ -380,19 +422,19 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: VegeceColors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 widget.icon,
                 color: VegeceColors.white,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +443,7 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
                     widget.label,
                     style: const TextStyle(
                       fontFamily: 'SFPRO',
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: VegeceColors.white,
                     ),
@@ -411,7 +453,7 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
                     widget.subtitle,
                     style: TextStyle(
                       fontFamily: 'SFPRO',
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: VegeceColors.white.withOpacity(0.8),
                     ),
@@ -421,8 +463,8 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: VegeceColors.white.withOpacity(0.8),
-              size: 18,
+              color: VegeceColors.white.withOpacity(0.7),
+              size: 16,
             ),
           ],
         ),
@@ -431,7 +473,6 @@ class _VegecePrimaryButtonLightState extends State<_VegecePrimaryButtonLight> {
   }
 }
 
-// Bouton secondaire outline (thème clair)
 class _VegeceSecondaryButtonLight extends StatefulWidget {
   final String label;
   final String subtitle;
@@ -462,17 +503,17 @@ class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: _isPressed ? VegeceColors.pinkSoft : VegeceColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: VegeceColors.pink.withOpacity(_isPressed ? 0.6 : 0.3),
+            color: VegeceColors.pink.withOpacity(_isPressed ? 0.5 : 0.25),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -482,19 +523,19 @@ class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: VegeceColors.pinkSoft,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 widget.icon,
                 color: VegeceColors.pinkDark,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,7 +544,7 @@ class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight
                     widget.label,
                     style: const TextStyle(
                       fontFamily: 'SFPRO',
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: VegeceColors.textDark,
                     ),
@@ -513,7 +554,7 @@ class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight
                     widget.subtitle,
                     style: TextStyle(
                       fontFamily: 'SFPRO',
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: VegeceColors.textGrey,
                     ),
@@ -523,8 +564,8 @@ class _VegeceSecondaryButtonLightState extends State<_VegeceSecondaryButtonLight
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: VegeceColors.textGrey,
-              size: 18,
+              color: VegeceColors.textGrey.withOpacity(0.5),
+              size: 16,
             ),
           ],
         ),
