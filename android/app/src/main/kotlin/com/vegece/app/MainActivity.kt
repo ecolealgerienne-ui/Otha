@@ -1,4 +1,4 @@
-package com.vethome.app
+package com.vegece.app
 
 import io.flutter.embedding.android.FlutterActivity
 
