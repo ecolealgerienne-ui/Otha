@@ -58,3 +58,10 @@ android/local.properties
 # Secrets (if any)
 # -----------------------------
 *.env
+
+# -----------------------------
+# Android Signing Keys (NEVER COMMIT!)
+# -----------------------------
+android/key.properties
+*.jks
+*.keystore

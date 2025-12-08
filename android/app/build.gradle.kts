@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vethome.app"
+    namespace = "com.vegece.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,9 +20,9 @@ android {
     kotlinOptions { jvmTarget = "11" }
 
     defaultConfig {
-        applicationId = "com.vethome.app"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        applicationId = "com.vegece.app"
+        minSdk = 21
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
