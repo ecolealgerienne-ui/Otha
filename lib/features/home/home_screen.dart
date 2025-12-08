@@ -15,6 +15,7 @@ import 'dart:ui' as ui;
 
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 // 👇 pour le bouton "Modifier" (pending)
 import '../bookings/booking_flow_screen.dart';
 import '../bookings/booking_confirmation_popup.dart';
@@ -826,14 +827,21 @@ class HomeScreen extends ConsumerWidget {
       }
     });
 
+    // Theme support
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final bgColor = isDark ? const Color(0xFF0A0A0A) : Colors.white;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       // bottomNavigationBar: const _BottomBar(), // Caché temporairement
       body: SafeArea(
         child: Stack(
           children: [
             // ✅ Pull-to-refresh sur la CustomScrollView
             RefreshIndicator(
+              color: const Color(0xFFF2968F),
+              backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
               onRefresh: () => _refreshAll(ref),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -844,6 +852,7 @@ class HomeScreen extends ConsumerWidget {
                     name: greetingName,
                     avatarUrl: avatarUrl,
                     trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
+                    isDark: isDark,
                   )),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
@@ -873,7 +882,7 @@ class HomeScreen extends ConsumerWidget {
                   // const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
                   // ▼ Vethub en bas
-                  const SliverToBoxAdapter(child: _SectionTitle('Vethub')),
+                  SliverToBoxAdapter(child: _SectionTitle('Vethub', isDark: isDark)),
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
                   const SliverToBoxAdapter(child: _VethubRow()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -891,11 +900,12 @@ class HomeScreen extends ConsumerWidget {
 
 /// -------------------- Header --------------------
 class _Header extends StatelessWidget {
-  const _Header({required this.isPro, required this.name, this.avatarUrl, this.trustStatus});
+  const _Header({required this.isPro, required this.name, this.avatarUrl, this.trustStatus, this.isDark = false});
   final bool isPro;
   final String name;
   final String? avatarUrl;
   final String? trustStatus;
+  final bool isDark;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -907,8 +917,12 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coral = const Color(0xFFF36C6C);
-    final subtitle = isPro ? null : "Comment va votre compagnon aujourd'hui !";
+    final l10n = AppLocalizations.of(context);
+    const coral = Color(0xFFF2968F);
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.55);
+    final avatarBg = isDark ? const Color(0xFF2A1A1C) : const Color(0xFFFFEEF0);
+    final subtitle = isPro ? null : l10n.howIsYourCompanion;
     final display = isPro ? 'Dr. $name' : name;
 
     final hasAvatar = _isHttp(avatarUrl);
@@ -922,11 +936,11 @@ class _Header extends StatelessWidget {
             onTap: () => context.push('/settings'),
             child: CircleAvatar(
               radius: 22,
-              backgroundColor: const Color(0xFFFFEEF0),
+              backgroundColor: avatarBg,
               backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
               child: !hasAvatar
                   ? Text(_initials(display),
-                      style: TextStyle(color: Colors.pink[400], fontWeight: FontWeight.w800))
+                      style: const TextStyle(color: coral, fontWeight: FontWeight.w800))
                   : null,
             ),
           ),
@@ -937,13 +951,16 @@ class _Header extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(fontSize: 18, color: Colors.black87),
-                        children: [
-                          const TextSpan(text: 'Bienvenue, '),
-                          TextSpan(text: display, style: TextStyle(fontWeight: FontWeight.w800, color: coral)),
-                        ],
+                    Flexible(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(fontSize: 18, color: textColor, fontFamily: 'SFPRO'),
+                          children: [
+                            TextSpan(text: '${l10n.welcomeToVegece.split('\n').first.replaceAll('sur Vegece', '').trim()}, '),
+                            TextSpan(text: display, style: const TextStyle(fontWeight: FontWeight.w800, color: coral)),
+                          ],
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     // ✅ TRUST SYSTEM: Badge "Vérifié" en rose
@@ -952,21 +969,21 @@ class _Header extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFE4EC),
+                          color: isDark ? coral.withOpacity(0.2) : const Color(0xFFFFE4EC),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFF36C6C).withOpacity(0.3)),
+                          border: Border.all(color: coral.withOpacity(0.3)),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.verified, size: 12, color: const Color(0xFFF36C6C)),
-                            const SizedBox(width: 4),
+                            Icon(Icons.verified, size: 12, color: coral),
+                            SizedBox(width: 4),
                             Text(
                               'Vérifié',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFFF36C6C),
+                                color: coral,
                               ),
                             ),
                           ],
@@ -978,7 +995,7 @@ class _Header extends StatelessWidget {
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle, style: TextStyle(fontSize: 12.5, color: Colors.black.withOpacity(.55))),
+                    child: Text(subtitle, style: TextStyle(fontSize: 12.5, color: subtitleColor, fontFamily: 'SFPRO')),
                   ),
               ],
             ),
@@ -993,7 +1010,10 @@ class _Header extends StatelessWidget {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  IconButton(onPressed: () => _showNotifDialog(context), icon: const Icon(Icons.notifications_none)),
+                  IconButton(
+                    onPressed: () => _showNotifDialog(context),
+                    icon: Icon(Icons.notifications_none, color: isDark ? Colors.white : Colors.black87),
+                  ),
                   if (unreadCount > 0)
                     Positioned(
                       right: 8,
@@ -1001,7 +1021,7 @@ class _Header extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Colors.redAccent,
+                          color: coral,
                           shape: BoxShape.circle,
                         ),
                         constraints: const BoxConstraints(
@@ -2726,176 +2746,289 @@ class _ActiveOrdersBanner extends ConsumerWidget {
   }
 }
 
-class _ExploreGrid extends StatelessWidget {
+/// -------------------- Services Carousel (Auto-slide) --------------------
+class _ExploreGrid extends ConsumerStatefulWidget {
   const _ExploreGrid({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 180,
-        child: Row(
-          children: [
-            // Vétérinaires (grand carré à gauche) → image de fond
-            Expanded(
-              child: _ExploreCard(
-                title: 'Vétérinaires',
-                onTap: () => context.push('/explore/vets'),
-                big: true,
-                bgAsset: 'assets/images/vet.png',
-              ),
-            ),
-            const SizedBox(width: 12),
-            // À droite: Shop (haut), Garderies (bas) → images de fond
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _ExploreCard(
-                      title: 'Shop',
-                      onTap: () => context.push('/explore/petshop'),
-                      bgAsset: 'assets/images/shop.png',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: _ExploreCard(
-                      title: 'Garderies',
-                      onTap: () => context.push('/explore/garderie'),
-                      bgAsset: 'assets/images/care.png',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  ConsumerState<_ExploreGrid> createState() => _ExploreGridState();
 }
 
-class _ExploreCard extends StatelessWidget {
-  const _ExploreCard({
-    required this.title,
-    required this.onTap,
-    this.big = false,
-    this.bgAsset, // image de fond (plein cadre)
-    this.icon,    // fallback si pas d'image
-    super.key,
-  });
+class _ExploreGridState extends ConsumerState<_ExploreGrid> {
+  late final PageController _pageController;
+  Timer? _autoSlideTimer;
+  int _currentPage = 0;
+  bool _isPaused = false;
 
-  final String title;
-  final VoidCallback onTap;
-  final bool big;
-  final String? bgAsset;
-  final IconData? icon;
+  // Données des services (routes inchangées)
+  static const _services = [
+    ('veterinarians', Icons.medical_services_outlined, 'assets/images/vet.png', '/explore/vets'),
+    ('shop', Icons.storefront_outlined, 'assets/images/shop.png', '/explore/petshop'),
+    ('daycares', Icons.pets_outlined, 'assets/images/care.png', '/explore/garderie'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.85);
+    _startAutoSlide();
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoSlide() {
+    _autoSlideTimer?.cancel();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || _isPaused) return;
+      final nextPage = (_currentPage + 1) % _services.length;
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  void _pauseAutoSlide() {
+    _isPaused = true;
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _isPaused = false);
+    });
+  }
+
+  String _getLabel(String key, AppLocalizations l10n) {
+    switch (key) {
+      case 'veterinarians': return l10n.veterinarians;
+      case 'shop': return l10n.shop;
+      case 'daycares': return l10n.daycares;
+      default: return key;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    const rose = Color(0xFFF36C6C);
-    const roseLight = Color(0xFFFFEEF0);
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
 
-    final hasBg = bgAsset != null && bgAsset!.isNotEmpty;
+    const pink = Color(0xFFF2968F);
+    const pinkGlow = Color(0xFFFFC2BE);
+    final bgCard = isDark ? const Color(0xFF1A1A1A) : Colors.white;
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFD6DA);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            image: hasBg
-                ? DecorationImage(
-                    image: AssetImage(bgAsset!),
-                    fit: BoxFit.cover,
-                  )
-                : null,
-            gradient: hasBg
-                ? null
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: big ? [rose.withOpacity(.18), roseLight] : [roseLight, Colors.white],
-                  ),
-            boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0, 6))],
-            border: Border.all(color: const Color(0xFFFFD6DA)),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                // ✅ Gradient sombre en bas pour lisibilite du texte (sans filtre rose)
-                if (hasBg)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.4),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: Align(
-                          alignment: hasBg ? Alignment.bottomLeft : Alignment.topLeft,
-                          child: Text(
-                            title,
-                            maxLines: 2,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color: hasBg ? Colors.white : Colors.black,
-                              shadows: hasBg
-                                  ? const [Shadow(blurRadius: 4, color: Color(0x80000000), offset: Offset(0, 2))]
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (!hasBg && icon != null)
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: Icon(icon, size: big ? 36 : 28, color: rose),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Titre section
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            l10n.services,
+            style: TextStyle(
+              fontFamily: 'SFPRO',
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
         ),
-      ),
+        const SizedBox(height: 12),
+
+        // Carousel
+        SizedBox(
+          height: 180,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification) {
+                _pauseAutoSlide();
+              }
+              return false;
+            },
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) => setState(() => _currentPage = index),
+              itemCount: _services.length,
+              itemBuilder: (context, index) {
+                final (labelKey, icon, asset, route) = _services[index];
+                final label = _getLabel(labelKey, l10n);
+
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    double scale = 1.0;
+                    if (_pageController.position.haveDimensions) {
+                      final page = _pageController.page ?? _currentPage.toDouble();
+                      scale = (1 - (page - index).abs() * 0.1).clamp(0.9, 1.0);
+                    }
+
+                    return Transform.scale(
+                      scale: scale,
+                      child: GestureDetector(
+                        onTap: () => context.push(route),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: bgCard,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: borderColor),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withOpacity(0.3)
+                                    : pink.withOpacity(0.15),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            image: DecorationImage(
+                              image: AssetImage(asset),
+                              fit: BoxFit.cover,
+                              colorFilter: ColorFilter.mode(
+                                Colors.black.withOpacity(isDark ? 0.4 : 0.25),
+                                BlendMode.darken,
+                              ),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Gradient overlay
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(isDark ? 0.7 : 0.5),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // Content
+                              Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: pink.withOpacity(0.9),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: pinkGlow.withOpacity(0.5),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(icon, color: Colors.white, size: 22),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      label,
+                                      style: const TextStyle(
+                                        fontFamily: 'SFPRO',
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        shadows: [
+                                          Shadow(
+                                            blurRadius: 8,
+                                            color: Color(0x80000000),
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'Explorer',
+                                          style: TextStyle(
+                                            fontFamily: 'SFPRO',
+                                            fontSize: 13,
+                                            color: Colors.white.withOpacity(0.9),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 14,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Dots indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_services.length, (index) {
+            final isActive = index == _currentPage;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 20 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? pink : (isDark ? Colors.white.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
 
 /// -------------------- Mes animaux (carnet de santé) --------------------
-class _MyPetsButton extends StatelessWidget {
+class _MyPetsButton extends ConsumerWidget {
   const _MyPetsButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    const coral = Color(0xFFF36C6C);
-    const coralSoft = Color(0xFFFFEEF0);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    const coral = Color(0xFFF2968F);
+    final coralSoft = isDark ? const Color(0xFF2A1A1C) : const Color(0xFFFFEEF0);
+    final bgColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFD6DA);
+    final textColor = isDark ? Colors.white : const Color(0xFF222222);
+    final subtitleColor = isDark ? Colors.white.withOpacity(0.6) : Colors.grey.shade600;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
-        color: Colors.white,
+        color: bgColor,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () => context.push('/pets'),
@@ -2904,9 +3037,13 @@ class _MyPetsButton extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFFD6DA)),
-              boxShadow: const [
-                BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6)),
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black.withOpacity(0.3) : const Color(0x0F000000),
+                  blurRadius: 10,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: Row(
@@ -2925,26 +3062,28 @@ class _MyPetsButton extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Mes animaux',
+                      Text(
+                        l10n.myAnimals,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF222222),
+                          fontFamily: 'SFPRO',
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Carnet de sante & QR code veterinaire',
+                        l10n.healthRecordQr,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          fontFamily: 'SFPRO',
+                          color: subtitleColor,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                Icon(Icons.arrow_forward_ios, size: 16, color: isDark ? Colors.white.withOpacity(0.5) : Colors.grey),
               ],
             ),
           ),
@@ -2960,6 +3099,10 @@ class _MapPreview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
     final pos = ref
         .watch(homeUserPositionStreamProvider)
         .maybeWhen(data: (p) => p, orElse: () => null);
@@ -2978,6 +3121,13 @@ class _MapPreview extends ConsumerWidget {
     final LatLng? center =
         pos != null ? LatLng(pos.latitude, pos.longitude) : profileCenter;
 
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFD6DA);
+
+    // Map tile URL based on theme
+    final tileUrl = isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ClipRRect(
@@ -2989,7 +3139,7 @@ class _MapPreview extends ConsumerWidget {
             children: [
               // 1) Carte non interactive OU placeholder si pas de centre
               if (center == null)
-                const _MapPlaceholder()
+                _MapPlaceholder(isDark: isDark)
               else
                 IgnorePointer(
                   ignoring: true,
@@ -3001,10 +3151,9 @@ class _MapPreview extends ConsumerWidget {
                           const InteractionOptions(flags: InteractiveFlag.none),
                     ),
                     children: [
-                      // ✅ Utiliser CartoDB Positron (theme clair)
+                      // ✅ Utiliser CartoDB (theme clair ou sombre)
                       TileLayer(
-                        urlTemplate:
-                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                        urlTemplate: tileUrl,
                         subdomains: const ['a', 'b', 'c', 'd'],
                         userAgentPackageName: 'com.vethome.app',
                       ),
@@ -3043,7 +3192,7 @@ class _MapPreview extends ConsumerWidget {
                 ignoring: true,
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFFFD6DA)),
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
@@ -3078,17 +3227,29 @@ class _MapPreview extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF36C6C),
+                        color: const Color(0xFFF2968F),
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 8, offset: Offset(0, 3))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF2968F).withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.badge_outlined, size: 16, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Professionnels à proximité',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                          const Icon(Icons.badge_outlined, size: 16, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.nearbyProfessionals,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'SFPRO',
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -3104,26 +3265,32 @@ class _MapPreview extends ConsumerWidget {
 }
 
 class _MapPlaceholder extends StatelessWidget {
-  const _MapPlaceholder();
+  const _MapPlaceholder({this.isDark = false});
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Fond clair neutre avec icone de localisation
+    // ✅ Fond neutre avec icone de localisation
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.grey[100],
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.map_outlined, size: 48, color: Colors.grey[400]),
+            Icon(
+              Icons.map_outlined,
+              size: 48,
+              color: isDark ? Colors.white.withOpacity(0.3) : Colors.grey[400],
+            ),
             const SizedBox(height: 8),
             Text(
               'Chargement de la carte...',
               style: TextStyle(
-                color: Colors.grey[500],
+                color: isDark ? Colors.white.withOpacity(0.5) : Colors.grey[500],
                 fontSize: 12,
+                fontFamily: 'SFPRO',
               ),
             ),
           ],
@@ -3155,15 +3322,24 @@ class _GridPainter extends CustomPainter {
 
 /// -------------------- Vethub --------------------
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text, {this.trailing});
+  const _SectionTitle(this.text, {this.trailing, this.isDark = false});
   final String text;
   final Widget? trailing;
+  final bool isDark;
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(children: [
-        Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'SFPRO',
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
         const Spacer(),
         if (trailing != null) trailing!,
       ]),
@@ -3171,14 +3347,22 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _VethubRow extends StatelessWidget {
+class _VethubRow extends ConsumerWidget {
   const _VethubRow();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
     final cards = [
-      ('https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800', 'Adoptez, changez une vie', '/adopt'),
-      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', 'Boostez votre carrière.', '/internships'),
+      ('https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800', l10n.adoptChangeLife, '/adopt'),
+      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', l10n.boostCareer, '/internships'),
     ];
+
+    final labelBg = isDark ? const Color(0xFF1A1A1A).withOpacity(0.9) : Colors.white.withOpacity(0.9);
+    final labelColor = isDark ? Colors.white : Colors.black87;
+
     return SizedBox(
       height: 180,
       child: ListView.separated(
@@ -3194,18 +3378,40 @@ class _VethubRow extends StatelessWidget {
             child: Ink(
               width: 240,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: isDark ? const Color(0xFF1A1A1A) : Colors.grey[200],
                 borderRadius: BorderRadius.circular(16),
-                image: DecorationImage(image: NetworkImage(img), fit: BoxFit.cover),
-                boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0, 6))],
+                image: DecorationImage(
+                  image: NetworkImage(img),
+                  fit: BoxFit.cover,
+                  colorFilter: isDark
+                      ? ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken)
+                      : null,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark ? Colors.black.withOpacity(0.3) : const Color(0x11000000),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Align(
                 alignment: Alignment.bottomLeft,
                 child: Container(
                   margin: const EdgeInsets.all(12),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(.9), borderRadius: BorderRadius.circular(10)),
-                  child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  decoration: BoxDecoration(
+                    color: labelBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'SFPRO',
+                      color: labelColor,
+                    ),
+                  ),
                 ),
               ),
             ),
