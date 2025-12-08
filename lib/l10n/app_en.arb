@@ -1,0 +1,91 @@
+{
+  "@@locale": "en",
+
+  "appName": "Vegece",
+  "youAre": "You are",
+  "individual": "Individual",
+  "professional": "Professional",
+  "termsOfUse": "Terms of use",
+  "language": "Language",
+
+  "login": "Login",
+  "emailOrPhone": "Email / phone number",
+  "password": "Password",
+  "forgotPassword": "Forgot password?",
+  "confirm": "Confirm",
+  "or": "OR",
+  "continueWithGoogle": "Continue with Google",
+  "noAccount": "No account?",
+  "signUp": "Sign up",
+
+  "createAccount": "Create an account",
+  "firstName": "First name",
+  "lastName": "Last name",
+  "email": "Email address",
+  "phone": "Phone",
+  "confirmPassword": "Confirm password",
+
+  "next": "Next",
+  "previous": "Previous",
+  "skip": "Skip",
+  "finish": "Finish",
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "edit": "Edit",
+  "close": "Close",
+  "loading": "Loading...",
+  "error": "Error",
+  "success": "Success",
+
+  "errorInvalidEmail": "Enter a valid email (or phone number)",
+  "errorPasswordRequired": "Password required",
+  "errorIncorrectCredentials": "Incorrect email or password.",
+  "errorFixFields": "Please fix the fields in red.",
+
+  "errorFirstNameRequired": "First name required",
+  "errorFirstNameMin": "First name: minimum 3 characters",
+  "errorFirstNameMax": "First name: maximum 15 characters",
+
+  "errorLastNameRequired": "Last name required",
+  "errorLastNameMin": "Last name: minimum 3 characters",
+  "errorLastNameMax": "Last name: maximum 15 characters",
+
+  "errorEmailInvalid": "Invalid email",
+  "errorPasswordWeak": "Password too weak",
+  "errorPasswordMismatch": "Passwords do not match",
+  "errorConfirmRequired": "Confirmation required",
+
+  "errorPhoneRequired": "Phone required",
+  "errorPhoneFormat": "Number must start with 05, 06 or 07",
+  "errorPhoneLength": "Number must contain 10 digits",
+
+  "errorEmailTaken": "Email already in use",
+  "errorPhoneTaken": "Phone already in use",
+
+  "passwordHelper": "Min. 8 characters, with UPPERCASE and lowercase",
+  "emailVerificationNote": "We verify the email and create the account at this step.",
+
+  "profilePhotoOptional": "Profile photo (optional)",
+  "choosePhoto": "Choose a photo",
+  "removePhoto": "Remove",
+  "skipPhotoNote": "You can skip this step and add a photo later.",
+
+  "proAccountDetected": "Pro account detected",
+  "proAccountMessage": "This account is configured for the professional space.\nDo you want to switch to Pro login?",
+  "goToPro": "Go to Pro",
+
+  "clientAccountDetected": "Client account detected",
+  "clientAccountMessage": "This account does not have a professional profile yet.\nWould you like to log in as Individual, or create your Pro account?",
+  "goToIndividual": "Go to Individual",
+  "createProAccount": "Create a Pro account",
+
+  "home": "Home",
+  "myPets": "My pets",
+  "bookings": "Appointments",
+  "profile": "Profile",
+  "settings": "Settings",
+  "logout": "Logout",
+
+  "animalWellbeing": "Animal wellbeing"
+}

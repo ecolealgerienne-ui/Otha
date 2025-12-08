@@ -1,0 +1,219 @@
+{
+  "@@locale": "fr",
+
+  "appName": "Vegece",
+  "@appName": {"description": "Nom de l'application"},
+
+  "youAre": "Vous êtes",
+  "@youAre": {"description": "Question sur l'écran de sélection"},
+
+  "individual": "Particulier",
+  "@individual": {"description": "Option particulier"},
+
+  "professional": "Professionnel",
+  "@professional": {"description": "Option professionnel"},
+
+  "termsOfUse": "Conditions d'utilisation",
+  "@termsOfUse": {"description": "Lien conditions d'utilisation"},
+
+  "language": "Langue",
+  "@language": {"description": "Sélecteur de langue"},
+
+  "login": "Se connecter",
+  "@login": {"description": "Titre page connexion"},
+
+  "emailOrPhone": "Email / numéro de téléphone",
+  "@emailOrPhone": {"description": "Label champ email/téléphone"},
+
+  "password": "Mot de passe",
+  "@password": {"description": "Label mot de passe"},
+
+  "forgotPassword": "Mot de passe oublié ?",
+  "@forgotPassword": {"description": "Lien mot de passe oublié"},
+
+  "confirm": "Confirmer",
+  "@confirm": {"description": "Bouton confirmer"},
+
+  "or": "OU",
+  "@or": {"description": "Séparateur ou"},
+
+  "continueWithGoogle": "Continuer avec Google",
+  "@continueWithGoogle": {"description": "Bouton Google"},
+
+  "noAccount": "Pas de compte ?",
+  "@noAccount": {"description": "Texte pas de compte"},
+
+  "signUp": "S'inscrire",
+  "@signUp": {"description": "Lien inscription"},
+
+  "createAccount": "Créer un compte",
+  "@createAccount": {"description": "Titre page inscription"},
+
+  "firstName": "Prénom",
+  "@firstName": {"description": "Label prénom"},
+
+  "lastName": "Nom",
+  "@lastName": {"description": "Label nom"},
+
+  "email": "Adresse email",
+  "@email": {"description": "Label email"},
+
+  "phone": "Téléphone",
+  "@phone": {"description": "Label téléphone"},
+
+  "confirmPassword": "Confirmer le mot de passe",
+  "@confirmPassword": {"description": "Label confirmation mot de passe"},
+
+  "next": "Suivant",
+  "@next": {"description": "Bouton suivant"},
+
+  "previous": "Précédent",
+  "@previous": {"description": "Bouton précédent"},
+
+  "skip": "Ignorer",
+  "@skip": {"description": "Bouton ignorer"},
+
+  "finish": "Terminer",
+  "@finish": {"description": "Bouton terminer"},
+
+  "cancel": "Annuler",
+  "@cancel": {"description": "Bouton annuler"},
+
+  "save": "Enregistrer",
+  "@save": {"description": "Bouton enregistrer"},
+
+  "delete": "Supprimer",
+  "@delete": {"description": "Bouton supprimer"},
+
+  "edit": "Modifier",
+  "@edit": {"description": "Bouton modifier"},
+
+  "close": "Fermer",
+  "@close": {"description": "Bouton fermer"},
+
+  "loading": "Chargement...",
+  "@loading": {"description": "Texte chargement"},
+
+  "error": "Erreur",
+  "@error": {"description": "Titre erreur"},
+
+  "success": "Succès",
+  "@success": {"description": "Titre succès"},
+
+  "errorInvalidEmail": "Entrez un email (ou numéro) valide",
+  "@errorInvalidEmail": {"description": "Erreur email invalide"},
+
+  "errorPasswordRequired": "Mot de passe requis",
+  "@errorPasswordRequired": {"description": "Erreur mot de passe requis"},
+
+  "errorIncorrectCredentials": "Email ou mot de passe incorrect.",
+  "@errorIncorrectCredentials": {"description": "Erreur identifiants incorrects"},
+
+  "errorFixFields": "Veuillez corriger les champs en rouge.",
+  "@errorFixFields": {"description": "Erreur champs invalides"},
+
+  "errorFirstNameRequired": "Prénom requis",
+  "@errorFirstNameRequired": {"description": "Erreur prénom requis"},
+
+  "errorFirstNameMin": "Prénom: minimum 3 caractères",
+  "@errorFirstNameMin": {"description": "Erreur prénom trop court"},
+
+  "errorFirstNameMax": "Prénom: maximum 15 caractères",
+  "@errorFirstNameMax": {"description": "Erreur prénom trop long"},
+
+  "errorLastNameRequired": "Nom requis",
+  "@errorLastNameRequired": {"description": "Erreur nom requis"},
+
+  "errorLastNameMin": "Nom: minimum 3 caractères",
+  "@errorLastNameMin": {"description": "Erreur nom trop court"},
+
+  "errorLastNameMax": "Nom: maximum 15 caractères",
+  "@errorLastNameMax": {"description": "Erreur nom trop long"},
+
+  "errorEmailInvalid": "Email invalide",
+  "@errorEmailInvalid": {"description": "Erreur email invalide"},
+
+  "errorPasswordWeak": "Mot de passe trop faible",
+  "@errorPasswordWeak": {"description": "Erreur mot de passe faible"},
+
+  "errorPasswordMismatch": "Les mots de passe ne correspondent pas",
+  "@errorPasswordMismatch": {"description": "Erreur mots de passe différents"},
+
+  "errorConfirmRequired": "Confirmation requise",
+  "@errorConfirmRequired": {"description": "Erreur confirmation requise"},
+
+  "errorPhoneRequired": "Téléphone requis",
+  "@errorPhoneRequired": {"description": "Erreur téléphone requis"},
+
+  "errorPhoneFormat": "Le numéro doit commencer par 05, 06 ou 07",
+  "@errorPhoneFormat": {"description": "Erreur format téléphone"},
+
+  "errorPhoneLength": "Le numéro doit contenir 10 chiffres",
+  "@errorPhoneLength": {"description": "Erreur longueur téléphone"},
+
+  "errorEmailTaken": "Email déjà utilisé",
+  "@errorEmailTaken": {"description": "Erreur email pris"},
+
+  "errorPhoneTaken": "Téléphone déjà utilisé",
+  "@errorPhoneTaken": {"description": "Erreur téléphone pris"},
+
+  "passwordHelper": "Min. 8 caractères, avec MAJUSCULE et minuscule",
+  "@passwordHelper": {"description": "Aide mot de passe"},
+
+  "emailVerificationNote": "Nous vérifions l'email et créons le compte à cette étape.",
+  "@emailVerificationNote": {"description": "Note vérification email"},
+
+  "profilePhotoOptional": "Photo de profil (optionnel)",
+  "@profilePhotoOptional": {"description": "Titre photo profil"},
+
+  "choosePhoto": "Choisir une photo",
+  "@choosePhoto": {"description": "Bouton choisir photo"},
+
+  "removePhoto": "Retirer",
+  "@removePhoto": {"description": "Bouton retirer photo"},
+
+  "skipPhotoNote": "Vous pouvez ignorer cette étape et ajouter une photo plus tard.",
+  "@skipPhotoNote": {"description": "Note ignorer photo"},
+
+  "proAccountDetected": "Compte pro détecté",
+  "@proAccountDetected": {"description": "Titre dialogue pro détecté"},
+
+  "proAccountMessage": "Ce compte est configuré pour l'espace professionnel.\nVoulez-vous passer à la connexion Pro ?",
+  "@proAccountMessage": {"description": "Message pro détecté"},
+
+  "goToPro": "Aller vers Pro",
+  "@goToPro": {"description": "Bouton aller pro"},
+
+  "clientAccountDetected": "Compte client détecté",
+  "@clientAccountDetected": {"description": "Titre dialogue client détecté"},
+
+  "clientAccountMessage": "Ce compte n'a pas encore de profil professionnel.\nSouhaitez-vous vous connecter côté Particulier, ou créer votre compte Pro ?",
+  "@clientAccountMessage": {"description": "Message client détecté"},
+
+  "goToIndividual": "Aller vers Particulier",
+  "@goToIndividual": {"description": "Bouton aller particulier"},
+
+  "createProAccount": "Créer un compte Pro",
+  "@createProAccount": {"description": "Bouton créer compte pro"},
+
+  "home": "Accueil",
+  "@home": {"description": "Menu accueil"},
+
+  "myPets": "Mes animaux",
+  "@myPets": {"description": "Menu mes animaux"},
+
+  "bookings": "Rendez-vous",
+  "@bookings": {"description": "Menu rendez-vous"},
+
+  "profile": "Profil",
+  "@profile": {"description": "Menu profil"},
+
+  "settings": "Paramètres",
+  "@settings": {"description": "Menu paramètres"},
+
+  "logout": "Déconnexion",
+  "@logout": {"description": "Bouton déconnexion"},
+
+  "animalWellbeing": "Le bien-être animal",
+  "@animalWellbeing": {"description": "Tagline splash"}
+}
