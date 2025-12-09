@@ -1,4 +1,3 @@
-// ⬇️ Ajoute ces imports tout en haut
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -7,6 +6,18 @@ plugins {
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        load(FileInputStream(keystorePropertiesFile))
+    }
+}
+val hasKeystore = keystorePropertiesFile.exists()
+        && keystoreProperties.containsKey("storeFile")
+        && keystoreProperties.containsKey("storePassword")
+        && keystoreProperties.containsKey("keyAlias")
+        && keystoreProperties.containsKey("keyPassword")
 
 android {
     namespace = "com.vegece.app"
@@ -21,32 +32,19 @@ android {
 
     defaultConfig {
         applicationId = "com.vegece.app"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    // ---------- Signature Release via key.properties ----------
-    val keystorePropsFile = rootProject.file("key.properties")
-    val keystoreProps = Properties().apply {
-        if (keystorePropsFile.exists()) {
-            load(FileInputStream(keystorePropsFile))
-        }
-    }
-    val hasKeystore = keystorePropsFile.exists()
-            && keystoreProps.containsKey("storeFile")
-            && keystoreProps.containsKey("storePassword")
-            && keystoreProps.containsKey("keyAlias")
-            && keystoreProps.containsKey("keyPassword")
-
     signingConfigs {
-        create("release") {
-            if (hasKeystore) {
-                storeFile = file(keystoreProps["storeFile"] as String)
-                storePassword = keystoreProps["storePassword"] as String
-                keyAlias = keystoreProps["keyAlias"] as String
-                keyPassword = keystoreProps["keyPassword"] as String
+        if (hasKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
             }
         }
     }
@@ -63,7 +61,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-        debug { /* rien */ }
     }
 }
 
