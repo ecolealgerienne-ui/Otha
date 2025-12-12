@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../i18n';
 import type { Language } from '../i18n';
 import './landing.css';
@@ -512,9 +512,9 @@ export function LandingPage() {
 
               <div className="footer-nav-column">
                 <span className="footer-nav-title">{t.footer.support}</span>
-                <a href="#" className="footer-nav-link">{t.footer.helpCenter}</a>
-                <a href="#" className="footer-nav-link">{t.footer.contact}</a>
-                <a href="#" className="footer-nav-link">{t.footer.faq}</a>
+                <Link to="/support" className="footer-nav-link">{t.footer.helpCenter}</Link>
+                <Link to="/support" className="footer-nav-link">{t.footer.contact}</Link>
+                <Link to="/support" className="footer-nav-link">{t.footer.faq}</Link>
               </div>
             </div>
 
@@ -543,9 +543,9 @@ export function LandingPage() {
           <div className="footer-bottom">
             <span className="footer-copyright">{t.footer.copyright}</span>
             <div className="footer-legal">
-              <a href="#" className="footer-legal-link">{t.footer.legal}</a>
-              <a href="#" className="footer-legal-link">{t.footer.privacy}</a>
-              <a href="#" className="footer-legal-link">{t.footer.terms}</a>
+              <Link to="/legal" className="footer-legal-link">{t.footer.legal}</Link>
+              <Link to="/privacy" className="footer-legal-link">{t.footer.privacy}</Link>
+              <Link to="/terms" className="footer-legal-link">{t.footer.terms}</Link>
             </div>
           </div>
         </footer>

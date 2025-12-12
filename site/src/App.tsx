@@ -8,6 +8,14 @@ import { ProtectedRoute } from './shared/components/ProtectedRoute';
 // Landing
 import { LandingPage } from './landing';
 
+// Legal pages
+import {
+  LegalNoticePage,
+  PrivacyPolicyPage,
+  TermsPage,
+  SupportPage,
+} from './legal';
+
 // Contexts
 import { ScannedPetProvider } from './contexts/ScannedPetContext';
 import { LanguageProvider } from './i18n';
@@ -55,6 +63,12 @@ function App() {
           {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Legal pages */}
+          <Route path="/legal" element={<LegalNoticePage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/support" element={<SupportPage />} />
 
           {/* Admin routes */}
           <Route
