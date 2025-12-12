@@ -1352,21 +1352,53 @@ html.landing-active body {
         font-size: 10px;
     }
 
+    .landing-page .main {
+        padding: 0 20px;
+        padding-top: 10vh;
+        justify-content: center;
+    }
+
     .landing-page .main-title {
-        font-size: 48px;
-        letter-spacing: 10px;
-        margin-top: 100px;
+        font-size: 42px;
+        letter-spacing: 8px;
+        margin-top: 0;
         text-align: center;
+        animation: revealTitleMobile 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
+                   subtleGlow 4s ease-in-out 2s infinite;
+    }
+
+    @keyframes revealTitleMobile {
+        0% {
+            opacity: 0;
+            letter-spacing: 30px;
+            filter: blur(10px);
+        }
+        50% {
+            opacity: 0.5;
+            filter: blur(5px);
+        }
+        100% {
+            opacity: 1;
+            letter-spacing: 8px;
+            filter: blur(0);
+        }
     }
 
     .landing-page .main-slogan {
-        font-size: 18px;
-        margin-top: 150px;
+        font-size: 16px;
+        margin-top: 40px;
+        text-align: center;
+        padding: 0 10px;
+        letter-spacing: 1px;
     }
 
     .landing-page .main-btn {
         padding: 12px 30px;
         font-size: 14px;
+    }
+
+    .landing-page .main-btn.scroll-arrow {
+        margin-top: 30px;
     }
 
     .landing-page .showcase {

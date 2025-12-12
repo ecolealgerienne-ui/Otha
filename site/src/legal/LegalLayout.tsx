@@ -1,7 +1,30 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n';
+import type { Language } from '../i18n';
 import './legal.css';
+
+// Configuration des drapeaux
+const FLAGS: Record<Language, { lang: Language; imgSrc: string; altText: string; dataImg: string }> = {
+  fr: {
+    lang: 'fr',
+    imgSrc: '/assets/img/french.png',
+    altText: 'Français',
+    dataImg: 'france'
+  },
+  en: {
+    lang: 'en',
+    imgSrc: '/assets/img/english.png',
+    altText: 'English',
+    dataImg: 'uk'
+  },
+  ar: {
+    lang: 'ar',
+    imgSrc: '/assets/img/algeria.png',
+    altText: 'العربية',
+    dataImg: 'algeria'
+  }
+};
 
 interface LegalLayoutProps {
   children: ReactNode;
@@ -10,10 +33,44 @@ interface LegalLayoutProps {
 }
 
 export function LegalLayout({ children, title, subtitle }: LegalLayoutProps) {
-  const { t, isRTL } = useLanguage();
+  const { language, setLanguage, t, isRTL } = useLanguage();
+  const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
+
+  // Obtenir les drapeaux disponibles (excluant la langue actuelle)
+  const getOtherFlags = () => {
+    return Object.values(FLAGS).filter(flag => flag.lang !== language);
+  };
 
   return (
     <div className={`legal-page ${isRTL ? 'rtl' : ''}`}>
+      {/* Language Selector */}
+      <div
+        id="language-selector"
+        className={`legal-language-selector ${isLanguageSelectorOpen ? 'open' : ''}`}
+      >
+        <div
+          className="flag-circle main-flag"
+          onClick={() => setIsLanguageSelectorOpen(!isLanguageSelectorOpen)}
+        >
+          <img src={FLAGS[language].imgSrc} alt={FLAGS[language].altText} />
+        </div>
+
+        <div className="sub-flags">
+          {getOtherFlags().map((flag) => (
+            <div
+              key={flag.lang}
+              className="flag-circle sub-flag"
+              onClick={() => {
+                setLanguage(flag.lang);
+                setIsLanguageSelectorOpen(false);
+              }}
+            >
+              <img src={flag.imgSrc} alt={flag.altText} />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Navigation */}
       <nav className="legal-navigation">
         <Link to="/" className="legal-nav-logo">
