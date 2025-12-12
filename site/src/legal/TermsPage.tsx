@@ -116,7 +116,7 @@ export function TermsPage() {
             </ul>
             <p><strong>Pour les Professionnels :</strong></p>
             <ul>
-              <li>Une commission de <strong>100 DA</strong> est prélevée sur chaque réservation effectuée via l'Application</li>
+              <li>Une commission est prélevée sur chaque réservation effectuée via l'Application</li>
               <li>Les revenus sont versés mensuellement selon les modalités convenues</li>
             </ul>
             <p><strong>Politique d'annulation :</strong></p>
@@ -317,7 +317,7 @@ export function TermsPage() {
             </ul>
             <p><strong>For Professionals:</strong></p>
             <ul>
-              <li>A commission of <strong>100 DA</strong> is charged on each booking made through the Application</li>
+              <li>A commission is charged on each booking made through the Application</li>
               <li>Earnings are paid monthly according to agreed terms</li>
             </ul>
             <p><strong>Cancellation policy:</strong></p>
@@ -510,7 +510,7 @@ export function TermsPage() {
             </ul>
             <p><strong>للمحترفين:</strong></p>
             <ul>
-              <li>يتم خصم عمولة قدرها <strong>100 دج</strong> على كل حجز يتم عبر التطبيق</li>
+              <li>يتم خصم عمولة على كل حجز يتم عبر التطبيق</li>
               <li>يتم دفع الأرباح شهريًا وفقًا للشروط المتفق عليها</li>
             </ul>
             <p><strong>سياسة الإلغاء:</strong></p>

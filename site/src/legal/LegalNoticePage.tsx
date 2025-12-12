@@ -51,9 +51,10 @@ export function LegalNoticePage() {
             <div class="legal-info-card">
               <div class="legal-info-card-title"><i class="fa-solid fa-server"></i> Hébergeur du site</div>
               <div class="legal-info-card-content">
-                <p><strong>Nom :</strong> [Nom de l'hébergeur]</p>
-                <p><strong>Adresse :</strong> [Adresse de l'hébergeur]</p>
-                <p><strong>Téléphone :</strong> [Téléphone de l'hébergeur]</p>
+                <p><strong>Nom :</strong> OVH SAS</p>
+                <p><strong>Adresse :</strong> 2 rue Kellermann, 59100 Roubaix, France</p>
+                <p><strong>Téléphone :</strong> +33 9 72 10 10 07</p>
+                <p><strong>Site web :</strong> <a href="https://www.ovhcloud.com" target="_blank" rel="noopener noreferrer">www.ovhcloud.com</a></p>
               </div>
             </div>
           `
@@ -133,9 +134,10 @@ export function LegalNoticePage() {
             <div class="legal-info-card">
               <div class="legal-info-card-title"><i class="fa-solid fa-server"></i> Website Host</div>
               <div class="legal-info-card-content">
-                <p><strong>Name:</strong> [Host name]</p>
-                <p><strong>Address:</strong> [Host address]</p>
-                <p><strong>Phone:</strong> [Host phone]</p>
+                <p><strong>Name:</strong> OVH SAS</p>
+                <p><strong>Address:</strong> 2 rue Kellermann, 59100 Roubaix, France</p>
+                <p><strong>Phone:</strong> +33 9 72 10 10 07</p>
+                <p><strong>Website:</strong> <a href="https://www.ovhcloud.com" target="_blank" rel="noopener noreferrer">www.ovhcloud.com</a></p>
               </div>
             </div>
           `
@@ -215,9 +217,10 @@ export function LegalNoticePage() {
             <div class="legal-info-card">
               <div class="legal-info-card-title"><i class="fa-solid fa-server"></i> مستضيف الموقع</div>
               <div class="legal-info-card-content">
-                <p><strong>الاسم:</strong> [اسم المستضيف]</p>
-                <p><strong>العنوان:</strong> [عنوان المستضيف]</p>
-                <p><strong>الهاتف:</strong> [هاتف المستضيف]</p>
+                <p><strong>الاسم:</strong> OVH SAS</p>
+                <p><strong>العنوان:</strong> 2 rue Kellermann, 59100 Roubaix, France</p>
+                <p><strong>الهاتف:</strong> +33 9 72 10 10 07</p>
+                <p><strong>الموقع:</strong> <a href="https://www.ovhcloud.com" target="_blank" rel="noopener noreferrer">www.ovhcloud.com</a></p>
               </div>
             </div>
           `
