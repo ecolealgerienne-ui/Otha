@@ -284,140 +284,60 @@ export function ProPatients() {
     setQrError(null);
   };
 
-  // Extract token from QR code text (supports multiple formats)
-  const extractToken = (text: string): string => {
-    // Trim whitespace
-    const trimmed = text.trim();
-
-    // Handle various URL formats
-    // Format: https://vegece.com/pet/{token}
-    // Format: otha://pet/{token}
-    // Format: vegece://pet/{token}
-    if (trimmed.includes('/pet/')) {
-      const parts = trimmed.split('/pet/');
-      const tokenPart = parts[parts.length - 1];
-      // Remove any trailing slashes or query params
-      return tokenPart.split(/[?#\/]/)[0] || trimmed;
-    }
-
-    // Format: ...?token={token} or &token={token}
-    if (trimmed.includes('token=')) {
-      const match = trimmed.match(/token=([^&\s#]+)/);
-      return match ? match[1] : trimmed;
-    }
-
-    // Format: https://vegece.com/scan/{token}
-    if (trimmed.includes('/scan/')) {
-      const parts = trimmed.split('/scan/');
-      const tokenPart = parts[parts.length - 1];
-      return tokenPart.split(/[?#\/]/)[0] || trimmed;
-    }
-
-    // Format: otha://{token} or vegece://{token} (deep link with token only)
-    if (trimmed.includes('://') && !trimmed.includes('http')) {
-      const parts = trimmed.split('://');
-      if (parts.length >= 2) {
-        const afterScheme = parts[1];
-        // If there's no path, use the whole thing after ://
-        if (!afterScheme.includes('/')) {
-          return afterScheme;
-        }
-      }
-    }
-
-    // If it looks like a UUID or token directly, use as-is
-    return trimmed;
-  };
-
   const handleQrResult = async (text: string) => {
-    const token = extractToken(text);
-
-    console.log('[QR Scan] Raw text:', text);
-    console.log('[QR Scan] Extracted token:', token);
-
-    if (!token) {
-      alert('QR code invalide: aucun token trouvé');
-      return;
+    let token = text;
+    if (text.includes('/pet/')) {
+      token = text.split('/pet/').pop() || text;
+    } else if (text.includes('token=')) {
+      token = text.split('token=').pop() || text;
     }
 
     setShowQrScanner(false);
     setScanLoading(true);
-    setQrError(null);
 
     try {
-      console.log('[QR Scan] Calling getPetByToken...');
       const result = await api.getPetByToken(token);
-      console.log('[QR Scan] API response:', result);
-
-      if (!result) {
-        throw new Error('Réponse vide du serveur');
-      }
-
-      if (!result.pet) {
+      if (!result || !result.pet) {
         throw new Error('Aucun animal trouvé pour ce QR code');
       }
 
-      console.log('[QR Scan] Pet found:', result.pet.name, result.pet.id);
-
       // Load additional data
       const [presc, stats, dis] = await Promise.all([
-        api.getPetPrescriptions(result.pet.id).catch((err) => {
-          console.log('[QR Scan] Failed to load prescriptions:', err);
-          return [];
-        }),
-        api.getPetHealthStats(result.pet.id).catch((err) => {
-          console.log('[QR Scan] Failed to load health stats:', err);
-          return null;
-        }),
-        api.getPetDiseases(result.pet.id).catch((err) => {
-          console.log('[QR Scan] Failed to load diseases:', err);
-          return [];
-        }),
+        api.getPetPrescriptions(result.pet.id).catch(() => []),
+        api.getPetHealthStats(result.pet.id).catch(() => null),
+        api.getPetDiseases(result.pet.id).catch(() => []),
       ]);
 
-      console.log('[QR Scan] Additional data loaded:', {
-        prescriptions: presc.length,
-        hasStats: !!stats,
-        diseases: dis.length,
-      });
-
-      // Set pet data in context - this should trigger re-render
       setPetData(
         result.pet,
         token,
         result.medicalRecords || [],
         result.vaccinations || [],
         presc,
-        stats,
+        stats,  // HealthStatsAggregated | null
         dis
       );
-
-      console.log('[QR Scan] Pet data set in context');
 
       // Check for active booking
       if (result.pet?.id) {
         try {
           const booking = await api.getActiveBookingForPet(result.pet.id);
           if (booking) {
-            console.log('[QR Scan] Active booking found:', booking.id);
             setBooking(booking, false);
             try {
               await api.proConfirmBooking(booking.id, 'QR_SCAN');
               setBooking(booking, true);
-              console.log('[QR Scan] Booking confirmed');
             } catch (e) {
-              console.warn('[QR Scan] Could not auto-confirm booking:', e);
+              console.error('Could not auto-confirm:', e);
             }
           }
         } catch (e) {
-          console.log('[QR Scan] No active booking for pet');
+          console.log('No active booking:', e);
         }
       }
     } catch (error) {
-      console.error('[QR Scan] Error:', error);
-      const message = error instanceof Error ? error.message : 'QR code invalide ou erreur serveur';
-      setQrError(message);
-      alert(message);
+      console.error('Error fetching pet:', error);
+      alert(error instanceof Error ? error.message : 'QR code invalide');
     } finally {
       setScanLoading(false);
     }

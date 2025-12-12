@@ -339,35 +339,8 @@ class ApiClient {
 
   // Access via QR code token
   async getPetByToken(token: string): Promise<{ pet: Pet; medicalRecords: MedicalRecord[]; vaccinations: Vaccination[] }> {
-    console.log('[API] getPetByToken called with token:', token);
     const { data } = await this.client.get(`/pets/by-token/${token}`);
-    console.log('[API] getPetByToken raw response:', data);
-
-    // Handle different response formats
-    const result = data?.data || data;
-
-    // If the response is a pet object directly (has id, name, species)
-    if (result && result.id && result.name && !result.pet) {
-      console.log('[API] getPetByToken - response is pet directly');
-      return {
-        pet: result as Pet,
-        medicalRecords: result.medicalRecords || [],
-        vaccinations: result.vaccinations || [],
-      };
-    }
-
-    // If the response has pet as a property
-    if (result && result.pet) {
-      console.log('[API] getPetByToken - response has pet property');
-      return {
-        pet: result.pet,
-        medicalRecords: result.medicalRecords || [],
-        vaccinations: result.vaccinations || [],
-      };
-    }
-
-    console.log('[API] getPetByToken - unexpected format, returning as-is');
-    return result;
+    return data?.data || data;
   }
 
   async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {
