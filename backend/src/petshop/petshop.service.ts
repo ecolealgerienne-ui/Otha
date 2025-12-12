@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Prisma, NotificationType } from '@prisma/client';
+import { Prisma, NotificationType, TrustStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -11,6 +11,25 @@ export class PetshopService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  // ==================== TRUST SYSTEM: Helper pour détecter les nouveaux clients ====================
+  private async isUserFirstOrder(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true },
+    });
+
+    if (user?.trustStatus !== 'NEW') return false;
+
+    // Compter les commandes complétées + bookings complétés
+    const [completedOrders, completedBookings, completedDaycare] = await Promise.all([
+      this.prisma.order.count({ where: { userId, status: 'DELIVERED' } }),
+      this.prisma.booking.count({ where: { userId, status: 'COMPLETED' } }),
+      this.prisma.daycareBooking.count({ where: { userId, status: 'COMPLETED' } }),
+    ]);
+
+    return completedOrders + completedBookings + completedDaycare === 0;
+  }
 
   private async getProviderIdForUser(userId: string) {
     const prov = await this.prisma.providerProfile.findUnique({
@@ -111,6 +130,7 @@ export class PetshopService {
             lastName: true,
             email: true,
             phone: true,
+            trustStatus: true, // ✅ TRUST SYSTEM
           },
         },
         items: {
@@ -129,12 +149,20 @@ export class PetshopService {
       take: 100,
     });
 
-    // Ajouter displayName pour chaque order
+    // ✅ TRUST SYSTEM: Calculer isFirstBooking pour chaque user
+    const userIds = [...new Set(orders.map((o: any) => o.user.id))];
+    const firstOrderMap = new Map<string, boolean>();
+    for (const uid of userIds) {
+      firstOrderMap.set(uid, await this.isUserFirstOrder(uid));
+    }
+
+    // Ajouter displayName et isFirstBooking pour chaque order
     return orders.map((order: any) => ({
       ...order,
       user: {
         ...order.user,
         displayName: this.buildDisplayName(order.user),
+        isFirstBooking: firstOrderMap.get(order.user.id) ?? false, // ✅ Pour afficher "Nouveau client"
       },
     }));
   }

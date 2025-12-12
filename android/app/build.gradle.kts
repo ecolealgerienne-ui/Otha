@@ -1,4 +1,3 @@
-// ⬇️ Ajoute ces imports tout en haut
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -21,41 +20,24 @@ android {
 
     defaultConfig {
         applicationId = "com.vegece.app"
-        minSdk = 21
-        targetSdk = 34
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = flutter.minSdkVersion
+        targetSdk = 35
+        versionCode = 5
+        versionName = "1.0.5"
     }
-
-    // ---------- Signature Release via key.properties ----------
-    val keystorePropsFile = rootProject.file("key.properties")
-    val keystoreProps = Properties().apply {
-        if (keystorePropsFile.exists()) {
-            load(FileInputStream(keystorePropsFile))
-        }
-    }
-    val hasKeystore = keystorePropsFile.exists()
-            && keystoreProps.containsKey("storeFile")
-            && keystoreProps.containsKey("storePassword")
-            && keystoreProps.containsKey("keyAlias")
-            && keystoreProps.containsKey("keyPassword")
 
     signingConfigs {
         create("release") {
-            if (hasKeystore) {
-                storeFile = file(keystoreProps["storeFile"] as String)
-                storePassword = keystoreProps["storePassword"] as String
-                keyAlias = keystoreProps["keyAlias"] as String
-                keyPassword = keystoreProps["keyPassword"] as String
-            }
+            storeFile = file("D:\\VetHome\\vethome\\Claude\\android\\app\\upload-keystore.jks")
+            storePassword = "O0775326005o"
+            keyAlias = "upload"
+            keyPassword = "O0775326005o"
         }
     }
 
     buildTypes {
         release {
-            if (hasKeystore) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -63,7 +45,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-        debug { /* rien */ }
     }
 }
 

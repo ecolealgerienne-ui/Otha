@@ -178,6 +178,12 @@ export class BookingsController {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si l'utilisateur peut réserver
+    const trustCheck = await this.svc.checkUserCanBook(req.user.sub);
+    if (!trustCheck.canBook) {
+      throw new ForbiddenException(trustCheck.reason || 'Vous ne pouvez pas réserver pour le moment');
+    }
+
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
 
@@ -524,5 +530,49 @@ export class BookingsController {
       body.rating,
       body.comment,
     );
+  }
+
+  // ==================== SYSTÈME DE CONFIANCE (ANTI-TROLL) ====================
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut réserver
+   * GET /bookings/me/trust-status
+   * Retourne { canBook, reason?, trustStatus, isFirstBooking?, restrictedUntil? }
+   */
+  @Get('me/trust-status')
+  checkUserCanBook(@Req() req: any) {
+    return this.svc.checkUserCanBook(req.user.sub);
+  }
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut annuler un RDV
+   * GET /bookings/:id/can-cancel
+   * Retourne { canCancel, reason?, isNoShow? }
+   */
+  @Get(':id/can-cancel')
+  checkUserCanCancel(@Req() req: any, @Param('id') id: string) {
+    return this.svc.checkUserCanCancel(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut modifier un RDV
+   * GET /bookings/:id/can-reschedule
+   * Retourne { canReschedule, reason? }
+   */
+  @Get(':id/can-reschedule')
+  checkUserCanReschedule(@Req() req: any, @Param('id') id: string) {
+    return this.svc.checkUserCanReschedule(req.user.sub, id);
+  }
+
+  /**
+   * PRO: Récupérer les infos de confiance d'un client
+   * GET /bookings/user/:userId/trust-info
+   * Retourne { trustStatus, isFirstBooking, noShowCount, totalCompletedBookings }
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('user/:userId/trust-info')
+  getUserTrustInfo(@Param('userId') userId: string) {
+    return this.svc.getUserTrustInfo(userId);
   }
 }

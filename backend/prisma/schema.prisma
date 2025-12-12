@@ -56,6 +56,13 @@ enum AdoptRequestStatus {
   REJECTED  // Refusé par le propriétaire
 }
 
+// Système de confiance utilisateur (anti-troll)
+enum TrustStatus {
+  NEW        // Nouveau user - 1 RDV test max, peut annuler > 12h avant
+  VERIFIED   // User vérifié - RDV illimités
+  RESTRICTED // User restreint - bloqué X jours après no-show
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
@@ -103,6 +110,13 @@ model User {
   lastSwipeDate   DateTime?
   lastPostDate    DateTime?
 
+  // Système de confiance (anti-troll)
+  trustStatus        TrustStatus @default(NEW)    // NEW → VERIFIED après 1er RDV honoré
+  restrictedUntil    DateTime?                    // Date fin de restriction (si RESTRICTED)
+  noShowCount        Int         @default(0)     // Compteur de no-shows consécutifs
+  verifiedAt         DateTime?                    // Date de vérification
+  lastModifiedBooking String?                     // ID du dernier booking modifié (limite 1 modif pour NEW)
+
   @@index([email])
   @@index([city])
   @@index([lat, lng])
@@ -136,11 +150,14 @@ model ProviderProfile {
   timeOffs ProviderTimeOff[]
 
   // Back-relations
-  earnings        ProviderEarning[]
-  collections     AdminCollection[]
-  products        Product[]
-  orders          Order[]
-  daycareBookings DaycareBooking[]
+  earnings         ProviderEarning[]
+  collections      AdminCollection[]
+  products         Product[]
+  orders           Order[]
+  daycareBookings  DaycareBooking[]
+  medicalRecords   MedicalRecord[]
+  prescriptions    Prescription[]
+  diseaseTrackings DiseaseTracking[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -293,6 +310,7 @@ model Pet {
   preventiveCare   PreventiveCare[]
   diseaseTrackings DiseaseTracking[]
   daycareBookings  DaycareBooking[]
+  prescriptions    Prescription[]
 
   @@index([ownerId])
 }
@@ -389,6 +407,7 @@ model PreventiveCare {
 model DiseaseTracking {
   id          String   @id @default(cuid())
   petId       String
+  providerId  String?  // Provider qui a créé le suivi
   name        String   // Nom de la maladie (ex: "Allergie cutanée", "Otite")
   description String?  // Description de la maladie
   status      String   // ONGOING (en cours), CURED (guérie), CHRONIC (chronique), MONITORING (surveillance)
@@ -413,10 +432,13 @@ model DiseaseTracking {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   // Entrées d'évolution (timeline)
   progressEntries DiseaseProgressEntry[]
+
+  @@index([providerId])
 
   @@index([petId, status])
   @@index([petId, diagnosisDate])
@@ -445,7 +467,8 @@ model MedicalRecord {
   title       String
   description String?
   date        DateTime
-  vetId       String?  // Provider ID du vétérinaire (optionnel)
+  vetId       String?  // User ID du vétérinaire (optionnel)
+  providerId  String?  // Provider ID (pour contrôle ownership)
   vetName     String?  // Nom du vétérinaire/garderie
   notes       String?
   images      String[] // URLs des images (radios, ordonnances, etc.)
@@ -464,13 +487,35 @@ model MedicalRecord {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   @@index([petId, date])
   @@index([petId, type])
   @@index([bookingId])
   @@index([daycareBookingId])
+  @@index([providerId])
 }
+
+// Ordonnances (Prescriptions)
+model Prescription {
+  id          String   @id @default(cuid())
+  petId       String
+  providerId  String?  // Provider qui a créé l'ordonnance
+  title       String
+  description String?
+  imageUrl    String?  // URL de l'image (scan/photo de l'ordonnance)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
+
+  @@index([petId, date])
+  @@index([providerId])
+}
+
 
 model PetAccessToken {
   id        String   @id @default(cuid())
@@ -784,11 +829,14 @@ model OrderItem {
 // =========================
 
 enum DaycareBookingStatus {
-  PENDING       // En attente de confirmation
-  CONFIRMED     // Confirmé par la garderie
-  IN_PROGRESS   // Animal déposé (heure d'arrivée enregistrée)
-  COMPLETED     // Animal récupéré (heure de départ enregistrée)
-  CANCELLED     // Annulé
+  PENDING                   // En attente de confirmation
+  CONFIRMED                 // Confirmé par la garderie
+  PENDING_DROP_VALIDATION   // Client a confirmé son arrivée, en attente validation pro
+  IN_PROGRESS               // Animal déposé (heure d'arrivée enregistrée)
+  PENDING_PICKUP_VALIDATION // Client a confirmé le retrait, en attente validation pro
+  COMPLETED                 // Animal récupéré (heure de départ enregistrée)
+  CANCELLED                 // Annulé
+  DISPUTED                  // Litige (fraude suspectée)
 }
 
 model DaycareBooking {
@@ -806,10 +854,39 @@ model DaycareBooking {
   actualDropOff   DateTime?             // Heure réelle de dépôt
   actualPickup    DateTime?             // Heure réelle de récupération
 
+  // ✅ Anti-fraude: Confirmation dépôt
+  clientDropConfirmedAt     DateTime?   // Quand le client a confirmé l'arrivée
+  dropConfirmationMethod    String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  dropCheckinLat            Float?      // GPS latitude lors du check-in dépôt
+  dropCheckinLng            Float?      // GPS longitude lors du check-in dépôt
+  dropOtpCode               String?     // Code OTP pour dépôt (6 chiffres)
+  dropOtpExpiresAt          DateTime?   // Expiration du code OTP dépôt
+
+  // ✅ Anti-fraude: Confirmation retrait
+  clientPickupConfirmedAt   DateTime?   // Quand le client a confirmé le retrait
+  pickupConfirmationMethod  String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  pickupCheckinLat          Float?      // GPS latitude lors du check-in retrait
+  pickupCheckinLng          Float?      // GPS longitude lors du check-in retrait
+  pickupOtpCode             String?     // Code OTP pour retrait (6 chiffres)
+  pickupOtpExpiresAt        DateTime?   // Expiration du code OTP retrait
+
+  // Notes litige
+  disputeNote     String?               // Note en cas de litige
+
   // Tarification
   priceDa         Int                   // Prix de base
   commissionDa    Int       @default(100)  // Commission fixe 100 DA
   totalDa         Int                   // Prix total payé par client
+
+  // ✅ Frais de retard
+  lateFeeDa           Int?              // Frais de retard calculés
+  lateFeeHours        Float?            // Heures de retard
+  lateFeeStatus       String?           // 'PENDING', 'ACCEPTED', 'REJECTED'
+  lateFeeAcceptedAt   DateTime?         // Quand le pro a accepté/refusé
+  lateFeeNote         String?           // Note sur les frais
+
+  // ✅ Notification proximité client
+  clientNearbyAt      DateTime?         // Quand le client est arrivé à proximité
 
   notes           String?               // Notes du client
   createdAt       DateTime              @default(now())

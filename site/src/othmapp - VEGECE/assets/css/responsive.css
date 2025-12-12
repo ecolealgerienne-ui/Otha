@@ -1,0 +1,178 @@
+/* --------------------------------------------------- */
+/* Adaptation pour écrans très larges (2K - 2560px et au-delà) */
+/* --------------------------------------------------- */
+
+@media screen and (min-width: 2000px) {
+
+    /* --- Navigation --- */
+    /* On augmente les marges latérales pour centrer le contenu sur grand écran */
+    .navigation {
+        padding: 0 250px 0 250px; /* Augmenter le padding horizontal */
+        height: 15vh; /* Donner un peu plus de hauteur à la nav */
+        font-size: 16px; /* Agrandir un peu la police de la nav */
+    }
+
+    .nav-logo {
+        font-size: 24px; /* Agrandir le logo */
+    }
+
+    .nav-item {
+        padding: 60px; /* Augmenter l'espace entre les éléments de la nav */
+    }
+
+    /* --- Section Principale (Hero) --- */
+    .main {
+        margin-top: 5vh; /* Ajuster la marge supérieure si la nav est plus haute */
+    }
+    
+    .main-title {
+        margin-top: 180px; /* Plus d'espace au-dessus du titre */
+        font-size: 200px; /* Rendre le titre BEAUCOUP plus gros */
+        letter-spacing: 60px; /* Écartement des lettres encore plus grand */
+    }
+
+    .main-slogan {
+        margin-top: 400px; /* Repousser le slogan vers le bas */
+        font-size: 40px; /* Agrandir le slogan */
+        letter-spacing: 5px;
+    }
+
+    .main-btn {
+        margin-top: 30px;
+        padding: 20px 70px; /* Agrandir le bouton */
+        font-size: 18px;
+    }
+
+
+    /* --- Section Présentation (Showcase) --- */
+    /* On réajuste la grille pour qu'elle s'étire mieux */
+    .showcase {
+        margin-top: 30vh; /* Plus d'espace au-dessus */
+        /* Nouvelle grille : on augmente les colonnes fixes (100px -> 150px) et on ajuste la proportion */
+        grid-template-columns: 150px 150px 70px 30% 70px 1fr 150px; 
+    }
+    
+    .selector-bg {
+        width: 40px; /* Agrandir les sélecteurs de page */
+        height: 120px;
+    }
+
+    .selector-active,
+    .selector-case {
+        width: 20px;
+        height: 20px;
+    }
+
+    .showcase-desc-title {
+        font-size: 64px; /* Agrandir le titre de la description */
+        margin-bottom: 25px;
+    }
+
+    .showcase-desc-text {
+        font-size: 30px; /* Agrandir le texte de la description */
+    }
+
+    /* --- Section A Propos (About) --- */
+    .about-grid {
+        padding-top: 200px;
+        /* Nouvelle grille : on augmente les colonnes fixes et l'espacement */
+        grid-template-columns: 150px 150px repeat(5, 280px) 1fr 150px;
+        grid-column-gap: 60px; /* Espacement entre les colonnes */
+        grid-template-rows: 1fr 280px 150px; /* Agrandir la hauteur des boîtes */
+    }
+    
+    .div2, .div3, .div4, .div5, .div6 {
+        gap: 20px; /* Plus d'espace entre l'icône et le texte */
+        font-size: 20px;
+    }
+
+    .grid-icon {
+        font-size: 70px; /* Agrandir les icônes */
+    }
+    
+    /* Positionnement des boîtes dans la nouvelle grille */
+    .div2 { grid-area: 2 / 3 / 3 / 4; }
+    .div3 { grid-area: 2 / 4 / 3 / 5; }
+    .div4 { grid-area: 2 / 5 / 3 / 6; }
+    .div5 { grid-area: 2 / 6 / 3 / 7; }
+    .div6 { grid-area: 2 / 7 / 3 / 8; }
+
+
+    /* --- Section Téléchargement (Download) --- */
+    .download {
+        padding-top: 200px;
+    }
+
+    .download-title {
+        font-size: 64px;
+        margin: 80px 0;
+    }
+
+    .download-desc {
+        font-size: 30px;
+    }
+
+    .download-btn {
+        margin-top: 60px;
+        padding: 25px 70px;
+        font-size: 24px;
+    }
+
+    .download-os {
+        margin-top: 30px;
+        font-size: 22px;
+    }
+
+
+    /* --- Footer --- */
+    .footer {
+        height: 30vh;
+        /* Nouvelle grille : plus de marges latérales */
+        grid-template-columns: 150px repeat(3, 1fr) 150px; 
+    }
+
+    .footer-logo-paw {
+        font-size: 130px;
+    }
+
+    .footer-name {
+        font-size: 18px;
+    }
+    
+    .footer-nav-item {
+        margin: 35px;
+    }
+    .footer-nav-item a {
+        font-size: 18px;
+    }
+    
+    .footer-nav-social a i {
+        font-size: 24px; /* Agrandir les icônes sociales */
+    }
+    .footer-nav-social {
+        margin-top: 20px;
+    }
+    
+
+    /* --- Sélecteur de Langue (Optionnel) --- */
+    #language-selector {
+        bottom: 50px;
+        right: 50px;
+    }
+
+    .flag-circle {
+        width: 70px;
+        height: 70px;
+        border: 4px solid #fff;
+    }
+    
+    /* On ajuste le décalage pour l'ouverture des drapeaux */
+    #language-selector.open .sub-flags {
+        /* (Taille du cercle + espace) * nombre de drapeaux */
+        transform: translateX(calc(-70px * 2 - 20px * 2)); 
+    }
+    
+    .sub-flags {
+        gap: 20px; /* Augmenter l'espace */
+    }
+}

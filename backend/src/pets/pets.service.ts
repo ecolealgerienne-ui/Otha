@@ -139,6 +139,9 @@ export class PetsService {
         vetName: dto.vetName ?? null,
         notes: dto.notes ?? null,
         images: dto.images ?? [],
+        weightKg: dto.weightKg ?? null,
+        temperatureC: dto.temperatureC ?? null,
+        heartRate: dto.heartRate ?? null,
       },
     });
   }
@@ -179,7 +182,7 @@ export class PetsService {
 
   // ============ ACCESS TOKENS (QR Code) ============
 
-  async generateAccessToken(ownerId: string, petId: string, expiresInMinutes = 30) {
+  async generateAccessToken(ownerId: string, petId: string, expiresInMinutes = 1440) { // 24h par défaut au lieu de 30min
     const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.ownerId !== ownerId) throw new ForbiddenException();
@@ -236,19 +239,164 @@ export class PetsService {
       throw new ForbiddenException('Token expired');
     }
 
+    // Get provider ID from user ID
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId: vetId } });
+
     return this.prisma.medicalRecord.create({
       data: {
         petId: accessToken.petId,
         type: dto.type,
         title: dto.title,
         description: dto.description ?? null,
-        date: new Date(dto.date),
+        date: dto.date ? new Date(dto.date) : new Date(),
         vetId,
         vetName,
         notes: dto.notes ?? null,
         images: dto.images ?? [],
+        providerId: provider?.id ?? null,
       },
     });
+  }
+
+  // Vet ajoute une ordonnance via token
+  async createPrescriptionByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.prescription.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        title: dto.title,
+        description: dto.description ?? null,
+        imageUrl: dto.imageUrl ?? null,
+        date: new Date(),
+      },
+    });
+  }
+
+  // Vet ajoute un suivi de maladie via token
+  async createDiseaseByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.diseaseTracking.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        name: dto.name,
+        description: dto.description ?? null,
+        status: dto.status ?? 'ONGOING',
+        diagnosisDate: new Date(),
+        images: dto.images ?? [],
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  // Delete medical record by provider (only own records)
+  async deleteMedicalRecordByProvider(userId: string, recordId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const record = await this.prisma.medicalRecord.findUnique({ where: { id: recordId } });
+    if (!record) throw new NotFoundException('Record not found');
+    if (record.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.medicalRecord.delete({ where: { id: recordId } });
+  }
+
+  // List prescriptions for a pet
+  async listPrescriptions(userId: string, petId: string) {
+    return this.prisma.prescription.findMany({
+      where: { petId },
+      include: { provider: { select: { id: true, displayName: true } } },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  // Update prescription by provider (only own records)
+  async updatePrescriptionByProvider(userId: string, prescriptionId: string, dto: any) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const prescription = await this.prisma.prescription.findUnique({ where: { id: prescriptionId } });
+    if (!prescription) throw new NotFoundException('Prescription not found');
+    if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
+
+    return this.prisma.prescription.update({
+      where: { id: prescriptionId },
+      data: {
+        title: dto.title ?? prescription.title,
+        description: dto.description ?? prescription.description,
+        imageUrl: dto.imageUrl ?? prescription.imageUrl,
+      },
+      include: { provider: { select: { id: true, displayName: true } } },
+    });
+  }
+
+  // Delete prescription by provider (only own records)
+  async deletePrescriptionByProvider(userId: string, prescriptionId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const prescription = await this.prisma.prescription.findUnique({ where: { id: prescriptionId } });
+    if (!prescription) throw new NotFoundException('Prescription not found');
+    if (prescription.providerId !== provider.id) throw new ForbiddenException('Not your prescription');
+
+    return this.prisma.prescription.delete({ where: { id: prescriptionId } });
+  }
+
+  // Update disease by provider (only own records)
+  async updateDiseaseByProvider(userId: string, diseaseId: string, dto: any) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const disease = await this.prisma.diseaseTracking.findUnique({ where: { id: diseaseId } });
+    if (!disease) throw new NotFoundException('Disease not found');
+    if (disease.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.diseaseTracking.update({
+      where: { id: diseaseId },
+      data: {
+        name: dto.name ?? disease.name,
+        description: dto.description ?? disease.description,
+        status: dto.status ?? disease.status,
+        notes: dto.notes ?? disease.notes,
+        images: dto.images ?? disease.images,
+      },
+      include: { provider: { select: { id: true, displayName: true } } },
+    });
+  }
+
+  // Delete disease by provider (only own records)
+  async deleteDiseaseByProvider(userId: string, diseaseId: string) {
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!provider) throw new ForbiddenException('Not a provider');
+
+    const disease = await this.prisma.diseaseTracking.findUnique({ where: { id: diseaseId } });
+    if (!disease) throw new NotFoundException('Disease not found');
+    if (disease.providerId !== provider.id) throw new ForbiddenException('Not your record');
+
+    return this.prisma.diseaseTracking.delete({ where: { id: diseaseId } });
   }
 
   // ============ WEIGHT RECORDS ============
@@ -367,6 +515,7 @@ export class PetsService {
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         isActive: dto.isActive ?? true,
         notes: dto.notes ?? null,
+        attachments: dto.attachments ?? [],
       },
     });
   }
@@ -389,6 +538,7 @@ export class PetsService {
         endDate: dto.endDate ? new Date(dto.endDate) : treatment.endDate,
         isActive: dto.isActive ?? treatment.isActive,
         notes: dto.notes ?? treatment.notes,
+        attachments: dto.attachments !== undefined ? dto.attachments : treatment.attachments,
       },
     });
   }
@@ -503,5 +653,266 @@ export class PetsService {
     if (!care || care.petId !== petId) throw new NotFoundException('Preventive care not found');
 
     return this.prisma.preventiveCare.delete({ where: { id: careId } });
+  }
+
+  // ============ HEALTH STATISTICS ============
+
+  /**
+   * Obtenir les statistiques de santé d'un animal
+   * Agrège les données de poids, température, fréquence cardiaque depuis:
+   * - MedicalRecord (enregistrées lors des visites)
+   * - WeightRecord (pesées dédiées)
+   */
+  async getHealthStats(ownerId: string, petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    // Récupérer les données de santé depuis MedicalRecord (visites vétérinaires)
+    const medicalRecords = await this.prisma.medicalRecord.findMany({
+      where: {
+        petId,
+        OR: [
+          { weightKg: { not: null } },
+          { temperatureC: { not: null } },
+          { heartRate: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        date: true,
+        type: true,
+        title: true,
+        vetName: true,
+        weightKg: true,
+        temperatureC: true,
+        heartRate: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Récupérer les pesées dédiées
+    const weightRecords = await this.prisma.weightRecord.findMany({
+      where: { petId },
+      select: {
+        id: true,
+        date: true,
+        weightKg: true,
+        notes: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Fusionner les données de poids (MedicalRecord + WeightRecord)
+    const weightData = [
+      ...medicalRecords
+        .filter((r) => r.weightKg != null)
+        .map((r) => ({
+          date: r.date,
+          weightKg: Number(r.weightKg),
+          source: 'visit',
+          context: r.title,
+          vetName: r.vetName,
+        })),
+      ...weightRecords.map((r) => ({
+        date: r.date,
+        weightKg: Number(r.weightKg),
+        source: 'manual',
+        notes: r.notes,
+      })),
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Données de température (uniquement depuis MedicalRecord)
+    const temperatureData = medicalRecords
+      .filter((r) => r.temperatureC != null)
+      .map((r) => ({
+        date: r.date,
+        temperatureC: Number(r.temperatureC),
+        context: r.title,
+        vetName: r.vetName,
+      }));
+
+    // Données de fréquence cardiaque (uniquement depuis MedicalRecord)
+    const heartRateData = medicalRecords
+      .filter((r) => r.heartRate != null)
+      .map((r) => ({
+        date: r.date,
+        heartRate: r.heartRate!,
+        context: r.title,
+        vetName: r.vetName,
+      }));
+
+    return {
+      petId,
+      weight: {
+        data: weightData,
+        current: weightData.length > 0 ? weightData[weightData.length - 1].weightKg : null,
+        min: weightData.length > 0 ? Math.min(...weightData.map((d) => d.weightKg)) : null,
+        max: weightData.length > 0 ? Math.max(...weightData.map((d) => d.weightKg)) : null,
+      },
+      temperature: {
+        data: temperatureData,
+        current: temperatureData.length > 0 ? temperatureData[temperatureData.length - 1].temperatureC : null,
+        average: temperatureData.length > 0
+          ? temperatureData.reduce((sum, d) => sum + d.temperatureC, 0) / temperatureData.length
+          : null,
+      },
+      heartRate: {
+        data: heartRateData,
+        current: heartRateData.length > 0 ? heartRateData[heartRateData.length - 1].heartRate : null,
+        average: heartRateData.length > 0
+          ? Math.round(heartRateData.reduce((sum, d) => sum + d.heartRate!, 0) / heartRateData.length)
+          : null,
+      },
+    };
+  }
+
+  // ============ DISEASE TRACKING ============
+
+  async listDiseaseTrackings(ownerId: string, petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    return this.prisma.diseaseTracking.findMany({
+      where: { petId },
+      include: {
+        progressEntries: {
+          orderBy: { date: 'desc' },
+          take: 3, // Les 3 dernières entrées par maladie
+        },
+      },
+      orderBy: [
+        { status: 'asc' }, // ONGOING en premier
+        { diagnosisDate: 'desc' },
+      ],
+    });
+  }
+
+  async getDiseaseTracking(ownerId: string, petId: string, diseaseId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+      include: {
+        progressEntries: {
+          orderBy: { date: 'desc' },
+        },
+      },
+    });
+
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+    return disease;
+  }
+
+  async createDiseaseTracking(ownerId: string, petId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    return this.prisma.diseaseTracking.create({
+      data: {
+        petId,
+        name: dto.name,
+        description: dto.description ?? null,
+        status: dto.status ?? 'ONGOING',
+        severity: dto.severity ?? null,
+        diagnosisDate: new Date(dto.diagnosisDate),
+        curedDate: dto.curedDate ? new Date(dto.curedDate) : null,
+        vetId: dto.vetId ?? null,
+        vetName: dto.vetName ?? null,
+        symptoms: dto.symptoms ?? null,
+        treatment: dto.treatment ?? null,
+        images: dto.images ?? [],
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  async updateDiseaseTracking(ownerId: string, petId: string, diseaseId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseTracking.update({
+      where: { id: diseaseId },
+      data: {
+        name: dto.name ?? disease.name,
+        description: dto.description ?? disease.description,
+        status: dto.status ?? disease.status,
+        severity: dto.severity ?? disease.severity,
+        diagnosisDate: dto.diagnosisDate ? new Date(dto.diagnosisDate) : disease.diagnosisDate,
+        curedDate: dto.curedDate ? new Date(dto.curedDate) : disease.curedDate,
+        vetId: dto.vetId ?? disease.vetId,
+        vetName: dto.vetName ?? disease.vetName,
+        symptoms: dto.symptoms ?? disease.symptoms,
+        treatment: dto.treatment ?? disease.treatment,
+        images: dto.images ?? disease.images,
+        notes: dto.notes ?? disease.notes,
+      },
+    });
+  }
+
+  async deleteDiseaseTracking(ownerId: string, petId: string, diseaseId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseTracking.delete({ where: { id: diseaseId } });
+  }
+
+  // Ajouter une entrée de progression
+  async addProgressEntry(ownerId: string, petId: string, diseaseId: string, dto: any) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    return this.prisma.diseaseProgressEntry.create({
+      data: {
+        diseaseId,
+        date: new Date(dto.date ?? new Date()),
+        notes: dto.notes,
+        images: dto.images ?? [],
+        severity: dto.severity ?? null,
+        treatmentUpdate: dto.treatmentUpdate ?? null,
+      },
+    });
+  }
+
+  async deleteProgressEntry(ownerId: string, petId: string, diseaseId: string, entryId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+    if (pet.ownerId !== ownerId) throw new ForbiddenException();
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId },
+    });
+    if (!disease) throw new NotFoundException('Disease tracking not found');
+
+    const entry = await this.prisma.diseaseProgressEntry.findUnique({
+      where: { id: entryId },
+    });
+    if (!entry || entry.diseaseId !== diseaseId) {
+      throw new NotFoundException('Progress entry not found');
+    }
+
+    return this.prisma.diseaseProgressEntry.delete({ where: { id: entryId } });
   }
 }

@@ -90,14 +90,6 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen>
         curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
       ),
     );
-
-    // Prefill de test
-    if (widget.asRole == 'pro') {
-      _id.text = 'pro1@vethome.local';
-    } else {
-      _id.text = 'user1@vethome.local';
-    }
-    _pass.text = 'pass1234';
   }
 
   @override

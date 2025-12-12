@@ -8,6 +8,10 @@ import { Prisma, $Enums } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MapsService } from '../maps/maps.service';
 
+// In-memory cache for scanned pet sync between Flutter app and website
+// Key: providerId, Value: { token, petData, scannedAt }
+const scannedPetCache = new Map<string, { token: string; petData: any; scannedAt: Date }>();
+
 @Injectable()
 export class ProvidersService {
   constructor(
@@ -144,13 +148,13 @@ export class ProvidersService {
         lng: true,
         specialties: true,
         bio: true,
+        avatarUrl: true,
       },
     });
 
-    const includeAllKinds = status === 'all';
-    const allowed = includeAllKinds
-      ? new Set(['vet', 'daycare', 'petshop'])
-      : new Set(['vet']);
+    // Toujours inclure tous les types (vet, daycare, petshop) - le filtrage par type
+    // doit être fait côté client, pas basé sur le status d'approbation
+    const allowed = new Set(['vet', 'daycare', 'petshop']);
 
     const filtered = rows.filter((p) => {
       const sp: any = p.specialties ?? {};
@@ -261,7 +265,7 @@ export class ProvidersService {
   }
 
 async upsertMyProvider(userId: string, dto: any) {
-  const { displayName, bio, address, specialties, timezone } = dto ?? {};
+  const { displayName, bio, address, specialties, timezone, avnCardFront, avnCardBack, avatarUrl } = dto ?? {};
   if (!displayName || String(displayName).trim().length === 0) {
     throw new ForbiddenException('displayName is required');
   }
@@ -359,6 +363,9 @@ async upsertMyProvider(userId: string, dto: any) {
     if (this.isFiniteNonZero(lat)) data.lat = lat!;
     if (this.isFiniteNonZero(lng)) data.lng = lng!;
     if (normalized) data.specialties = normalized as Prisma.InputJsonValue;
+    if (avnCardFront) data.avnCardFront = avnCardFront;
+    if (avnCardBack) data.avnCardBack = avnCardBack;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
 
     return this.prisma.providerProfile.update({ where: { userId }, data });
   }
@@ -373,8 +380,21 @@ async upsertMyProvider(userId: string, dto: any) {
   if (this.isFiniteNonZero(lat)) createData.lat = lat!;
   if (this.isFiniteNonZero(lng)) createData.lng = lng!;
   if (normalized) createData.specialties = normalized as Prisma.InputJsonValue;
+  if (avnCardFront) createData.avnCardFront = avnCardFront;
+  if (avnCardBack) createData.avnCardBack = avnCardBack;
+  if (avatarUrl !== undefined) createData.avatarUrl = avatarUrl;
 
-  return this.prisma.providerProfile.create({ data: createData });
+  // Créer le provider profile
+  const profile = await this.prisma.providerProfile.create({ data: createData });
+
+  // IMPORTANT: Définir le role basé sur le kind (vet, daycare, petshop, etc.)
+  const kind = (normalized as any)?.kind || 'vet';
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { role: kind },
+  });
+
+  return profile;
 }
 
 
@@ -511,6 +531,8 @@ async upsertMyProvider(userId: string, dto: any) {
         rejectedAt: true,
         rejectionReason: true,
         specialties: true,
+        avnCardFront: true,
+        avnCardBack: true,
         user: {
           select: {
             id: true,
@@ -570,6 +592,39 @@ async upsertMyProvider(userId: string, dto: any) {
     });
 
     return { success: true, provider: updated };
+  }
+
+  /** Admin: met à jour un provider (displayName, address, lat, lng, mapsUrl) */
+  async adminUpdateProvider(providerId: string, dto: any) {
+    const exists = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { id: true, specialties: true },
+    });
+    if (!exists) throw new NotFoundException('Provider not found');
+
+    const currentSpecialties = (exists.specialties as Record<string, any>) ?? {};
+
+    const data: any = {};
+    if (dto.displayName !== undefined) data.displayName = dto.displayName;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+
+    // Gérer mapsUrl dans specialties
+    if (dto.mapsUrl !== undefined || dto.specialties?.mapsUrl !== undefined) {
+      const mapsUrl = dto.mapsUrl ?? dto.specialties?.mapsUrl;
+      data.specialties = {
+        ...currentSpecialties,
+        mapsUrl: mapsUrl,
+      };
+    }
+
+    const updated = await this.prisma.providerProfile.update({
+      where: { id: providerId },
+      data,
+    });
+
+    return updated;
   }
 
   /** Backfill admin : étend maps.app.goo.gl → parse coords → met à jour lat/lng + mapsUrl */
@@ -650,5 +705,102 @@ async upsertMyProvider(userId: string, dto: any) {
       },
       select: { id: true, isApproved: true, appliedAt: true, rejectedAt: true, rejectionReason: true },
     });
+  }
+
+  /* ======================= Scanned Pet Sync ======================= */
+
+  /**
+   * Store a scanned pet token for this provider (called from Flutter app)
+   * The website will poll this to get the pet data
+   */
+  async setScannedPet(userId: string, token: string): Promise<{ success: boolean; pet?: any }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    // Get pet data from token
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: {
+        pet: {
+          include: {
+            medicalRecords: {
+              orderBy: { date: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
+            weightRecords: { orderBy: { date: 'desc' }, take: 10 },
+            vaccinations: { orderBy: { date: 'desc' } },
+            treatments: { orderBy: { startDate: 'desc' } },
+            allergies: true,
+            preventiveCare: { orderBy: { lastDate: 'desc' } },
+            prescriptions: {
+              orderBy: { date: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
+            diseaseTrackings: {
+              orderBy: { createdAt: 'desc' },
+              include: { provider: { select: { id: true, displayName: true } } },
+            },
+            owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          },
+        },
+      },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    // Store in cache
+    scannedPetCache.set(provider.id, {
+      token,
+      petData: accessToken.pet,
+      scannedAt: new Date(),
+    });
+
+    // Auto-clear after 30 minutes
+    setTimeout(() => {
+      const cached = scannedPetCache.get(provider.id);
+      if (cached?.token === token) {
+        scannedPetCache.delete(provider.id);
+      }
+    }, 30 * 60 * 1000);
+
+    return { success: true, pet: accessToken.pet };
+  }
+
+  /**
+   * Get the currently scanned pet for this provider (called from website polling)
+   */
+  async getScannedPet(userId: string): Promise<{ pet: any | null; scannedAt: Date | null }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const cached = scannedPetCache.get(provider.id);
+    if (!cached) {
+      return { pet: null, scannedAt: null };
+    }
+
+    return { pet: cached.petData, scannedAt: cached.scannedAt };
+  }
+
+  /**
+   * Clear the scanned pet for this provider
+   */
+  async clearScannedPet(userId: string): Promise<{ success: boolean }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    scannedPetCache.delete(provider.id);
+    return { success: true };
   }
 }

@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>504453952190-4e2d7g0nqo3mp016vi8e9s52bj0off46.apps.googleusercontent.com</string>
+	<string>806129949224-ggm1cmut36i86pmaee9l5abldpmd1jac.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
 	<string>com.googleusercontent.apps.504453952190-4e2d7g0nqo3mp016vi8e9s52bj0off46</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.vethome.app</string>
+	<string>com.vegece.app</string>
 </dict>
 </plist>
