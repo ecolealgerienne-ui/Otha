@@ -522,16 +522,16 @@ export function LandingPage() {
             <div className="footer-social">
               <span className="footer-social-title">{t.footer.followUs}</span>
               <div className="footer-social-links">
-                <a href="#" className="footer-social-link" aria-label="TikTok">
+                <a href="https://www.tiktok.com/@vegece.app" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="TikTok">
                   <i className="fa-brands fa-tiktok"></i>
                 </a>
-                <a href="#" className="footer-social-link" aria-label="Facebook">
+                <a href="https://www.facebook.com/profile.php?id=61584817777611" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="Facebook">
                   <i className="fa-brands fa-facebook-f"></i>
                 </a>
-                <a href="#" className="footer-social-link" aria-label="Twitter">
+                <a href="https://x.com/vegece_app?s=21" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="Twitter">
                   <i className="fa-brands fa-x-twitter"></i>
                 </a>
-                <a href="#" className="footer-social-link" aria-label="Instagram">
+                <a href="https://www.instagram.com/vegece.app/" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="Instagram">
                   <i className="fa-brands fa-instagram"></i>
                 </a>
               </div>
