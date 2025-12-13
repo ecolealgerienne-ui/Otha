@@ -501,8 +501,9 @@ class ApiClient {
   }
 
   // ==================== ADMIN: PROVIDERS ====================
+  // Note: Use lowercase status ('pending', 'approved', 'rejected') like Flutter app
   async listProviderApplications(
-    status: ProviderStatus = 'PENDING',
+    status: string = 'pending',
     limit = 20,
     offset = 0
   ): Promise<ProviderProfile[]> {

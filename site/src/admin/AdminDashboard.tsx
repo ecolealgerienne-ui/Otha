@@ -80,27 +80,22 @@ export function AdminDashboard() {
       let adoptions: { data: AdoptPost[] } = { data: [] };
 
       try {
-        const result = await api.listProviderApplications('PENDING', 50);
-        // Ensure it's an array and filter by status client-side
-        const allProviders = Array.isArray(result) ? result : [];
-        providers = allProviders.filter((p) => p.status === 'PENDING').slice(0, 5);
-        console.log('Providers result:', result, 'filtered PENDING:', providers.length);
+        // Use lowercase status like Flutter app
+        const result = await api.listProviderApplications('pending', 5);
+        providers = Array.isArray(result) ? result : [];
+        console.log('Providers result:', providers.length);
       } catch (e) {
         console.error('Pending providers error:', e);
       }
 
       try {
-        const result = await api.adminAdoptList('PENDING', 50);
+        const result = await api.adminAdoptList('PENDING', 5);
         // Handle different response formats
         const allAdoptions = result && typeof result === 'object' && 'data' in result
           ? result.data
           : Array.isArray(result) ? result : [];
-        // Filter by PENDING status client-side
-        const pendingOnly = Array.isArray(allAdoptions)
-          ? allAdoptions.filter((p) => p.status === 'PENDING').slice(0, 5)
-          : [];
-        adoptions = { data: pendingOnly };
-        console.log('Adoptions result:', result, 'filtered PENDING:', pendingOnly.length);
+        adoptions = { data: Array.isArray(allAdoptions) ? allAdoptions : [] };
+        console.log('Adoptions result:', adoptions.data.length);
       } catch (e) {
         console.error('Adoptions error:', e);
       }
@@ -115,14 +110,16 @@ export function AdminDashboard() {
       console.log('AdminDashboard: Fetching stats...');
 
       try {
-        // Fetch all providers once and filter client-side (more reliable)
-        const allProvidersResult = await api.listProviderApplications('PENDING', 1000).catch(() => []);
-        const allProviders = Array.isArray(allProvidersResult) ? allProvidersResult : [];
+        // Fetch each status separately like Flutter app
+        const [approvedResult, pendingResult, rejectedResult] = await Promise.all([
+          api.listProviderApplications('approved', 1000).catch(() => []),
+          api.listProviderApplications('pending', 1000).catch(() => []),
+          api.listProviderApplications('rejected', 1000).catch(() => []),
+        ]);
 
-        // Filter by status client-side
-        const approvedProviders = allProviders.filter((p) => p.status === 'APPROVED');
-        const allPendingProviders = allProviders.filter((p) => p.status === 'PENDING');
-        const allRejectedProviders = allProviders.filter((p) => p.status === 'REJECTED');
+        const approvedProviders = Array.isArray(approvedResult) ? approvedResult : [];
+        const allPendingProviders = Array.isArray(pendingResult) ? pendingResult : [];
+        const allRejectedProviders = Array.isArray(rejectedResult) ? rejectedResult : [];
 
         setProsApprovedCount(approvedProviders.length);
         setPendingCount(allPendingProviders.length);
