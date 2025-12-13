@@ -23,7 +23,10 @@ export function AdminApplications() {
     try {
       const data = await api.listProviderApplications(status, 50);
       // Ensure data is always an array
-      setProviders(Array.isArray(data) ? data : []);
+      const allProviders = Array.isArray(data) ? data : [];
+      // Filter by status client-side as fallback (in case backend doesn't filter)
+      const filtered = allProviders.filter((p) => p.status === status);
+      setProviders(filtered);
     } catch (error) {
       console.error('Error fetching providers:', error);
       setProviders([]);
