@@ -533,6 +533,68 @@ class ApiClient {
     return data;
   }
 
+  // Get provider services (admin)
+  async getProviderServices(providerId: string): Promise<Service[]> {
+    const { data } = await this.client.get(`/providers/${providerId}/services`);
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
+  }
+
+  // Get user quotas (admin)
+  async adminGetUserQuotas(userId: string): Promise<{ swipesUsed: number; swipesRemaining: number; postsUsed: number; postsRemaining: number }> {
+    try {
+      const { data } = await this.client.get(`/users/${userId}/quotas`);
+      const result = data?.data || data;
+      return result || { swipesUsed: 0, swipesRemaining: 5, postsUsed: 0, postsRemaining: 1 };
+    } catch {
+      return { swipesUsed: 0, swipesRemaining: 5, postsUsed: 0, postsRemaining: 1 };
+    }
+  }
+
+  // Get user adopt conversations (admin)
+  async adminGetUserAdoptConversations(userId: string): Promise<AdoptConversation[]> {
+    try {
+      const { data } = await this.client.get(`/users/${userId}/adopt-conversations`);
+      const result = data?.data || data;
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Get user adopt posts (admin)
+  async adminGetUserAdoptPosts(userId: string): Promise<AdoptPost[]> {
+    try {
+      const { data } = await this.client.get(`/users/${userId}/adopt-posts`);
+      const result = data?.data || data;
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Get user pets (admin)
+  async adminGetUserPets(userId: string): Promise<Pet[]> {
+    try {
+      const { data } = await this.client.get(`/users/${userId}/pets`);
+      const result = data?.data || data;
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Get user bookings (admin)
+  async adminGetUserBookings(userId: string): Promise<Booking[]> {
+    try {
+      const { data } = await this.client.get(`/users/${userId}/bookings`);
+      const result = data?.data || data;
+      return Array.isArray(result) ? result : [];
+    } catch {
+      return [];
+    }
+  }
+
   // ==================== ADMIN: ADOPTION ====================
   async adminAdoptList(
     status: AdoptPostStatus = 'PENDING',
