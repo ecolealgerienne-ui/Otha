@@ -22,9 +22,12 @@ export function AdminAdoptions() {
     setLoading(true);
     try {
       const data = await api.adminAdoptList(status, 50);
-      setPosts(data.data);
+      // Handle different response formats and ensure array
+      const posts = data?.data || data;
+      setPosts(Array.isArray(posts) ? posts : []);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
