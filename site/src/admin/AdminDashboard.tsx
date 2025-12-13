@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Briefcase, Heart, DollarSign, Clock, TrendingUp, UserPlus } from 'lucide-react';
-import { Card } from '../shared/components';
+import { Users, Briefcase, Heart, DollarSign, Clock, TrendingUp, UserPlus, AlertCircle, RefreshCw } from 'lucide-react';
+import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { ProviderProfile, AdoptPost } from '../types';
@@ -50,9 +50,10 @@ function formatCurrency(amount: number): string {
 }
 
 export function AdminDashboard() {
-  const [pendingProviders, setPendingProviders] = useState<ProviderProfile[]>([]);
+  const [recentProviders, setRecentProviders] = useState<ProviderProfile[]>([]);
   const [pendingAdoptions, setPendingAdoptions] = useState<AdoptPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Stats counters
   const [clientsCount, setClientsCount] = useState<number>(0);
@@ -66,55 +67,60 @@ export function AdminDashboard() {
     totalCommission: number;
   } | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        // Fetch all data in parallel
-        const [
-          providers,
-          adoptions,
-          approvedProviders,
-          pendingProviders,
-          rejectedProviders,
-          clients,
-          stats,
-        ] = await Promise.all([
-          api.listProviderApplications('PENDING', 5).catch(() => []),
-          api.adminAdoptList('PENDING', 5).catch(() => ({ data: [] })),
-          api.listProviderApplications('APPROVED', 1000).catch(() => []),
-          api.listProviderApplications('PENDING', 1000).catch(() => []),
-          api.listProviderApplications('REJECTED', 1000).catch(() => []),
-          api.adminListUsers(undefined, 1000, 0, 'USER').catch(() => []),
-          api.adminTraceabilityStats(
-            format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
-            format(new Date(), 'yyyy-MM-dd')
-          ).catch(() => null),
-        ]);
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
 
-        setPendingProviders(providers || []);
-        setPendingAdoptions(adoptions?.data || []);
-        setProsApprovedCount(approvedProviders?.length || 0);
-        setPendingCount(pendingProviders?.length || 0);
-        setRejectedCount(rejectedProviders?.length || 0);
-        setClientsCount(clients?.length || 0);
-        setTraceabilityStats(stats);
+    try {
+      // Fetch all data in parallel with individual error handling
+      const [
+        providers,
+        adoptions,
+        approvedProviders,
+        allPendingProviders,
+        allRejectedProviders,
+        clients,
+        stats,
+      ] = await Promise.all([
+        api.listProviderApplications('PENDING', 5).catch((e) => { console.error('Pending providers error:', e); return []; }),
+        api.adminAdoptList('PENDING', 5).catch((e) => { console.error('Adoptions error:', e); return { data: [] }; }),
+        api.listProviderApplications('APPROVED', 1000).catch((e) => { console.error('Approved providers error:', e); return []; }),
+        api.listProviderApplications('PENDING', 1000).catch((e) => { console.error('All pending error:', e); return []; }),
+        api.listProviderApplications('REJECTED', 1000).catch((e) => { console.error('Rejected error:', e); return []; }),
+        api.adminListUsers(undefined, 1000, 0, 'USER').catch((e) => { console.error('Users error:', e); return []; }),
+        api.adminTraceabilityStats(
+          format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
+          format(new Date(), 'yyyy-MM-dd')
+        ).catch((e) => { console.error('Traceability error:', e); return null; }),
+      ]);
 
-        // Calculate signups in last 30 days
-        if (clients && Array.isArray(clients)) {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const recentSignups = clients.filter((user) => {
-            const createdAt = user.createdAt ? new Date(user.createdAt) : null;
-            return createdAt && createdAt > thirtyDaysAgo;
-          });
-          setSignups30d(recentSignups.length);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
+      setRecentProviders(providers || []);
+      setPendingAdoptions(adoptions?.data || []);
+      setProsApprovedCount(approvedProviders?.length || 0);
+      setPendingCount(allPendingProviders?.length || 0);
+      setRejectedCount(allRejectedProviders?.length || 0);
+      setClientsCount(clients?.length || 0);
+      setTraceabilityStats(stats);
+
+      // Calculate signups in last 30 days
+      if (clients && Array.isArray(clients)) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentSignups = clients.filter((user) => {
+          const createdAt = user.createdAt ? new Date(user.createdAt) : null;
+          return createdAt && createdAt > thirtyDaysAgo;
+        });
+        setSignups30d(recentSignups.length);
       }
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -123,6 +129,21 @@ export function AdminDashboard() {
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <AlertCircle className="w-12 h-12 text-red-500" />
+          <p className="text-gray-600">{error}</p>
+          <Button onClick={fetchData}>
+            <RefreshCw size={16} className="mr-2" />
+            Réessayer
+          </Button>
         </div>
       </DashboardLayout>
     );
@@ -204,11 +225,11 @@ export function AdminDashboard() {
                 Voir tout
               </Link>
             </div>
-            {pendingProviders.length === 0 ? (
+            {recentProviders.length === 0 ? (
               <p className="text-gray-500 text-sm">Aucune demande en attente</p>
             ) : (
               <div className="space-y-3">
-                {pendingProviders.map((provider) => (
+                {recentProviders.map((provider) => (
                   <div
                     key={provider.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
