@@ -3,12 +3,13 @@ import { Check, X, Eye, MapPin, Clock, CheckCircle, XCircle } from 'lucide-react
 import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { ProviderProfile, ProviderStatus } from '../types';
+import type { ProviderProfile } from '../types';
 
-type TabStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+// Use lowercase status like Flutter app does
+type TabStatus = 'pending' | 'approved' | 'rejected';
 
 export function AdminApplications() {
-  const [activeTab, setActiveTab] = useState<TabStatus>('PENDING');
+  const [activeTab, setActiveTab] = useState<TabStatus>('pending');
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState<ProviderProfile | null>(null);
@@ -18,15 +19,12 @@ export function AdminApplications() {
     fetchProviders(activeTab);
   }, [activeTab]);
 
-  async function fetchProviders(status: ProviderStatus) {
+  async function fetchProviders(status: TabStatus) {
     setLoading(true);
     try {
-      const data = await api.listProviderApplications(status, 50);
+      const data = await api.listProviderApplications(status, 100);
       // Ensure data is always an array
-      const allProviders = Array.isArray(data) ? data : [];
-      // Filter by status client-side as fallback (in case backend doesn't filter)
-      const filtered = allProviders.filter((p) => p.status === status);
-      setProviders(filtered);
+      setProviders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching providers:', error);
       setProviders([]);
@@ -62,9 +60,9 @@ export function AdminApplications() {
   }
 
   const tabs: { status: TabStatus; label: string; icon: React.ReactNode }[] = [
-    { status: 'PENDING', label: 'En attente', icon: <Clock size={16} /> },
-    { status: 'APPROVED', label: 'Approuvées', icon: <CheckCircle size={16} /> },
-    { status: 'REJECTED', label: 'Rejetées', icon: <XCircle size={16} /> },
+    { status: 'pending', label: 'En attente', icon: <Clock size={16} /> },
+    { status: 'approved', label: 'Approuvées', icon: <CheckCircle size={16} /> },
+    { status: 'rejected', label: 'Rejetées', icon: <XCircle size={16} /> },
   ];
 
   return (
@@ -108,7 +106,7 @@ export function AdminApplications() {
               </div>
             ) : providers.length === 0 ? (
               <Card className="text-center py-12">
-                <p className="text-gray-500">Aucune demande {activeTab === 'PENDING' ? 'en attente' : activeTab === 'APPROVED' ? 'approuvée' : 'rejetée'}</p>
+                <p className="text-gray-500">Aucune demande {activeTab === 'pending' ? 'en attente' : activeTab === 'approved' ? 'approuvée' : 'rejetée'}</p>
               </Card>
             ) : (
               <div className="space-y-4">
@@ -160,7 +158,7 @@ export function AdminApplications() {
                         </div>
                       </div>
 
-                      {activeTab === 'PENDING' && (
+                      {activeTab === 'pending' && (
                         <div className="flex space-x-2">
                           <Button
                             size="sm"
@@ -292,7 +290,7 @@ export function AdminApplications() {
                   )}
                 </div>
 
-                {activeTab === 'PENDING' && (
+                {activeTab === 'pending' && (
                   <div className="flex space-x-3 mt-6">
                     <Button
                       className="flex-1"

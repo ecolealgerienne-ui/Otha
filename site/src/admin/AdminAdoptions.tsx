@@ -21,13 +21,11 @@ export function AdminAdoptions() {
   async function fetchPosts(status: AdoptPostStatus) {
     setLoading(true);
     try {
+      // Adoptions use UPPERCASE status like Flutter app
       const data = await api.adminAdoptList(status, 100);
       // Handle different response formats and ensure array
       const allPosts = data?.data || data;
-      const postsArray = Array.isArray(allPosts) ? allPosts : [];
-      // Filter by status client-side as fallback (in case backend doesn't filter)
-      const filtered = postsArray.filter((p) => p.status === status);
-      setPosts(filtered);
+      setPosts(Array.isArray(allPosts) ? allPosts : []);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setPosts([]);

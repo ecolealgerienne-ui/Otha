@@ -28,7 +28,8 @@ export function AdminEarnings() {
   async function fetchProviders() {
     setLoading(true);
     try {
-      const data = await api.listProviderApplications('APPROVED', 100);
+      // Use lowercase status like Flutter app
+      const data = await api.listProviderApplications('approved', 100);
       // Ensure data is always an array
       setProviders(Array.isArray(data) ? data : []);
     } catch (error) {
