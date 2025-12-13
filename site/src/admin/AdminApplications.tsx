@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, X, Eye, MapPin, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Check, X, Eye, MapPin, Clock, CheckCircle, XCircle, Phone, Mail, Link, Navigation, Save, RefreshCw, Copy } from 'lucide-react';
 import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
@@ -8,6 +8,77 @@ import type { ProviderProfile } from '../types';
 // Use lowercase status like Flutter app does
 type TabStatus = 'pending' | 'approved' | 'rejected';
 
+// Helper: Sanitize Google Maps URL (remove tracking params)
+function sanitizeMapsUrl(url: string): string {
+  const raw = url.trim();
+  if (!raw) return '';
+
+  const withScheme = /^(https?:\/\/)/i.test(raw) ? raw : `https://${raw}`;
+
+  try {
+    const uri = new URL(withScheme);
+    const banned = new Set(['ts', 'entry', 'g_ep', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'hl', 'ved', 'source', 'opi', 'sca_esv']);
+
+    const params = new URLSearchParams(uri.search);
+    banned.forEach(key => params.delete(key));
+    uri.search = params.toString();
+
+    // Clean path
+    let path = uri.pathname.replace(/\/+/g, '/');
+    const hasImportant = /\/data=![^/?#]*(?:!3d|!4d|:0x|ChI)/i.test(path);
+    if (!hasImportant) {
+      path = path.replace(/\/data=![^/?#]*/g, '');
+    }
+    uri.pathname = path;
+
+    return uri.toString().replace(/[?#]$/, '');
+  } catch {
+    return raw;
+  }
+}
+
+// Helper: Extract lat/lng from Google Maps URL
+function extractLatLngFromUrl(url: string): { lat: number | null; lng: number | null } {
+  const s = url.trim();
+  if (!s) return { lat: null, lng: null };
+
+  const dec = decodeURIComponent(s);
+
+  // @lat,lng pattern
+  const atMatches = [...dec.matchAll(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/g)];
+  if (atMatches.length > 0) {
+    const m = atMatches[atMatches.length - 1];
+    const lat = parseFloat(m[1].replace(',', '.'));
+    const lng = parseFloat(m[2].replace(',', '.'));
+    if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+  }
+
+  // !3dlat!4dlng pattern
+  const m34 = dec.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i);
+  if (m34) {
+    const lat = parseFloat(m34[1].replace(',', '.'));
+    const lng = parseFloat(m34[2].replace(',', '.'));
+    if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+  }
+
+  // !4dlng!3dlat pattern
+  const m43 = dec.match(/!4d(-?\d+(?:\.\d+)?)!3d(-?\d+(?:\.\d+)?)/i);
+  if (m43) {
+    const lat = parseFloat(m43[2].replace(',', '.'));
+    const lng = parseFloat(m43[1].replace(',', '.'));
+    if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+  }
+
+  return { lat: null, lng: null };
+}
+
+// Helper: Generate OpenStreetMap static map URL
+function staticMapUrl(lat: number | null, lng: number | null, w = 400, h = 200, z = 16): string | null {
+  if (lat == null || lng == null || lat === 0 || lng === 0) return null;
+  const ll = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${ll}&zoom=${z}&size=${w}x${h}&maptype=mapnik&markers=${ll},red-pushpin`;
+}
+
 export function AdminApplications() {
   const [activeTab, setActiveTab] = useState<TabStatus>('pending');
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
@@ -15,15 +86,31 @@ export function AdminApplications() {
   const [selectedProvider, setSelectedProvider] = useState<ProviderProfile | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Edit form state
+  const [mapsUrl, setMapsUrl] = useState('');
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
   useEffect(() => {
     fetchProviders(activeTab);
   }, [activeTab]);
+
+  // When provider is selected, populate form fields
+  useEffect(() => {
+    if (selectedProvider) {
+      const specialties = selectedProvider.specialties as Record<string, unknown> | null;
+      setMapsUrl((specialties?.mapsUrl as string) || selectedProvider.mapsUrl || '');
+      setLat(selectedProvider.lat?.toFixed(6) || '');
+      setLng(selectedProvider.lng?.toFixed(6) || '');
+    }
+  }, [selectedProvider]);
 
   async function fetchProviders(status: TabStatus) {
     setLoading(true);
     try {
       const data = await api.listProviderApplications(status, 100);
-      // Ensure data is always an array
       setProviders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -47,6 +134,7 @@ export function AdminApplications() {
   }
 
   async function handleReject(providerId: string) {
+    if (!confirm('Rejeter cette candidature ?')) return;
     setActionLoading(providerId);
     try {
       await api.rejectProvider(providerId);
@@ -59,11 +147,89 @@ export function AdminApplications() {
     }
   }
 
+  async function handleSaveLocation() {
+    if (!selectedProvider) return;
+
+    let finalLat = parseFloat(lat.replace(',', '.'));
+    let finalLng = parseFloat(lng.replace(',', '.'));
+
+    // Auto-extract from URL if coords missing
+    if ((isNaN(finalLat) || isNaN(finalLng)) && mapsUrl) {
+      const extracted = extractLatLngFromUrl(mapsUrl);
+      if (extracted.lat !== null) finalLat = extracted.lat;
+      if (extracted.lng !== null) finalLng = extracted.lng;
+      setLat(finalLat?.toFixed(6) || '');
+      setLng(finalLng?.toFixed(6) || '');
+    }
+
+    if (isNaN(finalLat) || isNaN(finalLng)) {
+      alert('Coordonnées invalides. Veuillez entrer latitude et longitude ou extraire depuis l\'URL.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const sanitized = mapsUrl ? sanitizeMapsUrl(mapsUrl) : '';
+      await api.adminUpdateProvider(selectedProvider.id, {
+        lat: finalLat,
+        lng: finalLng,
+        mapsUrl: sanitized,
+      });
+      alert('Modifications enregistrées');
+      fetchProviders(activeTab);
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Erreur lors de l\'enregistrement');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleExtractCoords() {
+    const extracted = extractLatLngFromUrl(mapsUrl);
+    if (extracted.lat !== null && extracted.lng !== null) {
+      setLat(extracted.lat.toFixed(6));
+      setLng(extracted.lng.toFixed(6));
+    } else {
+      alert('Aucune coordonnée trouvée dans l\'URL');
+    }
+  }
+
+  function handleSanitizeUrl() {
+    setMapsUrl(sanitizeMapsUrl(mapsUrl));
+  }
+
+  async function copyToClipboard(text: string, type: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      // Fallback
+    }
+  }
+
   const tabs: { status: TabStatus; label: string; icon: React.ReactNode }[] = [
     { status: 'pending', label: 'En attente', icon: <Clock size={16} /> },
     { status: 'approved', label: 'Approuvées', icon: <CheckCircle size={16} /> },
     { status: 'rejected', label: 'Rejetées', icon: <XCircle size={16} /> },
   ];
+
+  // Get user info from provider
+  const user = selectedProvider?.user as Record<string, unknown> | undefined;
+  const email = (user?.email as string) || '';
+  const phone = (user?.phone as string) || '';
+  const isApproved = selectedProvider?.isApproved === true;
+  const rejectedAt = (selectedProvider as Record<string, unknown>)?.rejectedAt as string | undefined;
+  const isRejected = !!rejectedAt;
+
+  // Map preview
+  const previewLat = parseFloat(lat.replace(',', '.'));
+  const previewLng = parseFloat(lng.replace(',', '.'));
+  const mapPreview = staticMapUrl(
+    isNaN(previewLat) ? null : previewLat,
+    isNaN(previewLng) ? null : previewLng
+  );
 
   return (
     <DashboardLayout>
@@ -99,7 +265,7 @@ export function AdminApplications() {
         {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* List */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
@@ -109,7 +275,7 @@ export function AdminApplications() {
                 <p className="text-gray-500">Aucune demande {activeTab === 'pending' ? 'en attente' : activeTab === 'approved' ? 'approuvée' : 'rejetée'}</p>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto">
                 {providers.map((provider) => (
                   <Card
                     key={provider.id}
@@ -120,70 +286,29 @@ export function AdminApplications() {
                     }`}
                     onClick={() => setSelectedProvider(provider)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        {provider.avatarUrl ? (
-                          <img
-                            src={provider.avatarUrl}
-                            alt={provider.displayName}
-                            className="w-14 h-14 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 bg-primary-100 rounded-lg flex items-center justify-center">
-                            <span className="text-primary-700 font-bold text-xl">
-                              {provider.displayName?.charAt(0) || '?'}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{provider.displayName}</h3>
-                          {provider.address && (
-                            <p className="text-sm text-gray-500 flex items-center mt-1">
-                              <MapPin size={14} className="mr-1" />
-                              {provider.address}
-                            </p>
-                          )}
-                          {Array.isArray(provider.specialties) && provider.specialties.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {provider.specialties.slice(0, 3).map((specialty: string) => (
-                                <span
-                                  key={specialty}
-                                  className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
-                                >
-                                  {specialty}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {activeTab === 'pending' && (
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApprove(provider.id);
-                            }}
-                            isLoading={actionLoading === provider.id}
-                          >
-                            <Check size={16} className="text-green-600" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReject(provider.id);
-                            }}
-                            isLoading={actionLoading === provider.id}
-                          >
-                            <X size={16} className="text-red-600" />
-                          </Button>
+                    <div className="flex items-center space-x-3">
+                      {provider.avatarUrl ? (
+                        <img
+                          src={provider.avatarUrl}
+                          alt={provider.displayName}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                          <span className="text-primary-700 font-bold text-lg">
+                            {provider.displayName?.charAt(0) || '?'}
+                          </span>
                         </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">{provider.displayName || '(Sans nom)'}</h3>
+                        <p className="text-sm text-gray-500 truncate">{provider.address || 'Adresse non renseignée'}</p>
+                        {provider.lat && provider.lng && (
+                          <p className="text-xs text-gray-400">
+                            {provider.lat.toFixed(4)}, {provider.lng.toFixed(4)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -192,128 +317,231 @@ export function AdminApplications() {
           </div>
 
           {/* Detail panel */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-2">
             {selectedProvider ? (
               <Card className="sticky top-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Détails du profil</h3>
-
-                {/* Avatar */}
-                <div className="flex justify-center mb-4">
-                  {selectedProvider.avatarUrl ? (
-                    <img
-                      src={selectedProvider.avatarUrl}
-                      alt={selectedProvider.displayName}
-                      className="w-24 h-24 rounded-xl object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 bg-primary-100 rounded-xl flex items-center justify-center">
-                      <span className="text-primary-700 font-bold text-3xl">
-                        {selectedProvider.displayName?.charAt(0) || '?'}
+                {/* Header with status badge */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-4">
+                    {selectedProvider.avatarUrl ? (
+                      <img
+                        src={selectedProvider.avatarUrl}
+                        alt={selectedProvider.displayName}
+                        className="w-16 h-16 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center">
+                        <span className="text-primary-700 font-bold text-2xl">
+                          {selectedProvider.displayName?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{selectedProvider.displayName || '(Sans nom)'}</h3>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isRejected
+                          ? 'bg-red-100 text-red-800'
+                          : isApproved
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {isRejected ? 'REJETÉ' : isApproved ? 'APPROUVÉ' : 'EN ATTENTE'}
                       </span>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="text-gray-500">Nom</p>
-                    <p className="font-medium">{selectedProvider.displayName}</p>
                   </div>
-
-                  {selectedProvider.bio && (
-                    <div>
-                      <p className="text-gray-500">Bio</p>
-                      <p className="text-gray-700">{selectedProvider.bio}</p>
-                    </div>
-                  )}
-
-                  {selectedProvider.address && (
-                    <div>
-                      <p className="text-gray-500">Adresse</p>
-                      <p className="font-medium">{selectedProvider.address}</p>
-                    </div>
-                  )}
-
-                  {Array.isArray(selectedProvider.specialties) && selectedProvider.specialties.length > 0 && (
-                    <div>
-                      <p className="text-gray-500">Spécialités</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedProvider.specialties.map((specialty: string) => (
-                          <span
-                            key={specialty}
-                            className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded"
-                          >
-                            {specialty}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AVN Cards */}
-                  {(selectedProvider.avnCardFront || selectedProvider.avnCardBack) && (
-                    <div>
-                      <p className="text-gray-500 mb-2">Carte AVN</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {selectedProvider.avnCardFront && (
-                          <a
-                            href={selectedProvider.avnCardFront}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block"
-                          >
-                            <img
-                              src={selectedProvider.avnCardFront}
-                              alt="AVN Front"
-                              className="w-full h-20 object-cover rounded border hover:border-primary-500"
-                            />
-                            <p className="text-xs text-center text-gray-500 mt-1">Recto</p>
-                          </a>
-                        )}
-                        {selectedProvider.avnCardBack && (
-                          <a
-                            href={selectedProvider.avnCardBack}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block"
-                          >
-                            <img
-                              src={selectedProvider.avnCardBack}
-                              alt="AVN Back"
-                              className="w-full h-20 object-cover rounded border hover:border-primary-500"
-                            />
-                            <p className="text-xs text-center text-gray-500 mt-1">Verso</p>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {activeTab === 'pending' && (
-                  <div className="flex space-x-3 mt-6">
+                {/* Coordonnées */}
+                <div className="border-t pt-4 mb-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Coordonnées</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Mail size={16} className="text-gray-400" />
+                        <span>{email || '—'}</span>
+                      </div>
+                      {email && (
+                        <button onClick={() => copyToClipboard(email, 'email')} className="text-gray-400 hover:text-gray-600">
+                          <Copy size={14} />
+                          {copied === 'email' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Phone size={16} className="text-gray-400" />
+                        <span>{phone || '—'}</span>
+                      </div>
+                      {phone && (
+                        <button onClick={() => copyToClipboard(phone, 'phone')} className="text-gray-400 hover:text-gray-600">
+                          <Copy size={14} />
+                          {copied === 'phone' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <MapPin size={16} className="text-gray-400" />
+                      <span>{selectedProvider.address || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Validation de la localisation */}
+                <div className="border-t pt-4 mb-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Validation de la localisation</h4>
+
+                  <div className="space-y-3">
+                    {/* Google Maps URL */}
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Lien Google Maps</label>
+                      <div className="flex space-x-2">
+                        <input
+                          type="url"
+                          value={mapsUrl}
+                          onChange={(e) => setMapsUrl(e.target.value)}
+                          placeholder="https://www.google.com/maps/..."
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <button
+                          onClick={handleSanitizeUrl}
+                          title="Nettoyer l'URL"
+                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        >
+                          <Link size={16} />
+                        </button>
+                        <button
+                          onClick={handleExtractCoords}
+                          title="Extraire les coordonnées"
+                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        >
+                          <Navigation size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lat/Lng */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Latitude</label>
+                        <input
+                          type="text"
+                          value={lat}
+                          onChange={(e) => setLat(e.target.value)}
+                          placeholder="36.752887"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Longitude</label>
+                        <input
+                          type="text"
+                          value={lng}
+                          onChange={(e) => setLng(e.target.value)}
+                          placeholder="3.042048"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Map preview */}
+                    <div className="rounded-lg overflow-hidden border border-gray-200">
+                      {mapPreview ? (
+                        <img
+                          src={mapPreview}
+                          alt="Aperçu carte"
+                          className="w-full h-48 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
+                          Prévisualisation indisponible — coordonnées manquantes
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AVN Cards */}
+                {(selectedProvider.avnCardFront || selectedProvider.avnCardBack) && (
+                  <div className="border-t pt-4 mb-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Carte AVN</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedProvider.avnCardFront && (
+                        <a href={selectedProvider.avnCardFront} target="_blank" rel="noopener noreferrer">
+                          <img src={selectedProvider.avnCardFront} alt="AVN Recto" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
+                          <p className="text-xs text-center text-gray-500 mt-1">Recto</p>
+                        </a>
+                      )}
+                      {selectedProvider.avnCardBack && (
+                        <a href={selectedProvider.avnCardBack} target="_blank" rel="noopener noreferrer">
+                          <img src={selectedProvider.avnCardBack} alt="AVN Verso" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
+                          <p className="text-xs text-center text-gray-500 mt-1">Verso</p>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="border-t pt-4 flex flex-wrap gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={handleSaveLocation}
+                    isLoading={saving}
+                    className="flex-1"
+                  >
+                    <Save size={16} className="mr-2" />
+                    Enregistrer
+                  </Button>
+
+                  {/* Pending: Approve + Reject */}
+                  {activeTab === 'pending' && (
+                    <>
+                      <Button
+                        onClick={() => handleApprove(selectedProvider.id)}
+                        isLoading={actionLoading === selectedProvider.id}
+                        className="flex-1"
+                      >
+                        <Check size={16} className="mr-2" />
+                        Approuver
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => handleReject(selectedProvider.id)}
+                        isLoading={actionLoading === selectedProvider.id}
+                      >
+                        <X size={16} className="mr-2" />
+                        Rejeter
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Rejected: Re-approve */}
+                  {activeTab === 'rejected' && (
                     <Button
-                      className="flex-1"
                       onClick={() => handleApprove(selectedProvider.id)}
                       isLoading={actionLoading === selectedProvider.id}
+                      className="flex-1"
                     >
-                      <Check size={16} className="mr-2" />
-                      Approuver
+                      <RefreshCw size={16} className="mr-2" />
+                      Ré-approuver
                     </Button>
+                  )}
+
+                  {/* Approved: Reject */}
+                  {activeTab === 'approved' && (
                     <Button
                       variant="danger"
-                      className="flex-1"
                       onClick={() => handleReject(selectedProvider.id)}
                       isLoading={actionLoading === selectedProvider.id}
                     >
                       <X size={16} className="mr-2" />
                       Rejeter
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </Card>
             ) : (
-              <Card className="text-center py-12">
+              <Card className="text-center py-16">
                 <Eye size={48} className="text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">Sélectionnez une demande pour voir les détails</p>
               </Card>
