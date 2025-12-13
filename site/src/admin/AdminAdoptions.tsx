@@ -21,10 +21,13 @@ export function AdminAdoptions() {
   async function fetchPosts(status: AdoptPostStatus) {
     setLoading(true);
     try {
-      const data = await api.adminAdoptList(status, 50);
+      const data = await api.adminAdoptList(status, 100);
       // Handle different response formats and ensure array
-      const posts = data?.data || data;
-      setPosts(Array.isArray(posts) ? posts : []);
+      const allPosts = data?.data || data;
+      const postsArray = Array.isArray(allPosts) ? allPosts : [];
+      // Filter by status client-side as fallback (in case backend doesn't filter)
+      const filtered = postsArray.filter((p) => p.status === status);
+      setPosts(filtered);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setPosts([]);
