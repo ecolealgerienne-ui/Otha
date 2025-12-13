@@ -68,60 +68,108 @@ export function AdminDashboard() {
   } | null>(null);
 
   const fetchData = async () => {
+    console.log('AdminDashboard: fetchData starting...');
     setLoading(true);
     setError(null);
 
     try {
-      // Fetch all data in parallel with individual error handling
-      const [
-        providers,
-        adoptions,
-        approvedProviders,
-        allPendingProviders,
-        allRejectedProviders,
-        clients,
-        stats,
-      ] = await Promise.all([
-        api.listProviderApplications('PENDING', 5).catch((e) => { console.error('Pending providers error:', e); return []; }),
-        api.adminAdoptList('PENDING', 5).catch((e) => { console.error('Adoptions error:', e); return { data: [] }; }),
-        api.listProviderApplications('APPROVED', 1000).catch((e) => { console.error('Approved providers error:', e); return []; }),
-        api.listProviderApplications('PENDING', 1000).catch((e) => { console.error('All pending error:', e); return []; }),
-        api.listProviderApplications('REJECTED', 1000).catch((e) => { console.error('Rejected error:', e); return []; }),
-        api.adminListUsers(undefined, 1000, 0, 'USER').catch((e) => { console.error('Users error:', e); return []; }),
-        api.adminTraceabilityStats(
+      // Fetch basic data first (less likely to fail)
+      console.log('AdminDashboard: Fetching basic data...');
+
+      let providers: ProviderProfile[] = [];
+      let adoptions: { data: AdoptPost[] } = { data: [] };
+
+      try {
+        const result = await api.listProviderApplications('PENDING', 5);
+        // Ensure it's an array
+        providers = Array.isArray(result) ? result : [];
+        console.log('Providers result:', result, 'isArray:', Array.isArray(result));
+      } catch (e) {
+        console.error('Pending providers error:', e);
+      }
+
+      try {
+        const result = await api.adminAdoptList('PENDING', 5);
+        // Handle different response formats
+        adoptions = result && typeof result === 'object' && 'data' in result
+          ? result
+          : { data: Array.isArray(result) ? result : [] };
+        console.log('Adoptions result:', result);
+      } catch (e) {
+        console.error('Adoptions error:', e);
+      }
+
+      console.log('AdminDashboard: Basic data fetched', { providers: providers?.length, adoptions: adoptions?.data?.length });
+
+      // Always ensure arrays
+      setRecentProviders(Array.isArray(providers) ? providers : []);
+      setPendingAdoptions(Array.isArray(adoptions?.data) ? adoptions.data : []);
+
+      // Fetch additional stats (can fail without breaking the page)
+      console.log('AdminDashboard: Fetching stats...');
+
+      try {
+        const [approvedResult, pendingResult, rejectedResult] = await Promise.all([
+          api.listProviderApplications('APPROVED', 1000).catch(() => []),
+          api.listProviderApplications('PENDING', 1000).catch(() => []),
+          api.listProviderApplications('REJECTED', 1000).catch(() => []),
+        ]);
+        // Ensure arrays
+        const approvedProviders = Array.isArray(approvedResult) ? approvedResult : [];
+        const allPendingProviders = Array.isArray(pendingResult) ? pendingResult : [];
+        const allRejectedProviders = Array.isArray(rejectedResult) ? rejectedResult : [];
+
+        setProsApprovedCount(approvedProviders.length);
+        setPendingCount(allPendingProviders.length);
+        setRejectedCount(allRejectedProviders.length);
+      } catch (e) {
+        console.error('Provider stats error:', e);
+      }
+
+      try {
+        const clientsResult = await api.adminListUsers(undefined, 1000, 0, 'USER');
+        const clients = Array.isArray(clientsResult) ? clientsResult : [];
+        setClientsCount(clients.length);
+
+        if (clients && Array.isArray(clients)) {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const recentSignups = clients.filter((user) => {
+            const createdAt = user.createdAt ? new Date(user.createdAt) : null;
+            return createdAt && createdAt > thirtyDaysAgo;
+          });
+          setSignups30d(recentSignups.length);
+        }
+      } catch (e) {
+        console.error('Users error:', e);
+      }
+
+      try {
+        const stats = await api.adminTraceabilityStats(
           format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
           format(new Date(), 'yyyy-MM-dd')
-        ).catch((e) => { console.error('Traceability error:', e); return null; }),
-      ]);
-
-      setRecentProviders(providers || []);
-      setPendingAdoptions(adoptions?.data || []);
-      setProsApprovedCount(approvedProviders?.length || 0);
-      setPendingCount(allPendingProviders?.length || 0);
-      setRejectedCount(allRejectedProviders?.length || 0);
-      setClientsCount(clients?.length || 0);
-      setTraceabilityStats(stats);
-
-      // Calculate signups in last 30 days
-      if (clients && Array.isArray(clients)) {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const recentSignups = clients.filter((user) => {
-          const createdAt = user.createdAt ? new Date(user.createdAt) : null;
-          return createdAt && createdAt > thirtyDaysAgo;
-        });
-        setSignups30d(recentSignups.length);
+        );
+        setTraceabilityStats(stats);
+      } catch (e) {
+        console.error('Traceability error:', e);
       }
+
+      console.log('AdminDashboard: All data fetched successfully');
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Erreur lors du chargement des données');
     } finally {
+      console.log('AdminDashboard: Setting loading to false');
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log('AdminDashboard: Component mounted');
     fetchData();
+    return () => {
+      console.log('AdminDashboard: Component unmounting');
+    };
   }, []);
 
   if (loading) {
