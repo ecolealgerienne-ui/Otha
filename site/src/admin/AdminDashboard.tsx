@@ -42,11 +42,11 @@ export function AdminDashboard() {
     async function fetchData() {
       try {
         const [providers, adoptions] = await Promise.all([
-          api.listProviderApplications('PENDING', 5),
-          api.adminAdoptList('PENDING', 5),
+          api.listProviderApplications('PENDING', 5).catch(() => []),
+          api.adminAdoptList('PENDING', 5).catch(() => ({ data: [] })),
         ]);
-        setPendingProviders(providers);
-        setPendingAdoptions(adoptions.data);
+        setPendingProviders(providers || []);
+        setPendingAdoptions(adoptions?.data || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
