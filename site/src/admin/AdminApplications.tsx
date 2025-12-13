@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Check, X, Eye, MapPin, Clock, CheckCircle, XCircle, Phone, Mail, Link, Navigation, Save, RefreshCw, Copy } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Check, X, Eye, MapPin, Clock, CheckCircle, XCircle, Phone, Mail, Link, Navigation, Save, RefreshCw, Copy, DollarSign, Briefcase, ExternalLink } from 'lucide-react';
 import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { ProviderProfile } from '../types';
+import type { ProviderProfile, Service } from '../types';
 
 // Use lowercase status like Flutter app does
 type TabStatus = 'pending' | 'approved' | 'rejected';
@@ -23,7 +23,6 @@ function sanitizeMapsUrl(url: string): string {
     banned.forEach(key => params.delete(key));
     uri.search = params.toString();
 
-    // Clean path
     let path = uri.pathname.replace(/\/+/g, '/');
     const hasImportant = /\/data=![^/?#]*(?:!3d|!4d|:0x|ChI)/i.test(path);
     if (!hasImportant) {
@@ -72,11 +71,20 @@ function extractLatLngFromUrl(url: string): { lat: number | null; lng: number | 
   return { lat: null, lng: null };
 }
 
-// Helper: Generate OpenStreetMap static map URL
-function staticMapUrl(lat: number | null, lng: number | null, w = 400, h = 200, z = 16): string | null {
+// Helper: Generate static map URL (using OpenStreetMap)
+function staticMapUrl(lat: number | null, lng: number | null): string | null {
   if (lat == null || lng == null || lat === 0 || lng === 0) return null;
-  const ll = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${ll}&zoom=${z}&size=${w}x${h}&maptype=mapnik&markers=${ll},red-pushpin`;
+  // Use OpenStreetMap static map service
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat.toFixed(6)},${lng.toFixed(6)}&zoom=15&size=600x300&maptype=mapnik&markers=${lat.toFixed(6)},${lng.toFixed(6)},red-pushpin`;
+}
+
+// Helper: Format price in DZD
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat('fr-DZ', {
+    style: 'currency',
+    currency: 'DZD',
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 export function AdminApplications() {
@@ -85,6 +93,10 @@ export function AdminApplications() {
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState<ProviderProfile | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Provider details
+  const [services, setServices] = useState<Service[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
 
   // Edit form state
   const [mapsUrl, setMapsUrl] = useState('');
@@ -97,15 +109,37 @@ export function AdminApplications() {
     fetchProviders(activeTab);
   }, [activeTab]);
 
-  // When provider is selected, populate form fields
+  // When provider is selected, fetch fresh data and services
+  const loadProviderDetails = useCallback(async (provider: ProviderProfile) => {
+    // Set form fields from provider data
+    const specialties = provider.specialties as Record<string, unknown> | null;
+    setMapsUrl((specialties?.mapsUrl as string) || provider.mapsUrl || '');
+    setLat(provider.lat?.toFixed(6) || '');
+    setLng(provider.lng?.toFixed(6) || '');
+
+    // Fetch services
+    setServicesLoading(true);
+    try {
+      const providerServices = await api.getProviderServices(provider.id);
+      setServices(providerServices);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      setServices([]);
+    } finally {
+      setServicesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedProvider) {
-      const specialties = selectedProvider.specialties as Record<string, unknown> | null;
-      setMapsUrl((specialties?.mapsUrl as string) || selectedProvider.mapsUrl || '');
-      setLat(selectedProvider.lat?.toFixed(6) || '');
-      setLng(selectedProvider.lng?.toFixed(6) || '');
+      loadProviderDetails(selectedProvider);
+    } else {
+      setServices([]);
+      setMapsUrl('');
+      setLat('');
+      setLng('');
     }
-  }, [selectedProvider]);
+  }, [selectedProvider, loadProviderDetails]);
 
   async function fetchProviders(status: TabStatus) {
     setLoading(true);
@@ -175,8 +209,18 @@ export function AdminApplications() {
         lng: finalLng,
         mapsUrl: sanitized,
       });
-      alert('Modifications enregistrées');
+
+      // Update the selected provider with new values
+      setSelectedProvider({
+        ...selectedProvider,
+        lat: finalLat,
+        lng: finalLng,
+        mapsUrl: sanitized,
+      });
+
+      // Refresh the list
       fetchProviders(activeTab);
+      alert('Modifications enregistrées');
     } catch (error) {
       console.error('Error saving:', error);
       alert('Erreur lors de l\'enregistrement');
@@ -230,6 +274,11 @@ export function AdminApplications() {
     isNaN(previewLat) ? null : previewLat,
     isNaN(previewLng) ? null : previewLng
   );
+
+  // Google Maps link for viewing
+  const googleMapsLink = !isNaN(previewLat) && !isNaN(previewLng)
+    ? `https://www.google.com/maps?q=${previewLat},${previewLng}`
+    : null;
 
   return (
     <DashboardLayout>
@@ -304,8 +353,8 @@ export function AdminApplications() {
                         <h3 className="font-semibold text-gray-900 truncate">{provider.displayName || '(Sans nom)'}</h3>
                         <p className="text-sm text-gray-500 truncate">{provider.address || 'Adresse non renseignée'}</p>
                         {provider.lat && provider.lng && (
-                          <p className="text-xs text-gray-400">
-                            {provider.lat.toFixed(4)}, {provider.lng.toFixed(4)}
+                          <p className="text-xs text-green-600">
+                            ✓ Coords: {provider.lat.toFixed(4)}, {provider.lng.toFixed(4)}
                           </p>
                         )}
                       </div>
@@ -319,191 +368,234 @@ export function AdminApplications() {
           {/* Detail panel */}
           <div className="lg:col-span-2">
             {selectedProvider ? (
-              <Card className="sticky top-6">
-                {/* Header with status badge */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-4">
-                    {selectedProvider.avatarUrl ? (
-                      <img
-                        src={selectedProvider.avatarUrl}
-                        alt={selectedProvider.displayName}
-                        className="w-16 h-16 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center">
-                        <span className="text-primary-700 font-bold text-2xl">
-                          {selectedProvider.displayName?.charAt(0) || '?'}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{selectedProvider.displayName || '(Sans nom)'}</h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        isRejected
-                          ? 'bg-red-100 text-red-800'
-                          : isApproved
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {isRejected ? 'REJETÉ' : isApproved ? 'APPROUVÉ' : 'EN ATTENTE'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Coordonnées */}
-                <div className="border-t pt-4 mb-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Coordonnées</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Mail size={16} className="text-gray-400" />
-                        <span>{email || '—'}</span>
-                      </div>
-                      {email && (
-                        <button onClick={() => copyToClipboard(email, 'email')} className="text-gray-400 hover:text-gray-600">
-                          <Copy size={14} />
-                          {copied === 'email' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Phone size={16} className="text-gray-400" />
-                        <span>{phone || '—'}</span>
-                      </div>
-                      {phone && (
-                        <button onClick={() => copyToClipboard(phone, 'phone')} className="text-gray-400 hover:text-gray-600">
-                          <Copy size={14} />
-                          {copied === 'phone' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <MapPin size={16} className="text-gray-400" />
-                      <span>{selectedProvider.address || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Validation de la localisation */}
-                <div className="border-t pt-4 mb-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Validation de la localisation</h4>
-
-                  <div className="space-y-3">
-                    {/* Google Maps URL */}
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Lien Google Maps</label>
-                      <div className="flex space-x-2">
-                        <input
-                          type="url"
-                          value={mapsUrl}
-                          onChange={(e) => setMapsUrl(e.target.value)}
-                          placeholder="https://www.google.com/maps/..."
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                        <button
-                          onClick={handleSanitizeUrl}
-                          title="Nettoyer l'URL"
-                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                          <Link size={16} />
-                        </button>
-                        <button
-                          onClick={handleExtractCoords}
-                          title="Extraire les coordonnées"
-                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                          <Navigation size={16} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Lat/Lng */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm text-gray-600 mb-1">Latitude</label>
-                        <input
-                          type="text"
-                          value={lat}
-                          onChange={(e) => setLat(e.target.value)}
-                          placeholder="36.752887"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-gray-600 mb-1">Longitude</label>
-                        <input
-                          type="text"
-                          value={lng}
-                          onChange={(e) => setLng(e.target.value)}
-                          placeholder="3.042048"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Map preview */}
-                    <div className="rounded-lg overflow-hidden border border-gray-200">
-                      {mapPreview ? (
+              <div className="space-y-4">
+                <Card>
+                  {/* Header with status badge */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      {selectedProvider.avatarUrl ? (
                         <img
-                          src={mapPreview}
-                          alt="Aperçu carte"
-                          className="w-full h-48 object-cover"
+                          src={selectedProvider.avatarUrl}
+                          alt={selectedProvider.displayName}
+                          className="w-16 h-16 rounded-xl object-cover"
                         />
                       ) : (
-                        <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
-                          Prévisualisation indisponible — coordonnées manquantes
+                        <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center">
+                          <span className="text-primary-700 font-bold text-2xl">
+                            {selectedProvider.displayName?.charAt(0) || '?'}
+                          </span>
                         </div>
                       )}
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">{selectedProvider.displayName || '(Sans nom)'}</h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          isRejected
+                            ? 'bg-red-100 text-red-800'
+                            : isApproved
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {isRejected ? 'REJETÉ' : isApproved ? 'APPROUVÉ' : 'EN ATTENTE'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* AVN Cards */}
-                {(selectedProvider.avnCardFront || selectedProvider.avnCardBack) && (
+                  {/* Coordonnées */}
                   <div className="border-t pt-4 mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">Carte AVN</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedProvider.avnCardFront && (
-                        <a href={selectedProvider.avnCardFront} target="_blank" rel="noopener noreferrer">
-                          <img src={selectedProvider.avnCardFront} alt="AVN Recto" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
-                          <p className="text-xs text-center text-gray-500 mt-1">Recto</p>
-                        </a>
-                      )}
-                      {selectedProvider.avnCardBack && (
-                        <a href={selectedProvider.avnCardBack} target="_blank" rel="noopener noreferrer">
-                          <img src={selectedProvider.avnCardBack} alt="AVN Verso" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
-                          <p className="text-xs text-center text-gray-500 mt-1">Verso</p>
-                        </a>
-                      )}
+                    <h4 className="font-semibold text-gray-900 mb-3">Coordonnées</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Mail size={16} className="text-gray-400" />
+                          <span>{email || '—'}</span>
+                        </div>
+                        {email && (
+                          <button onClick={() => copyToClipboard(email, 'email')} className="text-gray-400 hover:text-gray-600">
+                            <Copy size={14} />
+                            {copied === 'email' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Phone size={16} className="text-gray-400" />
+                          <span>{phone || '—'}</span>
+                        </div>
+                        {phone && (
+                          <button onClick={() => copyToClipboard(phone, 'phone')} className="text-gray-400 hover:text-gray-600">
+                            <Copy size={14} />
+                            {copied === 'phone' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <MapPin size={16} className="text-gray-400" />
+                        <span>{selectedProvider.address || '—'}</span>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {/* Action buttons */}
-                <div className="border-t pt-4 flex flex-wrap gap-3">
-                  <Button
-                    variant="secondary"
-                    onClick={handleSaveLocation}
-                    isLoading={saving}
-                    className="flex-1"
-                  >
-                    <Save size={16} className="mr-2" />
-                    Enregistrer
-                  </Button>
+                  {/* Validation de la localisation */}
+                  <div className="border-t pt-4 mb-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Validation de la localisation</h4>
 
-                  {/* Pending: Approve + Reject */}
-                  {activeTab === 'pending' && (
-                    <>
+                    <div className="space-y-3">
+                      {/* Google Maps URL */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Lien Google Maps</label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="url"
+                            value={mapsUrl}
+                            onChange={(e) => setMapsUrl(e.target.value)}
+                            placeholder="https://www.google.com/maps/..."
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                          <button
+                            onClick={handleSanitizeUrl}
+                            title="Nettoyer l'URL"
+                            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                          >
+                            <Link size={16} />
+                          </button>
+                          <button
+                            onClick={handleExtractCoords}
+                            title="Extraire les coordonnées"
+                            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                          >
+                            <Navigation size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Lat/Lng */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Latitude</label>
+                          <input
+                            type="text"
+                            value={lat}
+                            onChange={(e) => setLat(e.target.value)}
+                            placeholder="36.752887"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Longitude</label>
+                          <input
+                            type="text"
+                            value={lng}
+                            onChange={(e) => setLng(e.target.value)}
+                            placeholder="3.042048"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Map preview */}
+                      <div className="rounded-lg overflow-hidden border border-gray-200 relative">
+                        {mapPreview ? (
+                          <>
+                            <img
+                              src={mapPreview}
+                              alt="Aperçu carte"
+                              className="w-full h-48 object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
+                              Carte non disponible
+                            </div>
+                            {googleMapsLink && (
+                              <a
+                                href={googleMapsLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="absolute bottom-2 right-2 bg-white px-2 py-1 rounded shadow text-xs flex items-center space-x-1 hover:bg-gray-50"
+                              >
+                                <ExternalLink size={12} />
+                                <span>Ouvrir Google Maps</span>
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
+                            Prévisualisation indisponible — coordonnées manquantes
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AVN Cards */}
+                  {(selectedProvider.avnCardFront || selectedProvider.avnCardBack) && (
+                    <div className="border-t pt-4 mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Carte AVN</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedProvider.avnCardFront && (
+                          <a href={selectedProvider.avnCardFront} target="_blank" rel="noopener noreferrer">
+                            <img src={selectedProvider.avnCardFront} alt="AVN Recto" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
+                            <p className="text-xs text-center text-gray-500 mt-1">Recto</p>
+                          </a>
+                        )}
+                        {selectedProvider.avnCardBack && (
+                          <a href={selectedProvider.avnCardBack} target="_blank" rel="noopener noreferrer">
+                            <img src={selectedProvider.avnCardBack} alt="AVN Verso" className="w-full h-24 object-cover rounded border hover:border-primary-500" />
+                            <p className="text-xs text-center text-gray-500 mt-1">Verso</p>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="border-t pt-4 flex flex-wrap gap-3">
+                    <Button
+                      variant="secondary"
+                      onClick={handleSaveLocation}
+                      isLoading={saving}
+                      className="flex-1"
+                    >
+                      <Save size={16} className="mr-2" />
+                      Enregistrer
+                    </Button>
+
+                    {activeTab === 'pending' && (
+                      <>
+                        <Button
+                          onClick={() => handleApprove(selectedProvider.id)}
+                          isLoading={actionLoading === selectedProvider.id}
+                          className="flex-1"
+                        >
+                          <Check size={16} className="mr-2" />
+                          Approuver
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => handleReject(selectedProvider.id)}
+                          isLoading={actionLoading === selectedProvider.id}
+                        >
+                          <X size={16} className="mr-2" />
+                          Rejeter
+                        </Button>
+                      </>
+                    )}
+
+                    {activeTab === 'rejected' && (
                       <Button
                         onClick={() => handleApprove(selectedProvider.id)}
                         isLoading={actionLoading === selectedProvider.id}
                         className="flex-1"
                       >
-                        <Check size={16} className="mr-2" />
-                        Approuver
+                        <RefreshCw size={16} className="mr-2" />
+                        Ré-approuver
                       </Button>
+                    )}
+
+                    {activeTab === 'approved' && (
                       <Button
                         variant="danger"
                         onClick={() => handleReject(selectedProvider.id)}
@@ -512,34 +604,55 @@ export function AdminApplications() {
                         <X size={16} className="mr-2" />
                         Rejeter
                       </Button>
-                    </>
-                  )}
+                    )}
+                  </div>
+                </Card>
 
-                  {/* Rejected: Re-approve */}
-                  {activeTab === 'rejected' && (
-                    <Button
-                      onClick={() => handleApprove(selectedProvider.id)}
-                      isLoading={actionLoading === selectedProvider.id}
-                      className="flex-1"
-                    >
-                      <RefreshCw size={16} className="mr-2" />
-                      Ré-approuver
-                    </Button>
-                  )}
+                {/* Services Card */}
+                <Card>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900 flex items-center">
+                      <Briefcase size={18} className="mr-2 text-primary-600" />
+                      Services ({services.length})
+                    </h4>
+                  </div>
 
-                  {/* Approved: Reject */}
-                  {activeTab === 'approved' && (
-                    <Button
-                      variant="danger"
-                      onClick={() => handleReject(selectedProvider.id)}
-                      isLoading={actionLoading === selectedProvider.id}
-                    >
-                      <X size={16} className="mr-2" />
-                      Rejeter
-                    </Button>
+                  {servicesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+                    </div>
+                  ) : services.length === 0 ? (
+                    <p className="text-gray-500 text-sm py-4 text-center">Aucun service configuré</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {services.map((service) => (
+                        <div
+                          key={service.id}
+                          className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900">{service.title}</h5>
+                              {service.description && (
+                                <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Durée: {service.durationMin} min
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-bold">
+                                <DollarSign size={14} className="mr-1" />
+                                {formatPrice(service.price)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </div>
-              </Card>
+                </Card>
+              </div>
             ) : (
               <Card className="text-center py-16">
                 <Eye size={48} className="text-gray-300 mx-auto mb-4" />

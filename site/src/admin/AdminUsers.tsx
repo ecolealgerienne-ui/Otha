@@ -1,23 +1,78 @@
-import { useEffect, useState } from 'react';
-import { Search, User as UserIcon, Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Search, User as UserIcon, Mail, Phone, MapPin, Calendar, Heart, PawPrint, MessageSquare, CalendarCheck, ChevronRight, RefreshCw, Copy } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { User } from '../types';
+import type { User, Pet, Booking, AdoptPost, AdoptConversation } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+interface UserQuotas {
+  swipesUsed: number;
+  swipesRemaining: number;
+  postsUsed: number;
+  postsRemaining: number;
+}
 
 export function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  // Default to 'USER' role (clients) like mobile admin
   const [selectedRole, setSelectedRole] = useState<string>('USER');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // User details
+  const [quotas, setQuotas] = useState<UserQuotas | null>(null);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [adoptPosts, setAdoptPosts] = useState<AdoptPost[]>([]);
+  const [adoptConversations, setAdoptConversations] = useState<AdoptConversation[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
   }, [searchQuery, selectedRole]);
+
+  // Load user details when selected
+  const loadUserDetails = useCallback(async (user: User) => {
+    setDetailsLoading(true);
+    try {
+      const [quotasData, petsData, bookingsData, adoptPostsData, adoptConvsData] = await Promise.all([
+        api.adminGetUserQuotas(user.id),
+        api.adminGetUserPets(user.id),
+        api.adminGetUserBookings(user.id),
+        api.adminGetUserAdoptPosts(user.id),
+        api.adminGetUserAdoptConversations(user.id),
+      ]);
+      setQuotas(quotasData);
+      setPets(petsData);
+      setBookings(bookingsData);
+      setAdoptPosts(adoptPostsData);
+      setAdoptConversations(adoptConvsData);
+    } catch (error) {
+      console.error('Error loading user details:', error);
+      setQuotas(null);
+      setPets([]);
+      setBookings([]);
+      setAdoptPosts([]);
+      setAdoptConversations([]);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedUser) {
+      loadUserDetails(selectedUser);
+    } else {
+      setQuotas(null);
+      setPets([]);
+      setBookings([]);
+      setAdoptPosts([]);
+      setAdoptConversations([]);
+    }
+  }, [selectedUser, loadUserDetails]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -28,7 +83,6 @@ export function AdminUsers() {
         0,
         selectedRole || undefined
       );
-      // Ensure data is always an array
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -52,6 +106,46 @@ export function AdminUsers() {
       default:
         return 'bg-gray-100 text-gray-700';
     }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return 'bg-green-100 text-green-700';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-700';
+      case 'ARCHIVED':
+        return 'bg-gray-100 text-gray-700';
+      case 'CONFIRMED':
+        return 'bg-green-100 text-green-700';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-700';
+      case 'COMPLETED':
+        return 'bg-blue-100 text-blue-700';
+      default:
+        return 'bg-yellow-100 text-yellow-700';
+    }
+  };
+
+  async function copyToClipboard(text: string, type: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      // Fallback
+    }
+  }
+
+  // Build display name helper
+  const getDisplayName = (user: User) => {
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    return [firstName, lastName].filter(Boolean).join(' ').trim() || '(Sans nom)';
+  };
+
+  const getAvatarLetter = (user: User) => {
+    return (getDisplayName(user) || user.email || '?').charAt(0).toUpperCase();
   };
 
   return (
@@ -93,7 +187,7 @@ export function AdminUsers() {
         {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* List */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
@@ -103,144 +197,319 @@ export function AdminUsers() {
                 <p className="text-gray-500">Aucun utilisateur trouvé</p>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {users.map((user) => {
-                  // Build display name like mobile
-                  const firstName = user.firstName || '';
-                  const lastName = user.lastName || '';
-                  const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-                  const avatarLetter = (displayName || user.email || '?').charAt(0).toUpperCase();
-
-                  return (
-                    <Card
-                      key={user.id}
-                      className={`cursor-pointer transition-all ${
-                        selectedUser?.id === user.id
-                          ? 'ring-2 ring-primary-500'
-                          : 'hover:shadow-md'
-                      }`}
-                      onClick={() => setSelectedUser(user)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {user.photoUrl ? (
-                            <img
-                              src={user.photoUrl}
-                              alt={user.email}
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                              <span className="text-primary-700 font-bold text-lg">
-                                {avatarLetter}
-                              </span>
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {displayName || '(Sans nom)'}
-                            </p>
-                            <p className="text-sm text-gray-500">{user.email}</p>
-                            {user.phone && (
-                              <p className="text-xs text-gray-400">{user.phone}</p>
-                            )}
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                {users.map((user) => (
+                  <Card
+                    key={user.id}
+                    className={`cursor-pointer transition-all ${
+                      selectedUser?.id === user.id
+                        ? 'ring-2 ring-primary-500'
+                        : 'hover:shadow-md'
+                    }`}
+                    onClick={() => setSelectedUser(user)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {user.photoUrl ? (
+                          <img
+                            src={user.photoUrl}
+                            alt={user.email}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                            <span className="text-primary-700 font-bold">
+                              {getAvatarLetter(user)}
+                            </span>
                           </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
+                            {getDisplayName(user)}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getRoleBadgeColor(user.role)}`}>
-                          {user.role}
-                        </span>
                       </div>
-                    </Card>
-                  );
-                })}
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </div>
+                  </Card>
+                ))}
               </div>
             )}
           </div>
 
           {/* Detail panel */}
-          <div className="lg:col-span-1">
-            {selectedUser ? (() => {
-              // Build display name like mobile
-              const firstName = selectedUser.firstName || '';
-              const lastName = selectedUser.lastName || '';
-              const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-              const avatarLetter = (displayName || selectedUser.email || '?').charAt(0).toUpperCase();
-
-              return (
-                <Card className="sticky top-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Détails de l'utilisateur</h3>
-
-                  {/* Avatar */}
-                  <div className="flex justify-center mb-4">
+          <div className="lg:col-span-2">
+            {selectedUser ? (
+              <div className="space-y-4">
+                {/* User Info Card */}
+                <Card>
+                  <div className="flex items-start space-x-4 mb-4">
                     {selectedUser.photoUrl ? (
                       <img
                         src={selectedUser.photoUrl}
                         alt={selectedUser.email}
-                        className="w-24 h-24 rounded-full object-cover"
+                        className="w-16 h-16 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-primary-700 font-bold text-3xl">
-                          {avatarLetter}
+                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-primary-700 font-bold text-2xl">
+                          {getAvatarLetter(selectedUser)}
                         </span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Name */}
-                  <p className="text-center font-semibold text-gray-900 text-lg mb-2">
-                    {displayName || '(Sans nom)'}
-                  </p>
-
-                  <div className="text-center mb-4">
-                    <span className={`text-sm px-3 py-1 rounded-full ${getRoleBadgeColor(selectedUser.role)}`}>
-                      {selectedUser.role}
-                    </span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3 text-sm">
-                      <Mail size={16} className="text-gray-400" />
-                      <div>
-                        <p className="text-gray-500">Email</p>
-                        <p className="font-medium">{selectedUser.email}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-xl font-bold text-gray-900">{getDisplayName(selectedUser)}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor(selectedUser.role)}`}>
+                          {selectedUser.role}
+                        </span>
                       </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Inscrit le {format(new Date(selectedUser.createdAt), 'dd MMMM yyyy', { locale: fr })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => loadUserDetails(selectedUser)}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                      title="Rafraîchir"
+                    >
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+
+                  {/* Contact info */}
+                  <div className="border-t pt-4 space-y-3">
+                    <h4 className="font-semibold text-gray-900 mb-3">Coordonnées</h4>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <Mail size={16} className="text-gray-400" />
+                        <span>{selectedUser.email}</span>
+                      </div>
+                      <button onClick={() => copyToClipboard(selectedUser.email, 'email')} className="text-gray-400 hover:text-gray-600">
+                        <Copy size={14} />
+                        {copied === 'email' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                      </button>
                     </div>
 
                     {selectedUser.phone && (
-                      <div className="flex items-center space-x-3 text-sm">
-                        <Phone size={16} className="text-gray-400" />
-                        <div>
-                          <p className="text-gray-500">Téléphone</p>
-                          <p className="font-medium">{selectedUser.phone}</p>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <Phone size={16} className="text-gray-400" />
+                          <span>{selectedUser.phone}</span>
                         </div>
+                        <button onClick={() => copyToClipboard(selectedUser.phone!, 'phone')} className="text-gray-400 hover:text-gray-600">
+                          <Copy size={14} />
+                          {copied === 'phone' && <span className="ml-1 text-green-600 text-xs">Copié!</span>}
+                        </button>
                       </div>
                     )}
 
                     {selectedUser.city && (
-                      <div className="flex items-center space-x-3 text-sm">
+                      <div className="flex items-center space-x-2 text-sm">
                         <MapPin size={16} className="text-gray-400" />
-                        <div>
-                          <p className="text-gray-500">Ville</p>
-                          <p className="font-medium">{selectedUser.city}</p>
-                        </div>
+                        <span>{selectedUser.city}</span>
                       </div>
                     )}
-
-                    <div className="flex items-center space-x-3 text-sm">
-                      <Calendar size={16} className="text-gray-400" />
-                      <div>
-                        <p className="text-gray-500">Inscrit le</p>
-                        <p className="font-medium">
-                          {format(new Date(selectedUser.createdAt), 'dd MMMM yyyy', { locale: fr })}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </Card>
-              );
-            })() : (
-              <Card className="text-center py-12">
+
+                {detailsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Quotas Card */}
+                    <Card>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <Heart size={18} className="mr-2 text-pink-500" />
+                        Quotas adoption
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Swipes quota */}
+                        <div className="p-4 bg-pink-50 rounded-lg border border-pink-100">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Heart size={16} className="text-pink-500" />
+                            <span className="text-sm font-medium text-pink-700">Swipes (likes)</span>
+                          </div>
+                          <p className="text-2xl font-bold text-pink-600">
+                            {quotas?.swipesUsed || 0} / {(quotas?.swipesUsed || 0) + (quotas?.swipesRemaining || 5)}
+                          </p>
+                          <div className="mt-2 h-2 bg-pink-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-pink-500 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, ((quotas?.swipesUsed || 0) / ((quotas?.swipesUsed || 0) + (quotas?.swipesRemaining || 5))) * 100)}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Posts quota */}
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <PawPrint size={16} className="text-blue-500" />
+                            <span className="text-sm font-medium text-blue-700">Annonces</span>
+                          </div>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {quotas?.postsUsed || 0} / {(quotas?.postsUsed || 0) + (quotas?.postsRemaining || 1)}
+                          </p>
+                          <div className="mt-2 h-2 bg-blue-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, ((quotas?.postsUsed || 0) / ((quotas?.postsUsed || 0) + (quotas?.postsRemaining || 1))) * 100)}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Pets Card */}
+                    <Card>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <PawPrint size={18} className="mr-2 text-primary-600" />
+                        Animaux ({pets.length})
+                      </h4>
+
+                      {pets.length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center py-4">Aucun animal enregistré</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {pets.map((pet) => (
+                            <div key={pet.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                              {pet.photoUrl ? (
+                                <img src={pet.photoUrl} alt={pet.name} className="w-10 h-10 rounded-lg object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                                  <PawPrint size={16} className="text-primary-600" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{pet.name}</p>
+                                <p className="text-xs text-gray-500">{pet.species} {pet.breed && `• ${pet.breed}`}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Bookings Card */}
+                    <Card>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <CalendarCheck size={18} className="mr-2 text-green-600" />
+                        Rendez-vous ({bookings.length})
+                      </h4>
+
+                      {bookings.length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center py-4">Aucun rendez-vous</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {bookings.slice(0, 5).map((booking) => (
+                            <div key={booking.id} className="p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900 text-sm">{booking.service?.title || 'Service'}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {format(new Date(booking.date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
+                                  </p>
+                                </div>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(booking.status)}`}>
+                                  {booking.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {bookings.length > 5 && (
+                            <p className="text-xs text-gray-500 text-center">+{bookings.length - 5} autres</p>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Adopt Posts Card */}
+                    <Card>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <PawPrint size={18} className="mr-2 text-orange-500" />
+                        Annonces adoption ({adoptPosts.length})
+                      </h4>
+
+                      {adoptPosts.length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center py-4">Aucune annonce</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {adoptPosts.map((post) => (
+                            <div key={post.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                              {post.images?.[0]?.url ? (
+                                <img src={post.images[0].url} alt={post.animalName} className="w-12 h-12 rounded-lg object-cover" />
+                              ) : (
+                                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                                  <PawPrint size={18} className="text-orange-500" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{post.animalName || post.title}</p>
+                                <p className="text-xs text-gray-500">{post.species} • {post.city}</p>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(post.status)}`}>
+                                {post.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Conversations Card */}
+                    <Card>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <MessageSquare size={18} className="mr-2 text-indigo-500" />
+                        Conversations adoption ({adoptConversations.length})
+                      </h4>
+
+                      {adoptConversations.length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center py-4">Aucune conversation</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {adoptConversations.slice(0, 5).map((conv) => {
+                            const post = conv.post as Record<string, unknown> | undefined;
+                            const animalName = (post?.animalName as string) || (post?.title as string) || 'Animal';
+                            const isOwner = conv.ownerId === selectedUser?.id;
+
+                            return (
+                              <div key={conv.id} className="p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">{animalName}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {isOwner ? 'Propriétaire' : 'Adoptant'}
+                                    </p>
+                                  </div>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    isOwner ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {isOwner ? 'Proprio' : 'Adoptant'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {adoptConversations.length > 5 && (
+                            <p className="text-xs text-gray-500 text-center">+{adoptConversations.length - 5} autres</p>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Card className="text-center py-16">
                 <UserIcon size={48} className="text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">Sélectionnez un utilisateur pour voir les détails</p>
               </Card>
