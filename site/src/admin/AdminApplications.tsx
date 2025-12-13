@@ -22,9 +22,11 @@ export function AdminApplications() {
     setLoading(true);
     try {
       const data = await api.listProviderApplications(status, 50);
-      setProviders(data);
+      // Ensure data is always an array
+      setProviders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching providers:', error);
+      setProviders([]);
     } finally {
       setLoading(false);
     }

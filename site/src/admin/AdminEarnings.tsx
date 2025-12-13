@@ -29,9 +29,11 @@ export function AdminEarnings() {
     setLoading(true);
     try {
       const data = await api.listProviderApplications('APPROVED', 100);
-      setProviders(data);
+      // Ensure data is always an array
+      setProviders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching providers:', error);
+      setProviders([]);
     } finally {
       setLoading(false);
     }
@@ -52,9 +54,11 @@ export function AdminEarnings() {
     setEarningsLoading(true);
     try {
       const data = await api.adminHistoryMonthly(providerId, 12);
-      setEarnings(data);
+      // Ensure data is always an array
+      setEarnings(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching earnings:', error);
+      setEarnings([]);
     } finally {
       setEarningsLoading(false);
     }

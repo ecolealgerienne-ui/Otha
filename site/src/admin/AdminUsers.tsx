@@ -28,9 +28,11 @@ export function AdminUsers() {
         0,
         selectedRole || undefined
       );
-      setUsers(data);
+      // Ensure data is always an array
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
