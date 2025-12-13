@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, User as UserIcon, Mail, Phone, MapPin, Calendar, Heart, PawPrint, MessageSquare, CalendarCheck, ChevronRight, RefreshCw, Copy } from 'lucide-react';
+import { Search, User as UserIcon, Mail, Phone, MapPin, Heart, PawPrint, MessageSquare, ChevronRight, RefreshCw, Copy } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { User, Pet, Booking, AdoptPost, AdoptConversation } from '../types';
+import type { User, AdoptPost, AdoptConversation } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -21,10 +21,8 @@ export function AdminUsers() {
   const [selectedRole, setSelectedRole] = useState<string>('USER');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // User details
+  // User details (only what backend supports - like Flutter app)
   const [quotas, setQuotas] = useState<UserQuotas | null>(null);
-  const [pets, setPets] = useState<Pet[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [adoptPosts, setAdoptPosts] = useState<AdoptPost[]>([]);
   const [adoptConversations, setAdoptConversations] = useState<AdoptConversation[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -34,27 +32,28 @@ export function AdminUsers() {
     fetchUsers();
   }, [searchQuery, selectedRole]);
 
-  // Load user details when selected
+  // Load user details when selected (matching Flutter app endpoints)
   const loadUserDetails = useCallback(async (user: User) => {
     setDetailsLoading(true);
+    console.log('[AdminUsers] Loading details for user:', user.id);
     try {
-      const [quotasData, petsData, bookingsData, adoptPostsData, adoptConvsData] = await Promise.all([
+      // Only call endpoints that actually exist (same as Flutter app)
+      const [quotasData, adoptPostsData, adoptConvsData] = await Promise.all([
         api.adminGetUserQuotas(user.id),
-        api.adminGetUserPets(user.id),
-        api.adminGetUserBookings(user.id),
         api.adminGetUserAdoptPosts(user.id),
         api.adminGetUserAdoptConversations(user.id),
       ]);
+
+      console.log('[AdminUsers] quotasData:', quotasData);
+      console.log('[AdminUsers] adoptPostsData:', adoptPostsData);
+      console.log('[AdminUsers] adoptConvsData:', adoptConvsData);
+
       setQuotas(quotasData);
-      setPets(petsData);
-      setBookings(bookingsData);
-      setAdoptPosts(adoptPostsData);
-      setAdoptConversations(adoptConvsData);
+      setAdoptPosts(Array.isArray(adoptPostsData) ? adoptPostsData : []);
+      setAdoptConversations(Array.isArray(adoptConvsData) ? adoptConvsData : []);
     } catch (error) {
-      console.error('Error loading user details:', error);
+      console.error('[AdminUsers] Error loading user details:', error);
       setQuotas(null);
-      setPets([]);
-      setBookings([]);
       setAdoptPosts([]);
       setAdoptConversations([]);
     } finally {
@@ -67,8 +66,6 @@ export function AdminUsers() {
       loadUserDetails(selectedUser);
     } else {
       setQuotas(null);
-      setPets([]);
-      setBookings([]);
       setAdoptPosts([]);
       setAdoptConversations([]);
     }
@@ -369,69 +366,6 @@ export function AdminUsers() {
                       </div>
                     </Card>
 
-                    {/* Pets Card */}
-                    <Card>
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                        <PawPrint size={18} className="mr-2 text-primary-600" />
-                        Animaux ({pets.length})
-                      </h4>
-
-                      {pets.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-4">Aucun animal enregistré</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {pets.map((pet) => (
-                            <div key={pet.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              {pet.photoUrl ? (
-                                <img src={pet.photoUrl} alt={pet.name} className="w-10 h-10 rounded-lg object-cover" />
-                              ) : (
-                                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                                  <PawPrint size={16} className="text-primary-600" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{pet.name}</p>
-                                <p className="text-xs text-gray-500">{pet.species} {pet.breed && `• ${pet.breed}`}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-
-                    {/* Bookings Card */}
-                    <Card>
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                        <CalendarCheck size={18} className="mr-2 text-green-600" />
-                        Rendez-vous ({bookings.length})
-                      </h4>
-
-                      {bookings.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-4">Aucun rendez-vous</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {bookings.slice(0, 5).map((booking) => (
-                            <div key={booking.id} className="p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium text-gray-900 text-sm">{booking.service?.title || 'Service'}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {format(new Date(booking.date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
-                                  </p>
-                                </div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(booking.status)}`}>
-                                  {booking.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                          {bookings.length > 5 && (
-                            <p className="text-xs text-gray-500 text-center">+{bookings.length - 5} autres</p>
-                          )}
-                        </div>
-                      )}
-                    </Card>
-
                     {/* Adopt Posts Card */}
                     <Card>
                       <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
@@ -443,24 +377,28 @@ export function AdminUsers() {
                         <p className="text-gray-500 text-sm text-center py-4">Aucune annonce</p>
                       ) : (
                         <div className="space-y-2">
-                          {adoptPosts.map((post) => (
-                            <div key={post.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              {post.images?.[0]?.url ? (
-                                <img src={post.images[0].url} alt={post.animalName} className="w-12 h-12 rounded-lg object-cover" />
-                              ) : (
-                                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                  <PawPrint size={18} className="text-orange-500" />
+                          {adoptPosts.map((post) => {
+                            const postName = post.animalName || post.name || post.title || 'Animal';
+                            const postLocation = post.city || post.location || '';
+                            return (
+                              <div key={post.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                {post.images?.[0]?.url ? (
+                                  <img src={post.images[0].url} alt={postName} className="w-12 h-12 rounded-lg object-cover" />
+                                ) : (
+                                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                                    <PawPrint size={18} className="text-orange-500" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{postName}</p>
+                                  <p className="text-xs text-gray-500">{post.species}{postLocation ? ` • ${postLocation}` : ''}</p>
                                 </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{post.animalName || post.title}</p>
-                                <p className="text-xs text-gray-500">{post.species} • {post.city}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(post.status)}`}>
+                                  {post.status}
+                                </span>
                               </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(post.status)}`}>
-                                {post.status}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </Card>
