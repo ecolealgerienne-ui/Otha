@@ -21,7 +21,6 @@ import type {
   AdoptMessage,
   MonthlyEarnings,
   Notification,
-  ProviderStatus,
   AdoptPostStatus,
 } from '../types';
 

@@ -71,13 +71,6 @@ function extractLatLngFromUrl(url: string): { lat: number | null; lng: number | 
   return { lat: null, lng: null };
 }
 
-// Helper: Generate static map URL (using OpenStreetMap)
-function staticMapUrl(lat: number | null, lng: number | null): string | null {
-  if (lat == null || lng == null || lat === 0 || lng === 0) return null;
-  // Use OpenStreetMap static map service
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat.toFixed(6)},${lng.toFixed(6)}&zoom=15&size=600x300&maptype=mapnik&markers=${lat.toFixed(6)},${lng.toFixed(6)},red-pushpin`;
-}
-
 // Helper: Format price in DZD
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('fr-DZ', {
@@ -264,16 +257,13 @@ export function AdminApplications() {
   const email = (user?.email as string) || '';
   const phone = (user?.phone as string) || '';
   const isApproved = selectedProvider?.isApproved === true;
-  const rejectedAt = (selectedProvider as Record<string, unknown>)?.rejectedAt as string | undefined;
+  const providerAsAny = selectedProvider as unknown as Record<string, unknown> | undefined;
+  const rejectedAt = providerAsAny?.rejectedAt as string | undefined;
   const isRejected = !!rejectedAt;
 
-  // Map preview
+  // Map coordinates
   const previewLat = parseFloat(lat.replace(',', '.'));
   const previewLng = parseFloat(lng.replace(',', '.'));
-  const mapPreview = staticMapUrl(
-    isNaN(previewLat) ? null : previewLat,
-    isNaN(previewLng) ? null : previewLng
-  );
 
   // Google Maps link for viewing
   const googleMapsLink = !isNaN(previewLat) && !isNaN(previewLng)
@@ -493,38 +483,30 @@ export function AdminApplications() {
                         </div>
                       </div>
 
-                      {/* Map preview */}
-                      <div className="rounded-lg overflow-hidden border border-gray-200 relative">
-                        {mapPreview ? (
-                          <>
-                            <img
-                              src={mapPreview}
-                              alt="Aperçu carte"
-                              className="w-full h-48 object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
-                            <div className="hidden w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
-                              Carte non disponible
+                      {/* Map link (no preview - just button) */}
+                      <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                        {googleMapsLink ? (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Localisation</p>
+                              <p className="text-xs text-gray-500">
+                                {previewLat.toFixed(6)}, {previewLng.toFixed(6)}
+                              </p>
                             </div>
-                            {googleMapsLink && (
-                              <a
-                                href={googleMapsLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="absolute bottom-2 right-2 bg-white px-2 py-1 rounded shadow text-xs flex items-center space-x-1 hover:bg-gray-50"
-                              >
-                                <ExternalLink size={12} />
-                                <span>Ouvrir Google Maps</span>
-                              </a>
-                            )}
-                          </>
-                        ) : (
-                          <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
-                            Prévisualisation indisponible — coordonnées manquantes
+                            <a
+                              href={googleMapsLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+                            >
+                              <ExternalLink size={16} className="mr-2" />
+                              Ouvrir sur Google Maps
+                            </a>
                           </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center">
+                            Coordonnées manquantes — entrez lat/lng ou extrayez depuis l'URL
+                          </p>
                         )}
                       </div>
                     </div>

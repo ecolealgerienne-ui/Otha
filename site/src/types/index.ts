@@ -248,12 +248,15 @@ export type AdoptPostStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 export interface AdoptPost {
   id: string;
   userId: string;
-  name: string;
+  name?: string;
+  animalName?: string; // Backend may return this instead of name
+  title?: string; // Backend may return this
   species: string;
   sex?: string;
   age?: string;
   description?: string;
   location?: string;
+  city?: string; // Backend may return this instead of location
   status: AdoptPostStatus;
   images?: AdoptImage[];
   user?: User;
