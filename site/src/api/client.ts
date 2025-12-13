@@ -494,8 +494,10 @@ class ApiClient {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (q) params.append('q', q);
     if (role) params.append('role', role);
-    const { data } = await this.client.get<User[]>(`/users/list?${params}`);
-    return data;
+    const { data } = await this.client.get(`/users/list?${params}`);
+    // Handle wrapped response { data: [...] } or direct array
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
   }
 
   // ==================== ADMIN: PROVIDERS ====================
@@ -509,8 +511,10 @@ class ApiClient {
       limit: String(limit),
       offset: String(offset),
     });
-    const { data } = await this.client.get<ProviderProfile[]>(`/providers/admin/applications?${params}`);
-    return data;
+    const { data } = await this.client.get(`/providers/admin/applications?${params}`);
+    // Handle wrapped response { data: [...] } or direct array
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
   }
 
   async approveProvider(providerId: string): Promise<ProviderProfile> {
@@ -579,10 +583,12 @@ class ApiClient {
 
   // ==================== ADMIN: EARNINGS ====================
   async adminHistoryMonthly(providerId: string, months = 12): Promise<MonthlyEarnings[]> {
-    const { data } = await this.client.get<MonthlyEarnings[]>(
+    const { data } = await this.client.get(
       `/earnings/admin/history-monthly?providerId=${providerId}&months=${months}`
     );
-    return data;
+    // Handle wrapped response { data: [...] } or direct array
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
   }
 
   async adminCollectMonth(providerId: string, month: string, note?: string): Promise<void> {
@@ -598,12 +604,10 @@ class ApiClient {
     totalAmount: number;
     totalCommission: number;
   }> {
-    const { data } = await this.client.get<{
-      totalBookings: number;
-      totalAmount: number;
-      totalCommission: number;
-    }>(`/bookings/admin/traceability?from=${from}&to=${to}`);
-    return data;
+    const { data } = await this.client.get(`/bookings/admin/traceability?from=${from}&to=${to}`);
+    // Handle wrapped response { data: {...} } or direct object
+    const result = data?.data || data;
+    return result || { totalBookings: 0, totalAmount: 0, totalCommission: 0 };
   }
 
   // ==================== UPLOADS ====================
