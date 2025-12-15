@@ -723,25 +723,16 @@ async upsertMyProvider(userId: string, dto: any) {
     console.log('🔵 Provider found:', provider?.id || 'NOT FOUND');
     if (!provider) throw new NotFoundException('Provider not found');
 
-    // Get pet data from token (note: prescriptions table may not exist in all environments)
+    // Get pet data from token (simplified query - some tables/columns may not exist in prod)
     const accessToken = await this.prisma.petAccessToken.findUnique({
       where: { token },
       include: {
         pet: {
           include: {
-            medicalRecords: {
-              orderBy: { date: 'desc' },
-              include: { provider: { select: { id: true, displayName: true } } },
-            },
+            medicalRecords: { orderBy: { date: 'desc' } },
             weightRecords: { orderBy: { date: 'desc' }, take: 10 },
             vaccinations: { orderBy: { date: 'desc' } },
-            treatments: { orderBy: { startDate: 'desc' } },
             allergies: true,
-            preventiveCare: { orderBy: { lastDate: 'desc' } },
-            diseaseTrackings: {
-              orderBy: { createdAt: 'desc' },
-              include: { provider: { select: { id: true, displayName: true } } },
-            },
             owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
           },
         },
