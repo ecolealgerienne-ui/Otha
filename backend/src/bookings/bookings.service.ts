@@ -285,7 +285,7 @@ export class BookingsService {
             pets: {
               orderBy: { updatedAt: 'desc' },
               take: 1,
-              select: { id: true, idNumber: true, breed: true, name: true, species: true }, // ✅ Include id for fallback
+              select: { id: true, idNumber: true, breed: true, name: true, species: true, photoUrl: true }, // ✅ Include id and photoUrl for fallback
             },
           },
         },
@@ -297,7 +297,7 @@ export class BookingsService {
     const pets = allPetIds.length > 0
       ? await this.prisma.pet.findMany({
           where: { id: { in: allPetIds } },
-          select: { id: true, name: true, species: true, breed: true },
+          select: { id: true, name: true, species: true, breed: true, photoUrl: true },
         })
       : [];
     const petsMap = new Map(pets.map(p => [p.id, p]));
@@ -333,7 +333,7 @@ export class BookingsService {
 
       // ✅ Fallback: use user's pet if booking doesn't have petIds
       const fallbackPet = userPet?.id
-        ? { id: userPet.id, name: userPet.name, species: userPet.species, breed: userPet.breed }
+        ? { id: userPet.id, name: userPet.name, species: userPet.species, breed: userPet.breed, photoUrl: userPet.photoUrl }
         : null;
 
       return {
@@ -349,10 +349,10 @@ export class BookingsService {
           isFirstBooking, // ✅ Pour afficher "Nouveau client" côté PRO
           trustStatus: b.user.trustStatus, // ✅ Statut de confiance
         },
-        // ✅ Pet avec ID pour permettre le chargement du dossier médical
+        // ✅ Pet avec ID et photoUrl pour permettre le chargement du dossier médical
         // Fallback to user's pet if booking doesn't have petIds linked
         pet: bookingPet
-          ? { id: bookingPet.id, name: bookingPet.name, species: bookingPet.species, breed: bookingPet.breed }
+          ? { id: bookingPet.id, name: bookingPet.name, species: bookingPet.species, breed: bookingPet.breed, photoUrl: bookingPet.photoUrl }
           : fallbackPet || { label: petType || null, name: userPet?.name ?? null },
       };
     });

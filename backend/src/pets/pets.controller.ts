@@ -2,6 +2,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { PetsService } from './pets.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('pets')
@@ -73,6 +75,17 @@ export class PetsController {
   @Post(':petId/access-token')
   generateAccessToken(@Req() req: any, @Param('petId') petId: string) {
     return this.pets.generateAccessToken(req.user.sub, petId);
+  }
+
+  /**
+   * PRO: Generate access token for a pet from a confirmed booking
+   * Allows vets to access pet health records after confirmed appointments
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':petId/pro-access-token')
+  generateProAccessToken(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.generateProAccessToken(req.user.sub, petId);
   }
 
   // Endpoint public pour le vétérinaire - accès via token
