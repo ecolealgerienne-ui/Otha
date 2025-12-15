@@ -162,6 +162,15 @@ export function ProPatients() {
     return () => clearInterval(interval);
   }, []);
 
+  // ✅ Listen for pet scanned from Flutter app to refresh recent patients
+  useEffect(() => {
+    const handleFlutterScan = () => {
+      loadRecentPatients();
+    };
+    window.addEventListener('pet-scanned-from-flutter', handleFlutterScan);
+    return () => window.removeEventListener('pet-scanned-from-flutter', handleFlutterScan);
+  }, []);
+
   async function loadRecentPatients() {
     setLoadingRecentPatients(true);
     try {

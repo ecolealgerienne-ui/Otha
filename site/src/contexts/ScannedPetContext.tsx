@@ -88,6 +88,20 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           // Ignore health stats fetch errors
         }
 
+        // ✅ Look for active booking for this pet (may have been confirmed by Flutter)
+        let activeBooking: Booking | null = null;
+        let bookingConfirmed = false;
+        try {
+          const booking = await api.getActiveBookingForPet(petData.id);
+          if (booking && booking.id) {
+            activeBooking = booking;
+            // Check if booking was already confirmed by Flutter
+            bookingConfirmed = booking.status === 'CONFIRMED' || booking.status === 'COMPLETED';
+          }
+        } catch {
+          // No active booking - that's ok
+        }
+
         setState({
           pet: petData,
           token: '', // Token is handled by backend
@@ -96,12 +110,15 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           prescriptions: petData.prescriptions || [],
           healthStats,
           diseases: petData.diseases || [],
-          activeBooking: null,
-          bookingConfirmed: false,
+          activeBooking,
+          bookingConfirmed,
         });
 
         setIsPolling(false);
         api.clearScannedPet().catch(() => {});
+
+        // ✅ Dispatch event to notify ProPatients to refresh recent patients
+        window.dispatchEvent(new CustomEvent('pet-scanned-from-flutter'));
       }
     } catch (error) {
       console.log('Poll error:', error);
