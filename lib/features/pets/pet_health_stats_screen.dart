@@ -15,20 +15,52 @@ const _ink = Color(0xFF222222);
 const _mint = Color(0xFF4ECDC4);
 const _purple = Color(0xFF9B59B6);
 
-// Provider pour les statistiques de santé
+// Provider pour les statistiques de santé (par petId)
 final healthStatsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, petId) async {
   final api = ref.read(apiProvider);
   return api.getHealthStats(petId);
 });
 
+// Provider pour les stats via token (accès vétérinaire) - utilise les données du pet
+final healthStatsByTokenProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  final petData = await api.getPetByToken(token);
+  // Extraire les données de santé du pet (si disponibles via getPetByToken)
+  // On essaie d'abord de charger les stats via petId
+  final petId = petData['id']?.toString();
+  if (petId != null) {
+    try {
+      return await api.getHealthStats(petId);
+    } catch (_) {
+      // Fallback: construire les stats à partir des données brutes
+    }
+  }
+  // Construire les stats à partir des données brutes du pet
+  final weightRecords = (petData['weightRecords'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  return {
+    'weight': weightRecords.isNotEmpty ? {
+      'current': weightRecords.first['weightKg'],
+      'data': weightRecords,
+    } : null,
+    'temperature': null,
+    'heartRate': null,
+  };
+});
+
 class PetHealthStatsScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
 
-  const PetHealthStatsScreen({super.key, required this.petId});
+  const PetHealthStatsScreen({super.key, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(healthStatsProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final statsAsync = isVetAccess
+        ? ref.watch(healthStatsByTokenProvider(token!))
+        : ref.watch(healthStatsProvider(petId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -122,7 +154,11 @@ class PetHealthStatsScreen extends ConsumerWidget {
       ),
     ).then((_) {
       // Refresh après fermeture du bottom sheet
-      ref.invalidate(healthStatsProvider(petId));
+      if (isVetAccess) {
+        ref.invalidate(healthStatsByTokenProvider(token!));
+      } else {
+        ref.invalidate(healthStatsProvider(petId));
+      }
     });
   }
 
@@ -138,7 +174,13 @@ class PetHealthStatsScreen extends ConsumerWidget {
           Text(error, style: TextStyle(color: Colors.grey.shade600)),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => ref.invalidate(healthStatsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(healthStatsByTokenProvider(token!));
+              } else {
+                ref.invalidate(healthStatsProvider(petId));
+              }
+            },
             style: FilledButton.styleFrom(
               backgroundColor: _coral,
               foregroundColor: Colors.white,

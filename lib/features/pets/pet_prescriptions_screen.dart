@@ -10,7 +10,7 @@ const _coral = Color(0xFFF36C6C);
 const _mint = Color(0xFF4ECDC4);
 const _ink = Color(0xFF222222);
 
-// Provider pour les traitements actifs
+// Provider pour les traitements actifs (par petId)
 final activeTreatmentsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, petId) async {
   final api = ref.read(apiProvider);
@@ -26,14 +26,29 @@ final activeTreatmentsProvider = FutureProvider.autoDispose
   return [];
 });
 
+// Provider pour les traitements via token (accès vétérinaire)
+final treatmentsByTokenProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  final petData = await api.getPetByToken(token);
+  final treatments = (petData['treatments'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  return treatments;
+});
+
 class PetPrescriptionsScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
 
-  const PetPrescriptionsScreen({super.key, required this.petId});
+  const PetPrescriptionsScreen({super.key, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final treatmentsAsync = ref.watch(activeTreatmentsProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final treatmentsAsync = isVetAccess
+        ? ref.watch(treatmentsByTokenProvider(token!))
+        : ref.watch(activeTreatmentsProvider(petId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -51,7 +66,13 @@ class PetPrescriptionsScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () => ref.invalidate(activeTreatmentsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(treatmentsByTokenProvider(token!));
+              } else {
+                ref.invalidate(activeTreatmentsProvider(petId));
+              }
+            },
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -106,8 +127,15 @@ class PetPrescriptionsScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          await context.push('/pets/$petId/treatments/new');
-          ref.invalidate(activeTreatmentsProvider(petId));
+          final url = isVetAccess
+              ? '/pets/$petId/treatments/new?token=$token'
+              : '/pets/$petId/treatments/new';
+          await context.push(url);
+          if (isVetAccess) {
+            ref.invalidate(treatmentsByTokenProvider(token!));
+          } else {
+            ref.invalidate(activeTreatmentsProvider(petId));
+          }
         },
         backgroundColor: _mint,
         icon: const Icon(Icons.add, color: Colors.white),
@@ -177,8 +205,15 @@ class PetPrescriptionsScreen extends ConsumerWidget {
 
     return InkWell(
       onTap: () async {
-        await context.push('/pets/$petId/treatments/${treatment['id']}/edit');
-        ref.invalidate(activeTreatmentsProvider(petId));
+        final url = isVetAccess
+            ? '/pets/$petId/treatments/${treatment['id']}/edit?token=$token'
+            : '/pets/$petId/treatments/${treatment['id']}/edit';
+        await context.push(url);
+        if (isVetAccess) {
+          ref.invalidate(treatmentsByTokenProvider(token!));
+        } else {
+          ref.invalidate(activeTreatmentsProvider(petId));
+        }
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -414,7 +449,13 @@ class PetPrescriptionsScreen extends ConsumerWidget {
           Text(error, style: TextStyle(color: Colors.grey.shade600)),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => ref.invalidate(activeTreatmentsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(treatmentsByTokenProvider(token!));
+              } else {
+                ref.invalidate(activeTreatmentsProvider(petId));
+              }
+            },
             style: FilledButton.styleFrom(backgroundColor: _coral),
             child: const Text('Réessayer'),
           ),

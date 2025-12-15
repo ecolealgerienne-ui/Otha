@@ -12,7 +12,7 @@ const _ink = Color(0xFF222222);
 const _orange = Color(0xFFF39C12);
 const _purple = Color(0xFF9B59B6);
 
-// Provider pour les vaccinations d'un animal
+// Provider pour les vaccinations d'un animal (par petId)
 final vaccinationsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, petId) async {
   final api = ref.read(apiProvider);
@@ -20,14 +20,29 @@ final vaccinationsProvider = FutureProvider.autoDispose
   return vaccinations.cast<Map<String, dynamic>>();
 });
 
+// Provider pour les vaccinations via token (accès vétérinaire)
+final vaccinationsByTokenProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  final petData = await api.getPetByToken(token);
+  final vaccinations = (petData['vaccinations'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  return vaccinations;
+});
+
 class PetVaccinationsScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
 
-  const PetVaccinationsScreen({super.key, required this.petId});
+  const PetVaccinationsScreen({super.key, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final vaccinationsAsync = ref.watch(vaccinationsProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final vaccinationsAsync = isVetAccess
+        ? ref.watch(vaccinationsByTokenProvider(token!))
+        : ref.watch(vaccinationsProvider(petId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -45,7 +60,13 @@ class PetVaccinationsScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () => ref.invalidate(vaccinationsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(vaccinationsByTokenProvider(token!));
+              } else {
+                ref.invalidate(vaccinationsProvider(petId));
+              }
+            },
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -180,8 +201,15 @@ class PetVaccinationsScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          context.push('/pets/$petId/vaccinations/new').then((_) {
-            ref.invalidate(vaccinationsProvider(petId));
+          final url = isVetAccess
+              ? '/pets/$petId/vaccinations/new?token=$token'
+              : '/pets/$petId/vaccinations/new';
+          context.push(url).then((_) {
+            if (isVetAccess) {
+              ref.invalidate(vaccinationsByTokenProvider(token!));
+            } else {
+              ref.invalidate(vaccinationsProvider(petId));
+            }
           });
         },
         backgroundColor: _purple,
@@ -543,8 +571,15 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 IconButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    context.push('/pets/$petId/vaccinations/$id/edit').then((_) {
-                      ref.invalidate(vaccinationsProvider(petId));
+                    final url = isVetAccess
+                        ? '/pets/$petId/vaccinations/$id/edit?token=$token'
+                        : '/pets/$petId/vaccinations/$id/edit';
+                    context.push(url).then((_) {
+                      if (isVetAccess) {
+                        ref.invalidate(vaccinationsByTokenProvider(token!));
+                      } else {
+                        ref.invalidate(vaccinationsProvider(petId));
+                      }
                     });
                   },
                   icon: const Icon(Icons.edit),
@@ -777,7 +812,13 @@ class PetVaccinationsScreen extends ConsumerWidget {
           Text(error, style: TextStyle(color: Colors.grey.shade600)),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => ref.invalidate(vaccinationsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(vaccinationsByTokenProvider(token!));
+              } else {
+                ref.invalidate(vaccinationsProvider(petId));
+              }
+            },
             style: FilledButton.styleFrom(backgroundColor: _coral),
             child: const Text('Réessayer'),
           ),

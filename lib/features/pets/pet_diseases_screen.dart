@@ -12,7 +12,7 @@ const _ink = Color(0xFF222222);
 const _orange = Color(0xFFF39C12);
 const _purple = Color(0xFF9B59B6);
 
-// Provider pour les maladies d'un animal
+// Provider pour les maladies d'un animal (par petId)
 final diseasesProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, petId) async {
   final api = ref.read(apiProvider);
@@ -20,14 +20,39 @@ final diseasesProvider = FutureProvider.autoDispose
   return diseases.cast<Map<String, dynamic>>();
 });
 
+// Provider pour les maladies via token (accès vétérinaire)
+final diseasesByTokenProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  final petData = await api.getPetByToken(token);
+  // Note: diseases peuvent ne pas être inclus dans getPetByToken,
+  // essayer via petId si disponible
+  final petId = petData['id']?.toString();
+  if (petId != null) {
+    try {
+      final diseases = await api.getDiseases(petId);
+      return diseases.cast<Map<String, dynamic>>();
+    } catch (_) {
+      // Fallback aux données incluses dans le pet
+    }
+  }
+  return (petData['diseases'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+});
+
 class PetDiseasesScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
 
-  const PetDiseasesScreen({super.key, required this.petId});
+  const PetDiseasesScreen({super.key, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final diseasesAsync = ref.watch(diseasesProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final diseasesAsync = isVetAccess
+        ? ref.watch(diseasesByTokenProvider(token!))
+        : ref.watch(diseasesProvider(petId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -45,7 +70,13 @@ class PetDiseasesScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () => ref.invalidate(diseasesProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(diseasesByTokenProvider(token!));
+              } else {
+                ref.invalidate(diseasesProvider(petId));
+              }
+            },
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -130,8 +161,15 @@ class PetDiseasesScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          context.push('/pets/$petId/diseases/new').then((_) {
-            ref.invalidate(diseasesProvider(petId));
+          final url = isVetAccess
+              ? '/pets/$petId/diseases/new?token=$token'
+              : '/pets/$petId/diseases/new';
+          context.push(url).then((_) {
+            if (isVetAccess) {
+              ref.invalidate(diseasesByTokenProvider(token!));
+            } else {
+              ref.invalidate(diseasesProvider(petId));
+            }
           });
         },
         backgroundColor: _orange,
@@ -204,9 +242,10 @@ class PetDiseasesScreen extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          context.push('/pets/$petId/diseases/$id').then((_) {
-            // Refresh list when returning from detail
-          });
+          final url = isVetAccess
+              ? '/pets/$petId/diseases/$id?token=$token'
+              : '/pets/$petId/diseases/$id';
+          context.push(url);
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -481,7 +520,13 @@ class PetDiseasesScreen extends ConsumerWidget {
           Text(error, style: TextStyle(color: Colors.grey.shade600)),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => ref.invalidate(diseasesProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(diseasesByTokenProvider(token!));
+              } else {
+                ref.invalidate(diseasesProvider(petId));
+              }
+            },
             style: FilledButton.styleFrom(backgroundColor: _coral),
             child: const Text('Réessayer'),
           ),
