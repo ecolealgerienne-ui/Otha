@@ -44,6 +44,7 @@ export class BookingsService {
       orderBy: { scheduledAt: 'desc' },
       select: {
         id: true,
+        referenceCode: true, // ✅ Code de référence (ex: VGC-A2B3C4)
         status: true,
         scheduledAt: true,
         providerId: true, // ✅ important pour activer "Modifier"
@@ -88,6 +89,7 @@ export class BookingsService {
 
       return {
         id: b.id,
+        referenceCode: b.referenceCode, // ✅ Code de référence (ex: VGC-A2B3C4)
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
         providerId: b.providerId, // ✅ top-level direct

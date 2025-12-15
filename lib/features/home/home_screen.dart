@@ -1711,8 +1711,32 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                       ),
                     ),
                   ),
-                ] else if (isTimeClose && _distanceMeters == null && !_checkingProximity) ...[
-                  // En attente de vérification ou première charge (hors heure exacte)
+                ] else if (isTimeClose && _distanceMeters == null) ...[
+                  // Pas de géolocalisation disponible - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Activez la localisation pour une confirmation automatique',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
@@ -2169,8 +2193,9 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                   ),
                 ),
 
-                // ✅ Bouton "Confirmer le dépôt" si à proximité et c'est le jour
+                // ✅ Bouton "Confirmer le dépôt" si c'est le jour du dépôt
                 if (_isNearby && isTimeClose) ...[
+                  // Avec géoloc et à proximité
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -2212,6 +2237,73 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ] else if (isTimeClose && !_isNearby && _distanceMeters != null) ...[
+                  // Géoloc OK mais pas encore à proximité
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Distance: ${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToDropOffConfirmation(context, m),
+                      icon: const Icon(Icons.pets, size: 18),
+                      label: const Text('Confirmer le dépôt de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ] else if (isTimeClose && _distanceMeters == null) ...[
+                  // Pas de géoloc - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Activez la localisation pour une confirmation automatique',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToDropOffConfirmation(context, m),
+                      icon: const Icon(Icons.pets, size: 18),
+                      label: const Text('Confirmer le dépôt de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
                 ],
@@ -2582,8 +2674,9 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                   ),
                 ),
 
-                // ✅ Bouton "Confirmer le retrait" si à proximité
+                // ✅ Bouton "Confirmer le retrait" - toujours disponible pour IN_PROGRESS
                 if (_isNearby) ...[
+                  // À proximité - bouton vert
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -2625,6 +2718,73 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ] else if (!_isNearby && _distanceMeters != null) ...[
+                  // Géoloc OK mais pas encore à proximité
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Distance: ${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToPickupConfirmation(context, m),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text('Confirmer le retrait de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // Pas de géoloc - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Activez la localisation pour une confirmation automatique',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToPickupConfirmation(context, m),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text('Confirmer le retrait de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
                 ],

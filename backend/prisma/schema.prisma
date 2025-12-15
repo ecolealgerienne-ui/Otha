@@ -214,13 +214,14 @@ model Service {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  userId      String
-  providerId  String
-  serviceId   String
-  status      BookingStatus @default(PENDING)
-  scheduledAt DateTime
-  createdAt   DateTime      @default(now())
+  id            String        @id @default(cuid())
+  referenceCode String?       @unique // Code de référence unique (ex: VGC-A1B2C3) - pour confirmation sans QR
+  userId        String
+  providerId    String
+  serviceId     String
+  status        BookingStatus @default(PENDING)
+  scheduledAt   DateTime
+  createdAt     DateTime      @default(now())
 
   // Champs spécifiques pour les garderies
   petIds       String[]  @default([])  // IDs des animaux concernés

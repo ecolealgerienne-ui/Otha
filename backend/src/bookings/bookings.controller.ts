@@ -25,6 +25,18 @@ import { BookingsService } from './bookings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 
+// Caractères pour le code de référence (sans 0/O, 1/I/L pour éviter confusion)
+const REF_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Génère un code de référence unique (ex: VGC-A2B3C4) */
+function generateReferenceCode(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += REF_CHARS.charAt(Math.floor(Math.random() * REF_CHARS.length));
+  }
+  return `VGC-${code}`;
+}
+
 @ApiTags('bookings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -199,6 +211,16 @@ export class BookingsController {
       const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
       if (!ok) throw new BadRequestException('Slot not available');
 
+      // Générer un code de référence unique (avec retry si collision)
+      let referenceCode = generateReferenceCode();
+      let attempts = 0;
+      while (attempts < 5) {
+        const existing = await tx.booking.findUnique({ where: { referenceCode } });
+        if (!existing) break;
+        referenceCode = generateReferenceCode();
+        attempts++;
+      }
+
       return tx.booking.create({
         data: {
           userId: req.user.sub,
@@ -207,6 +229,7 @@ export class BookingsController {
           scheduledAt: when, // UTC côté DB
           status: 'PENDING',
           petIds, // IDs des animaux concernés
+          referenceCode, // Code de référence unique (ex: VGC-A2B3C4)
         },
       });
     }, { isolationLevel: 'Serializable' });

@@ -7,8 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 
 // Temps minimum d'avance pour reserver (en minutes)
-// Ex: si 60, on ne peut pas reserver un creneau qui commence dans moins de 60 min
-const MIN_ADVANCE_MINUTES = 60;
+// Ex: si 30, on ne peut pas reserver un creneau qui commence dans moins de 30 min
+const MIN_ADVANCE_MINUTES = 30;
 
 @Injectable()
 export class AvailabilityService {
