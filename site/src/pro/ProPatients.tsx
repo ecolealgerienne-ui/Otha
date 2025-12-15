@@ -37,6 +37,22 @@ import { format, differenceInHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useScannedPet } from '../contexts/ScannedPetContext';
 
+/**
+ * Parse ISO date string as local time (ignore timezone offset)
+ * Correspond au comportement Flutter: DateTime.parse(iso).toUtc()
+ */
+function parseISOAsLocal(isoString: string): Date {
+  const d = new Date(isoString);
+  return new Date(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds()
+  );
+}
+
 // Access window in hours for recent patients
 const ACCESS_WINDOW_HOURS = 24;
 
@@ -167,7 +183,7 @@ export function ProPatients() {
       // Calculate access expiration for each
       const patients: RecentPatient[] = validBookings
         .map((b: Booking) => {
-          const bookingTime = new Date(b.scheduledAt);
+          const bookingTime = parseISOAsLocal(b.scheduledAt);
           const accessExpiresAt = new Date(bookingTime.getTime() + ACCESS_WINDOW_HOURS * 60 * 60 * 1000);
           const hoursRemaining = Math.max(0, differenceInHours(accessExpiresAt, now));
 
@@ -632,7 +648,7 @@ export function ProPatients() {
                     <div>
                       <p className="font-medium text-green-800">Rendez-vous confirmé !</p>
                       <p className="text-sm text-green-600">
-                        {activeBooking.service?.title || 'Consultation'} - {activeBooking.scheduledAt && format(new Date(activeBooking.scheduledAt), "HH:mm", { locale: fr })}
+                        {activeBooking.service?.title || 'Consultation'} - {activeBooking.scheduledAt && format(parseISOAsLocal(activeBooking.scheduledAt), "HH:mm", { locale: fr })}
                       </p>
                     </div>
                   </>
