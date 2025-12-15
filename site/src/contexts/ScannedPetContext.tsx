@@ -70,8 +70,12 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
   // Poll for scanned pet from Flutter app
   const pollForScannedPet = useCallback(async () => {
     try {
+      console.log('🔍 Polling for scanned pet...');
       const result = await api.getScannedPet();
+      console.log('📥 Poll result:', { hasPet: !!result.pet, scannedAt: result.scannedAt, lastScannedAt });
+
       if (result.pet && result.scannedAt !== lastScannedAt) {
+        console.log('✅ New pet detected from Flutter!', result.pet);
         setLastScannedAt(result.scannedAt);
         const petData = result.pet as Pet & {
           medicalRecords?: MedicalRecord[];
@@ -88,6 +92,20 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           // Ignore health stats fetch errors
         }
 
+        // ✅ Look for active booking for this pet (may have been confirmed by Flutter)
+        let activeBooking: Booking | null = null;
+        let bookingConfirmed = false;
+        try {
+          const booking = await api.getActiveBookingForPet(petData.id);
+          if (booking && booking.id) {
+            activeBooking = booking;
+            // Check if booking was already confirmed by Flutter
+            bookingConfirmed = booking.status === 'CONFIRMED' || booking.status === 'COMPLETED';
+          }
+        } catch {
+          // No active booking - that's ok
+        }
+
         setState({
           pet: petData,
           token: '', // Token is handled by backend
@@ -96,23 +114,32 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           prescriptions: petData.prescriptions || [],
           healthStats,
           diseases: petData.diseases || [],
-          activeBooking: null,
-          bookingConfirmed: false,
+          activeBooking,
+          bookingConfirmed,
         });
 
         setIsPolling(false);
         api.clearScannedPet().catch(() => {});
+
+        // ✅ Dispatch event to notify ProPatients to refresh recent patients
+        window.dispatchEvent(new CustomEvent('pet-scanned-from-flutter'));
       }
     } catch (error) {
-      console.log('Poll error:', error);
+      console.error('❌ Poll error:', error);
     }
   }, [lastScannedAt]);
+
+  // Debug: log polling state changes
+  useEffect(() => {
+    console.log('📊 isPolling changed to:', isPolling);
+  }, [isPolling]);
 
   // Start/stop polling
   useEffect(() => {
     if (isPolling) {
+      console.log('▶️ Starting poll interval (every 2s)');
       pollingRef.current = window.setInterval(pollForScannedPet, 2000);
-      pollForScannedPet();
+      pollForScannedPet(); // Initial poll
     } else {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);

@@ -147,6 +147,17 @@ export function ProPatients() {
     loadRecentPatients();
   }, []);
 
+  // ✅ Auto-start polling for Flutter scans when page opens
+  useEffect(() => {
+    console.log('🚀 ProPatients mounted, starting polling');
+    startPolling();
+    return () => {
+      console.log('👋 ProPatients unmounting, stopping polling');
+      stopPolling();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount/unmount
+
   // Refresh countdown every minute
   useEffect(() => {
     const interval = setInterval(() => {
@@ -160,6 +171,15 @@ export function ProPatients() {
       );
     }, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ✅ Listen for pet scanned from Flutter app to refresh recent patients
+  useEffect(() => {
+    const handleFlutterScan = () => {
+      loadRecentPatients();
+    };
+    window.addEventListener('pet-scanned-from-flutter', handleFlutterScan);
+    return () => window.removeEventListener('pet-scanned-from-flutter', handleFlutterScan);
   }, []);
 
   async function loadRecentPatients() {
@@ -1087,18 +1107,6 @@ export function ProPatients() {
               </>
             ) : null}
           </Card>
-        ) : isPolling ? (
-          <Card className="text-center py-12">
-            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Smartphone size={48} className="text-orange-600 animate-pulse" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">En attente du scan...</h2>
-            <p className="text-gray-500 mb-8">Scannez le QR code depuis l'app Otha sur votre téléphone</p>
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
-            </div>
-            <Button variant="secondary" onClick={stopPolling}>Annuler</Button>
-          </Card>
         ) : (
           <Card className="text-center py-12">
             <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1118,10 +1126,11 @@ export function ProPatients() {
                     <Monitor size={20} className="mr-2" />
                     Scanner avec PC
                   </Button>
-                  <Button onClick={startPolling} variant="secondary" size="lg" className="flex-1">
-                    <Smartphone size={20} className="mr-2" />
-                    Scanner avec téléphone
-                  </Button>
+                  <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                    <Smartphone size={20} />
+                    <span className="text-sm font-medium">Écoute mobile active</span>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  </div>
                 </div>
 
                 {/* Séparateur */}
@@ -1150,7 +1159,7 @@ export function ProPatients() {
         )}
 
         {/* Recent Patients Section (24h access) - Only show when no pet is scanned */}
-        {!scannedPet && !isPolling && (
+        {!scannedPet && (
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
               <div>

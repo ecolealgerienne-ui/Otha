@@ -125,6 +125,16 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
             // Auto-confirmer le booking immédiatement
             await _confirmBooking();
+
+            // ✅ Re-sync with website AFTER booking confirmation
+            // so the website knows the booking is confirmed
+            try {
+              await api.setScannedPet(token);
+              debugPrint('✅ Pet re-synced with website after confirmation');
+            } catch (e) {
+              debugPrint('⚠️ Could not re-sync pet: $e');
+            }
+
             return; // Sortir de la fonction après confirmation
           } else {
             debugPrint('⚠️ Aucun booking actif trouvé (ni vet ni daycare)');
