@@ -10,12 +10,21 @@ const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
 
-/// Provider pour l'historique médical d'un animal
+/// Provider pour l'historique médical d'un animal (par petId)
 final medicalRecordsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, petId) async {
   final api = ref.read(apiProvider);
   final records = await api.getMedicalRecords(petId);
   return records.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+});
+
+/// Provider pour l'historique médical via token (accès vétérinaire)
+final medicalRecordsByTokenProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  final petData = await api.getPetByToken(token);
+  final records = (petData['medicalRecords'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  return records;
 });
 
 /// Provider pour les infos d'un animal
@@ -31,15 +40,30 @@ final petInfoProvider = FutureProvider.autoDispose
   return null;
 });
 
+/// Provider pour les infos d'un animal via token
+final petInfoByTokenProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, token) async {
+  final api = ref.read(apiProvider);
+  return api.getPetByToken(token);
+});
+
 class PetMedicalHistoryScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
 
-  const PetMedicalHistoryScreen({super.key, required this.petId});
+  const PetMedicalHistoryScreen({super.key, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final petAsync = ref.watch(petInfoProvider(petId));
-    final recordsAsync = ref.watch(medicalRecordsProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final petAsync = isVetAccess
+        ? ref.watch(petInfoByTokenProvider(token!))
+        : ref.watch(petInfoProvider(petId));
+    final recordsAsync = isVetAccess
+        ? ref.watch(medicalRecordsByTokenProvider(token!))
+        : ref.watch(medicalRecordsProvider(petId));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -57,13 +81,19 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
                   }
                   return RefreshIndicator(
                     color: _coral,
-                    onRefresh: () async => ref.invalidate(medicalRecordsProvider(petId)),
+                    onRefresh: () async {
+                      if (isVetAccess) {
+                        ref.invalidate(medicalRecordsByTokenProvider(token!));
+                      } else {
+                        ref.invalidate(medicalRecordsProvider(petId));
+                      }
+                    },
                     child: ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                       itemCount: records.length,
                       itemBuilder: (_, i) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _RecordCard(record: records[i], petId: petId),
+                        child: _RecordCard(record: records[i], petId: petId, token: token),
                       ),
                     ),
                   );
@@ -74,7 +104,12 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/pets/$petId/medical/add'),
+        onPressed: () {
+          final url = isVetAccess
+              ? '/pets/$petId/medical/add?token=$token'
+              : '/pets/$petId/medical/add';
+          context.push(url);
+        },
         backgroundColor: _coral,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Ajouter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
@@ -127,7 +162,12 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => context.push('/pets/$petId/health-stats'),
+            onPressed: () {
+              final url = isVetAccess
+                  ? '/pets/$petId/health-stats?token=$token'
+                  : '/pets/$petId/health-stats';
+              context.push(url);
+            },
             icon: const Icon(Icons.analytics_outlined),
             tooltip: 'Statistiques de santé',
             style: IconButton.styleFrom(
@@ -137,7 +177,13 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            onPressed: () => ref.invalidate(medicalRecordsProvider(petId)),
+            onPressed: () {
+              if (isVetAccess) {
+                ref.invalidate(medicalRecordsByTokenProvider(token!));
+              } else {
+                ref.invalidate(medicalRecordsProvider(petId));
+              }
+            },
             icon: const Icon(Icons.refresh),
             style: IconButton.styleFrom(
               backgroundColor: _coralSoft,
@@ -177,7 +223,12 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => context.push('/pets/$petId/medical/add'),
+            onPressed: () {
+              final url = isVetAccess
+                  ? '/pets/$petId/medical/add?token=$token'
+                  : '/pets/$petId/medical/add';
+              context.push(url);
+            },
             icon: const Icon(Icons.add),
             label: const Text('Ajouter un record'),
             style: FilledButton.styleFrom(
@@ -194,8 +245,11 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
 class _RecordCard extends ConsumerWidget {
   final Map<String, dynamic> record;
   final String petId;
+  final String? token;
 
-  const _RecordCard({required this.record, required this.petId});
+  const _RecordCard({required this.record, required this.petId, this.token});
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   IconData _getTypeIcon(String type) {
     switch (type.toUpperCase()) {
@@ -364,7 +418,11 @@ class _RecordCard extends ConsumerWidget {
                     if (confirm == true) {
                       final api = ref.read(apiProvider);
                       await api.deleteMedicalRecord(petId, id);
-                      ref.invalidate(medicalRecordsProvider(petId));
+                      if (isVetAccess) {
+                        ref.invalidate(medicalRecordsByTokenProvider(token!));
+                      } else {
+                        ref.invalidate(medicalRecordsProvider(petId));
+                      }
                     }
                   },
                   icon: Icon(Icons.delete_outline, color: Colors.grey.shade400, size: 20),

@@ -225,7 +225,12 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Consultations, diagnostics, traitements',
                 color: Colors.blue,
                 gradientColor: Colors.blue.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/medical'),
+                onTap: () {
+                  final url = isVetAccess && token != null
+                      ? '/pets/$petId/medical?token=$token'
+                      : '/pets/$petId/medical';
+                  context.push(url);
+                },
               ),
               const SizedBox(height: 16),
 
@@ -236,7 +241,12 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Poids, température, fréquence cardiaque',
                 color: _coral,
                 gradientColor: _coral.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/health-stats-detail'),
+                onTap: () {
+                  final url = isVetAccess && token != null
+                      ? '/pets/$petId/health-stats-detail?token=$token'
+                      : '/pets/$petId/health-stats-detail';
+                  context.push(url);
+                },
               ),
               const SizedBox(height: 16),
 
@@ -247,7 +257,12 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Médicaments et traitements prescrits',
                 color: _mint,
                 gradientColor: _mint.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/prescriptions'),
+                onTap: () {
+                  final url = isVetAccess && token != null
+                      ? '/pets/$petId/prescriptions?token=$token'
+                      : '/pets/$petId/prescriptions';
+                  context.push(url);
+                },
               ),
               const SizedBox(height: 16),
 
@@ -258,7 +273,12 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Calendrier et rappels de vaccins',
                 color: _purple,
                 gradientColor: _purple.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/vaccinations'),
+                onTap: () {
+                  final url = isVetAccess && token != null
+                      ? '/pets/$petId/vaccinations?token=$token'
+                      : '/pets/$petId/vaccinations';
+                  context.push(url);
+                },
               ),
               const SizedBox(height: 16),
 
@@ -269,7 +289,12 @@ class PetHealthHubScreen extends ConsumerWidget {
                 subtitle: 'Photos, évolution, notes',
                 color: _orange,
                 gradientColor: _orange.withOpacity(0.7),
-                onTap: () => context.push('/pets/$petId/diseases'),
+                onTap: () {
+                  final url = isVetAccess && token != null
+                      ? '/pets/$petId/diseases?token=$token'
+                      : '/pets/$petId/diseases';
+                  context.push(url);
+                },
               ),
             ],
           ),

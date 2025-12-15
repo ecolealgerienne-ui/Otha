@@ -360,6 +360,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/medical',
         builder: (ctx, st) => PetMedicalHistoryScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -381,12 +382,14 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/health-stats-detail',
         builder: (ctx, st) => PetHealthStatsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/prescriptions',
         builder: (ctx, st) => PetPrescriptionsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -406,6 +409,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/diseases',
         builder: (ctx, st) => PetDiseasesScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -432,6 +436,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/vaccinations',
         builder: (ctx, st) => PetVaccinationsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
