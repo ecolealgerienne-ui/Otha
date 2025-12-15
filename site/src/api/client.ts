@@ -296,6 +296,19 @@ class ApiClient {
     }
   }
 
+  // Confirm booking by reference code (VGC-XXXXXX) - for vets without camera
+  async confirmByReferenceCode(referenceCode: string): Promise<{
+    success: boolean;
+    message: string;
+    booking: Booking;
+    pet: Pet | null;
+    pets: Pet[];
+    accessToken: string | null;
+  }> {
+    const { data } = await this.client.post('/bookings/confirm-by-reference', { referenceCode });
+    return data?.data || data;
+  }
+
   // ==================== DAYCARE ====================
   async myDaycareProviderBookings(): Promise<DaycareBooking[]> {
     const { data } = await this.client.get<DaycareBooking[]>('/daycare/provider/bookings');
@@ -339,7 +352,17 @@ class ApiClient {
   // Access via QR code token
   async getPetByToken(token: string): Promise<{ pet: Pet; medicalRecords: MedicalRecord[]; vaccinations: Vaccination[] }> {
     const { data } = await this.client.get(`/pets/by-token/${token}`);
-    return data?.data || data;
+    const petData = data?.data || data;
+    // Backend returns pet object directly with nested medicalRecords/vaccinations
+    // Transform to expected { pet, medicalRecords, vaccinations } format
+    if (petData && !petData.pet) {
+      return {
+        pet: petData,
+        medicalRecords: petData.medicalRecords || [],
+        vaccinations: petData.vaccinations || [],
+      };
+    }
+    return petData;
   }
 
   async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {

@@ -26,6 +26,7 @@ import {
   Edit2,
   AlertTriangle,
   Clock,
+  Hash,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -95,6 +96,11 @@ export function ProPatients() {
   const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
   const [showEditPrescriptionModal, setShowEditPrescriptionModal] = useState(false);
   const [showEditDiseaseModal, setShowEditDiseaseModal] = useState(false);
+  const [showReferenceCodeModal, setShowReferenceCodeModal] = useState(false);
+
+  // Reference code state
+  const [referenceCode, setReferenceCode] = useState('');
+  const [confirmingByCode, setConfirmingByCode] = useState(false);
 
   // Form states
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
@@ -340,6 +346,52 @@ export function ProPatients() {
       alert(error instanceof Error ? error.message : 'QR code invalide');
     } finally {
       setScanLoading(false);
+    }
+  };
+
+  // Handle confirmation by reference code (VGC-XXXXXX)
+  const handleConfirmByReferenceCode = async () => {
+    if (!referenceCode.trim()) return;
+    setConfirmingByCode(true);
+    try {
+      const result = await api.confirmByReferenceCode(referenceCode.trim());
+
+      if (result.success && result.pet && result.accessToken) {
+        // Load additional data
+        const [presc, stats, dis] = await Promise.all([
+          api.getPetPrescriptions(result.pet.id).catch(() => []),
+          api.getPetHealthStats(result.pet.id).catch(() => null),
+          api.getPetDiseases(result.pet.id).catch(() => []),
+        ]);
+
+        // Set pet data in context
+        setPetData(
+          result.pet,
+          result.accessToken,
+          result.pet.medicalRecords || [],
+          result.pet.vaccinations || [],
+          presc,
+          stats,
+          dis
+        );
+
+        // Set booking as confirmed
+        setBooking(result.booking, true);
+
+        // Close modal and reset
+        setShowReferenceCodeModal(false);
+        setReferenceCode('');
+
+        // Show success alert
+        alert(`✅ ${result.message}\n\nPatient: ${result.pet.name}`);
+      } else {
+        throw new Error(result.message || 'Erreur lors de la confirmation');
+      }
+    } catch (error) {
+      console.error('Error confirming by reference code:', error);
+      alert(error instanceof Error ? error.message : 'Code de référence invalide');
+    } finally {
+      setConfirmingByCode(false);
     }
   };
 
@@ -1037,16 +1089,39 @@ export function ProPatients() {
                 <span className="text-gray-600">Chargement...</span>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-                <Button onClick={startQrScanner} size="lg" className="flex-1">
-                  <Monitor size={20} className="mr-2" />
-                  Scanner avec PC
+              <>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                  <Button onClick={startQrScanner} size="lg" className="flex-1">
+                    <Monitor size={20} className="mr-2" />
+                    Scanner avec PC
+                  </Button>
+                  <Button onClick={startPolling} variant="secondary" size="lg" className="flex-1">
+                    <Smartphone size={20} className="mr-2" />
+                    Scanner avec téléphone
+                  </Button>
+                </div>
+
+                {/* Séparateur */}
+                <div className="flex items-center gap-4 my-6 max-w-md mx-auto">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-sm text-gray-400">ou</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Bouton code de référence */}
+                <Button
+                  onClick={() => setShowReferenceCodeModal(true)}
+                  variant="secondary"
+                  size="lg"
+                  className="max-w-md mx-auto w-full border-2 border-dashed border-primary-300 hover:border-primary-500 bg-primary-50"
+                >
+                  <Hash size={20} className="mr-2" />
+                  Code de référence du dossier
                 </Button>
-                <Button onClick={startPolling} variant="secondary" size="lg" className="flex-1">
-                  <Smartphone size={20} className="mr-2" />
-                  Scanner avec téléphone
-                </Button>
-              </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Pour les clients sans QR code (ex: VGC-A2B3C4)
+                </p>
+              </>
             )}
           </Card>
         )}
@@ -1301,6 +1376,69 @@ export function ProPatients() {
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => { setShowEditDiseaseModal(false); setEditingDisease(null); }}>Annuler</Button>
               <Button className="flex-1" onClick={handleSaveDisease} isLoading={savingDisease} disabled={!editingDisease.name}>Enregistrer</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Reference Code Modal */}
+      {showReferenceCodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Hash size={20} className="text-primary-600" />
+                Code de référence
+              </h2>
+              <button onClick={() => { setShowReferenceCodeModal(false); setReferenceCode(''); }} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Entrez le code de référence donné par le client pour confirmer son rendez-vous et accéder à son carnet de santé.
+            </p>
+
+            <div className="space-y-4">
+              <Input
+                label="Code de référence"
+                placeholder="VGC-A2B3C4"
+                value={referenceCode}
+                onChange={(e) => setReferenceCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && referenceCode.trim()) {
+                    handleConfirmByReferenceCode();
+                  }
+                }}
+                className="text-center text-xl font-mono tracking-widest"
+              />
+
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500 flex items-start gap-2">
+                  <span className="text-primary-600">💡</span>
+                  Le code de référence est au format VGC-XXXXXX (6 caractères après le tiret).
+                  Il est visible sur l'application du client lors de son rendez-vous.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => { setShowReferenceCodeModal(false); setReferenceCode(''); }}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleConfirmByReferenceCode}
+                isLoading={confirmingByCode}
+                disabled={!referenceCode.trim() || referenceCode.trim().length < 6}
+              >
+                <CheckCircle size={16} className="mr-2" />
+                Confirmer le RDV
+              </Button>
             </div>
           </Card>
         </div>
