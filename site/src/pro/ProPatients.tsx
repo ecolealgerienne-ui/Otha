@@ -147,15 +147,16 @@ export function ProPatients() {
     loadRecentPatients();
   }, []);
 
-  // ✅ Auto-start polling for Flutter scans when page opens (if no pet loaded)
+  // ✅ Auto-start polling for Flutter scans when page opens
   useEffect(() => {
-    if (!scannedPet) {
-      startPolling();
-    }
+    console.log('🚀 ProPatients mounted, starting polling');
+    startPolling();
     return () => {
+      console.log('👋 ProPatients unmounting, stopping polling');
       stopPolling();
     };
-  }, [scannedPet, startPolling, stopPolling]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount/unmount
 
   // Refresh countdown every minute
   useEffect(() => {

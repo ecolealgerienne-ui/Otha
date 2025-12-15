@@ -70,8 +70,12 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
   // Poll for scanned pet from Flutter app
   const pollForScannedPet = useCallback(async () => {
     try {
+      console.log('🔍 Polling for scanned pet...');
       const result = await api.getScannedPet();
+      console.log('📥 Poll result:', { hasPet: !!result.pet, scannedAt: result.scannedAt, lastScannedAt });
+
       if (result.pet && result.scannedAt !== lastScannedAt) {
+        console.log('✅ New pet detected from Flutter!', result.pet);
         setLastScannedAt(result.scannedAt);
         const petData = result.pet as Pet & {
           medicalRecords?: MedicalRecord[];
@@ -121,15 +125,21 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         window.dispatchEvent(new CustomEvent('pet-scanned-from-flutter'));
       }
     } catch (error) {
-      console.log('Poll error:', error);
+      console.error('❌ Poll error:', error);
     }
   }, [lastScannedAt]);
+
+  // Debug: log polling state changes
+  useEffect(() => {
+    console.log('📊 isPolling changed to:', isPolling);
+  }, [isPolling]);
 
   // Start/stop polling
   useEffect(() => {
     if (isPolling) {
+      console.log('▶️ Starting poll interval (every 2s)');
       pollingRef.current = window.setInterval(pollForScannedPet, 2000);
-      pollForScannedPet();
+      pollForScannedPet(); // Initial poll
     } else {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
