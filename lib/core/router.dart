@@ -105,7 +105,6 @@ import '../features/pets/pet_medical_history_screen.dart';
 import '../features/pets/add_medical_record_screen.dart';
 import '../features/pets/pet_qr_code_screen.dart';
 import '../features/pets/vet_scan_pet_screen.dart';
-import '../features/pets/vet_pet_medical_screen.dart';
 import '../features/pets/pet_health_hub_screen.dart';
 import '../features/pets/pet_health_stats_screen.dart';
 import '../features/pets/pet_prescriptions_screen.dart';
@@ -373,6 +372,9 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/health-stats',
         builder: (ctx, st) => PetHealthHubScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
+          isVetAccess: st.uri.queryParameters['vet'] == 'true',
+          bookingConfirmed: st.uri.queryParameters['confirmed'] == 'true',
         ),
       ),
       GoRoute(
@@ -471,19 +473,8 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           );
         },
       ),
-      // Vet: voir le carnet médical d'un patient après scan QR
-      GoRoute(
-        path: '/vet/pet/:petId/medical',
-        builder: (ctx, st) {
-          final token = st.uri.queryParameters['token'] ?? '';
-          final confirmed = st.uri.queryParameters['confirmed'] == 'true';
-          return VetPetMedicalScreen(
-            petId: st.pathParameters['petId']!,
-            token: token,
-            bookingConfirmed: confirmed,
-          );
-        },
-      ),
+      // Note: L'ancienne route /vet/pet/:petId/medical est remplacée par
+      // /pets/:id/health-stats?token=...&vet=true&confirmed=true
 
       // -------- Hérités (provider & booking) --------
       GoRoute(
