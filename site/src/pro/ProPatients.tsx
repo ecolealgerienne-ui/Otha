@@ -219,8 +219,8 @@ export function ProPatients() {
   async function selectRecentPatient(patient: RecentPatient) {
     setScanLoading(true);
     try {
-      // Generate access token for this pet
-      const token = await api.generatePetAccessToken(patient.pet.id);
+      // Generate PRO access token for this pet (requires recent confirmed booking)
+      const token = await api.generateProPetAccessToken(patient.pet.id);
 
       if (!token) {
         throw new Error('Impossible de générer le token d\'accès');
@@ -1182,9 +1182,18 @@ export function ProPatients() {
                     padding="sm"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
-                        {getSpeciesEmoji(patient.pet.species)}
-                      </div>
+                      {/* Pet photo or emoji fallback */}
+                      {patient.pet.photoUrl ? (
+                        <img
+                          src={patient.pet.photoUrl}
+                          alt={patient.pet.name}
+                          className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border-2 border-primary-100"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                          {getSpeciesEmoji(patient.pet.species)}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="font-bold text-gray-900 truncate">{patient.pet.name}</h3>
@@ -1200,9 +1209,15 @@ export function ProPatients() {
                         <p className="text-sm text-gray-600 truncate">
                           {patient.pet.species} {patient.pet.breed && `• ${patient.pet.breed}`}
                         </p>
-                        <p className="text-xs text-primary-600 mt-1 truncate">
-                          🩺 {patient.booking.service?.title || 'Consultation'}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-primary-600 truncate">
+                            🩺 {patient.booking.service?.title || 'Consultation'}
+                          </p>
+                          <span className="text-xs text-gray-400">•</span>
+                          <p className="text-xs font-medium text-gray-700">
+                            {format(parseISOAsLocal(patient.booking.scheduledAt), 'HH:mm', { locale: fr })}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </Card>

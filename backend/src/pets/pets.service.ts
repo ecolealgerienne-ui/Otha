@@ -201,6 +201,57 @@ export class PetsService {
     });
   }
 
+  /**
+   * PRO: Generate access token for a pet from a recent confirmed booking
+   * Allows vets to access pet health records within 24h of a confirmed appointment
+   */
+  async generateProAccessToken(proUserId: string, petId: string) {
+    // Find the provider profile
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId: proUserId },
+    });
+    if (!provider) throw new ForbiddenException('No provider profile');
+
+    // Check if pet exists
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
+    if (!pet) throw new NotFoundException('Pet not found');
+
+    // Check for a recent confirmed booking (within 24h window)
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const recentBooking = await this.prisma.booking.findFirst({
+      where: {
+        providerId: provider.id,
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+        scheduledAt: { gte: yesterday },
+        OR: [
+          { petIds: { has: petId } }, // Pet is linked to booking
+          { user: { pets: { some: { id: petId } } } }, // Pet belongs to booking's user
+        ],
+      },
+    });
+
+    if (!recentBooking) {
+      throw new ForbiddenException(
+        'Aucun rendez-vous confirmé récent avec ce patient. L\'accès est limité à 24h après le RDV.'
+      );
+    }
+
+    // Clean expired tokens
+    await this.prisma.petAccessToken.deleteMany({
+      where: { petId, expiresAt: { lt: new Date() } },
+    });
+
+    // Generate token valid for 24h
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    return this.prisma.petAccessToken.create({
+      data: { petId, token, expiresAt },
+    });
+  }
+
   async getPetByToken(token: string) {
     const accessToken = await this.prisma.petAccessToken.findUnique({
       where: { token },

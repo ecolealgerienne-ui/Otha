@@ -466,6 +466,12 @@ class ApiClient {
     return data?.token || data?.data?.token;
   }
 
+  /** PRO: Generate access token for a pet from a recent confirmed booking */
+  async generateProPetAccessToken(petId: string): Promise<string> {
+    const { data } = await this.client.post(`/pets/${petId}/pro-access-token`);
+    return data?.token || data?.data?.token;
+  }
+
   // ==================== SCANNED PET SYNC (Flutter <-> Website) ====================
   async getScannedPet(): Promise<{ pet: Pet | null; scannedAt: string | null }> {
     const { data } = await this.client.get('/providers/me/scanned-pet');
