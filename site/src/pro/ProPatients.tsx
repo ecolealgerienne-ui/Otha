@@ -877,7 +877,7 @@ export function ProPatients() {
                       <p className="font-bold text-gray-900">Statistiques de santé</p>
                       <p className="text-sm text-gray-500">Poids, température, BPM</p>
                     </div>
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">{healthStats ? (healthStats.weight.data.length + healthStats.temperature.data.length + healthStats.heartRate.data.length) : 0}</span>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">{healthStats ? ((healthStats.weight?.data?.length || 0) + (healthStats.temperature?.data?.length || 0) + (healthStats.heartRate?.data?.length || 0)) : 0}</span>
                   </button>
 
                   {/* Disease tracking */}
@@ -1060,7 +1060,7 @@ export function ProPatients() {
                   <TrendingUp className="text-orange-600" size={24} />
                   Statistiques de santé
                 </h3>
-                {!healthStats || (healthStats.weight.data.length === 0 && healthStats.temperature.data.length === 0 && healthStats.heartRate.data.length === 0) ? (
+                {!healthStats || ((healthStats.weight?.data?.length || 0) === 0 && (healthStats.temperature?.data?.length || 0) === 0 && (healthStats.heartRate?.data?.length || 0) === 0) ? (
                   <div className="text-center py-12">
                     <TrendingUp className="mx-auto text-gray-300 mb-4" size={48} />
                     <p className="text-gray-500">Aucune mesure</p>
@@ -1069,19 +1069,20 @@ export function ProPatients() {
                 ) : (
                   <div className="space-y-6">
                     {/* Weight history */}
-                    {healthStats.weight.data.length > 0 && (
+                    {(healthStats.weight?.data?.length || 0) > 0 && (
                       <div>
                         <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                           <Scale size={16} className="text-primary-600" />
-                          Poids ({healthStats.weight.current?.toFixed(1)} kg actuel)
+                          Poids ({parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)} kg actuel)
                         </h4>
                         <div className="space-y-2">
-                          {healthStats.weight.data.slice(-5).reverse().map((w, i) => (
+                          {healthStats.weight!.data.slice(-5).reverse().map((w: any, i: number) => (
                             <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{w.weightKg.toFixed(1)} kg</span>
+                              <span className="font-semibold text-gray-900">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
                               <div className="text-right">
                                 <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
                                 {w.context && <p className="text-xs text-gray-400">{w.context}</p>}
+                                {w.notes && <p className="text-xs text-gray-400">{w.notes}</p>}
                               </div>
                             </div>
                           ))}
@@ -1089,16 +1090,16 @@ export function ProPatients() {
                       </div>
                     )}
                     {/* Temperature history */}
-                    {healthStats.temperature.data.length > 0 && (
+                    {(healthStats.temperature?.data?.length || 0) > 0 && (
                       <div>
                         <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                           <Thermometer size={16} className="text-red-600" />
-                          Température ({healthStats.temperature.current?.toFixed(1)}°C actuel)
+                          Température ({parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}°C actuel)
                         </h4>
                         <div className="space-y-2">
-                          {healthStats.temperature.data.slice(-5).reverse().map((t, i) => (
+                          {healthStats.temperature!.data.slice(-5).reverse().map((t: any, i: number) => (
                             <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{t.temperatureC.toFixed(1)}°C</span>
+                              <span className="font-semibold text-gray-900">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
                               <div className="text-right">
                                 <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
                                 {t.context && <p className="text-xs text-gray-400">{t.context}</p>}
@@ -1109,14 +1110,14 @@ export function ProPatients() {
                       </div>
                     )}
                     {/* Heart rate history */}
-                    {healthStats.heartRate.data.length > 0 && (
+                    {(healthStats.heartRate?.data?.length || 0) > 0 && (
                       <div>
                         <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                           <Heart size={16} className="text-pink-600" />
-                          Fréquence cardiaque ({healthStats.heartRate.current} BPM actuel)
+                          Fréquence cardiaque ({healthStats.heartRate?.current || 0} BPM actuel)
                         </h4>
                         <div className="space-y-2">
-                          {healthStats.heartRate.data.slice(-5).reverse().map((h, i) => (
+                          {healthStats.heartRate!.data.slice(-5).reverse().map((h: any, i: number) => (
                             <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
                               <span className="font-semibold text-gray-900">{h.heartRate} BPM</span>
                               <div className="text-right">
