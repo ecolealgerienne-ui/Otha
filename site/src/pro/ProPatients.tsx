@@ -263,21 +263,53 @@ export function ProPatients() {
         throw new Error('Impossible de charger les données du patient');
       }
 
-      // Load additional data
-      const [presc, stats, dis] = await Promise.all([
-        api.getPetPrescriptions(result.pet.id).catch(() => []),
-        api.getPetHealthStats(result.pet.id).catch(() => null),
-        api.getPetDiseases(result.pet.id).catch(() => []),
-      ]);
+      // Build health stats from the token response data (same as Flutter polling)
+      const petData = result.pet as any;
+      const medicalRecords = result.medicalRecords || [];
+      const weightRecords = petData.weightRecords || [];
+
+      // Extract health data from medical records
+      const tempData = medicalRecords
+        .filter((r: any) => r.temperatureC != null)
+        .map((r: any) => ({ date: r.date, temperatureC: r.temperatureC }));
+      const heartData = medicalRecords
+        .filter((r: any) => r.heartRate != null)
+        .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
+
+      let healthStats = null;
+      if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
+        healthStats = {
+          weight: weightRecords.length > 0 ? {
+            current: weightRecords[0]?.weightKg,
+            min: Math.min(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+            max: Math.max(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+            data: weightRecords,
+          } : undefined,
+          temperature: tempData.length > 0 ? {
+            current: tempData[0]?.temperatureC,
+            average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length,
+            data: tempData,
+          } : undefined,
+          heartRate: heartData.length > 0 ? {
+            current: heartData[0]?.heartRate,
+            average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length),
+            data: heartData,
+          } : undefined,
+        };
+      }
+
+      // Map diseaseTrackings to diseases (data comes from getPetByToken)
+      const diseases = (petData.diseaseTrackings || []);
+      const prescriptions = petData.prescriptions || [];
 
       setPetData(
         result.pet,
         token,
-        result.medicalRecords || [],
+        medicalRecords,
         result.vaccinations || [],
-        presc,
-        stats,
-        dis
+        prescriptions,
+        healthStats,
+        diseases
       );
 
       // Set the booking info
@@ -356,21 +388,51 @@ export function ProPatients() {
         throw new Error('Aucun animal trouvé pour ce QR code');
       }
 
-      // Load additional data
-      const [presc, stats, dis] = await Promise.all([
-        api.getPetPrescriptions(result.pet.id).catch(() => []),
-        api.getPetHealthStats(result.pet.id).catch(() => null),
-        api.getPetDiseases(result.pet.id).catch(() => []),
-      ]);
+      // Build health stats from the token response data
+      const petData = result.pet as any;
+      const medicalRecords = result.medicalRecords || [];
+      const weightRecords = petData.weightRecords || [];
+
+      const tempData = medicalRecords
+        .filter((r: any) => r.temperatureC != null)
+        .map((r: any) => ({ date: r.date, temperatureC: r.temperatureC }));
+      const heartData = medicalRecords
+        .filter((r: any) => r.heartRate != null)
+        .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
+
+      let healthStats = null;
+      if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
+        healthStats = {
+          weight: weightRecords.length > 0 ? {
+            current: weightRecords[0]?.weightKg,
+            min: Math.min(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+            max: Math.max(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+            data: weightRecords,
+          } : undefined,
+          temperature: tempData.length > 0 ? {
+            current: tempData[0]?.temperatureC,
+            average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length,
+            data: tempData,
+          } : undefined,
+          heartRate: heartData.length > 0 ? {
+            current: heartData[0]?.heartRate,
+            average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length),
+            data: heartData,
+          } : undefined,
+        };
+      }
+
+      const diseases = (petData.diseaseTrackings || []);
+      const prescriptions = petData.prescriptions || [];
 
       setPetData(
         result.pet,
         token,
-        result.medicalRecords || [],
+        medicalRecords,
         result.vaccinations || [],
-        presc,
-        stats,  // HealthStatsAggregated | null
-        dis
+        prescriptions,
+        healthStats,
+        diseases
       );
 
       // Check for active booking
@@ -408,22 +470,52 @@ export function ProPatients() {
       const result = await api.confirmByReferenceCode(referenceCode.trim());
 
       if (result.success && result.pet && result.accessToken) {
-        // Load additional data
-        const [presc, stats, dis] = await Promise.all([
-          api.getPetPrescriptions(result.pet.id).catch(() => []),
-          api.getPetHealthStats(result.pet.id).catch(() => null),
-          api.getPetDiseases(result.pet.id).catch(() => []),
-        ]);
+        // Build health stats from the pet data
+        const petData = result.pet as any;
+        const medicalRecords = petData.medicalRecords || [];
+        const weightRecords = petData.weightRecords || [];
+
+        const tempData = medicalRecords
+          .filter((r: any) => r.temperatureC != null)
+          .map((r: any) => ({ date: r.date, temperatureC: r.temperatureC }));
+        const heartData = medicalRecords
+          .filter((r: any) => r.heartRate != null)
+          .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
+
+        let healthStats = null;
+        if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
+          healthStats = {
+            weight: weightRecords.length > 0 ? {
+              current: weightRecords[0]?.weightKg,
+              min: Math.min(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              max: Math.max(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              data: weightRecords,
+            } : undefined,
+            temperature: tempData.length > 0 ? {
+              current: tempData[0]?.temperatureC,
+              average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length,
+              data: tempData,
+            } : undefined,
+            heartRate: heartData.length > 0 ? {
+              current: heartData[0]?.heartRate,
+              average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length),
+              data: heartData,
+            } : undefined,
+          };
+        }
+
+        const diseases = (petData.diseaseTrackings || []);
+        const prescriptions = petData.prescriptions || [];
 
         // Set pet data in context
         setPetData(
           result.pet,
           result.accessToken,
-          result.pet.medicalRecords || [],
-          result.pet.vaccinations || [],
-          presc,
-          stats,
-          dis
+          medicalRecords,
+          petData.vaccinations || [],
+          prescriptions,
+          healthStats,
+          diseases
         );
 
         // Set booking as confirmed
