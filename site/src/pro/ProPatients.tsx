@@ -167,8 +167,10 @@ export function ProPatients() {
     try {
       const now = new Date();
       const yesterday = new Date(now.getTime() - ACCESS_WINDOW_HOURS * 60 * 60 * 1000);
+      // Add 1 day to include today's bookings (backend uses lt, not lte)
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const fromIso = format(yesterday, 'yyyy-MM-dd');
-      const toIso = format(now, 'yyyy-MM-dd');
+      const toIso = format(tomorrow, 'yyyy-MM-dd');
 
       const bookings = await api.providerAgenda(fromIso, toIso);
 
@@ -349,6 +351,8 @@ export function ProPatients() {
             try {
               await api.proConfirmBooking(booking.id, 'QR_SCAN');
               setBooking(booking, true);
+              // Refresh recent patients list after confirmation
+              loadRecentPatients();
             } catch (e) {
               console.error('Could not auto-confirm:', e);
             }
@@ -393,6 +397,9 @@ export function ProPatients() {
 
         // Set booking as confirmed
         setBooking(result.booking, true);
+
+        // Refresh recent patients list after confirmation
+        loadRecentPatients();
 
         // Close modal and reset
         setShowReferenceCodeModal(false);

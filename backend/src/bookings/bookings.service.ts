@@ -285,7 +285,7 @@ export class BookingsService {
             pets: {
               orderBy: { updatedAt: 'desc' },
               take: 1,
-              select: { idNumber: true, breed: true, name: true },
+              select: { id: true, idNumber: true, breed: true, name: true, species: true }, // ✅ Include id for fallback
             },
           },
         },
@@ -331,6 +331,11 @@ export class BookingsService {
       // ✅ TRUST SYSTEM: Déterminer si c'est le premier RDV du client
       const isFirstBooking = b.user.trustStatus === 'NEW' && (completedMap.get(b.user.id) ?? 0) === 0;
 
+      // ✅ Fallback: use user's pet if booking doesn't have petIds
+      const fallbackPet = userPet?.id
+        ? { id: userPet.id, name: userPet.name, species: userPet.species, breed: userPet.breed }
+        : null;
+
       return {
         id: b.id,
         status: b.status,
@@ -345,9 +350,10 @@ export class BookingsService {
           trustStatus: b.user.trustStatus, // ✅ Statut de confiance
         },
         // ✅ Pet avec ID pour permettre le chargement du dossier médical
+        // Fallback to user's pet if booking doesn't have petIds linked
         pet: bookingPet
           ? { id: bookingPet.id, name: bookingPet.name, species: bookingPet.species, breed: bookingPet.breed }
-          : { label: petType || null, name: userPet?.name ?? null },
+          : fallbackPet || { label: petType || null, name: userPet?.name ?? null },
       };
     });
   }
