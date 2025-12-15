@@ -373,6 +373,28 @@ export class BookingsController {
     return this.svc.findActiveBookingForPet(petId);
   }
 
+  // ==================== CONFIRMATION PAR CODE DE RÉFÉRENCE ====================
+  // ⚠️ IMPORTANT: Cette route DOIT être AVANT les routes :id pour éviter les conflits
+
+  /**
+   * PRO: Confirmer un booking par son code de référence (VGC-XXXXXX)
+   * POST /bookings/confirm-by-reference
+   * @body referenceCode - Le code de référence (ex: VGC-A2B3C4)
+   * Retourne le booking confirmé avec les infos du pet pour afficher le carnet de santé
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post('confirm-by-reference')
+  confirmByReferenceCode(
+    @Req() req: any,
+    @Body() body: { referenceCode: string },
+  ) {
+    if (!body?.referenceCode || typeof body.referenceCode !== 'string') {
+      throw new BadRequestException('referenceCode is required');
+    }
+    return this.svc.confirmByReferenceCode(req.user.sub, body.referenceCode.toUpperCase().trim());
+  }
+
   /**
    * PRO confirme un booking (après scan QR ou manuellement)
    * POST /bookings/:id/pro-confirm
@@ -597,26 +619,5 @@ export class BookingsController {
   @Get('user/:userId/trust-info')
   getUserTrustInfo(@Param('userId') userId: string) {
     return this.svc.getUserTrustInfo(userId);
-  }
-
-  // ==================== CONFIRMATION PAR CODE DE RÉFÉRENCE ====================
-
-  /**
-   * PRO: Confirmer un booking par son code de référence (VGC-XXXXXX)
-   * POST /bookings/confirm-by-reference
-   * @body referenceCode - Le code de référence (ex: VGC-A2B3C4)
-   * Retourne le booking confirmé avec les infos du pet pour afficher le carnet de santé
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PRO', 'ADMIN')
-  @Post('confirm-by-reference')
-  confirmByReferenceCode(
-    @Req() req: any,
-    @Body() body: { referenceCode: string },
-  ) {
-    if (!body?.referenceCode || typeof body.referenceCode !== 'string') {
-      throw new BadRequestException('referenceCode is required');
-    }
-    return this.svc.confirmByReferenceCode(req.user.sub, body.referenceCode.toUpperCase().trim());
   }
 }

@@ -273,6 +273,7 @@ export class BookingsService {
         id: true,
         status: true,
         scheduledAt: true,
+        petIds: true, // ✅ IDs des animaux du booking
         service: { select: { id: true, title: true, price: true } },
         user: {
           select: {
@@ -284,12 +285,22 @@ export class BookingsService {
             pets: {
               orderBy: { updatedAt: 'desc' },
               take: 1,
-              select: { idNumber: true, breed: true, name: true },
+              select: { id: true, idNumber: true, breed: true, name: true, species: true }, // ✅ Include id for fallback
             },
           },
         },
       },
     });
+
+    // ✅ Récupérer les infos des pets pour tous les bookings
+    const allPetIds = [...new Set(rows.flatMap(r => r.petIds || []))];
+    const pets = allPetIds.length > 0
+      ? await this.prisma.pet.findMany({
+          where: { id: { in: allPetIds } },
+          select: { id: true, name: true, species: true, breed: true },
+        })
+      : [];
+    const petsMap = new Map(pets.map(p => [p.id, p]));
 
     // ✅ TRUST SYSTEM: Récupérer le nombre de RDV complétés par user pour détecter les "premiers RDV"
     const userIds = [...new Set(rows.map(r => r.user.id))];
@@ -311,16 +322,25 @@ export class BookingsService {
       const displayName =
         [b.user.firstName, b.user.lastName].filter(Boolean).join(' ').trim() ||
         'Client';
-      const pet = b.user.pets?.[0];
-      const petType = (pet?.idNumber || pet?.breed || '').trim();
+      const userPet = b.user.pets?.[0];
+      const petType = (userPet?.idNumber || userPet?.breed || '').trim();
+
+      // ✅ Récupérer le premier animal du booking (avec son ID pour les patients récents)
+      const bookingPet = (b.petIds || []).map(id => petsMap.get(id)).find(Boolean);
 
       // ✅ TRUST SYSTEM: Déterminer si c'est le premier RDV du client
       const isFirstBooking = b.user.trustStatus === 'NEW' && (completedMap.get(b.user.id) ?? 0) === 0;
+
+      // ✅ Fallback: use user's pet if booking doesn't have petIds
+      const fallbackPet = userPet?.id
+        ? { id: userPet.id, name: userPet.name, species: userPet.species, breed: userPet.breed }
+        : null;
 
       return {
         id: b.id,
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
+        petIds: b.petIds || [], // ✅ Liste des IDs des animaux
         service: { id: b.service.id, title: b.service.title, price },
         user: {
           id: b.user.id,
@@ -329,7 +349,11 @@ export class BookingsService {
           isFirstBooking, // ✅ Pour afficher "Nouveau client" côté PRO
           trustStatus: b.user.trustStatus, // ✅ Statut de confiance
         },
-        pet: { label: petType || null, name: pet?.name ?? null },
+        // ✅ Pet avec ID pour permettre le chargement du dossier médical
+        // Fallback to user's pet if booking doesn't have petIds linked
+        pet: bookingPet
+          ? { id: bookingPet.id, name: bookingPet.name, species: bookingPet.species, breed: bookingPet.breed }
+          : fallbackPet || { label: petType || null, name: userPet?.name ?? null },
       };
     });
   }
