@@ -449,6 +449,30 @@ class ApiClient {
     return data?.data || data;
   }
 
+  async createVaccinationByToken(
+    token: string,
+    vaccination: { name: string; date?: string; nextDueDate?: string; batchNumber?: string; veterinarian?: string; notes?: string }
+  ): Promise<Vaccination> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/vaccinations`, vaccination);
+    return data?.data || data;
+  }
+
+  async createTreatmentByToken(
+    token: string,
+    treatment: { name: string; startDate?: string; endDate?: string; frequency?: string; dosage?: string; notes?: string }
+  ): Promise<any> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/treatments`, treatment);
+    return data?.data || data;
+  }
+
+  async createWeightRecordByToken(
+    token: string,
+    record: { weightKg: number; date?: string; context?: string }
+  ): Promise<any> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/weight-records`, record);
+    return data?.data || data;
+  }
+
   async updateDisease(
     diseaseId: string,
     updates: { name?: string; description?: string; status?: string; notes?: string; images?: string[] }

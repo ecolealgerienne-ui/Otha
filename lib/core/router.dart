@@ -396,6 +396,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/treatments/new',
         builder: (ctx, st) => PetTreatmentFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -403,6 +404,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => PetTreatmentFormScreen(
           petId: st.pathParameters['id']!,
           treatmentId: st.pathParameters['treatmentId'],
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -416,6 +418,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/diseases/new',
         builder: (ctx, st) => PetDiseaseFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -443,6 +446,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/vaccinations/new',
         builder: (ctx, st) => PetVaccinationFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -450,6 +454,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => PetVaccinationFormScreen(
           petId: st.pathParameters['id']!,
           vaccinationId: st.pathParameters['vaccinationId'],
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(

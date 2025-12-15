@@ -240,34 +240,48 @@ class PetHealthStatsScreen extends ConsumerWidget {
     );
   }
 
+  // Helper pour convertir une valeur en double de façon sécurisée
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   Widget _buildSummaryCards(
     Map<String, dynamic>? weight,
     Map<String, dynamic>? temp,
     Map<String, dynamic>? heart,
   ) {
+    final currentWeight = _toDouble(weight?['current']);
+    final minWeight = _toDouble(weight?['min']);
+    final maxWeight = _toDouble(weight?['max']);
+    final currentTemp = _toDouble(temp?['current']);
+    final avgTemp = _toDouble(temp?['average']);
+
     return Row(
       children: [
-        if (weight?['current'] != null)
+        if (currentWeight != null)
           Expanded(
             child: _buildStatCard(
               icon: Icons.monitor_weight,
               label: 'Poids actuel',
-              value: '${weight!['current']?.toStringAsFixed(1)} kg',
+              value: '${currentWeight.toStringAsFixed(1)} kg',
               color: _coral,
-              subtitle: weight['min'] != null && weight['max'] != null
-                  ? 'Min: ${weight['min']?.toStringAsFixed(1)} / Max: ${weight['max']?.toStringAsFixed(1)}'
+              subtitle: minWeight != null && maxWeight != null
+                  ? 'Min: ${minWeight.toStringAsFixed(1)} / Max: ${maxWeight.toStringAsFixed(1)}'
                   : null,
             ),
           ),
-        if (weight?['current'] != null && temp?['current'] != null) const SizedBox(width: 12),
-        if (temp?['current'] != null)
+        if (currentWeight != null && currentTemp != null) const SizedBox(width: 12),
+        if (currentTemp != null)
           Expanded(
             child: _buildStatCard(
               icon: Icons.thermostat,
               label: 'Température',
-              value: '${temp!['current']?.toStringAsFixed(1)}°C',
+              value: '${currentTemp.toStringAsFixed(1)}°C',
               color: _mint,
-              subtitle: temp['average'] != null ? 'Moy: ${temp['average']?.toStringAsFixed(1)}°C' : null,
+              subtitle: avgTemp != null ? 'Moy: ${avgTemp.toStringAsFixed(1)}°C' : null,
             ),
           ),
       ],
@@ -349,7 +363,7 @@ class PetHealthStatsScreen extends ConsumerWidget {
 
     final spots = dataList.asMap().entries.map((entry) {
       final data = entry.value;
-      final weight = (data['weightKg'] as num).toDouble();
+      final weight = _toDouble(data['weightKg']) ?? 0.0;
       return FlSpot(entry.key.toDouble(), weight);
     }).toList();
 
@@ -446,7 +460,7 @@ class PetHealthStatsScreen extends ConsumerWidget {
 
     final spots = dataList.asMap().entries.map((entry) {
       final data = entry.value;
-      final temp = (data['temperatureC'] as num).toDouble();
+      final temp = _toDouble(data['temperatureC']) ?? 0.0;
       return FlSpot(entry.key.toDouble(), temp);
     }).toList();
 
@@ -543,7 +557,7 @@ class PetHealthStatsScreen extends ConsumerWidget {
 
     final spots = dataList.asMap().entries.map((entry) {
       final data = entry.value;
-      final hr = (data['heartRate'] as num).toDouble();
+      final hr = _toDouble(data['heartRate']) ?? 0.0;
       return FlSpot(entry.key.toDouble(), hr);
     }).toList();
 
@@ -663,7 +677,7 @@ class PetHealthStatsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${value is num ? value.toStringAsFixed(1) : value} $unit',
+                  '${_toDouble(value)?.toStringAsFixed(1) ?? value} $unit',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _ink),
                 ),
                 if (context != null) ...[

@@ -127,6 +127,36 @@ export class PetsController {
     return this.pets.createDiseaseByToken(token, req.user.sub, dto);
   }
 
+  // Vet ajoute une vaccination via token
+  @Post('by-token/:token/vaccinations')
+  createVaccinationByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createVaccinationByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un traitement via token
+  @Post('by-token/:token/treatments')
+  createTreatmentByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createTreatmentByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un poids via token
+  @Post('by-token/:token/weight-records')
+  createWeightRecordByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createWeightRecordByToken(token, req.user.sub, dto);
+  }
+
   // ============ MEDICAL RECORDS (DELETE by provider) ============
 
   @Delete('medical-records/:recordId')

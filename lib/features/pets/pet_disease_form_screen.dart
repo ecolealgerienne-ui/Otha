@@ -17,12 +17,16 @@ const _purple = Color(0xFF9B59B6);
 class PetDiseaseFormScreen extends ConsumerStatefulWidget {
   final String petId;
   final String? diseaseId; // null = create, non-null = edit
+  final String? token; // Token optionnel pour accès vétérinaire
 
   const PetDiseaseFormScreen({
     super.key,
     required this.petId,
     this.diseaseId,
+    this.token,
   });
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   ConsumerState<PetDiseaseFormScreen> createState() => _PetDiseaseFormScreenState();
@@ -151,31 +155,47 @@ class _PetDiseaseFormScreenState extends ConsumerState<PetDiseaseFormScreen> {
       final api = ref.read(apiProvider);
 
       if (widget.diseaseId == null) {
-        // Create
-        await api.createDisease(
-          widget.petId,
-          name: _nameController.text.trim(),
-          diagnosisDateIso: _diagnosisDate.toIso8601String(),
-          description: _descriptionController.text.trim().isNotEmpty
-              ? _descriptionController.text.trim()
-              : null,
-          status: _status,
-          severity: _severity,
-          curedDateIso: _curedDate?.toIso8601String(),
-          vetName: _vetNameController.text.trim().isNotEmpty
-              ? _vetNameController.text.trim()
-              : null,
-          symptoms: _symptomsController.text.trim().isNotEmpty
-              ? _symptomsController.text.trim()
-              : null,
-          treatment: _treatmentController.text.trim().isNotEmpty
-              ? _treatmentController.text.trim()
-              : null,
-          notes: _notesController.text.trim().isNotEmpty
-              ? _notesController.text.trim()
-              : null,
-          images: _imageUrls.isNotEmpty ? _imageUrls : null,
-        );
+        // Create - utiliser token-based API si vet access
+        if (widget.isVetAccess) {
+          await api.createDiseaseByToken(
+            widget.token!,
+            name: _nameController.text.trim(),
+            description: _descriptionController.text.trim().isNotEmpty
+                ? _descriptionController.text.trim()
+                : null,
+            status: _status,
+            severity: _severity,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            images: _imageUrls.isNotEmpty ? _imageUrls : null,
+          );
+        } else {
+          await api.createDisease(
+            widget.petId,
+            name: _nameController.text.trim(),
+            diagnosisDateIso: _diagnosisDate.toIso8601String(),
+            description: _descriptionController.text.trim().isNotEmpty
+                ? _descriptionController.text.trim()
+                : null,
+            status: _status,
+            severity: _severity,
+            curedDateIso: _curedDate?.toIso8601String(),
+            vetName: _vetNameController.text.trim().isNotEmpty
+                ? _vetNameController.text.trim()
+                : null,
+            symptoms: _symptomsController.text.trim().isNotEmpty
+                ? _symptomsController.text.trim()
+                : null,
+            treatment: _treatmentController.text.trim().isNotEmpty
+                ? _treatmentController.text.trim()
+                : null,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            images: _imageUrls.isNotEmpty ? _imageUrls : null,
+          );
+        }
 
         if (mounted) {
           context.pop();

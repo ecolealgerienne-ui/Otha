@@ -363,6 +363,86 @@ export class PetsService {
     });
   }
 
+  // Vet ajoute une vaccination via token
+  async createVaccinationByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.vaccination.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        name: dto.name,
+        date: dto.date ? new Date(dto.date) : new Date(),
+        nextDueDate: dto.nextDueDate ? new Date(dto.nextDueDate) : null,
+        batchNumber: dto.batchNumber ?? null,
+        veterinarian: dto.veterinarian ?? provider?.displayName ?? null,
+        notes: dto.notes ?? null,
+      },
+    });
+  }
+
+  // Vet ajoute un traitement via token
+  async createTreatmentByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
+
+    return this.prisma.treatment.create({
+      data: {
+        petId: accessToken.petId,
+        providerId: provider?.id ?? null,
+        name: dto.name,
+        dosage: dto.dosage ?? null,
+        frequency: dto.frequency ?? null,
+        startDate: dto.startDate ? new Date(dto.startDate) : new Date(),
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        isActive: dto.isActive ?? true,
+        notes: dto.notes ?? null,
+        attachments: dto.attachments ?? [],
+      },
+    });
+  }
+
+  // Vet ajoute un poids via token
+  async createWeightRecordByToken(token: string, userId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: { pet: true },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    return this.prisma.weightRecord.create({
+      data: {
+        petId: accessToken.petId,
+        weightKg: parseFloat(dto.weightKg),
+        date: dto.date ? new Date(dto.date) : new Date(),
+        context: dto.context ?? null,
+      },
+    });
+  }
+
   // Delete medical record by provider (only own records)
   async deleteMedicalRecordByProvider(userId: string, recordId: string) {
     const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });

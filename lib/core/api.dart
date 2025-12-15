@@ -1480,6 +1480,96 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
+  /// Create vaccination via token (vet access)
+  Future<Map<String, dynamic>> createVaccinationByToken(
+    String token, {
+    required String name,
+    required String dateIso,
+    String? nextDueDateIso,
+    String? batchNumber,
+    String? vetName,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'date': dateIso,
+      if (nextDueDateIso != null) 'nextDueDate': nextDueDateIso,
+      if (batchNumber != null) 'batchNumber': batchNumber,
+      if (vetName != null) 'veterinarian': vetName,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/by-token/$token/vaccinations', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create treatment via token (vet access)
+  Future<Map<String, dynamic>> createTreatmentByToken(
+    String token, {
+    required String name,
+    required String startDateIso,
+    String? dosage,
+    String? frequency,
+    String? endDateIso,
+    bool isActive = true,
+    String? notes,
+    List<String>? attachments,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'startDate': startDateIso,
+      'isActive': isActive,
+      if (dosage != null) 'dosage': dosage,
+      if (frequency != null) 'frequency': frequency,
+      if (endDateIso != null) 'endDate': endDateIso,
+      if (notes != null) 'notes': notes,
+      if (attachments != null) 'attachments': attachments,
+    };
+    final res = await _dio.post('/pets/by-token/$token/treatments', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create weight record via token (vet access)
+  Future<Map<String, dynamic>> createWeightRecordByToken(
+    String token, {
+    required double weightKg,
+    required String dateIso,
+    String? context,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'weightKg': weightKg,
+      'date': dateIso,
+      if (context != null) 'context': context,
+    };
+    final res = await _dio.post('/pets/by-token/$token/weight-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create disease via token (vet access)
+  Future<Map<String, dynamic>> createDiseaseByToken(
+    String token, {
+    required String name,
+    String? description,
+    String? status,
+    String? severity,
+    String? notes,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (severity != null) 'severity': severity,
+      if (notes != null) 'notes': notes,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/by-token/$token/diseases', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   // --------------- Weight Records ---------------
 
   Future<List<dynamic>> getWeightRecords(String petId) async {
