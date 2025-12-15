@@ -714,13 +714,16 @@ async upsertMyProvider(userId: string, dto: any) {
    * The website will poll this to get the pet data
    */
   async setScannedPet(userId: string, token: string): Promise<{ success: boolean; pet?: any }> {
+    console.log('🔵 setScannedPet called:', { userId, tokenLength: token?.length });
+
     const provider = await this.prisma.providerProfile.findFirst({
       where: { userId },
       select: { id: true },
     });
+    console.log('🔵 Provider found:', provider?.id || 'NOT FOUND');
     if (!provider) throw new NotFoundException('Provider not found');
 
-    // Get pet data from token
+    // Get pet data from token (note: prescriptions table may not exist in all environments)
     const accessToken = await this.prisma.petAccessToken.findUnique({
       where: { token },
       include: {
@@ -735,10 +738,6 @@ async upsertMyProvider(userId: string, dto: any) {
             treatments: { orderBy: { startDate: 'desc' } },
             allergies: true,
             preventiveCare: { orderBy: { lastDate: 'desc' } },
-            prescriptions: {
-              orderBy: { date: 'desc' },
-              include: { provider: { select: { id: true, displayName: true } } },
-            },
             diseaseTrackings: {
               orderBy: { createdAt: 'desc' },
               include: { provider: { select: { id: true, displayName: true } } },
@@ -755,11 +754,13 @@ async upsertMyProvider(userId: string, dto: any) {
     }
 
     // Store in cache
+    console.log('🔵 Storing pet in cache for provider:', provider.id, '- Pet:', accessToken.pet?.name);
     scannedPetCache.set(provider.id, {
       token,
       petData: accessToken.pet,
       scannedAt: new Date(),
     });
+    console.log('🔵 Cache now has', scannedPetCache.size, 'entries');
 
     // Auto-clear after 30 minutes
     setTimeout(() => {
@@ -783,6 +784,7 @@ async upsertMyProvider(userId: string, dto: any) {
     if (!provider) throw new NotFoundException('Provider not found');
 
     const cached = scannedPetCache.get(provider.id);
+    console.log('🟢 getScannedPet for provider:', provider.id, '- Has cached pet:', !!cached, '- Cache size:', scannedPetCache.size);
     if (!cached) {
       return { pet: null, scannedAt: null };
     }
