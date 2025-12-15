@@ -733,6 +733,12 @@ async upsertMyProvider(userId: string, dto: any) {
             weightRecords: { orderBy: { date: 'desc' }, take: 10 },
             vaccinations: { orderBy: { date: 'desc' } },
             allergies: true,
+            prescriptions: { orderBy: { date: 'desc' } },
+            diseaseTrackings: {
+              orderBy: { diagnosisDate: 'desc' },
+              include: { progressEntries: { orderBy: { date: 'desc' }, take: 5 } }
+            },
+            treatments: { where: { isActive: true }, orderBy: { startDate: 'desc' } },
             owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
           },
         },
@@ -767,7 +773,7 @@ async upsertMyProvider(userId: string, dto: any) {
   /**
    * Get the currently scanned pet for this provider (called from website polling)
    */
-  async getScannedPet(userId: string): Promise<{ pet: any | null; scannedAt: Date | null }> {
+  async getScannedPet(userId: string): Promise<{ pet: any | null; scannedAt: Date | null; token: string | null }> {
     const provider = await this.prisma.providerProfile.findFirst({
       where: { userId },
       select: { id: true },
@@ -777,10 +783,10 @@ async upsertMyProvider(userId: string, dto: any) {
     const cached = scannedPetCache.get(provider.id);
     console.log('🟢 getScannedPet for provider:', provider.id, '- Has cached pet:', !!cached, '- Cache size:', scannedPetCache.size);
     if (!cached) {
-      return { pet: null, scannedAt: null };
+      return { pet: null, scannedAt: null, token: null };
     }
 
-    return { pet: cached.petData, scannedAt: cached.scannedAt };
+    return { pet: cached.petData, scannedAt: cached.scannedAt, token: cached.token };
   }
 
   /**
