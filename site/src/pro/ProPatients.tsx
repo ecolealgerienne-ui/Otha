@@ -115,6 +115,8 @@ export function ProPatients() {
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
   const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
   const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
+  const [showAddVaccinationModal, setShowAddVaccinationModal] = useState(false);
+  const [showAddWeightModal, setShowAddWeightModal] = useState(false);
   const [showEditPrescriptionModal, setShowEditPrescriptionModal] = useState(false);
   const [showEditDiseaseModal, setShowEditDiseaseModal] = useState(false);
   const [showReferenceCodeModal, setShowReferenceCodeModal] = useState(false);
@@ -127,6 +129,8 @@ export function ProPatients() {
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
   const [newPrescription, setNewPrescription] = useState({ title: '', description: '', imageUrl: '' });
   const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
+  const [newVaccination, setNewVaccination] = useState({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
+  const [newWeight, setNewWeight] = useState({ weightKg: '', context: '' });
 
   // Edit states
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
@@ -136,6 +140,8 @@ export function ProPatients() {
   const [addingRecord, setAddingRecord] = useState(false);
   const [addingPrescription, setAddingPrescription] = useState(false);
   const [addingDisease, setAddingDisease] = useState(false);
+  const [addingVaccination, setAddingVaccination] = useState(false);
+  const [addingWeight, setAddingWeight] = useState(false);
   const [savingPrescription, setSavingPrescription] = useState(false);
   const [savingDisease, setSavingDisease] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -526,6 +532,75 @@ export function ProPatients() {
     }
   };
 
+  const handleAddVaccination = async () => {
+    if (!currentToken || !newVaccination.name) return;
+    setAddingVaccination(true);
+    try {
+      const vaccination = await api.createVaccinationByToken(currentToken, {
+        name: newVaccination.name,
+        date: newVaccination.date || undefined,
+        nextDueDate: newVaccination.nextDueDate || undefined,
+        batchNumber: newVaccination.batchNumber || undefined,
+        notes: newVaccination.notes || undefined,
+      });
+      // Add to local state (need to update context to support this)
+      // For now, just refresh the pet data
+      if (scannedPet && currentToken) {
+        const result = await api.getPetByToken(currentToken);
+        if (result) {
+          const [presc, stats, dis] = await Promise.all([
+            api.getPetPrescriptions(result.pet.id).catch(() => []),
+            api.getPetHealthStats(result.pet.id).catch(() => null),
+            api.getPetDiseases(result.pet.id).catch(() => []),
+          ]);
+          setPetData(result.pet, currentToken, result.medicalRecords || [], result.vaccinations || [], presc, stats, dis);
+        }
+      }
+      setShowAddVaccinationModal(false);
+      setNewVaccination({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout de la vaccination");
+    } finally {
+      setAddingVaccination(false);
+    }
+  };
+
+  const handleAddWeight = async () => {
+    if (!currentToken || !newWeight.weightKg) return;
+    const weightValue = parseFloat(newWeight.weightKg);
+    if (isNaN(weightValue) || weightValue <= 0) {
+      alert('Veuillez entrer un poids valide');
+      return;
+    }
+    setAddingWeight(true);
+    try {
+      await api.createWeightRecordByToken(currentToken, {
+        weightKg: weightValue,
+        context: newWeight.context || undefined,
+      });
+      // Refresh health stats
+      if (scannedPet && currentToken) {
+        const result = await api.getPetByToken(currentToken);
+        if (result) {
+          const [presc, stats, dis] = await Promise.all([
+            api.getPetPrescriptions(result.pet.id).catch(() => []),
+            api.getPetHealthStats(result.pet.id).catch(() => null),
+            api.getPetDiseases(result.pet.id).catch(() => []),
+          ]);
+          setPetData(result.pet, currentToken, result.medicalRecords || [], result.vaccinations || [], presc, stats, dis);
+        }
+      }
+      setShowAddWeightModal(false);
+      setNewWeight({ weightKg: '', context: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout du poids");
+    } finally {
+      setAddingWeight(false);
+    }
+  };
+
   // Delete handlers (only own records)
   const handleDeleteRecord = async (id: string) => {
     if (!confirm('Supprimer cet enregistrement ?')) return;
@@ -913,6 +988,12 @@ export function ProPatients() {
                     ))}
                   </div>
                 )}
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddVaccinationModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter une vaccination
+                  </Button>
+                </div>
               </>
             ) : viewMode === 'prescriptions' ? (
               <>
@@ -1049,9 +1130,12 @@ export function ProPatients() {
                     )}
                   </div>
                 )}
-                <p className="text-xs text-gray-400 text-center mt-4">
-                  Les statistiques sont automatiquement enregistrées lors des consultations vétérinaires
-                </p>
+                <div className="mt-6">
+                  <Button onClick={() => setShowAddWeightModal(true)} className="w-full">
+                    <Plus size={16} className="mr-2" />
+                    Ajouter un poids
+                  </Button>
+                </div>
               </>
             ) : viewMode === 'diseases' ? (
               <>
@@ -1367,6 +1451,55 @@ export function ProPatients() {
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
               <Button className="flex-1" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Vaccination Modal */}
+      {showAddVaccinationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Syringe className="text-green-600" size={20} />
+              Ajouter une vaccination
+            </h2>
+            <div className="space-y-4">
+              <Input label="Nom du vaccin *" placeholder="Ex: Rage, Typhus, Coryza..." value={newVaccination.name} onChange={(e) => setNewVaccination({ ...newVaccination, name: e.target.value })} />
+              <Input type="date" label="Date d'administration" value={newVaccination.date} onChange={(e) => setNewVaccination({ ...newVaccination, date: e.target.value })} />
+              <Input type="date" label="Date de rappel (optionnel)" value={newVaccination.nextDueDate} onChange={(e) => setNewVaccination({ ...newVaccination, nextDueDate: e.target.value })} />
+              <Input label="Numéro de lot (optionnel)" placeholder="Ex: LOT12345" value={newVaccination.batchNumber} onChange={(e) => setNewVaccination({ ...newVaccination, batchNumber: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>
+                <textarea rows={2} placeholder="Observations, réactions..." value={newVaccination.notes} onChange={(e) => setNewVaccination({ ...newVaccination, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddVaccinationModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddVaccination} isLoading={addingVaccination} disabled={!newVaccination.name}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Weight Modal */}
+      {showAddWeightModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Scale className="text-primary-600" size={20} />
+              Ajouter un poids
+            </h2>
+            <div className="space-y-4">
+              <Input type="number" step="0.1" min="0" label="Poids (kg) *" placeholder="Ex: 5.2" value={newWeight.weightKg} onChange={(e) => setNewWeight({ ...newWeight, weightKg: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contexte (optionnel)</label>
+                <textarea rows={2} placeholder="Ex: Consultation de routine, post-opération..." value={newWeight.context} onChange={(e) => setNewWeight({ ...newWeight, context: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddWeightModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddWeight} isLoading={addingWeight} disabled={!newWeight.weightKg}>Ajouter</Button>
             </div>
           </Card>
         </div>

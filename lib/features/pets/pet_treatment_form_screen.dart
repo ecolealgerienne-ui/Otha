@@ -15,12 +15,16 @@ const _ink = Color(0xFF222222);
 class PetTreatmentFormScreen extends ConsumerStatefulWidget {
   final String petId;
   final String? treatmentId; // null = create, non-null = edit
+  final String? token; // Token optionnel pour accès vétérinaire
 
   const PetTreatmentFormScreen({
     super.key,
     required this.petId,
     this.treatmentId,
+    this.token,
   });
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   ConsumerState<PetTreatmentFormScreen> createState() => _PetTreatmentFormScreenState();
@@ -145,24 +149,44 @@ class _PetTreatmentFormScreenState extends ConsumerState<PetTreatmentFormScreen>
       final api = ref.read(apiProvider);
 
       if (widget.treatmentId == null) {
-        // Create
-        await api.createTreatment(
-          widget.petId,
-          name: _nameController.text.trim(),
-          startDateIso: _startDate.toIso8601String(),
-          dosage: _dosageController.text.trim().isNotEmpty
-              ? _dosageController.text.trim()
-              : null,
-          frequency: _frequencyController.text.trim().isNotEmpty
-              ? _frequencyController.text.trim()
-              : null,
-          endDateIso: _endDate?.toIso8601String(),
-          isActive: _isActive,
-          notes: _notesController.text.trim().isNotEmpty
-              ? _notesController.text.trim()
-              : null,
-          attachments: _attachmentUrls.isNotEmpty ? _attachmentUrls : null,
-        );
+        // Create - utiliser token-based API si vet access
+        if (widget.isVetAccess) {
+          await api.createTreatmentByToken(
+            widget.token!,
+            name: _nameController.text.trim(),
+            startDateIso: _startDate.toIso8601String(),
+            dosage: _dosageController.text.trim().isNotEmpty
+                ? _dosageController.text.trim()
+                : null,
+            frequency: _frequencyController.text.trim().isNotEmpty
+                ? _frequencyController.text.trim()
+                : null,
+            endDateIso: _endDate?.toIso8601String(),
+            isActive: _isActive,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            attachments: _attachmentUrls.isNotEmpty ? _attachmentUrls : null,
+          );
+        } else {
+          await api.createTreatment(
+            widget.petId,
+            name: _nameController.text.trim(),
+            startDateIso: _startDate.toIso8601String(),
+            dosage: _dosageController.text.trim().isNotEmpty
+                ? _dosageController.text.trim()
+                : null,
+            frequency: _frequencyController.text.trim().isNotEmpty
+                ? _frequencyController.text.trim()
+                : null,
+            endDateIso: _endDate?.toIso8601String(),
+            isActive: _isActive,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+            attachments: _attachmentUrls.isNotEmpty ? _attachmentUrls : null,
+          );
+        }
 
         if (mounted) {
           context.pop();
