@@ -296,6 +296,19 @@ class ApiClient {
     }
   }
 
+  // Confirm booking by reference code (VGC-XXXXXX) - for vets without camera
+  async confirmByReferenceCode(referenceCode: string): Promise<{
+    success: boolean;
+    message: string;
+    booking: Booking;
+    pet: Pet | null;
+    pets: Pet[];
+    accessToken: string | null;
+  }> {
+    const { data } = await this.client.post('/bookings/confirm-by-reference', { referenceCode });
+    return data?.data || data;
+  }
+
   // ==================== DAYCARE ====================
   async myDaycareProviderBookings(): Promise<DaycareBooking[]> {
     const { data } = await this.client.get<DaycareBooking[]>('/daycare/provider/bookings');

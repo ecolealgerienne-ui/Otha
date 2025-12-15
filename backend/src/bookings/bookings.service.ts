@@ -2003,4 +2003,158 @@ export class BookingsService {
       totalCompletedBookings: completedBookings,
     };
   }
+
+  // ==================== CONFIRMATION PAR CODE DE RÉFÉRENCE ====================
+
+  /**
+   * PRO confirme un booking par son code de référence (VGC-XXXXXX)
+   * Utilisé pour les vétérinaires sans caméra QR
+   * Retourne le booking confirmé + infos du pet pour afficher le carnet de santé
+   */
+  async confirmByReferenceCode(proUserId: string, referenceCode: string) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId: proUserId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    // Chercher le booking par code de référence
+    const booking = await this.prisma.booking.findUnique({
+      where: { referenceCode },
+      include: {
+        service: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Aucun rendez-vous trouvé avec ce code');
+    }
+
+    // Vérifier que le booking appartient bien à ce provider
+    if (booking.providerId !== prov.id) {
+      throw new ForbiddenException('Ce rendez-vous ne vous appartient pas');
+    }
+
+    // Vérifier que le booking n'est pas déjà terminé
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous est déjà terminé ou annulé');
+    }
+
+    // Vérifier que le booking est prévu aujourd'hui (tolérance: ±12h)
+    const now = new Date();
+    const scheduledTime = new Date(booking.scheduledAt);
+    const hoursDiff = Math.abs(now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDiff > 12) {
+      throw new BadRequestException(
+        'Ce rendez-vous ne peut être confirmé que le jour même (±12h)'
+      );
+    }
+
+    // ✅ Confirmer le booking avec méthode REFERENCE_CODE
+    await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        proConfirmedAt: new Date(),
+        status: 'COMPLETED',
+        confirmationMethod: 'REFERENCE_CODE',
+      },
+    });
+
+    // ✅ Créer la commission
+    const gross = Number((booking.service.price as Prisma.Decimal).toNumber());
+    const commission = COMMISSION_DA;
+    const net = Math.max(gross - commission, 0);
+
+    await this.prisma.providerEarning.upsert({
+      where: { bookingId: booking.id },
+      update: {},
+      create: {
+        providerId: prov.id,
+        bookingId: booking.id,
+        serviceId: booking.serviceId,
+        grossPriceDa: gross,
+        commissionDa: commission,
+        netToProviderDa: net,
+      },
+    });
+
+    // 🏥 Créer l'acte médical pour chaque animal
+    const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
+    const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
+
+    for (const petId of petIds) {
+      await this.prisma.medicalRecord.create({
+        data: {
+          petId: petId,
+          type: 'VET_VISIT',
+          title: `Visite vétérinaire - ${booking.service.title}`,
+          description: `Rendez-vous confirmé par code de référence`,
+          date: booking.scheduledAt,
+          vetId: prov.id,
+          vetName: providerName,
+          providerType: 'VET',
+          bookingId: booking.id,
+          durationMinutes: booking.service.durationMin || 30,
+        },
+      });
+    }
+
+    // ✅ Récupérer les infos des animaux pour le carnet de santé
+    const pets = petIds.length > 0
+      ? await this.prisma.pet.findMany({
+          where: { id: { in: petIds } },
+          include: {
+            medicalRecords: { orderBy: { date: 'desc' }, take: 10 },
+            vaccinations: { orderBy: { date: 'desc' } },
+          },
+        })
+      : [];
+
+    // Générer un token d'accès pour le premier pet (pour le carnet de santé)
+    let accessToken: string | null = null;
+    if (pets.length > 0) {
+      const tokenRecord = await this.prisma.petAccessToken.create({
+        data: {
+          petId: pets[0].id,
+          token: require('crypto').randomBytes(32).toString('hex'),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+        },
+      });
+      accessToken = tokenRecord.token;
+    }
+
+    return {
+      success: true,
+      message: 'Rendez-vous confirmé avec succès',
+      booking: {
+        id: booking.id,
+        referenceCode: booking.referenceCode,
+        status: 'COMPLETED',
+        scheduledAt: booking.scheduledAt.toISOString(),
+        service: {
+          id: booking.service.id,
+          title: booking.service.title,
+        },
+        user: {
+          displayName: [booking.user.firstName, booking.user.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || 'Client',
+          phone: booking.user.phone,
+        },
+      },
+      pet: pets[0] || null,
+      pets,
+      accessToken, // Token pour accéder au carnet de santé
+    };
+  }
 }
