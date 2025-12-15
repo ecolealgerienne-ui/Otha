@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 
@@ -12,8 +11,9 @@ const _ink = Color(0xFF222222);
 const _mint = Color(0xFF4ECDC4);
 const _purple = Color(0xFF9B59B6);
 const _orange = Color(0xFFF39C12);
+const _green = Color(0xFF43AA8B);
 
-// Provider pour les infos d'un animal
+// Provider pour les infos d'un animal (propriétaire)
 final petInfoProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>?, String>((ref, petId) async {
   final api = ref.read(apiProvider);
@@ -24,6 +24,14 @@ final petInfoProvider = FutureProvider.autoDispose
     }
   }
   return null;
+});
+
+// Provider pour les infos d'un animal via token (vétérinaire)
+final petInfoByTokenProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, token) async {
+  if (token.isEmpty) return null;
+  final api = ref.read(apiProvider);
+  return api.getPetByToken(token);
 });
 
 // Provider pour récupérer les dernières données de santé
@@ -40,12 +48,24 @@ final latestHealthDataProvider = FutureProvider.autoDispose
 
 class PetHealthHubScreen extends ConsumerWidget {
   final String petId;
+  final String? token; // Token optionnel pour accès vétérinaire
+  final bool isVetAccess; // Indique si c'est un accès vétérinaire
+  final bool bookingConfirmed; // Si le RDV vient d'être confirmé
 
-  const PetHealthHubScreen({super.key, required this.petId});
+  const PetHealthHubScreen({
+    super.key,
+    required this.petId,
+    this.token,
+    this.isVetAccess = false,
+    this.bookingConfirmed = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final petAsync = ref.watch(petInfoProvider(petId));
+    // Utiliser le provider approprié selon le mode d'accès
+    final petAsync = isVetAccess && token != null
+        ? ref.watch(petInfoByTokenProvider(token!))
+        : ref.watch(petInfoProvider(petId));
     final healthAsync = ref.watch(latestHealthDataProvider(petId));
 
     return Scaffold(
@@ -56,7 +76,13 @@ class PetHealthHubScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (isVetAccess) {
+              context.go('/pro'); // Retour au dashboard pro
+            } else {
+              context.pop();
+            }
+          },
         ),
         title: petAsync.when(
           data: (pet) => Text(
@@ -66,12 +92,29 @@ class PetHealthHubScreen extends ConsumerWidget {
           loading: () => const Text('Santé'),
           error: (_, __) => const Text('Santé'),
         ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              if (isVetAccess && token != null) {
+                ref.invalidate(petInfoByTokenProvider(token!));
+              } else {
+                ref.invalidate(petInfoProvider(petId));
+              }
+              ref.invalidate(latestHealthDataProvider(petId));
+            },
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: _coral,
         onRefresh: () async {
+          if (isVetAccess && token != null) {
+            ref.invalidate(petInfoByTokenProvider(token!));
+          } else {
+            ref.invalidate(petInfoProvider(petId));
+          }
           ref.invalidate(latestHealthDataProvider(petId));
-          ref.invalidate(petInfoProvider(petId));
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -79,6 +122,86 @@ class PetHealthHubScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Banner de confirmation RDV (pour vets)
+              if (bookingConfirmed) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _green),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle, color: _green),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Rendez-vous confirmé avec succès',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: _green),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Info propriétaire (pour vets)
+              if (isVetAccess)
+                petAsync.when(
+                  data: (pet) {
+                    if (pet == null) return const SizedBox.shrink();
+                    final owner = pet['owner'] as Map<String, dynamic>?;
+                    if (owner == null) return const SizedBox.shrink();
+                    final ownerName = '${owner['firstName'] ?? ''} ${owner['lastName'] ?? ''}'.trim();
+                    final ownerPhone = owner['phone']?.toString() ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.person, size: 20, color: Colors.grey.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Propriétaire: $ownerName',
+                            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                          ),
+                          if (ownerPhone.isNotEmpty) ...[
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.phone, size: 14, color: _green),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    ownerPhone,
+                                    style: const TextStyle(fontSize: 12, color: _green, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+
               // Vue d'ensemble rapide
               _buildQuickOverview(healthAsync),
               const SizedBox(height: 32),
@@ -325,7 +448,7 @@ class PetHealthHubScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
               color: _ink,

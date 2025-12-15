@@ -245,12 +245,12 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
       if (!mounted) return;
 
-      // ✅ Pour les bookings vétérinaires, naviguer vers le carnet médical vet
+      // ✅ Pour les bookings vétérinaires, naviguer vers le hub de santé
       if (_bookingType == 'vet' && _petData != null && _scannedToken != null) {
         final petId = _petData!['id']?.toString() ?? '';
         if (petId.isNotEmpty) {
-          // Naviguer vers le carnet médical (pour vétérinaires)
-          context.go('/vet/pet/$petId/medical?token=$_scannedToken&confirmed=true');
+          // Naviguer vers le hub de santé avec paramètres vet
+          context.go('/pets/$petId/health-stats?token=$_scannedToken&confirmed=true&vet=true');
           return;
         }
       }
