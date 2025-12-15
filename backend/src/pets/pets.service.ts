@@ -380,12 +380,12 @@ export class PetsService {
     return this.prisma.vaccination.create({
       data: {
         petId: accessToken.petId,
-        providerId: provider?.id ?? null,
+        vetId: userId,
+        vetName: dto.veterinarian ?? provider?.displayName ?? null,
         name: dto.name,
         date: dto.date ? new Date(dto.date) : new Date(),
         nextDueDate: dto.nextDueDate ? new Date(dto.nextDueDate) : null,
         batchNumber: dto.batchNumber ?? null,
-        veterinarian: dto.veterinarian ?? provider?.displayName ?? null,
         notes: dto.notes ?? null,
       },
     });
@@ -403,12 +403,9 @@ export class PetsService {
       throw new ForbiddenException('Token expired');
     }
 
-    const provider = await this.prisma.providerProfile.findFirst({ where: { userId } });
-
     return this.prisma.treatment.create({
       data: {
         petId: accessToken.petId,
-        providerId: provider?.id ?? null,
         name: dto.name,
         dosage: dto.dosage ?? null,
         frequency: dto.frequency ?? null,
@@ -438,7 +435,7 @@ export class PetsService {
         petId: accessToken.petId,
         weightKg: parseFloat(dto.weightKg),
         date: dto.date ? new Date(dto.date) : new Date(),
-        context: dto.context ?? null,
+        notes: dto.context ?? dto.notes ?? null, // Accept both context and notes
       },
     });
   }
