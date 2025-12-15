@@ -25,25 +25,59 @@ final healthStatsProvider = FutureProvider.family<Map<String, dynamic>, String>(
 final healthStatsByTokenProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, token) async {
   final api = ref.read(apiProvider);
   final petData = await api.getPetByToken(token);
-  // Extraire les données de santé du pet (si disponibles via getPetByToken)
-  // On essaie d'abord de charger les stats via petId
-  final petId = petData['id']?.toString();
-  if (petId != null) {
-    try {
-      return await api.getHealthStats(petId);
-    } catch (_) {
-      // Fallback: construire les stats à partir des données brutes
-    }
-  }
+
   // Construire les stats à partir des données brutes du pet
   final weightRecords = (petData['weightRecords'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-  return {
-    'weight': weightRecords.isNotEmpty ? {
+  final medicalRecords = (petData['medicalRecords'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+  // Extraire température et rythme cardiaque des medical records
+  final tempData = medicalRecords
+      .where((r) => r['temperatureC'] != null)
+      .map((r) => {'date': r['date'], 'temperatureC': r['temperatureC']})
+      .toList();
+  final heartData = medicalRecords
+      .where((r) => r['heartRate'] != null)
+      .map((r) => {'date': r['date'], 'heartRate': r['heartRate']})
+      .toList();
+
+  // Build weight stats
+  Map<String, dynamic>? weightStats;
+  if (weightRecords.isNotEmpty) {
+    final weights = weightRecords.map((w) => double.tryParse(w['weightKg'].toString()) ?? 0.0).toList();
+    weightStats = {
       'current': weightRecords.first['weightKg'],
+      'min': weights.reduce((a, b) => a < b ? a : b),
+      'max': weights.reduce((a, b) => a > b ? a : b),
       'data': weightRecords,
-    } : null,
-    'temperature': null,
-    'heartRate': null,
+    };
+  }
+
+  // Build temperature stats
+  Map<String, dynamic>? tempStats;
+  if (tempData.isNotEmpty) {
+    final temps = tempData.map((t) => double.tryParse(t['temperatureC'].toString()) ?? 0.0).toList();
+    tempStats = {
+      'current': tempData.first['temperatureC'],
+      'average': temps.reduce((a, b) => a + b) / temps.length,
+      'data': tempData,
+    };
+  }
+
+  // Build heart rate stats
+  Map<String, dynamic>? heartStats;
+  if (heartData.isNotEmpty) {
+    final rates = heartData.map((h) => (h['heartRate'] as num).toDouble()).toList();
+    heartStats = {
+      'current': heartData.first['heartRate'],
+      'average': (rates.reduce((a, b) => a + b) / rates.length).round(),
+      'data': heartData,
+    };
+  }
+
+  return {
+    'weight': weightStats,
+    'temperature': tempStats,
+    'heartRate': heartStats,
   };
 });
 

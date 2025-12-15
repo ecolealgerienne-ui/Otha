@@ -75,21 +75,48 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
       console.log('📥 Poll result:', { hasPet: !!result.pet, scannedAt: result.scannedAt, lastScannedAt });
 
       if (result.pet && result.scannedAt !== lastScannedAt) {
-        console.log('✅ New pet detected from Flutter!', result.pet);
+        console.log('✅ New pet detected from Flutter!', result.pet, 'Token:', result.token);
         setLastScannedAt(result.scannedAt);
         const petData = result.pet as Pet & {
           medicalRecords?: MedicalRecord[];
           vaccinations?: Vaccination[];
           prescriptions?: Prescription[];
-          diseases?: DiseaseTracking[];
+          diseaseTrackings?: DiseaseTracking[];
+          treatments?: any[];
         };
 
-        // Load health stats separately (aggregated endpoint)
+        // Build health stats from medical records (temperature, heartRate)
         let healthStats: HealthStatsAggregated | null = null;
-        try {
-          healthStats = await api.getPetHealthStats(petData.id);
-        } catch {
-          // Ignore health stats fetch errors
+        const medicalRecords = petData.medicalRecords || [];
+        const weightRecords = (petData as any).weightRecords || [];
+
+        // Extract health data from medical records
+        const tempData = medicalRecords
+          .filter((r: any) => r.temperatureC != null)
+          .map((r: any) => ({ date: r.date, temperatureC: r.temperatureC }));
+        const heartData = medicalRecords
+          .filter((r: any) => r.heartRate != null)
+          .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
+
+        if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
+          healthStats = {
+            weight: weightRecords.length > 0 ? {
+              current: weightRecords[0]?.weightKg,
+              min: Math.min(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              max: Math.max(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              data: weightRecords,
+            } : undefined,
+            temperature: tempData.length > 0 ? {
+              current: tempData[0]?.temperatureC,
+              average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length,
+              data: tempData,
+            } : undefined,
+            heartRate: heartData.length > 0 ? {
+              current: heartData[0]?.heartRate,
+              average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length),
+              data: heartData,
+            } : undefined,
+          } as HealthStatsAggregated;
         }
 
         // ✅ Look for active booking for this pet (may have been confirmed by Flutter)
@@ -106,14 +133,17 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           // No active booking - that's ok
         }
 
+        // Map diseaseTrackings to diseases for consistency
+        const diseases = (petData.diseaseTrackings || []) as unknown as DiseaseTracking[];
+
         setState({
           pet: petData,
-          token: '', // Token is handled by backend
+          token: result.token || '', // Use token from backend
           records: petData.medicalRecords || [],
           vaccinations: petData.vaccinations || [],
           prescriptions: petData.prescriptions || [],
           healthStats,
-          diseases: petData.diseases || [],
+          diseases,
           activeBooking,
           bookingConfirmed,
         });
