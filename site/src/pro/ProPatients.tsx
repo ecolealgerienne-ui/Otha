@@ -94,6 +94,11 @@ export function ProPatients() {
     stopPolling,
   } = useScannedPet();
 
+  // Debug: log when scannedPet changes
+  useEffect(() => {
+    console.log('🐾 scannedPet changed:', scannedPet ? `${scannedPet.name} (id: ${scannedPet.id})` : 'null');
+  }, [scannedPet]);
+
   // Current provider ID (for ownership check)
   const [currentProviderId, setCurrentProviderId] = useState<string | null>(null);
 
