@@ -1271,21 +1271,32 @@ export function ProPatients() {
                               {/* Image Attachments Preview - like Flutter */}
                               {attachments.length > 0 && (
                                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                                  {attachments.map((url: string, idx: number) => (
+                                  {attachments.filter((url: string) => url && typeof url === 'string').map((url: string, idx: number) => (
                                     <a
                                       key={idx}
                                       href={url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="flex-shrink-0 group relative"
+                                      className="flex-shrink-0 group relative w-16 h-16 rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors bg-gradient-to-br from-purple-50 to-teal-50 overflow-hidden"
                                     >
+                                      {/* Fallback - visible when image fails */}
+                                      <div className="absolute inset-0 flex flex-col items-center justify-center text-purple-600 z-0">
+                                        <FileText size={20} />
+                                        <span className="text-[8px] font-medium mt-0.5">Voir</span>
+                                      </div>
+                                      {/* Image on top */}
                                       <img
                                         src={url}
                                         alt={`Ordonnance ${idx + 1}`}
-                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors"
+                                        className="absolute inset-0 w-full h-full object-cover z-10"
+                                        onError={(e) => {
+                                          // Hide broken image to show fallback underneath
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
                                       />
-                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
-                                        <Eye size={16} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                                      {/* Hover overlay */}
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center z-20">
+                                        <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
                                       </div>
                                     </a>
                                   ))}
@@ -1319,62 +1330,183 @@ export function ProPatients() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Weight history */}
+                    {/* Summary Cards - like Flutter */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {(healthStats.weight?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-coral-50 to-coral-100 border-2 border-coral-200 rounded-xl p-3 text-center">
+                          <Scale size={20} className="mx-auto text-coral-500 mb-1" />
+                          <p className="text-xl font-bold text-coral-600">{parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)}</p>
+                          <p className="text-xs text-coral-500 font-medium">kg</p>
+                        </div>
+                      )}
+                      {(healthStats.temperature?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-200 rounded-xl p-3 text-center">
+                          <Thermometer size={20} className="mx-auto text-teal-500 mb-1" />
+                          <p className="text-xl font-bold text-teal-600">{parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}</p>
+                          <p className="text-xs text-teal-500 font-medium">°C</p>
+                        </div>
+                      )}
+                      {(healthStats.heartRate?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3 text-center">
+                          <Heart size={20} className="mx-auto text-purple-500 mb-1" />
+                          <p className="text-xl font-bold text-purple-600">{healthStats.heartRate?.current || 0}</p>
+                          <p className="text-xs text-purple-500 font-medium">BPM</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Weight Chart */}
                     {(healthStats.weight?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Scale size={16} className="text-primary-600" />
-                          Poids ({parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)} kg actuel)
+                      <div className="bg-white border-2 border-coral-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Scale size={18} className="text-coral-500" />
+                          Évolution du poids
                         </h4>
-                        <div className="space-y-2">
+                        {/* Mini Chart SVG */}
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.weight!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => parseFloat(String(d.weightKg || 0)));
+                              const min = Math.min(...values) * 0.95;
+                              const max = Math.max(...values) * 1.05;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#F36C6C" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#F36C6C" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#weightGradient)" />
+                                  <polyline points={points} fill="none" stroke="#F36C6C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#F36C6C" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        {/* Data list */}
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.weight!.data.slice(-5).reverse().map((w: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
-                                {w.context && <p className="text-xs text-gray-400">{w.context}</p>}
-                                {w.notes && <p className="text-xs text-gray-400">{w.notes}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-coral-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-coral-600">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
+                              <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    {/* Temperature history */}
+
+                    {/* Temperature Chart */}
                     {(healthStats.temperature?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Thermometer size={16} className="text-red-600" />
-                          Température ({parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}°C actuel)
+                      <div className="bg-white border-2 border-teal-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Thermometer size={18} className="text-teal-500" />
+                          Évolution de la température
                         </h4>
-                        <div className="space-y-2">
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.temperature!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => parseFloat(String(d.temperatureC || 0)));
+                              const min = Math.min(...values, 37) * 0.98;
+                              const max = Math.max(...values, 40) * 1.02;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="tempGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#4ECDC4" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#4ECDC4" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#tempGradient)" />
+                                  <polyline points={points} fill="none" stroke="#4ECDC4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#4ECDC4" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.temperature!.data.slice(-5).reverse().map((t: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
-                                {t.context && <p className="text-xs text-gray-400">{t.context}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-teal-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-teal-600">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
+                              <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    {/* Heart rate history */}
+
+                    {/* Heart Rate Chart */}
                     {(healthStats.heartRate?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Heart size={16} className="text-pink-600" />
-                          Fréquence cardiaque ({healthStats.heartRate?.current || 0} BPM actuel)
+                      <div className="bg-white border-2 border-purple-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Heart size={18} className="text-purple-500" />
+                          Évolution du rythme cardiaque
                         </h4>
-                        <div className="space-y-2">
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.heartRate!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => d.heartRate || 0);
+                              const min = Math.min(...values) * 0.9;
+                              const max = Math.max(...values) * 1.1;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="hrGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#9B59B6" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#9B59B6" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#hrGradient)" />
+                                  <polyline points={points} fill="none" stroke="#9B59B6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#9B59B6" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.heartRate!.data.slice(-5).reverse().map((h: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{h.heartRate} BPM</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
-                                {h.context && <p className="text-xs text-gray-400">{h.context}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-purple-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-purple-600">{h.heartRate} BPM</span>
+                              <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>

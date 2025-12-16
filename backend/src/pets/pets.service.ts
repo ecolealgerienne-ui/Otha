@@ -305,6 +305,10 @@ export class PetsService {
         notes: dto.notes ?? null,
         images: dto.images ?? [],
         providerId: provider?.id ?? null,
+        // Health data
+        temperatureC: dto.temperatureC ?? null,
+        heartRate: dto.heartRate ?? null,
+        weightKg: dto.weightKg ?? null,
       },
     });
   }
