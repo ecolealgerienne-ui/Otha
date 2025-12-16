@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   Clock,
   Hash,
+  Eye,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, Button, Input } from '../shared/components';
@@ -312,6 +313,7 @@ export function ProPatients() {
         title: t.name,
         description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
         imageUrl: t.attachments?.[0] || null,
+        attachments: t.attachments || [],
         date: t.startDate,
         isActive: t.isActive,
         endDate: t.endDate,
@@ -447,6 +449,7 @@ export function ProPatients() {
         title: t.name,
         description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
         imageUrl: t.attachments?.[0] || null,
+        attachments: t.attachments || [],
         date: t.startDate,
         isActive: t.isActive,
         endDate: t.endDate,
@@ -580,8 +583,8 @@ export function ProPatients() {
     }
   };
 
-  // Handle image upload for prescription
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image upload for prescription (add to attachments array)
+  const handlePrescriptionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -593,13 +596,20 @@ export function ProPatients() {
     setUploadingImage(true);
     try {
       const url = await api.uploadFile(file);
-      setNewPrescription((prev) => ({ ...prev, imageUrl: url }));
+      setNewPrescription((prev) => ({ ...prev, attachments: [...prev.attachments, url] }));
     } catch (error) {
       console.error('Upload error:', error);
       alert("Erreur lors du téléversement de l'image");
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const removePrescriptionImage = (index: number) => {
+    setNewPrescription((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }));
   };
 
   // Add handlers
@@ -635,6 +645,7 @@ export function ProPatients() {
         startDate: newPrescription.startDate || undefined,
         endDate: newPrescription.endDate || undefined,
         notes: newPrescription.notes || undefined,
+        attachments: newPrescription.attachments.length > 0 ? newPrescription.attachments : undefined,
       });
       // Map treatment to prescription format for display
       const prescriptionForDisplay = {
@@ -737,7 +748,8 @@ export function ProPatients() {
           const prescriptions = treatments.map((t: any) => ({
             id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
             description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
-            imageUrl: t.attachments?.[0] || null, date: t.startDate, isActive: t.isActive, endDate: t.endDate,
+            imageUrl: t.attachments?.[0] || null, attachments: t.attachments || [],
+            date: t.startDate, isActive: t.isActive, endDate: t.endDate,
           }));
           // Build health stats from weightRecords and medicalRecords
           const weightRecords = petData.weightRecords || [];
@@ -797,7 +809,8 @@ export function ProPatients() {
           const prescriptions = treatments.map((t: any) => ({
             id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
             description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
-            imageUrl: t.attachments?.[0] || null, date: t.startDate, isActive: t.isActive, endDate: t.endDate,
+            imageUrl: t.attachments?.[0] || null, attachments: t.attachments || [],
+            date: t.startDate, isActive: t.isActive, endDate: t.endDate,
           }));
           const weightRecords = petData.weightRecords || [];
           const tempData = medicalRecords.filter((r: any) => r.temperatureC).map((r: any) => ({ temperatureC: r.temperatureC, date: r.date }));
@@ -1039,18 +1052,6 @@ export function ProPatients() {
                 {/* Action Cards */}
                 <h4 className="font-bold text-gray-900 mb-4">Accès rapide</h4>
                 <div className="space-y-3">
-                  {/* Add record */}
-                  <button onClick={() => setShowAddRecordModal(true)} className="w-full p-4 bg-gradient-to-r from-white to-primary-50 rounded-xl border-2 border-primary-200 hover:border-primary-400 transition-colors flex items-center gap-4 text-left">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
-                      <Plus className="text-white" size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">Ajouter un acte</p>
-                      <p className="text-sm text-gray-500">Consultation, traitement, diagnostic</p>
-                    </div>
-                    <ChevronRight className="text-primary-400" size={20} />
-                  </button>
-
                   {/* Medical history */}
                   <button onClick={() => setViewMode('medical-history')} className="w-full p-4 bg-gradient-to-r from-white to-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-colors flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
@@ -1164,12 +1165,6 @@ export function ProPatients() {
                     })}
                   </div>
                 )}
-                <div className="mt-6">
-                  <Button onClick={() => setShowAddRecordModal(true)} className="w-full">
-                    <Plus size={16} className="mr-2" />
-                    Ajouter un acte
-                  </Button>
-                </div>
               </>
             ) : viewMode === 'vaccinations' ? (
               <>
@@ -1229,35 +1224,70 @@ export function ProPatients() {
                   <div className="space-y-3">
                     {prescriptions.map((p) => {
                       const canDelete = isOwnRecord(p.providerId);
+                      const pAny = p as any;
+                      const attachments = pAny.attachments || (pAny.imageUrl ? [pAny.imageUrl] : []);
+                      const isActive = pAny.isActive !== false;
                       return (
-                        <div key={p.id} className="p-4 bg-white border border-gray-200 rounded-xl">
+                        <div key={p.id} className={`p-4 bg-white rounded-xl border-2 ${isActive ? 'border-teal-200' : 'border-gray-200'} shadow-sm`}>
                           <div className="flex items-start gap-3">
-                            <div className="p-2.5 bg-purple-100 rounded-xl flex-shrink-0">
-                              <FileText size={18} className="text-purple-600" />
+                            <div className={`p-2.5 rounded-xl flex-shrink-0 ${isActive ? 'bg-teal-100' : 'bg-gray-100'}`}>
+                              <Pill size={18} className={isActive ? 'text-teal-600' : 'text-gray-500'} />
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <p className="font-semibold text-gray-900">{p.title}</p>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-500">{format(new Date(p.date), 'dd/MM/yyyy')}</span>
+                                  <p className="font-bold text-gray-900">{p.title}</p>
+                                  {isActive && (
+                                    <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-semibold">En cours</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
                                   {canDelete && (
                                     <>
-                                      <button onClick={() => handleEditPrescription(p)} className="text-blue-400 hover:text-blue-600">
+                                      <button onClick={() => handleEditPrescription(p)} className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded">
                                         <Edit2 size={14} />
                                       </button>
-                                      <button onClick={() => handleDeletePrescription(p.id)} className="text-red-400 hover:text-red-600">
+                                      <button onClick={() => handleDeletePrescription(p.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
                                         <Trash2 size={14} />
                                       </button>
                                     </>
                                   )}
                                 </div>
                               </div>
-                              {p.description && <p className="text-sm text-gray-600">{p.description}</p>}
-                              {p.imageUrl && (
-                                <a href={p.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800">
-                                  <Image size={14} />
-                                  Voir l'ordonnance
-                                </a>
+                              {p.description && <p className="text-sm text-gray-600 mb-2">{p.description}</p>}
+                              <div className="flex items-center gap-3 text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Calendar size={12} />
+                                  {format(new Date(p.date), 'dd/MM/yyyy')}
+                                </span>
+                                {pAny.endDate && (
+                                  <span className="flex items-center gap-1">
+                                    → {format(new Date(pAny.endDate), 'dd/MM/yyyy')}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Image Attachments Preview - like Flutter */}
+                              {attachments.length > 0 && (
+                                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                                  {attachments.map((url: string, idx: number) => (
+                                    <a
+                                      key={idx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-shrink-0 group relative"
+                                    >
+                                      <img
+                                        src={url}
+                                        alt={`Ordonnance ${idx + 1}`}
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors"
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
+                                        <Eye size={16} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                                      </div>
+                                    </a>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1580,41 +1610,10 @@ export function ProPatients() {
         </div>
       )}
 
-      {/* Add Record Modal */}
-      {showAddRecordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Ajouter un acte médical</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select value={newRecord.type} onChange={(e) => setNewRecord({ ...newRecord, type: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
-                  <option value="CONSULTATION">Consultation</option>
-                  <option value="VACCINATION">Vaccination</option>
-                  <option value="SURGERY">Chirurgie</option>
-                  <option value="TREATMENT">Traitement</option>
-                  <option value="DIAGNOSTIC">Diagnostic</option>
-                  <option value="OTHER">Autre</option>
-                </select>
-              </div>
-              <Input label="Titre" placeholder="Ex: Consultation de routine" value={newRecord.title} onChange={(e) => setNewRecord({ ...newRecord, title: e.target.value })} />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea rows={3} placeholder="Notes..." value={newRecord.description} onChange={(e) => setNewRecord({ ...newRecord, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowAddRecordModal(false)}>Annuler</Button>
-              <Button className="flex-1" onClick={handleAddRecord} isLoading={addingRecord} disabled={!newRecord.title}>Ajouter</Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
       {/* Add Prescription/Treatment Modal */}
       {showAddPrescriptionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddPrescriptionModal(false)}>
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Pill className="text-purple-600" size={20} />
               Ajouter une ordonnance
@@ -1629,7 +1628,46 @@ export function ProPatients() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea rows={2} placeholder="Informations complémentaires..." value={newPrescription.notes} onChange={(e) => setNewPrescription({ ...newPrescription, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+                <textarea rows={2} placeholder="Informations complémentaires..." value={newPrescription.notes} onChange={(e) => setNewPrescription({ ...newPrescription, notes: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              </div>
+              {/* Image Upload Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photo de l'ordonnance</label>
+                {newPrescription.attachments.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {newPrescription.attachments.map((url, idx) => (
+                      <div key={idx} className="relative flex-shrink-0">
+                        <img src={url} alt={`Ordonnance ${idx + 1}`} className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                        <button
+                          onClick={() => removePrescriptionImage(idx)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="w-20 h-20 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
+                      <input type="file" accept="image/*" onChange={handlePrescriptionImageUpload} className="hidden" />
+                      {uploadingImage ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent" />
+                      ) : (
+                        <Plus className="text-gray-400" size={24} />
+                      )}
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
+                    <input type="file" accept="image/*" onChange={handlePrescriptionImageUpload} className="hidden" />
+                    {uploadingImage ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent" />
+                    ) : (
+                      <div className="text-center">
+                        <Upload className="mx-auto text-gray-400 mb-2" size={24} />
+                        <span className="text-sm text-gray-500">Ajouter une photo</span>
+                      </div>
+                    )}
+                  </label>
+                )}
               </div>
             </div>
             <div className="flex gap-3 mt-6">
@@ -1642,7 +1680,7 @@ export function ProPatients() {
 
       {/* Add Disease Modal - Temporarily disabled due to backend schema mismatch */}
       {showAddDiseaseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <AlertTriangle className="text-yellow-600" size={20} />
@@ -1662,7 +1700,7 @@ export function ProPatients() {
 
       {/* Add Vaccination Modal */}
       {showAddVaccinationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Syringe className="text-green-600" size={20} />
@@ -1688,7 +1726,7 @@ export function ProPatients() {
 
       {/* Add Weight Modal */}
       {showAddWeightModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Scale className="text-primary-600" size={20} />
@@ -1712,7 +1750,7 @@ export function ProPatients() {
 
       {/* Add Health Data Modal */}
       {showAddHealthDataModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Activity className="text-red-600" size={20} />
@@ -1744,7 +1782,7 @@ export function ProPatients() {
 
       {/* Edit Prescription Modal */}
       {showEditPrescriptionModal && editingPrescription && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">Modifier l'ordonnance</h2>
             <div className="space-y-4">
@@ -1773,7 +1811,7 @@ export function ProPatients() {
 
       {/* Edit Disease Modal */}
       {showEditDiseaseModal && editingDisease && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">Modifier le suivi de maladie</h2>
             <div className="space-y-4">
@@ -1805,7 +1843,7 @@ export function ProPatients() {
 
       {/* Reference Code Modal */}
       {showReferenceCodeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">

@@ -459,7 +459,7 @@ class ApiClient {
 
   async createTreatmentByToken(
     token: string,
-    treatment: { name: string; startDate?: string; endDate?: string; frequency?: string; dosage?: string; notes?: string }
+    treatment: { name: string; startDate?: string; endDate?: string; frequency?: string; dosage?: string; notes?: string; attachments?: string[] }
   ): Promise<any> {
     const { data } = await this.client.post(`/pets/by-token/${token}/treatments`, treatment);
     return data?.data || data;

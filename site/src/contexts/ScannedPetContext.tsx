@@ -145,6 +145,7 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           title: t.name,
           description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
           imageUrl: t.attachments?.[0] || null,
+          attachments: t.attachments || [],
           date: t.startDate,
           isActive: t.isActive,
           endDate: t.endDate,
