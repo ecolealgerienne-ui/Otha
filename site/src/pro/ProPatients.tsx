@@ -2262,6 +2262,27 @@ export function ProPatients() {
                     </div>
                   )}
 
+                  {/* Disease Images */}
+                  {d.images && d.images.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2"><Image size={16} />Photos ({d.images.length})</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {d.images.map((url: string, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => { setPreviewImageUrl(url); setShowImagePreviewModal(true); }}
+                            className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-orange-400 transition-colors group"
+                          >
+                            <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                              <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Timeline */}
                   {progressEntries.length > 0 && (
                     <div className="mb-4">
@@ -2289,6 +2310,23 @@ export function ProPatients() {
                                   <div className="mt-2 p-2 bg-teal-50 rounded flex items-start gap-2">
                                     <Pill size={14} className="text-teal-600 mt-0.5" />
                                     <p className="text-sm text-teal-700">{entry.treatmentUpdate}</p>
+                                  </div>
+                                )}
+                                {/* Progress entry images */}
+                                {entry.images && entry.images.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {entry.images.map((url: string, imgIdx: number) => (
+                                      <button
+                                        key={imgIdx}
+                                        onClick={() => { setPreviewImageUrl(url); setShowImagePreviewModal(true); }}
+                                        className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors group"
+                                      >
+                                        <img src={url} alt={`Photo ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                          <Eye size={14} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                                        </div>
+                                      </button>
+                                    ))}
                                   </div>
                                 )}
                               </div>
@@ -2525,31 +2563,61 @@ export function ProPatients() {
 
       {/* Image Preview Modal */}
       {showImagePreviewModal && previewImageUrl && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowImagePreviewModal(false)}>
-          <div className="relative max-w-4xl max-h-[90vh] w-full">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowImagePreviewModal(false)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setShowImagePreviewModal(false)}
-              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/20 rounded-lg transition-colors z-10"
             >
               <X size={24} />
             </button>
-            <img
-              src={previewImageUrl}
-              alt="Aperçu"
-              className="w-full h-full object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {/* Use iframe as fallback for CORS/mixed content issues */}
+            <div className="relative w-full h-[70vh] bg-black rounded-lg overflow-hidden flex items-center justify-center">
+              <img
+                src={previewImageUrl}
+                alt="Aperçu"
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  // Hide img and show fallback message
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  const fallback = document.getElementById('img-preview-fallback');
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+                onLoad={(e) => {
+                  // Show image when loaded
+                  (e.target as HTMLImageElement).style.display = 'block';
+                }}
+              />
+              <div id="img-preview-fallback" className="hidden flex-col items-center justify-center text-white gap-4">
+                <Image size={48} className="text-gray-400" />
+                <p className="text-gray-300">Impossible d'afficher l'image ici</p>
+                <a
+                  href={previewImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+                >
+                  <Eye size={18} />
+                  Ouvrir l'image
+                </a>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-3">
               <a
                 href={previewImageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white/90 hover:bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg"
-                onClick={(e) => e.stopPropagation()}
               >
                 <Eye size={16} />
                 Ouvrir dans un nouvel onglet
               </a>
+              <button
+                onClick={() => setShowImagePreviewModal(false)}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>
