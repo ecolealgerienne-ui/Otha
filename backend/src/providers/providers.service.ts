@@ -161,8 +161,8 @@ export class ProvidersService {
           },
           take: 5,
         },
-        // Inclure les disponibilités hebdomadaires
-        availability: {
+        // Inclure les disponibilités hebdomadaires (relation: weekly)
+        weekly: {
           select: {
             weekday: true,
             startMin: true,
@@ -213,7 +213,7 @@ export class ProvidersService {
             : undefined;
 
         // Transformer les services (convertir Decimal en number)
-        const services = (p.services ?? []).map((s: any) => ({
+        const services = ((p as any).services ?? []).map((s: any) => ({
           id: s.id,
           title: s.title,
           description: s.description,
@@ -222,7 +222,7 @@ export class ProvidersService {
         }));
 
         // Transformer les disponibilités (minutes -> HH:mm)
-        const availability = (p.availability ?? []).map((a: any) => ({
+        const availability = ((p as any).weekly ?? []).map((a: any) => ({
           dayOfWeek: a.weekday,
           startTime: `${String(Math.floor(a.startMin / 60)).padStart(2, '0')}:${String(a.startMin % 60).padStart(2, '0')}`,
           endTime: `${String(Math.floor(a.endMin / 60)).padStart(2, '0')}:${String(a.endMin % 60).padStart(2, '0')}`,
