@@ -882,6 +882,7 @@ class HomeScreen extends ConsumerWidget {
                         child: const _MyPetsCarousel(),
                       ),
                     ),
+                  if (!isPro) const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
                   // ▼ Banners de RDV/réservations (avec animations staggered)
                   SliverToBoxAdapter(
@@ -3207,7 +3208,7 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.85);
+    _pageController = PageController(viewportFraction: 0.92);
     _startAutoSlide();
   }
 
@@ -3261,24 +3262,9 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Titre section
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            l10n.services,
-            style: TextStyle(
-              fontFamily: 'SFPRO',
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Carousel
+        // Carousel (sans titre, plus grand, moins arrondi)
         SizedBox(
-          height: 180,
+          height: 140,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollStartNotification) {
@@ -3308,10 +3294,10 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                       child: GestureDetector(
                         onTap: () => context.push(route),
                         child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
                             color: bgCard,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: borderColor),
                             boxShadow: [
                               BoxShadow(
@@ -3336,7 +3322,7 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                               // Gradient overlay
                               Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(14),
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
@@ -3348,18 +3334,17 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                 ),
                               ),
 
-                              // Content
+                              // Content - layout horizontal pour carte compacte
                               Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
                                   children: [
+                                    // Icone à gauche
                                     Container(
-                                      padding: const EdgeInsets.all(10),
+                                      padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: pink.withOpacity(0.9),
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(14),
                                         boxShadow: [
                                           BoxShadow(
                                             color: pinkGlow.withOpacity(0.5),
@@ -3368,41 +3353,60 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                           ),
                                         ],
                                       ),
-                                      child: Icon(icon, color: Colors.white, size: 22),
+                                      child: Icon(icon, color: Colors.white, size: 26),
                                     ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      label,
-                                      style: const TextStyle(
-                                        fontFamily: 'SFPRO',
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        shadows: [
-                                          Shadow(
-                                            blurRadius: 8,
-                                            color: Color(0x80000000),
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
+                                    const Spacer(),
+                                    // Texte à droite
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                          'Explorer',
-                                          style: TextStyle(
+                                          label,
+                                          style: const TextStyle(
                                             fontFamily: 'SFPRO',
-                                            fontSize: 13,
-                                            color: Colors.white.withOpacity(0.9),
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            shadows: [
+                                              Shadow(
+                                                blurRadius: 8,
+                                                color: Color(0x80000000),
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.arrow_forward_rounded,
-                                          size: 14,
-                                          color: Colors.white.withOpacity(0.9),
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'Explorer',
+                                                style: TextStyle(
+                                                  fontFamily: 'SFPRO',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white.withOpacity(0.95),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.arrow_forward_rounded,
+                                                size: 12,
+                                                color: Colors.white.withOpacity(0.95),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -3534,7 +3538,7 @@ class _MyPetsButton extends ConsumerWidget {
 class _MyPetsCarousel extends ConsumerWidget {
   const _MyPetsCarousel({super.key});
 
-  void _showAddPetDialog(BuildContext context) {
+  void _showAddPetDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -3576,9 +3580,12 @@ class _MyPetsCarousel extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  context.push('/pets/add');
+                  await context.push('/pets/add');
+                  // Refresh au retour
+                  ref.invalidate(myPetsProvider);
+                  PaintingBinding.instance.imageCache.clear();
                 },
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFF2968F),
@@ -3631,7 +3638,7 @@ class _MyPetsCarousel extends ConsumerWidget {
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: GestureDetector(
-              onTap: () => _showAddPetDialog(context),
+              onTap: () => _showAddPetDialog(context, ref),
               child: Container(
                 height: 80,
                 decoration: BoxDecoration(
@@ -3720,7 +3727,12 @@ class _MyPetsCarousel extends ConsumerWidget {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: GestureDetector(
-                  onTap: () => context.push('/pets'),
+                  onTap: () async {
+                    await context.push('/pets');
+                    // Refresh les données au retour + vider le cache image
+                    ref.invalidate(myPetsProvider);
+                    PaintingBinding.instance.imageCache.clear();
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
@@ -3780,6 +3792,44 @@ class _MyPetsCarousel extends ConsumerWidget {
                                   Colors.black.withOpacity(0.7),
                                 ],
                                 stops: const [0.0, 0.8],
+                              ),
+                            ),
+                          ),
+
+                          // Label "Mes animaux" en haut gauche avec glassmorphism
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.pets,
+                                    color: Colors.white.withOpacity(0.9),
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Mes animaux',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'SFPRO',
+                                      color: Colors.white.withOpacity(0.9),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
