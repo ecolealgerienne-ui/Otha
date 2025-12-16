@@ -148,11 +148,20 @@ class ApiClient {
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) throw new Error('No refresh token');
 
-    const { data } = await axios.post<AuthTokens>(`${API_BASE_URL}/auth/refresh`, {
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
       refreshToken,
     });
-    this.setTokens(data);
-    return data.accessToken;
+
+    // Handle wrapped response { success: true, data: { accessToken, refreshToken } }
+    const data = response.data?.data || response.data;
+    const tokens: AuthTokens = {
+      accessToken: data.accessToken || data.token,
+      refreshToken: data.refreshToken || data.refresh_token || refreshToken, // Keep old refresh token if not provided
+    };
+
+    console.log('🔄 Token refreshed successfully');
+    this.setTokens(tokens);
+    return tokens.accessToken;
   }
 
   logout(): void {
