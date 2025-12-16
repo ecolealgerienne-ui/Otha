@@ -300,7 +300,19 @@ export function ProPatients() {
 
       // Map diseaseTrackings to diseases (data comes from getPetByToken)
       const diseases = (petData.diseaseTrackings || []);
-      const prescriptions = petData.prescriptions || [];
+      // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
+      const treatments = petData.treatments || [];
+      const prescriptions = treatments.map((t: any) => ({
+        id: t.id,
+        petId: t.petId,
+        providerId: t.providerId || null,
+        title: t.name,
+        description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+        imageUrl: t.attachments?.[0] || null,
+        date: t.startDate,
+        isActive: t.isActive,
+        endDate: t.endDate,
+      }));
 
       setPetData(
         result.pet,
@@ -423,7 +435,19 @@ export function ProPatients() {
       }
 
       const diseases = (petData.diseaseTrackings || []);
-      const prescriptions = petData.prescriptions || [];
+      // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
+      const treatments = petData.treatments || [];
+      const prescriptions = treatments.map((t: any) => ({
+        id: t.id,
+        petId: t.petId,
+        providerId: t.providerId || null,
+        title: t.name,
+        description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+        imageUrl: t.attachments?.[0] || null,
+        date: t.startDate,
+        isActive: t.isActive,
+        endDate: t.endDate,
+      }));
 
       setPetData(
         result.pet,
@@ -505,7 +529,19 @@ export function ProPatients() {
         }
 
         const diseases = (petData.diseaseTrackings || []);
-        const prescriptions = petData.prescriptions || [];
+        // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
+        const treatments = petData.treatments || [];
+        const prescriptions = treatments.map((t: any) => ({
+          id: t.id,
+          petId: t.petId,
+          providerId: t.providerId || null,
+          title: t.name,
+          description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+          imageUrl: t.attachments?.[0] || null,
+          date: t.startDate,
+          isActive: t.isActive,
+          endDate: t.endDate,
+        }));
 
         // Set pet data in context
         setPetData(

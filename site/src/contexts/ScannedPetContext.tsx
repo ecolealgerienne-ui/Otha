@@ -136,12 +136,26 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
         // Map diseaseTrackings to diseases for consistency
         const diseases = (petData.diseaseTrackings || []) as unknown as DiseaseTracking[];
 
+        // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
+        const treatments = petData.treatments || [];
+        const prescriptions = treatments.map((t: any) => ({
+          id: t.id,
+          petId: t.petId,
+          providerId: t.providerId || null,
+          title: t.name,
+          description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+          imageUrl: t.attachments?.[0] || null,
+          date: t.startDate,
+          isActive: t.isActive,
+          endDate: t.endDate,
+        })) as unknown as Prescription[];
+
         setState({
           pet: petData,
           token: result.token || '', // Use token from backend
           records: petData.medicalRecords || [],
           vaccinations: petData.vaccinations || [],
-          prescriptions: petData.prescriptions || [],
+          prescriptions,
           healthStats,
           diseases,
           activeBooking,
