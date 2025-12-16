@@ -149,6 +149,27 @@ export class ProvidersService {
         specialties: true,
         bio: true,
         avatarUrl: true,
+        // Inclure les services actifs
+        services: {
+          where: { archivedAt: null },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            price: true,
+            durationMin: true,
+          },
+          take: 5,
+        },
+        // Inclure les disponibilités hebdomadaires
+        availability: {
+          select: {
+            weekday: true,
+            startMin: true,
+            endMin: true,
+          },
+          orderBy: [{ weekday: 'asc' }, { startMin: 'asc' }],
+        },
       },
     });
 
@@ -191,6 +212,22 @@ export class ProvidersService {
             ? +this.haversineKm(lat, lng, plat as number, plng as number).toFixed(2)
             : undefined;
 
+        // Transformer les services (convertir Decimal en number)
+        const services = (p.services ?? []).map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          price: s.price ? Number(s.price) : null,
+          durationMin: s.durationMin,
+        }));
+
+        // Transformer les disponibilités (minutes -> HH:mm)
+        const availability = (p.availability ?? []).map((a: any) => ({
+          dayOfWeek: a.weekday,
+          startTime: `${String(Math.floor(a.startMin / 60)).padStart(2, '0')}:${String(a.startMin % 60).padStart(2, '0')}`,
+          endTime: `${String(Math.floor(a.endMin / 60)).padStart(2, '0')}:${String(a.endMin % 60).padStart(2, '0')}`,
+        }));
+
         return {
           id: p.id,
           displayName: p.displayName,
@@ -200,6 +237,8 @@ export class ProvidersService {
           specialties: p.specialties,
           bio: p.bio,
           avatarUrl: p.avatarUrl,
+          services,
+          availability,
           ...(distance_km !== undefined ? { distance_km } : {}),
         };
       })
