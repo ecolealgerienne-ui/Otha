@@ -637,6 +637,8 @@ export function ProPatients() {
     if (!currentToken || !newPrescription.name) return;
     setAddingPrescription(true);
     try {
+      // Filter out any null/undefined attachments
+      const validAttachments = newPrescription.attachments.filter((url): url is string => !!url);
       // Use treatments API (Flutter uses treatments for "Ordonnances")
       const treatment = await api.createTreatmentByToken(currentToken, {
         name: newPrescription.name,
@@ -645,7 +647,7 @@ export function ProPatients() {
         startDate: newPrescription.startDate || undefined,
         endDate: newPrescription.endDate || undefined,
         notes: newPrescription.notes || undefined,
-        attachments: newPrescription.attachments.length > 0 ? newPrescription.attachments : undefined,
+        attachments: validAttachments.length > 0 ? validAttachments : undefined,
       });
       // Map treatment to prescription format for display
       const prescriptionForDisplay = {
