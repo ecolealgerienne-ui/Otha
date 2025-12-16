@@ -293,6 +293,24 @@ class AppLocalizations {
       'closedNow': 'Fermé',
       'opensAt': 'Ouvre à',
       'closesAt': 'Ferme à',
+      // Home screen - Adoption & Carrière
+      'adopt': 'Adoptez',
+      'changeALife': 'Changez une vie',
+      'boost': 'Boostez',
+      'yourCareer': 'Votre carrière',
+      // Vet details
+      'chooseService': 'Choisir un service',
+      'forWhichAnimal': 'Pour quel animal ?',
+      'chooseSlot': 'Choisir un créneau',
+      'noServiceAvailable': 'Aucun service disponible.',
+      'addAnimalFirst': 'Vous devez d\'abord ajouter un animal dans votre profil.',
+      'noSlotAvailable': 'Aucun créneau disponible sur 14 jours.',
+      'noSlotThisDay': 'Aucun créneau ce jour.',
+      'total': 'Total',
+      'confirmBooking': 'Confirmer',
+      'oneStepAtTime': 'Une étape à la fois',
+      'trustRestrictionMessage': 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant d\'en réserver un autre.\n\nCela nous aide à garantir un service de qualité pour tous.',
+      'understood': 'J\'ai compris',
     },
     'en': {
       'appName': 'Vegece',
@@ -444,6 +462,24 @@ class AppLocalizations {
       'closedNow': 'Closed',
       'opensAt': 'Opens at',
       'closesAt': 'Closes at',
+      // Home screen - Adoption & Career
+      'adopt': 'Adopt',
+      'changeALife': 'Change a life',
+      'boost': 'Boost',
+      'yourCareer': 'Your career',
+      // Vet details
+      'chooseService': 'Choose a service',
+      'forWhichAnimal': 'For which pet?',
+      'chooseSlot': 'Choose a slot',
+      'noServiceAvailable': 'No service available.',
+      'addAnimalFirst': 'You must first add a pet in your profile.',
+      'noSlotAvailable': 'No slot available for 14 days.',
+      'noSlotThisDay': 'No slot this day.',
+      'total': 'Total',
+      'confirmBooking': 'Confirm',
+      'oneStepAtTime': 'One step at a time',
+      'trustRestrictionMessage': 'As a new client, you must first honor your current appointment before booking another.\n\nThis helps us ensure quality service for everyone.',
+      'understood': 'I understand',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -595,6 +631,24 @@ class AppLocalizations {
       'closedNow': 'مغلق',
       'opensAt': 'يفتح في',
       'closesAt': 'يغلق في',
+      // Home screen - Adoption & Career
+      'adopt': 'تبنَّ',
+      'changeALife': 'غيّر حياة',
+      'boost': 'عزّز',
+      'yourCareer': 'مسيرتك المهنية',
+      // Vet details
+      'chooseService': 'اختر خدمة',
+      'forWhichAnimal': 'لأي حيوان؟',
+      'chooseSlot': 'اختر موعداً',
+      'noServiceAvailable': 'لا توجد خدمات متاحة.',
+      'addAnimalFirst': 'يجب عليك أولاً إضافة حيوان في ملفك الشخصي.',
+      'noSlotAvailable': 'لا يوجد موعد متاح خلال 14 يوماً.',
+      'noSlotThisDay': 'لا يوجد موعد في هذا اليوم.',
+      'total': 'المجموع',
+      'confirmBooking': 'تأكيد',
+      'oneStepAtTime': 'خطوة واحدة في كل مرة',
+      'trustRestrictionMessage': 'بصفتك عميلاً جديداً، يجب عليك أولاً حضور موعدك الحالي قبل حجز موعد آخر.\n\nهذا يساعدنا على ضمان خدمة عالية الجودة للجميع.',
+      'understood': 'فهمت',
     },
   };
 
@@ -754,6 +808,24 @@ class AppLocalizations {
   String get closedNow => _get('closedNow');
   String get opensAt => _get('opensAt');
   String get closesAt => _get('closesAt');
+  // Home screen - Adoption & Career
+  String get adopt => _get('adopt');
+  String get changeALife => _get('changeALife');
+  String get boost => _get('boost');
+  String get yourCareer => _get('yourCareer');
+  // Vet details
+  String get chooseService => _get('chooseService');
+  String get forWhichAnimal => _get('forWhichAnimal');
+  String get chooseSlot => _get('chooseSlot');
+  String get noServiceAvailable => _get('noServiceAvailable');
+  String get addAnimalFirst => _get('addAnimalFirst');
+  String get noSlotAvailable => _get('noSlotAvailable');
+  String get noSlotThisDay => _get('noSlotThisDay');
+  String get total => _get('total');
+  String get confirmBooking => _get('confirmBooking');
+  String get oneStepAtTime => _get('oneStepAtTime');
+  String get trustRestrictionMessage => _get('trustRestrictionMessage');
+  String get understood => _get('understood');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
