@@ -199,6 +199,7 @@ export class ProvidersService {
           lng: hasCoords ? (plng as number) : null,
           specialties: p.specialties,
           bio: p.bio,
+          avatarUrl: p.avatarUrl,
           ...(distance_km !== undefined ? { distance_km } : {}),
         };
       })
