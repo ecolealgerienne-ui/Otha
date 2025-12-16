@@ -107,7 +107,8 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
     final id = (m['id'] ?? m['providerId'] ?? '').toString();
     final name = (m['displayName'] ?? m['name'] ?? 'Vétérinaire').toString();
     final bio = (m['bio'] ?? '').toString();
-    final photoUrl = (m['photoUrl'] ?? m['avatar'] ?? '').toString();
+    // Le provider peut avoir avatarUrl ou photoUrl selon l'API
+    final photoUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? m['avatar'] ?? '').toString();
 
     // Services
     final services = (m['services'] as List?)?.map((s) {

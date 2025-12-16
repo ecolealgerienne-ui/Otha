@@ -217,7 +217,8 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
           final bio      = (p['bio'] ?? '').toString();
           final rating   = (p['ratingAvg'] as num?)?.toDouble() ?? 0.0;
           final count    = (p['ratingCount'] as num?)?.toInt() ?? 0;
-          final photoUrl = (p['photoUrl'] ?? '').toString();
+          // Le provider peut avoir avatarUrl ou photoUrl selon l'API
+          final photoUrl = (p['avatarUrl'] ?? p['photoUrl'] ?? '').toString();
           final address  = (p['address'] ?? '').toString();
 
           return CustomScrollView(
