@@ -9,18 +9,23 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
+import '../home/home_screen.dart' show themeProvider, AppThemeMode;
 
+// Couleurs thème
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+const _darkBg = Color(0xFF0A0A0A);
+const _darkCard = Color(0xFF1A1A1A);
+const _darkBorder = Color(0xFF2A2A2A);
 
-/// Provider qui charge la liste des vétos autour du centre (device -> profil -> fallback)
+/// Provider qui charge la liste des vétos avec photos, services, disponibilités
 final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
 
   // ---------- 1) Centre utilisateur: DEVICE d'abord, puis PROFIL, sinon fallback ----------
   Future<({double lat, double lng})> getCenter() async {
-    // a) Device (GPS/Wi-Fi) — timeouts courts pour éviter les spinners infinis
     try {
       if (await Geolocator.isLocationServiceEnabled()) {
         var perm = await Geolocator.checkPermission();
@@ -29,7 +34,6 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
         }
         if (perm != LocationPermission.denied &&
             perm != LocationPermission.deniedForever) {
-          // Last known (ultra rapide)
           final last = await Geolocator.getLastKnownPosition().timeout(
             const Duration(milliseconds: 300),
             onTimeout: () => null,
@@ -37,22 +41,18 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
           if (last != null) {
             return (lat: last.latitude, lng: last.longitude);
           }
-          // Current position (timeout court)
           try {
             final pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.medium,
             ).timeout(const Duration(seconds: 2));
             return (lat: pos.latitude, lng: pos.longitude);
           } on TimeoutException {
-            // On tombera sur profil/fallback
-          } catch (_) {
-            // ignore et on tombe sur profil/fallback
-          }
+            // Fallback
+          } catch (_) {}
         }
       }
-    } catch (_) {/* ignore */}
+    } catch (_) {}
 
-    // b) Profil utilisateur (fallback)
     final me = ref.read(sessionProvider).user ?? {};
     final pLat = (me['lat'] as num?)?.toDouble();
     final pLng = (me['lng'] as num?)?.toDouble();
@@ -60,13 +60,12 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
       return (lat: pLat, lng: pLng);
     }
 
-    // c) Fallback absolu (Alger)
-    return (lat: 36.75, lng: 3.06);
+    return (lat: 36.75, lng: 3.06); // Fallback Alger
   }
 
   final center = await getCenter();
 
-  // ---------- 2) API: on récupère les pros depuis le backend ----------
+  // ---------- 2) API: récupère les pros ----------
   final raw = await api.nearby(
     lat: center.lat,
     lng: center.lng,
@@ -75,14 +74,13 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
     status: 'approved',
   );
 
-  // ---------- 3) Normalisation légère côté client ----------
+  // ---------- 3) Normalisation ----------
   double? _toDouble(dynamic v) {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
   }
 
-  // Haversine (fallback au cas où le backend n'aurait pas mis distance_km)
   double? _haversineKm(double? lat, double? lng) {
     if (lat == null || lng == null) return null;
     const R = 6371.0;
@@ -98,24 +96,33 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 
   final rows = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
-  // Filter to only show vets (exclude petshops and daycares)
+  // Filtrer uniquement les vétérinaires
   final vetsOnly = rows.where((m) {
     final specialties = m['specialties'] as Map<String, dynamic>?;
     final kind = (specialties?['kind'] ?? '').toString().toLowerCase();
-    return kind == 'vet' || kind.isEmpty; // Include if vet or no kind specified
+    return kind == 'vet' || kind.isEmpty;
   }).toList();
 
-  // On prépare l'output minimum: id, displayName, bio, address, distanceKm
   final mapped = vetsOnly.map((m) {
     final id = (m['id'] ?? m['providerId'] ?? '').toString();
     final name = (m['displayName'] ?? m['name'] ?? 'Vétérinaire').toString();
     final bio = (m['bio'] ?? '').toString();
-    final address = (m['address'] ?? '').toString();
+    final photoUrl = (m['photoUrl'] ?? m['avatar'] ?? '').toString();
 
-    // distance_km fournie par le backend si centre valide
+    // Services
+    final services = (m['services'] as List?)?.map((s) {
+      if (s is Map) return Map<String, dynamic>.from(s);
+      return <String, dynamic>{};
+    }).toList() ?? [];
+
+    // Disponibilités (horaires)
+    final availability = (m['availability'] as List?)?.map((a) {
+      if (a is Map) return Map<String, dynamic>.from(a);
+      return <String, dynamic>{};
+    }).toList() ?? [];
+
+    // Distance
     double? dKm = _toDouble(m['distance_km']);
-
-    // Fallback si distance_km manquante: calcule localement avec lat/lng
     if (dKm == null) {
       final lat = _toDouble(m['lat']);
       final lng = _toDouble(m['lng']);
@@ -126,12 +133,14 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
       'id': id,
       'displayName': name,
       'bio': bio,
-      'address': address,
+      'photoUrl': photoUrl,
       'distanceKm': dKm,
+      'services': services,
+      'availability': availability,
     };
   }).toList();
 
-  // Dédoublonnage soft
+  // Dédoublonnage
   final seen = <String>{};
   final unique = <Map<String, dynamic>>[];
   for (final m in mapped) {
@@ -142,7 +151,7 @@ final _vetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
     if (seen.add(key)) unique.add(m);
   }
 
-  // Tri: distance si dispo, sinon nom
+  // Tri par distance
   unique.sort((a, b) {
     final da = a['distanceKm'] as double?;
     final db = b['distanceKm'] as double?;
@@ -169,7 +178,6 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
   @override
   void initState() {
     super.initState();
-    // Réévalue à chaque ouverture (nouvelle géoloc)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(_vetsProvider);
     });
@@ -177,12 +185,11 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
 
   List<Map<String, dynamic>> _filterVets(List<Map<String, dynamic>> vets) {
     return vets.where((vet) {
-      // Search filter
       if (_searchQuery.isNotEmpty) {
         final name = (vet['displayName'] ?? '').toString().toLowerCase();
-        final address = (vet['address'] ?? '').toString().toLowerCase();
+        final bio = (vet['bio'] ?? '').toString().toLowerCase();
         final query = _searchQuery.toLowerCase();
-        if (!name.contains(query) && !address.contains(query)) {
+        if (!name.contains(query) && !bio.contains(query)) {
           return false;
         }
       }
@@ -192,72 +199,89 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
     final async = ref.watch(_vetsProvider);
 
-    return Theme(
-      data: _themed(context),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Custom header
-              _buildHeader(context),
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
 
-              // Content
-              Expanded(
-                child: async.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
-                  error: (e, _) => Center(child: Text('Erreur: $e')),
-                  data: (rows) {
-                    final filtered = _filterVets(rows);
-                    if (filtered.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return RefreshIndicator(
-                      color: _coral,
-                      onRefresh: () async => ref.invalidate(_vetsProvider),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final m = filtered[i];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _VetCard(
-                              id: (m['id'] ?? '').toString(),
-                              name: (m['displayName'] ?? 'Vétérinaire').toString(),
-                              distanceKm: m['distanceKm'] as double?,
-                              bio: (m['bio'] ?? '').toString(),
-                              address: (m['address'] ?? '').toString(),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(context, l10n, isDark),
+
+            // Liste
+            Expanded(
+              child: async.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: _coral),
                 ),
+                error: (e, _) => Center(
+                  child: Text(
+                    '${l10n.error}: $e',
+                    style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                  ),
+                ),
+                data: (rows) {
+                  final filtered = _filterVets(rows);
+                  if (filtered.isEmpty) {
+                    return _buildEmptyState(l10n, isDark);
+                  }
+                  return RefreshIndicator(
+                    color: _coral,
+                    onRefresh: () async => ref.invalidate(_vetsProvider),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final m = filtered[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _VetCard(
+                            vet: m,
+                            isDark: isDark,
+                            l10n: l10n,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, AppLocalizations l10n, bool isDark) {
+    final headerBg = isDark ? _darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : _ink;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey;
+    final searchBg = isDark ? _darkBg : const Color(0xFFF7F8FA);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: headerBg,
         boxShadow: [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x0A000000),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back button and title
+          // Bouton retour + titre
           Row(
             children: [
               IconButton(
@@ -269,23 +293,25 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Vétérinaires',
+                      l10n.veterinarians,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: _ink,
+                        color: textColor,
+                        fontFamily: 'SFPRO',
                       ),
                     ),
                     Text(
-                      'Trouvez un vétérinaire proche de vous',
+                      l10n.findVetNearby,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: subtitleColor,
+                        fontFamily: 'SFPRO',
                       ),
                     ),
                   ],
@@ -303,14 +329,16 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Search bar
+          // Barre de recherche
           TextField(
             onChanged: (v) => setState(() => _searchQuery = v),
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
-              hintText: 'Rechercher un vétérinaire...',
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              hintText: l10n.searchVet,
+              hintStyle: TextStyle(color: subtitleColor),
+              prefixIcon: Icon(Icons.search, color: subtitleColor),
               filled: true,
-              fillColor: const Color(0xFFF7F8FA),
+              fillColor: searchBg,
               contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -327,33 +355,36 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n, bool isDark) {
+    final textColor = isDark ? Colors.white : _ink;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey.shade600;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: _coralSoft,
+            decoration: BoxDecoration(
+              color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.local_hospital, size: 48, color: _coral),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Aucun vétérinaire trouvé',
+          Text(
+            l10n.noVetFound,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
+              color: textColor,
+              fontFamily: 'SFPRO',
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'Essayez avec d\'autres termes'
-                : 'Aucun vétérinaire disponible pour le moment',
-            style: TextStyle(color: Colors.grey.shade600),
+            _searchQuery.isNotEmpty ? l10n.tryOtherTerms : l10n.noVetAvailable,
+            style: TextStyle(color: subtitleColor, fontFamily: 'SFPRO'),
             textAlign: TextAlign.center,
           ),
           if (_searchQuery.isNotEmpty) ...[
@@ -364,39 +395,25 @@ class _VetListScreenState extends ConsumerState<VetListScreen> {
                 foregroundColor: _coral,
                 side: const BorderSide(color: _coral),
               ),
-              child: const Text('Effacer la recherche'),
+              child: Text(l10n.clearSearch),
             ),
           ],
         ],
       ),
     );
   }
-
-  ThemeData _themed(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.copyWith(
-      colorScheme: theme.colorScheme.copyWith(
-        primary: _coral,
-      ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: _coral),
-    );
-  }
 }
 
 class _VetCard extends StatelessWidget {
   const _VetCard({
-    required this.id,
-    required this.name,
-    required this.bio,
-    required this.address,
-    this.distanceKm,
+    required this.vet,
+    required this.isDark,
+    required this.l10n,
   });
 
-  final String id;
-  final String name;
-  final String bio;
-  final String address;
-  final double? distanceKm;
+  final Map<String, dynamic> vet;
+  final bool isDark;
+  final AppLocalizations l10n;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -404,179 +421,304 @@ class _VetCard extends StatelessWidget {
     return inits.isEmpty ? 'DR' : inits;
   }
 
+  /// Vérifie si le vétérinaire est actuellement ouvert selon ses disponibilités
+  ({bool isOpen, String? nextChange}) _checkAvailability() {
+    final availability = (vet['availability'] as List?) ?? [];
+    if (availability.isEmpty) return (isOpen: false, nextChange: null);
+
+    final now = DateTime.now();
+    final weekday = now.weekday; // 1=Lundi ... 7=Dimanche
+    final currentMinutes = now.hour * 60 + now.minute;
+
+    // Chercher les créneaux du jour actuel
+    for (final slot in availability) {
+      final day = slot['dayOfWeek'] as int?;
+      if (day == null || day != weekday) continue;
+
+      final startTime = slot['startTime']?.toString() ?? '';
+      final endTime = slot['endTime']?.toString() ?? '';
+
+      final startParts = startTime.split(':');
+      final endParts = endTime.split(':');
+
+      if (startParts.length >= 2 && endParts.length >= 2) {
+        final startMinutes = (int.tryParse(startParts[0]) ?? 0) * 60 + (int.tryParse(startParts[1]) ?? 0);
+        final endMinutes = (int.tryParse(endParts[0]) ?? 0) * 60 + (int.tryParse(endParts[1]) ?? 0);
+
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+          // Ouvert - calcule l'heure de fermeture
+          final closeHour = endMinutes ~/ 60;
+          final closeMin = endMinutes % 60;
+          return (
+            isOpen: true,
+            nextChange: '${closeHour.toString().padLeft(2, '0')}:${closeMin.toString().padLeft(2, '0')}'
+          );
+        } else if (currentMinutes < startMinutes) {
+          // Fermé mais ouvre plus tard aujourd'hui
+          final openHour = startMinutes ~/ 60;
+          final openMin = startMinutes % 60;
+          return (
+            isOpen: false,
+            nextChange: '${openHour.toString().padLeft(2, '0')}:${openMin.toString().padLeft(2, '0')}'
+          );
+        }
+      }
+    }
+
+    return (isOpen: false, nextChange: null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final id = (vet['id'] ?? '').toString();
+    final name = (vet['displayName'] ?? 'Vétérinaire').toString();
+    final bio = (vet['bio'] ?? '').toString();
+    final photoUrl = (vet['photoUrl'] ?? '').toString();
+    final distanceKm = vet['distanceKm'] as double?;
+    final services = (vet['services'] as List?) ?? [];
+    final hasPhoto = photoUrl.startsWith('http');
+
+    final cardBg = isDark ? _darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : _ink;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey.shade600;
+    final borderColor = isDark ? _darkBorder : const Color(0xFFEEEEEE);
+
+    final availStatus = _checkAvailability();
+
     return Material(
-      color: Colors.white,
+      color: cardBg,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () => context.push('/explore/vets/$id'),
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
+            border: Border.all(color: borderColor),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0A000000),
+                color: isDark ? Colors.black26 : const Color(0x08000000),
                 blurRadius: 10,
-                offset: Offset(0, 4),
-              )
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar with initials
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: _coralSoft,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _initials(name),
-                        style: const TextStyle(
-                          color: _coral,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
+              // Photo de profil à gauche
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                  borderRadius: BorderRadius.circular(14),
+                  image: hasPhoto
+                      ? DecorationImage(
+                          image: NetworkImage(photoUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: !hasPhoto
+                    ? Center(
+                        child: Text(
+                          _initials(name),
                           style: const TextStyle(
+                            color: _coral,
                             fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: _ink,
+                            fontSize: 20,
+                            fontFamily: 'SFPRO',
                           ),
                         ),
-                        if (address.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  address,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 14),
+
+              // Infos à droite
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nom + distance
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              color: textColor,
+                              fontFamily: 'SFPRO',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (distanceKm != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _coralSoft,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.near_me, size: 12, color: _coral),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${distanceKm!.toStringAsFixed(1)} km',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: _coral,
+                        ),
+                        if (distanceKm != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.near_me, size: 12, color: _coral),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${distanceKm.toStringAsFixed(1)} ${l10n.kmAway}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _coral,
+                                    fontFamily: 'SFPRO',
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
+                      ],
+                    ),
+
+                    // Bio courte
+                    if (bio.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        bio,
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 13,
+                          height: 1.3,
+                          fontFamily: 'SFPRO',
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    // Services (chips) + Statut disponibilité
+                    Row(
+                      children: [
+                        // Services
+                        if (services.isNotEmpty)
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: services.take(2).map((s) {
+                                final title = (s['title'] ?? s['name'] ?? '').toString();
+                                if (title.isEmpty) return const SizedBox.shrink();
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                      fontFamily: 'SFPRO',
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+
+                        // Statut disponibilité
+                        if (availStatus.nextChange != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: availStatus.isOpen
+                                  ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50)
+                                  : (isDark ? Colors.orange.withOpacity(0.2) : Colors.orange.shade50),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  availStatus.isOpen ? Icons.check_circle : Icons.schedule,
+                                  size: 12,
+                                  color: availStatus.isOpen
+                                      ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                                      : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  availStatus.isOpen
+                                      ? '${l10n.openNow} • ${l10n.closesAt} ${availStatus.nextChange}'
+                                      : '${l10n.opensAt} ${availStatus.nextChange}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: availStatus.isOpen
+                                        ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                                        : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
+                                    fontFamily: 'SFPRO',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Bouton voir profil
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_coral, Color(0xFFF2968F)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _coral.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              l10n.viewProfile,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward, size: 14, color: Colors.white),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-              if (bio.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  bio,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-              const SizedBox(height: 12),
-              // Bottom row with action
-              Row(
-                children: [
-                  // Availability indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle, size: 14, color: Colors.green.shade700),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Disponible',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // View profile button
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _coral,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Voir profil',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward, size: 14, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
