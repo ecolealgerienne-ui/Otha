@@ -31,12 +31,17 @@ const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 class ApiClient {
-  private client: AxiosInstance;
+  private _client: AxiosInstance;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
 
+  // Public getter for direct API access when needed
+  get client(): AxiosInstance {
+    return this._client;
+  }
+
   constructor() {
-    this.client = axios.create({
+    this._client = axios.create({
       baseURL: API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
@@ -44,7 +49,7 @@ class ApiClient {
     });
 
     // Request interceptor - add auth token
-    this.client.interceptors.request.use(
+    this._client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const token = this.getAccessToken();
         if (token) {
@@ -56,7 +61,7 @@ class ApiClient {
     );
 
     // Response interceptor - handle 401 and refresh token
-    this.client.interceptors.response.use(
+    this._client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
@@ -66,7 +71,7 @@ class ApiClient {
             return new Promise((resolve) => {
               this.refreshSubscribers.push((token: string) => {
                 originalRequest.headers.Authorization = `Bearer ${token}`;
-                resolve(this.client(originalRequest));
+                resolve(this._client(originalRequest));
               });
             });
           }
@@ -79,7 +84,7 @@ class ApiClient {
             this.refreshSubscribers.forEach((cb) => cb(newToken));
             this.refreshSubscribers = [];
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return this.client(originalRequest);
+            return this._client(originalRequest);
           } catch (refreshError) {
             this.logout();
             window.location.href = '/login';
@@ -115,7 +120,7 @@ class ApiClient {
 
   // ==================== AUTH ====================
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await this.client.post('/auth/login', { email, password });
+    const response = await this._client.post('/auth/login', { email, password });
     console.log('Raw login response:', response);
     console.log('Response data:', response.data);
 
@@ -133,13 +138,13 @@ class ApiClient {
   }
 
   async register(email: string, password: string, phone?: string): Promise<LoginResponse> {
-    const { data } = await this.client.post<LoginResponse>('/auth/register', { email, password, phone });
+    const { data } = await this._client.post<LoginResponse>('/auth/register', { email, password, phone });
     this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data;
   }
 
   async googleLogin(idToken: string): Promise<LoginResponse> {
-    const { data } = await this.client.post<LoginResponse>('/auth/google', { idToken });
+    const { data } = await this._client.post<LoginResponse>('/auth/google', { idToken });
     this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     return data;
   }
@@ -170,19 +175,19 @@ class ApiClient {
 
   // ==================== USER ====================
   async getMe(): Promise<User> {
-    const { data } = await this.client.get<User>('/users/me');
+    const { data } = await this._client.get<User>('/users/me');
     return data;
   }
 
   async updateMe(updates: Partial<User>): Promise<User> {
-    const { data } = await this.client.patch<User>('/users/me', updates);
+    const { data } = await this._client.patch<User>('/users/me', updates);
     return data;
   }
 
   // ==================== PROVIDER (PRO) ====================
   async myProvider(): Promise<ProviderProfile | null> {
     try {
-      const { data } = await this.client.get<ProviderProfile>('/providers/me');
+      const { data } = await this._client.get<ProviderProfile>('/providers/me');
       return data;
     } catch {
       return null;
@@ -190,64 +195,64 @@ class ApiClient {
   }
 
   async upsertMyProvider(profile: Partial<ProviderProfile>): Promise<ProviderProfile> {
-    const { data } = await this.client.post<ProviderProfile>('/providers/me', profile);
+    const { data } = await this._client.post<ProviderProfile>('/providers/me', profile);
     return data;
   }
 
   async reapplyMyProvider(): Promise<ProviderProfile> {
-    const { data } = await this.client.post<ProviderProfile>('/providers/me/reapply');
+    const { data } = await this._client.post<ProviderProfile>('/providers/me/reapply');
     return data;
   }
 
   async setMyVisibility(visible: boolean): Promise<ProviderProfile> {
-    const { data } = await this.client.patch<ProviderProfile>('/providers/me/visibility', { visible });
+    const { data } = await this._client.patch<ProviderProfile>('/providers/me/visibility', { visible });
     return data;
   }
 
   // ==================== SERVICES ====================
   async myServices(): Promise<Service[]> {
-    const { data } = await this.client.get('/providers/me/services');
+    const { data } = await this._client.get('/providers/me/services');
     // Handle wrapped response
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async createMyService(service: Omit<Service, 'id' | 'providerId' | 'createdAt' | 'updatedAt'>): Promise<Service> {
-    const { data } = await this.client.post('/providers/me/services', service);
+    const { data } = await this._client.post('/providers/me/services', service);
     return data?.data || data;
   }
 
   async updateMyService(serviceId: string, updates: Partial<Service>): Promise<Service> {
-    const { data } = await this.client.patch(`/providers/me/services/${serviceId}`, updates);
+    const { data } = await this._client.patch(`/providers/me/services/${serviceId}`, updates);
     return data?.data || data;
   }
 
   async deleteMyService(serviceId: string): Promise<void> {
-    await this.client.delete(`/providers/me/services/${serviceId}`);
+    await this._client.delete(`/providers/me/services/${serviceId}`);
   }
 
   // ==================== AVAILABILITY ====================
   async myWeekly(): Promise<{ entries: ProviderAvailability[] }> {
-    const { data } = await this.client.get('/providers/me/availability');
+    const { data } = await this._client.get('/providers/me/availability');
     // Handle wrapped response - returns { entries: [...] }
     const result = data?.data || data;
     return result?.entries ? result : { entries: Array.isArray(result) ? result : [] };
   }
 
   async setWeekly(entries: { weekday: number; startMin: number; endMin: number }[]): Promise<ProviderAvailability[]> {
-    const { data } = await this.client.post('/providers/me/availability', { entries });
+    const { data } = await this._client.post('/providers/me/availability', { entries });
     const result = data?.data || data;
     return Array.isArray(result) ? result : (result?.entries || []);
   }
 
   async myTimeOffs(): Promise<ProviderTimeOff[]> {
-    const { data } = await this.client.get('/providers/me/time-offs');
+    const { data } = await this._client.get('/providers/me/time-offs');
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async addTimeOff(startsAt: string, endsAt: string, reason?: string): Promise<ProviderTimeOff> {
-    const { data } = await this.client.post<ProviderTimeOff>('/providers/me/time-offs', {
+    const { data } = await this._client.post<ProviderTimeOff>('/providers/me/time-offs', {
       startsAt,
       endsAt,
       reason,
@@ -256,49 +261,49 @@ class ApiClient {
   }
 
   async deleteMyTimeOff(id: string): Promise<void> {
-    await this.client.delete(`/providers/me/time-offs/${id}`);
+    await this._client.delete(`/providers/me/time-offs/${id}`);
   }
 
   // ==================== BOOKINGS ====================
   async myBookings(): Promise<Booking[]> {
-    const { data } = await this.client.get<Booking[]>('/bookings/mine');
+    const { data } = await this._client.get<Booking[]>('/bookings/mine');
     return data;
   }
 
   async providerAgenda(fromIso: string, toIso: string, status?: BookingStatus): Promise<Booking[]> {
     const params = new URLSearchParams({ from: fromIso, to: toIso });
     if (status) params.append('status', status);
-    const { data } = await this.client.get(`/bookings/provider/me?${params}`);
+    const { data } = await this._client.get(`/bookings/provider/me?${params}`);
     // Handle wrapped response { data: [...] } or direct array
     return Array.isArray(data) ? data : (data?.data || []);
   }
 
   async providerSetStatus(bookingId: string, status: BookingStatus): Promise<Booking> {
-    const { data } = await this.client.patch(`/bookings/${bookingId}/provider-status`, { status });
+    const { data } = await this._client.patch(`/bookings/${bookingId}/provider-status`, { status });
     return (data as { data?: Booking })?.data || data;
   }
 
   async cancelBooking(bookingId: string): Promise<Booking> {
-    const { data } = await this.client.post(`/bookings/${bookingId}/cancel`);
+    const { data } = await this._client.post(`/bookings/${bookingId}/cancel`);
     return (data as { data?: Booking })?.data || data;
   }
 
   // OTP verification (provider verifies client's OTP code)
   async verifyBookingOtp(bookingId: string, code: string): Promise<{ success: boolean; message?: string }> {
-    const { data } = await this.client.post(`/bookings/${bookingId}/otp/verify`, { code });
+    const { data } = await this._client.post(`/bookings/${bookingId}/otp/verify`, { code });
     return (data as { data?: { success: boolean; message?: string } })?.data || data;
   }
 
   // Provider confirms booking with method (QR_SCAN or SIMPLE)
   async proConfirmBooking(bookingId: string, method: 'QR_SCAN' | 'SIMPLE' = 'SIMPLE'): Promise<Booking> {
-    const { data } = await this.client.post(`/bookings/${bookingId}/pro-confirm`, { method });
+    const { data } = await this._client.post(`/bookings/${bookingId}/pro-confirm`, { method });
     return (data as { data?: Booking })?.data || data;
   }
 
   // Get active booking for pet (used when scanning QR code)
   async getActiveBookingForPet(petId: string): Promise<Booking | null> {
     try {
-      const { data } = await this.client.get(`/bookings/active-for-pet/${petId}`);
+      const { data } = await this._client.get(`/bookings/active-for-pet/${petId}`);
       return data?.data || data;
     } catch {
       return null;
@@ -314,53 +319,53 @@ class ApiClient {
     pets: Pet[];
     accessToken: string | null;
   }> {
-    const { data } = await this.client.post('/bookings/confirm-by-reference', { referenceCode });
+    const { data } = await this._client.post('/bookings/confirm-by-reference', { referenceCode });
     return data?.data || data;
   }
 
   // ==================== DAYCARE ====================
   async myDaycareProviderBookings(): Promise<DaycareBooking[]> {
-    const { data } = await this.client.get<DaycareBooking[]>('/daycare/provider/bookings');
+    const { data } = await this._client.get<DaycareBooking[]>('/daycare/provider/bookings');
     return data;
   }
 
   async markDaycareDropOff(bookingId: string): Promise<DaycareBooking> {
-    const { data } = await this.client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/drop-off`);
+    const { data } = await this._client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/drop-off`);
     return data;
   }
 
   async markDaycarePickup(bookingId: string): Promise<DaycareBooking> {
-    const { data } = await this.client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/pickup`);
+    const { data } = await this._client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/pickup`);
     return data;
   }
 
   async updateDaycareStatus(bookingId: string, status: string): Promise<DaycareBooking> {
-    const { data } = await this.client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/status`, { status });
+    const { data } = await this._client.patch<DaycareBooking>(`/daycare/bookings/${bookingId}/status`, { status });
     return data;
   }
 
   // ==================== PETS ====================
   async getProviderPatients(): Promise<Pet[]> {
-    const { data } = await this.client.get('/pets/provider/patients');
+    const { data } = await this._client.get('/pets/provider/patients');
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async getPetMedicalRecords(petId: string): Promise<MedicalRecord[]> {
-    const { data } = await this.client.get(`/pets/${petId}/medical-records`);
+    const { data } = await this._client.get(`/pets/${petId}/medical-records`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async getPetVaccinations(petId: string): Promise<Vaccination[]> {
-    const { data } = await this.client.get(`/pets/${petId}/vaccinations`);
+    const { data } = await this._client.get(`/pets/${petId}/vaccinations`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   // Access via QR code token
   async getPetByToken(token: string): Promise<{ pet: Pet; medicalRecords: MedicalRecord[]; vaccinations: Vaccination[] }> {
-    const { data } = await this.client.get(`/pets/by-token/${token}`);
+    const { data } = await this._client.get(`/pets/by-token/${token}`);
     const petData = data?.data || data;
     // Backend returns pet object directly with nested medicalRecords/vaccinations
     // Transform to expected { pet, medicalRecords, vaccinations } format
@@ -375,40 +380,40 @@ class ApiClient {
   }
 
   async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string; temperatureC?: number; heartRate?: number; date?: string }): Promise<MedicalRecord> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/medical-records`, record);
+    const { data } = await this._client.post(`/pets/by-token/${token}/medical-records`, record);
     return data?.data || data;
   }
 
   async deleteMedicalRecord(recordId: string): Promise<void> {
-    await this.client.delete(`/pets/medical-records/${recordId}`);
+    await this._client.delete(`/pets/medical-records/${recordId}`);
   }
 
   async createMedicalRecordForPet(petId: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {
-    const { data } = await this.client.post(`/pets/${petId}/medical-records`, record);
+    const { data } = await this._client.post(`/pets/${petId}/medical-records`, record);
     return data?.data || data;
   }
 
   async createPrescriptionForPet(petId: string, prescription: { title: string; description?: string; imageUrl?: string }): Promise<Prescription> {
     // Use the token-based endpoint via a generated token
-    const tokenResponse = await this.client.post(`/pets/${petId}/access-token`);
+    const tokenResponse = await this._client.post(`/pets/${petId}/access-token`);
     const token = tokenResponse.data?.token || tokenResponse.data?.data?.token;
     if (!token) throw new Error('Could not generate access token');
-    const { data } = await this.client.post(`/pets/by-token/${token}/prescriptions`, prescription);
+    const { data } = await this._client.post(`/pets/by-token/${token}/prescriptions`, prescription);
     return data?.data || data;
   }
 
   async createDiseaseForPet(petId: string, disease: { name: string; description?: string; status?: string }): Promise<DiseaseTracking> {
     // Use the token-based endpoint via a generated token
-    const tokenResponse = await this.client.post(`/pets/${petId}/access-token`);
+    const tokenResponse = await this._client.post(`/pets/${petId}/access-token`);
     const token = tokenResponse.data?.token || tokenResponse.data?.data?.token;
     if (!token) throw new Error('Could not generate access token');
-    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
+    const { data } = await this._client.post(`/pets/by-token/${token}/diseases`, disease);
     return data?.data || data;
   }
 
   // ==================== PRESCRIPTIONS ====================
   async getPetPrescriptions(petId: string): Promise<Prescription[]> {
-    const { data } = await this.client.get(`/pets/${petId}/prescriptions`);
+    const { data } = await this._client.get(`/pets/${petId}/prescriptions`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
@@ -417,7 +422,7 @@ class ApiClient {
     token: string,
     prescription: { title: string; description?: string; imageUrl?: string }
   ): Promise<Prescription> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/prescriptions`, prescription);
+    const { data } = await this._client.post(`/pets/by-token/${token}/prescriptions`, prescription);
     return data?.data || data;
   }
 
@@ -425,18 +430,18 @@ class ApiClient {
     prescriptionId: string,
     updates: { title?: string; description?: string; imageUrl?: string }
   ): Promise<Prescription> {
-    const { data } = await this.client.patch(`/pets/prescriptions/${prescriptionId}`, updates);
+    const { data } = await this._client.patch(`/pets/prescriptions/${prescriptionId}`, updates);
     return data?.data || data;
   }
 
   async deletePrescription(prescriptionId: string): Promise<void> {
-    await this.client.delete(`/pets/prescriptions/${prescriptionId}`);
+    await this._client.delete(`/pets/prescriptions/${prescriptionId}`);
   }
 
   // ==================== HEALTH STATS (aggregated from MedicalRecord) ====================
   async getPetHealthStats(petId: string): Promise<HealthStatsAggregated | null> {
     try {
-      const { data } = await this.client.get(`/pets/${petId}/health-stats`);
+      const { data } = await this._client.get(`/pets/${petId}/health-stats`);
       return data?.data || data;
     } catch {
       return null;
@@ -445,7 +450,7 @@ class ApiClient {
 
   // ==================== DISEASE TRACKING ====================
   async getPetDiseases(petId: string): Promise<DiseaseTracking[]> {
-    const { data } = await this.client.get(`/pets/${petId}/diseases`);
+    const { data } = await this._client.get(`/pets/${petId}/diseases`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
@@ -454,7 +459,7 @@ class ApiClient {
     token: string,
     vaccination: { name: string; date?: string; nextDueDate?: string; batchNumber?: string; veterinarian?: string; notes?: string }
   ): Promise<Vaccination> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/vaccinations`, vaccination);
+    const { data } = await this._client.post(`/pets/by-token/${token}/vaccinations`, vaccination);
     return data?.data || data;
   }
 
@@ -462,7 +467,7 @@ class ApiClient {
     token: string,
     treatment: { name: string; startDate?: string; endDate?: string; frequency?: string; dosage?: string; notes?: string; attachments?: string[] }
   ): Promise<any> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/treatments`, treatment);
+    const { data } = await this._client.post(`/pets/by-token/${token}/treatments`, treatment);
     return data?.data || data;
   }
 
@@ -470,18 +475,18 @@ class ApiClient {
     token: string,
     record: { weightKg: number; date?: string; context?: string }
   ): Promise<any> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/weight-records`, record);
+    const { data } = await this._client.post(`/pets/by-token/${token}/weight-records`, record);
     return data?.data || data;
   }
 
   // ==================== DISEASE TRACKING (by token) ====================
   async listDiseasesByToken(token: string): Promise<DiseaseTracking[]> {
-    const { data } = await this.client.get(`/pets/by-token/${token}/diseases`);
+    const { data } = await this._client.get(`/pets/by-token/${token}/diseases`);
     return data?.data || data || [];
   }
 
   async getDiseaseByToken(token: string, diseaseId: string): Promise<DiseaseTracking> {
-    const { data } = await this.client.get(`/pets/by-token/${token}/diseases/${diseaseId}`);
+    const { data } = await this._client.get(`/pets/by-token/${token}/diseases/${diseaseId}`);
     return data?.data || data;
   }
 
@@ -499,7 +504,7 @@ class ApiClient {
       diagnosisDate?: string;
     }
   ): Promise<DiseaseTracking> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
+    const { data } = await this._client.post(`/pets/by-token/${token}/diseases`, disease);
     return data?.data || data;
   }
 
@@ -514,7 +519,7 @@ class ApiClient {
       date?: string;
     }
   ): Promise<any> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/diseases/${diseaseId}/progress`, entry);
+    const { data } = await this._client.post(`/pets/by-token/${token}/diseases/${diseaseId}/progress`, entry);
     return data?.data || data;
   }
 
@@ -522,45 +527,45 @@ class ApiClient {
     diseaseId: string,
     updates: { name?: string; description?: string; status?: string; notes?: string; images?: string[] }
   ): Promise<DiseaseTracking> {
-    const { data } = await this.client.patch(`/pets/diseases/${diseaseId}`, updates);
+    const { data } = await this._client.patch(`/pets/diseases/${diseaseId}`, updates);
     return data?.data || data;
   }
 
   async deleteDisease(diseaseId: string): Promise<void> {
-    await this.client.delete(`/pets/diseases/${diseaseId}`);
+    await this._client.delete(`/pets/diseases/${diseaseId}`);
   }
 
   async generatePetAccessToken(petId: string): Promise<string> {
-    const { data } = await this.client.post(`/pets/${petId}/access-token`);
+    const { data } = await this._client.post(`/pets/${petId}/access-token`);
     return data?.token || data?.data?.token;
   }
 
   /** PRO: Generate access token for a pet from a recent confirmed booking */
   async generateProPetAccessToken(petId: string): Promise<string> {
-    const { data } = await this.client.post(`/pets/${petId}/pro-access-token`);
+    const { data } = await this._client.post(`/pets/${petId}/pro-access-token`);
     return data?.token || data?.data?.token;
   }
 
   // ==================== SCANNED PET SYNC (Flutter <-> Website) ====================
-  async getScannedPet(): Promise<{ pet: Pet | null; scannedAt: string | null }> {
-    const { data } = await this.client.get('/providers/me/scanned-pet');
+  async getScannedPet(): Promise<{ pet: Pet | null; scannedAt: string | null; token?: string | null }> {
+    const { data } = await this._client.get('/providers/me/scanned-pet');
     return data?.data || data;
   }
 
   async clearScannedPet(): Promise<void> {
-    await this.client.delete('/providers/me/scanned-pet');
+    await this._client.delete('/providers/me/scanned-pet');
   }
 
   // ==================== EARNINGS ====================
   async myHistoryMonthly(months = 12): Promise<MonthlyEarnings[]> {
-    const { data } = await this.client.get(`/earnings/me/history-monthly?months=${months}`);
+    const { data } = await this._client.get(`/earnings/me/history-monthly?months=${months}`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async myEarnings(month: string): Promise<MonthlyEarnings | null> {
     try {
-      const { data } = await this.client.get(`/earnings/me/earnings?month=${month}`);
+      const { data } = await this._client.get(`/earnings/me/earnings?month=${month}`);
       return data?.data || data;
     } catch {
       return null;
@@ -569,21 +574,21 @@ class ApiClient {
 
   // ==================== NOTIFICATIONS ====================
   async getNotifications(): Promise<Notification[]> {
-    const { data } = await this.client.get<Notification[]>('/notifications');
+    const { data } = await this._client.get<Notification[]>('/notifications');
     return data;
   }
 
   async getUnreadCount(): Promise<number> {
-    const { data } = await this.client.get<{ count: number }>('/notifications/unread/count');
+    const { data } = await this._client.get<{ count: number }>('/notifications/unread/count');
     return data.count;
   }
 
   async markNotificationRead(id: string): Promise<void> {
-    await this.client.patch(`/notifications/${id}/read`);
+    await this._client.patch(`/notifications/${id}/read`);
   }
 
   async markAllNotificationsRead(): Promise<void> {
-    await this.client.patch('/notifications/read-all');
+    await this._client.patch('/notifications/read-all');
   }
 
   // ==================== ADMIN: USERS ====================
@@ -591,7 +596,7 @@ class ApiClient {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (q) params.append('q', q);
     if (role) params.append('role', role);
-    const { data } = await this.client.get(`/users/list?${params}`);
+    const { data } = await this._client.get(`/users/list?${params}`);
     // Handle wrapped response { data: [...] } or direct array
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
@@ -609,30 +614,30 @@ class ApiClient {
       limit: String(limit),
       offset: String(offset),
     });
-    const { data } = await this.client.get(`/providers/admin/applications?${params}`);
+    const { data } = await this._client.get(`/providers/admin/applications?${params}`);
     // Handle wrapped response { data: [...] } or direct array
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
 
   async approveProvider(providerId: string): Promise<ProviderProfile> {
-    const { data } = await this.client.post<ProviderProfile>(`/providers/admin/applications/${providerId}/approve`);
+    const { data } = await this._client.post<ProviderProfile>(`/providers/admin/applications/${providerId}/approve`);
     return data;
   }
 
   async rejectProvider(providerId: string): Promise<ProviderProfile> {
-    const { data } = await this.client.post<ProviderProfile>(`/providers/admin/applications/${providerId}/reject`);
+    const { data } = await this._client.post<ProviderProfile>(`/providers/admin/applications/${providerId}/reject`);
     return data;
   }
 
   async adminUpdateProvider(providerId: string, updates: Partial<ProviderProfile>): Promise<ProviderProfile> {
-    const { data } = await this.client.patch<ProviderProfile>(`/providers/admin/${providerId}`, updates);
+    const { data } = await this._client.patch<ProviderProfile>(`/providers/admin/${providerId}`, updates);
     return data;
   }
 
   // Get provider services (admin)
   async getProviderServices(providerId: string): Promise<Service[]> {
-    const { data } = await this.client.get(`/providers/${providerId}/services`);
+    const { data } = await this._client.get(`/providers/${providerId}/services`);
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
   }
@@ -640,7 +645,7 @@ class ApiClient {
   // Get user quotas (admin)
   async adminGetUserQuotas(userId: string): Promise<{ swipesUsed: number; swipesRemaining: number; postsUsed: number; postsRemaining: number }> {
     try {
-      const { data } = await this.client.get(`/users/${userId}/quotas`);
+      const { data } = await this._client.get(`/users/${userId}/quotas`);
       const result = data?.data || data;
       return result || { swipesUsed: 0, swipesRemaining: 5, postsUsed: 0, postsRemaining: 1 };
     } catch {
@@ -651,7 +656,7 @@ class ApiClient {
   // Get user adopt conversations (admin)
   async adminGetUserAdoptConversations(userId: string): Promise<AdoptConversation[]> {
     try {
-      const { data } = await this.client.get(`/users/${userId}/adopt-conversations`);
+      const { data } = await this._client.get(`/users/${userId}/adopt-conversations`);
       const result = data?.data || data;
       return Array.isArray(result) ? result : [];
     } catch {
@@ -662,7 +667,7 @@ class ApiClient {
   // Get user adopt posts (admin)
   async adminGetUserAdoptPosts(userId: string): Promise<AdoptPost[]> {
     try {
-      const { data } = await this.client.get(`/users/${userId}/adopt-posts`);
+      const { data } = await this._client.get(`/users/${userId}/adopt-posts`);
       const result = data?.data || data;
       return Array.isArray(result) ? result : [];
     } catch {
@@ -673,7 +678,7 @@ class ApiClient {
   // Get user pets (admin)
   async adminGetUserPets(userId: string): Promise<Pet[]> {
     try {
-      const { data } = await this.client.get(`/users/${userId}/pets`);
+      const { data } = await this._client.get(`/users/${userId}/pets`);
       const result = data?.data || data;
       return Array.isArray(result) ? result : [];
     } catch {
@@ -684,7 +689,7 @@ class ApiClient {
   // Get user bookings (admin)
   async adminGetUserBookings(userId: string): Promise<Booking[]> {
     try {
-      const { data } = await this.client.get(`/users/${userId}/bookings`);
+      const { data } = await this._client.get(`/users/${userId}/bookings`);
       const result = data?.data || data;
       return Array.isArray(result) ? result : [];
     } catch {
@@ -700,34 +705,34 @@ class ApiClient {
   ): Promise<{ data: AdoptPost[]; nextCursor?: string }> {
     const params = new URLSearchParams({ status, limit: String(limit) });
     if (cursor) params.append('cursor', cursor);
-    const { data } = await this.client.get<{ data: AdoptPost[]; nextCursor?: string }>(
+    const { data } = await this._client.get<{ data: AdoptPost[]; nextCursor?: string }>(
       `/admin/adopt/posts?${params}`
     );
     return data;
   }
 
   async adminAdoptApprove(postId: string): Promise<AdoptPost> {
-    const { data } = await this.client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/approve`);
+    const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/approve`);
     return data;
   }
 
   async adminAdoptReject(postId: string, reasons?: string[], note?: string): Promise<AdoptPost> {
-    const { data } = await this.client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/reject`, { reasons, note });
+    const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/reject`, { reasons, note });
     return data;
   }
 
   async adminAdoptArchive(postId: string): Promise<AdoptPost> {
-    const { data } = await this.client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/archive`);
+    const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/archive`);
     return data;
   }
 
   async adminAdoptApproveAll(): Promise<{ count: number }> {
-    const { data } = await this.client.patch<{ count: number }>('/admin/adopt/posts/approve-all');
+    const { data } = await this._client.patch<{ count: number }>('/admin/adopt/posts/approve-all');
     return data;
   }
 
   async adminAdoptGetConversations(limit = 20): Promise<AdoptConversation[]> {
-    const { data } = await this.client.get<AdoptConversation[]>(`/admin/adopt/conversations?limit=${limit}`);
+    const { data } = await this._client.get<AdoptConversation[]>(`/admin/adopt/conversations?limit=${limit}`);
     return data;
   }
 
@@ -735,7 +740,7 @@ class ApiClient {
     conversation: AdoptConversation;
     messages: AdoptMessage[];
   }> {
-    const { data } = await this.client.get<{ conversation: AdoptConversation; messages: AdoptMessage[] }>(
+    const { data } = await this._client.get<{ conversation: AdoptConversation; messages: AdoptMessage[] }>(
       `/admin/adopt/conversations/${conversationId}`
     );
     return data;
@@ -743,7 +748,7 @@ class ApiClient {
 
   // ==================== ADMIN: EARNINGS ====================
   async adminHistoryMonthly(providerId: string, months = 12): Promise<MonthlyEarnings[]> {
-    const { data } = await this.client.get(
+    const { data } = await this._client.get(
       `/earnings/admin/history-monthly?providerId=${providerId}&months=${months}`
     );
     // Handle wrapped response { data: [...] } or direct array
@@ -752,11 +757,11 @@ class ApiClient {
   }
 
   async adminCollectMonth(providerId: string, month: string, note?: string): Promise<void> {
-    await this.client.post('/earnings/admin/collect-month', { providerId, month, note });
+    await this._client.post('/earnings/admin/collect-month', { providerId, month, note });
   }
 
   async adminUncollectMonth(providerId: string, month: string): Promise<void> {
-    await this.client.post('/earnings/admin/uncollect-month', { providerId, month });
+    await this._client.post('/earnings/admin/uncollect-month', { providerId, month });
   }
 
   async adminTraceabilityStats(from: string, to: string): Promise<{
@@ -764,7 +769,7 @@ class ApiClient {
     totalAmount: number;
     totalCommission: number;
   }> {
-    const { data } = await this.client.get(`/bookings/admin/traceability?from=${from}&to=${to}`);
+    const { data } = await this._client.get(`/bookings/admin/traceability?from=${from}&to=${to}`);
     // Handle wrapped response { data: {...} } or direct object
     const result = data?.data || data;
     return result || { totalBookings: 0, totalAmount: 0, totalCommission: 0 };
@@ -775,7 +780,7 @@ class ApiClient {
     filename: string,
     contentType: string
   ): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
-    const { data } = await this.client.post<{ uploadUrl: string; fileUrl: string; key: string }>(
+    const { data } = await this._client.post<{ uploadUrl: string; fileUrl: string; key: string }>(
       '/uploads/presign',
       { filename, contentType }
     );
@@ -789,7 +794,7 @@ class ApiClient {
   }
 
   async confirmUpload(key: string): Promise<{ url: string }> {
-    const { data } = await this.client.post<{ url: string }>('/uploads/confirm', { key });
+    const { data } = await this._client.post<{ url: string }>('/uploads/confirm', { key });
     return data;
   }
 
@@ -806,7 +811,7 @@ class ApiClient {
       // Fallback to local upload
       const formData = new FormData();
       formData.append('file', file);
-      const { data } = await this.client.post('/uploads/local', formData, {
+      const { data } = await this._client.post('/uploads/local', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       console.log('📤 Local upload response:', data);

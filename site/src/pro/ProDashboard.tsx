@@ -7,7 +7,6 @@ import {
   Clock,
   AlertCircle,
   ChevronRight,
-  CreditCard,
   Receipt,
   CheckCircle,
   AlertTriangle,
@@ -15,15 +14,13 @@ import {
   Settings,
   Bell,
   X,
-  Play,
   User,
-  MapPin,
 } from 'lucide-react';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/client';
-import type { Booking, ProviderAvailability } from '../types';
-import { format, startOfMonth, subMonths, startOfDay, endOfDay, addHours, setHours, setMinutes, getDay } from 'date-fns';
+import type { Booking } from '../types';
+import { format, startOfMonth, subMonths, addHours, setHours, setMinutes, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 // Commission fixe par RDV (doit matcher le backend et Flutter)
@@ -103,13 +100,6 @@ function formatNaiveTime(isoString: string): string {
 function getNaiveHour(isoString: string): number {
   const date = parseNaiveLocal(isoString);
   return date.getHours();
-}
-
-// Convert minutes from midnight to HH:mm
-function minToTime(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
 // Get availability slots for today's weekday
@@ -508,7 +498,7 @@ export function ProDashboard() {
         .map(b => ({
           scheduledAt: b.scheduledAt?.toString() || '',
           serviceTitle: b.service?.title || 'Service',
-          totalPriceDa: asInt(b.service?.price || b.service?.priceCents || 0),
+          totalPriceDa: asInt(b.service?.price || 0),
         }))
         .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
 

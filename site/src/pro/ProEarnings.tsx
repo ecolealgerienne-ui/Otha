@@ -18,7 +18,7 @@ import {
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { MonthlyEarnings, Booking } from '../types';
-import { format, subMonths, startOfMonth } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 // Commission fixe par RDV (doit matcher le backend et Flutter)
