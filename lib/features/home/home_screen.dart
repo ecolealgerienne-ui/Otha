@@ -3787,10 +3787,10 @@ class _MyPetsCarousel extends ConsumerWidget {
                             ),
                           ),
 
-                          // Label "Mes animaux" en haut gauche - rouge sur fond sombre
-                          Positioned(
+                          // Label "Mes animaux" en haut - RTL aware
+                          PositionedDirectional(
                             top: 10,
-                            left: 10,
+                            start: 10,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
@@ -3801,18 +3801,18 @@ class _MyPetsCarousel extends ConsumerWidget {
                                   width: 1,
                                 ),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.pets,
                                     color: Color(0xFFF36C6C),
                                     size: 12,
                                   ),
-                                  SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    'Mes animaux',
-                                    style: TextStyle(
+                                    AppLocalizations.of(context).myAnimals,
+                                    style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'SFPRO',
@@ -4216,6 +4216,7 @@ class _AdoptBoostSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -4224,8 +4225,8 @@ class _AdoptBoostSection extends StatelessWidget {
           Expanded(
             child: _AdoptBoostCard(
               isDark: isDark,
-              title: 'Adoptez',
-              subtitle: 'Changez une vie',
+              title: l10n.adopt,
+              subtitle: l10n.changeALife,
               icon: Icons.favorite_rounded,
               gradient: const [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
               route: '/adopt',
@@ -4237,8 +4238,8 @@ class _AdoptBoostSection extends StatelessWidget {
           Expanded(
             child: _AdoptBoostCard(
               isDark: isDark,
-              title: 'Boostez',
-              subtitle: 'Votre carrière',
+              title: l10n.boost,
+              subtitle: l10n.yourCareer,
               icon: Icons.rocket_launch_rounded,
               gradient: const [Color(0xFF6B5BFF), Color(0xFF8B7FFF)],
               route: '/internships',
