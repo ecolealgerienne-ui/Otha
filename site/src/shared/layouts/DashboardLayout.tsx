@@ -79,10 +79,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <Link to={isAdmin ? '/admin' : '/pro'} className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">O</span>
+            <div className="w-8 h-8 bg-gradient-to-br from-[#F36C6C] to-[#FF9D9D] rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-lg">V</span>
             </div>
-            <span className="font-semibold text-gray-900">Otha {isAdmin ? 'Admin' : 'Pro'}</span>
+            <span className="font-semibold text-gray-900">Vegece {isAdmin ? 'Admin' : 'Pro'}</span>
           </Link>
           <button
             className="lg:hidden text-gray-500 hover:text-gray-700"
