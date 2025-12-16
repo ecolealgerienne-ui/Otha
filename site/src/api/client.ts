@@ -441,14 +441,6 @@ class ApiClient {
     return Array.isArray(result) ? result : [];
   }
 
-  async createDiseaseByToken(
-    token: string,
-    disease: { name: string; description?: string; status?: string; images?: string[] }
-  ): Promise<DiseaseTracking> {
-    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
-    return data?.data || data;
-  }
-
   async createVaccinationByToken(
     token: string,
     vaccination: { name: string; date?: string; nextDueDate?: string; batchNumber?: string; veterinarian?: string; notes?: string }
