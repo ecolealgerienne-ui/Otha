@@ -918,32 +918,16 @@ class HomeScreen extends ConsumerWidget {
                       child: const _MapPreview(),
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                  // ▼ Mes animaux (carnet de santé) avec animation
+                  // ▼ Section Adoption & Carrière stylée
                   SliverToBoxAdapter(
                     child: _FadeSlideIn(
                       delay: const Duration(milliseconds: 420),
-                      child: const _MyPetsButton(),
+                      child: _AdoptBoostSection(isDark: isDark),
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                  // ▼ Vethub en bas avec animation
-                  SliverToBoxAdapter(
-                    child: _FadeSlideIn(
-                      delay: const Duration(milliseconds: 480),
-                      child: _SectionTitle('Vethub', isDark: isDark),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  SliverToBoxAdapter(
-                    child: _FadeSlideIn(
-                      delay: const Duration(milliseconds: 520),
-                      child: const _VethubRow(),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
                 ],
               ),
             ),
@@ -3334,38 +3318,22 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                 ),
                               ),
 
-                              // Content - layout horizontal pour carte compacte
+                              // Content - texte à gauche, logo à droite, explorer en bas
                               Padding(
                                 padding: const EdgeInsets.all(16),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Icone à gauche
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: pink.withOpacity(0.9),
-                                        borderRadius: BorderRadius.circular(14),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: pinkGlow.withOpacity(0.5),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(icon, color: Colors.white, size: 26),
-                                    ),
-                                    const Spacer(),
-                                    // Texte à droite
-                                    Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                    // Ligne du haut: Titre à gauche, icône à droite
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // Titre à gauche
                                         Text(
                                           label,
                                           style: const TextStyle(
                                             fontFamily: 'SFPRO',
-                                            fontSize: 20,
+                                            fontSize: 22,
                                             fontWeight: FontWeight.w800,
                                             color: Colors.white,
                                             shadows: [
@@ -3377,9 +3345,32 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                             ],
                                           ),
                                         ),
-                                        const SizedBox(height: 6),
+                                        const Spacer(),
+                                        // Icône à droite
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: pink.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: pinkGlow.withOpacity(0.5),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(icon, color: Colors.white, size: 22),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    // Explorer en bas à droite
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                           decoration: BoxDecoration(
                                             color: Colors.white.withOpacity(0.2),
                                             borderRadius: BorderRadius.circular(20),
@@ -3796,36 +3787,36 @@ class _MyPetsCarousel extends ConsumerWidget {
                             ),
                           ),
 
-                          // Label "Mes animaux" en haut gauche avec glassmorphism
+                          // Label "Mes animaux" en haut gauche - rouge sur fond sombre
                           Positioned(
                             top: 10,
                             left: 10,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.black.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: const Color(0xFFF36C6C).withOpacity(0.5),
                                   width: 1,
                                 ),
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     Icons.pets,
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Color(0xFFF36C6C),
                                     size: 12,
                                   ),
-                                  const SizedBox(width: 4),
+                                  SizedBox(width: 4),
                                   Text(
                                     'Mes animaux',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'SFPRO',
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Color(0xFFF36C6C),
                                       letterSpacing: 0.3,
                                     ),
                                   ),
@@ -4214,6 +4205,208 @@ class _SectionTitle extends StatelessWidget {
         const Spacer(),
         if (trailing != null) trailing!,
       ]),
+    );
+  }
+}
+
+/// -------------------- Section Adoption & Carrière stylée --------------------
+class _AdoptBoostSection extends StatelessWidget {
+  final bool isDark;
+  const _AdoptBoostSection({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Card Adoption
+          Expanded(
+            child: _AdoptBoostCard(
+              isDark: isDark,
+              title: 'Adoptez',
+              subtitle: 'Changez une vie',
+              icon: Icons.favorite_rounded,
+              gradient: const [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
+              route: '/adopt',
+              emoji: '🐾',
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Card Carrière
+          Expanded(
+            child: _AdoptBoostCard(
+              isDark: isDark,
+              title: 'Boostez',
+              subtitle: 'Votre carrière',
+              icon: Icons.rocket_launch_rounded,
+              gradient: const [Color(0xFF6B5BFF), Color(0xFF8B7FFF)],
+              route: '/internships',
+              emoji: '🚀',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdoptBoostCard extends StatefulWidget {
+  final bool isDark;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Color> gradient;
+  final String route;
+  final String emoji;
+
+  const _AdoptBoostCard({
+    required this.isDark,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.gradient,
+    required this.route,
+    required this.emoji,
+  });
+
+  @override
+  State<_AdoptBoostCard> createState() => _AdoptBoostCardState();
+}
+
+class _AdoptBoostCardState extends State<_AdoptBoostCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        context.push(widget.route);
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        ),
+        child: Container(
+          height: 130,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.gradient,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: widget.gradient[0].withOpacity(0.4),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Emoji décoratif en arrière-plan
+              Positioned(
+                right: -10,
+                bottom: -10,
+                child: Text(
+                  widget.emoji,
+                  style: TextStyle(
+                    fontSize: 70,
+                    color: Colors.white.withOpacity(0.15),
+                  ),
+                ),
+              ),
+              // Contenu
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icône avec cercle
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Titre
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontFamily: 'SFPRO',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // Sous-titre
+                    Text(
+                      widget.subtitle,
+                      style: TextStyle(
+                        fontFamily: 'SFPRO',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Flèche en haut à droite
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
