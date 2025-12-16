@@ -22,8 +22,8 @@ import {
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/client';
-import type { Booking } from '../types';
-import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, isSameDay, addHours, setHours, setMinutes } from 'date-fns';
+import type { Booking, ProviderAvailability } from '../types';
+import { format, startOfMonth, subMonths, startOfDay, endOfDay, addHours, setHours, setMinutes, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 // Commission fixe par RDV (doit matcher le backend et Flutter)
@@ -81,6 +81,41 @@ function canonYm(s: string): string {
 // Format DA
 function formatDa(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} DA`;
+}
+
+// Parse ISO date as naive local time (ignore timezone, treat as local)
+function parseNaiveLocal(isoString: string): Date {
+  // Remove timezone info if present and parse as local
+  const cleaned = isoString.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '');
+  const [datePart, timePart] = cleaned.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute, second] = (timePart || '00:00:00').split(':').map(n => parseInt(n) || 0);
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+
+// Format time from naive ISO string
+function formatNaiveTime(isoString: string): string {
+  const date = parseNaiveLocal(isoString);
+  return format(date, 'HH:mm');
+}
+
+// Get hour from naive ISO string
+function getNaiveHour(isoString: string): number {
+  const date = parseNaiveLocal(isoString);
+  return date.getHours();
+}
+
+// Convert minutes from midnight to HH:mm
+function minToTime(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Get availability slots for today's weekday
+interface AvailabilitySlot {
+  startMin: number;
+  endMin: number;
 }
 
 // Notification Sound Hook using Web Audio API
@@ -181,7 +216,7 @@ function NotificationPopup({
   if (!notification) return null;
 
   const booking = notification.booking;
-  const scheduledAt = new Date(booking.scheduledAt);
+  const scheduledAt = parseNaiveLocal(booking.scheduledAt);
 
   return (
     <div className="fixed top-4 right-4 z-50 animate-slide-in">
@@ -233,6 +268,7 @@ export function ProDashboard() {
   const [pendingValidations, setPendingValidations] = useState<number>(0);
   const [notification, setNotification] = useState<NotificationData | null>(null);
   const [knownBookingIds, setKnownBookingIds] = useState<Set<string>>(new Set());
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
   const playSound = useNotificationSound();
 
   // Stats
@@ -243,22 +279,62 @@ export function ProDashboard() {
     completedThisMonth: 0,
   });
 
-  // Doctor name
-  const doctorName = provider?.displayName ||
-    [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
-    'Docteur';
+  // Doctor name - use provider.user name, then user name, avoid default "Docteur"
+  const getDoctorName = (): string => {
+    // First try provider.user (linked user from provider profile)
+    const providerUser = provider?.user;
+    if (providerUser?.firstName || providerUser?.lastName) {
+      return [providerUser.firstName, providerUser.lastName].filter(Boolean).join(' ');
+    }
+    // Then try provider displayName if not default
+    if (provider?.displayName && provider.displayName !== 'Docteur' && provider.displayName.trim() !== '') {
+      return provider.displayName;
+    }
+    // Fall back to current user
+    if (user?.firstName || user?.lastName) {
+      return [user.firstName, user.lastName].filter(Boolean).join(' ');
+    }
+    if (user?.displayName && user.displayName !== 'Docteur') {
+      return user.displayName;
+    }
+    // Last resort
+    return 'Vétérinaire';
+  };
+  const doctorName = getDoctorName();
 
-  // Generate time slots for today
+  // Generate time slots for today based on availability
   const timeSlots = useMemo((): TimeSlot[] => {
     const slots: TimeSlot[] = [];
     const today = new Date();
 
-    // Generate slots from 8:00 to 18:00
-    for (let hour = 8; hour <= 18; hour++) {
+    // Get hours from availability slots
+    const hoursSet = new Set<number>();
+
+    if (availability.length > 0) {
+      // Use actual availability
+      for (const slot of availability) {
+        const startHour = Math.floor(slot.startMin / 60);
+        const endHour = Math.ceil(slot.endMin / 60);
+        for (let h = startHour; h < endHour; h++) {
+          hoursSet.add(h);
+        }
+      }
+    } else {
+      // Default: 8h to 18h if no availability set
+      for (let h = 8; h <= 18; h++) {
+        hoursSet.add(h);
+      }
+    }
+
+    // Sort hours
+    const hours = Array.from(hoursSet).sort((a, b) => a - b);
+
+    for (const hour of hours) {
       const slotTime = setMinutes(setHours(today, hour), 0);
+      // Find booking for this hour using naive local time
       const booking = todayBookings.find(b => {
-        const bTime = new Date(b.scheduledAt);
-        return bTime.getHours() === hour;
+        const bHour = getNaiveHour(b.scheduledAt);
+        return bHour === hour;
       });
 
       slots.push({
@@ -270,7 +346,7 @@ export function ProDashboard() {
     }
 
     return slots;
-  }, [todayBookings]);
+  }, [todayBookings, availability]);
 
   // Current hour for highlighting
   const currentHour = new Date().getHours();
@@ -281,11 +357,14 @@ export function ProDashboard() {
       const now = new Date();
       const ymNow = format(now, 'yyyy-MM');
       const curStart = startOfMonth(now);
-      const todayStart = startOfDay(now);
-      const todayEnd = endOfDay(now);
+      const todayDate = format(now, 'yyyy-MM-dd');
+
+      // Get today's weekday (1=Mon, 7=Sun for backend, but JS getDay is 0=Sun, 6=Sat)
+      const jsWeekday = getDay(now);
+      const backendWeekday = jsWeekday === 0 ? 7 : jsWeekday; // Convert to 1-7 format
 
       // Fetch all data in parallel
-      const [agendaResult, historyResult, pendingCount] = await Promise.all([
+      const [agendaResult, historyResult, pendingCount, weeklyResult] = await Promise.all([
         api.providerAgenda(
           format(subMonths(now, 24), 'yyyy-MM-dd'),
           format(addHours(now, 24 * 30), 'yyyy-MM-dd')
@@ -294,9 +373,20 @@ export function ProDashboard() {
         api.client.get('/bookings/pending-validations/count')
           .then(res => res.data?.data?.count || res.data?.count || 0)
           .catch(() => 0),
+        api.myWeekly().catch(() => ({ entries: [] })),
       ]);
 
       setPendingValidations(pendingCount);
+
+      // Extract today's availability
+      const entries = weeklyResult.entries || [];
+      const todaySlots: AvailabilitySlot[] = entries
+        .filter((e: { weekday: number }) => e.weekday === backendWeekday)
+        .map((e: { startMin?: number; endMin?: number; startTime?: string; endTime?: string }) => ({
+          startMin: e.startMin ?? (e.startTime ? parseInt(e.startTime.split(':')[0]) * 60 + parseInt(e.startTime.split(':')[1] || '0') : 0),
+          endMin: e.endMin ?? (e.endTime ? parseInt(e.endTime.split(':')[0]) * 60 + parseInt(e.endTime.split(':')[1] || '0') : 0),
+        }));
+      setAvailability(todaySlots);
 
       // Handle wrapped response
       const agenda: Booking[] = Array.isArray(agendaResult)
@@ -307,15 +397,16 @@ export function ProDashboard() {
       const currentIds = new Set(agenda.filter(b => b.id).map(b => b.id));
       setKnownBookingIds(currentIds);
 
-      // Filter today's bookings
+      // Filter today's bookings using naive local time (ignore timezone)
       const todayAppts = agenda.filter(b => {
-        const bDate = new Date(b.scheduledAt);
-        return bDate >= todayStart && bDate <= todayEnd;
-      }).sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+        const bDate = parseNaiveLocal(b.scheduledAt);
+        const bDateStr = format(bDate, 'yyyy-MM-dd');
+        return bDateStr === todayDate;
+      }).sort((a, b) => parseNaiveLocal(a.scheduledAt).getTime() - parseNaiveLocal(b.scheduledAt).getTime());
 
       setTodayBookings(todayAppts);
 
-      // Find next appointment (future, PENDING or CONFIRMED)
+      // Find next appointment (future, PENDING or CONFIRMED) using naive local time
       const cutoff = new Date(now.getTime() - 60 * 60 * 1000);
       let next: Booking | null = null;
       let nextDate: Date | null = null;
@@ -323,7 +414,7 @@ export function ProDashboard() {
       for (const b of agenda) {
         const iso = b.scheduledAt?.toString() || '';
         if (!iso) continue;
-        const t = new Date(iso);
+        const t = parseNaiveLocal(iso);
         const st = b.status?.toString() || '';
         if (st !== 'PENDING' && st !== 'CONFIRMED') continue;
         if (t < cutoff) continue;
@@ -334,19 +425,19 @@ export function ProDashboard() {
       }
       setNextAppointment(next);
 
-      // Calculate stats
+      // Calculate stats using naive local time
       const weekStart = new Date(now);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
 
       const weekAppts = agenda.filter(b => {
-        const d = new Date(b.scheduledAt);
+        const d = parseNaiveLocal(b.scheduledAt);
         return d >= weekStart && d < weekEnd && (b.status === 'PENDING' || b.status === 'CONFIRMED');
       });
 
       const monthCompleted = agenda.filter(b => {
-        const d = new Date(b.scheduledAt);
+        const d = parseNaiveLocal(b.scheduledAt);
         return d >= curStart && b.status === 'COMPLETED';
       });
 
@@ -673,7 +764,7 @@ export function ProDashboard() {
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 shadow-lg">
                 <p className="text-blue-100 text-sm mb-1">Prochain rendez-vous</p>
                 <p className="text-white font-semibold text-lg mb-3">
-                  {format(new Date(nextAppointment.scheduledAt), "EEEE d MMMM", { locale: fr })
+                  {format(parseNaiveLocal(nextAppointment.scheduledAt), "EEEE d MMMM", { locale: fr })
                     .replace(/^\w/, c => c.toUpperCase())}
                 </p>
                 <div className="bg-white/10 rounded-xl p-3 backdrop-blur">
@@ -683,7 +774,7 @@ export function ProDashboard() {
                     </div>
                     <div>
                       <p className="text-white font-bold text-xl">
-                        {format(new Date(nextAppointment.scheduledAt), "HH:mm")}
+                        {formatNaiveTime(nextAppointment.scheduledAt)}
                       </p>
                       <p className="text-blue-100 text-sm">
                         {nextAppointment.service?.title || 'Consultation'}
@@ -806,7 +897,7 @@ export function ProDashboard() {
                       {b.serviceTitle}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {format(new Date(b.scheduledAt), "d MMM 'à' HH:mm", { locale: fr })}
+                      {format(parseNaiveLocal(b.scheduledAt), "d MMM 'à' HH:mm", { locale: fr })}
                     </p>
                   </div>
                   <p className="font-semibold text-gray-900 text-sm">
@@ -874,7 +965,9 @@ function TimeSlotRow({ slot, isNow }: { slot: TimeSlot; isNow: boolean }) {
           <div className={`w-1 h-10 rounded-full ${
             slot.booking.status === 'PENDING' ? 'bg-amber-500' :
             slot.booking.status === 'CONFIRMED' ? 'bg-blue-500' :
-            'bg-green-500'
+            slot.booking.status === 'CANCELLED' ? 'bg-red-500' :
+            slot.booking.status === 'COMPLETED' ? 'bg-green-500' :
+            'bg-gray-500'
           }`} />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-900 truncate">
@@ -890,10 +983,14 @@ function TimeSlotRow({ slot, isNow }: { slot: TimeSlot; isNow: boolean }) {
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
             slot.booking.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
             slot.booking.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
-            'bg-green-100 text-green-700'
+            slot.booking.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+            slot.booking.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+            'bg-gray-100 text-gray-700'
           }`}>
             {slot.booking.status === 'PENDING' ? 'En attente' :
-             slot.booking.status === 'CONFIRMED' ? 'Confirmé' : 'Terminé'}
+             slot.booking.status === 'CONFIRMED' ? 'Confirmé' :
+             slot.booking.status === 'CANCELLED' ? 'Annulé' :
+             slot.booking.status === 'COMPLETED' ? 'Terminé' : slot.booking.status}
           </span>
         </div>
       ) : (
