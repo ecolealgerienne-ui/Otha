@@ -183,7 +183,18 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
 
       final api = ref.read(apiProvider);
       final url = await api.uploadLocalFile(file, folder: 'avatar');
+
+      // Mettre à jour le user ET le provider avec la même photo
       await api.updateMe(photoUrl: url);
+
+      // Aussi mettre à jour le provider avec avatarUrl
+      final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
+      final displayName = fullName.isEmpty ? _email.text.split('@').first : fullName;
+      await api.upsertMyProvider(
+        displayName: displayName,
+        avatarUrl: url,
+      );
+
       await ref.read(sessionProvider.notifier).refreshMe();
 
       if (!mounted) return;
