@@ -81,7 +81,7 @@ export function ProPatients() {
     bookingConfirmed,
     setPetData,
     setBooking,
-    addRecord,
+    addRecord: _addRecord,
     addPrescription,
     addDisease,
     editPrescription,
@@ -91,7 +91,7 @@ export function ProPatients() {
     removeDisease,
     updateDiseases,
     clearPet,
-    isPolling,
+    isPolling: _isPolling,
     startPolling,
     stopPolling,
   } = useScannedPet();
@@ -114,7 +114,7 @@ export function ProPatients() {
   const [viewMode, setViewMode] = useState<ViewMode>('hub');
 
   // Modals
-  const [showAddRecordModal, setShowAddRecordModal] = useState(false);
+  const [_showAddRecordModal, _setShowAddRecordModal] = useState(false);
   const [showAddPrescriptionModal, setShowAddPrescriptionModal] = useState(false);
   const [showAddDiseaseModal, setShowAddDiseaseModal] = useState(false);
   const [showAddVaccinationModal, setShowAddVaccinationModal] = useState(false);
@@ -128,7 +128,7 @@ export function ProPatients() {
   const [confirmingByCode, setConfirmingByCode] = useState(false);
 
   // Form states
-  const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '', temperatureC: '', heartRate: '' });
+  const [_newRecord, _setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '', temperatureC: '', heartRate: '' });
   const [newPrescription, setNewPrescription] = useState({ name: '', dosage: '', frequency: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '', attachments: [] as string[] });
   const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '', images: [] as string[] });
   const [newVaccination, setNewVaccination] = useState({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
@@ -153,7 +153,7 @@ export function ProPatients() {
   const [editingDisease, setEditingDisease] = useState<DiseaseTracking | null>(null);
 
   // Loading states
-  const [addingRecord, setAddingRecord] = useState(false);
+  const [_addingRecord, _setAddingRecord] = useState(false);
   const [addingPrescription, setAddingPrescription] = useState(false);
   const [addingDisease, setAddingDisease] = useState(false);
   const [addingVaccination, setAddingVaccination] = useState(false);
@@ -308,7 +308,7 @@ export function ProPatients() {
         .filter((r: any) => r.heartRate != null)
         .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
 
-      let healthStats = null;
+      let healthStats: any = null;
       if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
         healthStats = {
           weight: weightRecords.length > 0 ? {
@@ -453,7 +453,7 @@ export function ProPatients() {
         .filter((r: any) => r.heartRate != null)
         .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
 
-      let healthStats = null;
+      let healthStats: any = null;
       if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
         healthStats = {
           weight: weightRecords.length > 0 ? {
@@ -548,7 +548,7 @@ export function ProPatients() {
           .filter((r: any) => r.heartRate != null)
           .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
 
-        let healthStats = null;
+        let healthStats: any = null;
         if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
           healthStats = {
             weight: weightRecords.length > 0 ? {
@@ -714,26 +714,6 @@ export function ProPatients() {
   };
 
   // Add handlers
-  const handleAddRecord = async () => {
-    if (!currentToken || !newRecord.title) return;
-    setAddingRecord(true);
-    try {
-      const record = await api.createMedicalRecordByToken(currentToken, {
-        title: newRecord.title,
-        type: newRecord.type,
-        description: newRecord.description || undefined,
-      });
-      addRecord(record);
-      setShowAddRecordModal(false);
-      setNewRecord({ title: '', type: 'CONSULTATION', description: '' });
-    } catch (error) {
-      console.error('Error:', error);
-      alert("Erreur lors de l'ajout");
-    } finally {
-      setAddingRecord(false);
-    }
-  };
-
   const handleAddPrescription = async () => {
     if (!currentToken || !newPrescription.name) return;
     setAddingPrescription(true);
@@ -832,7 +812,7 @@ export function ProPatients() {
       if (scannedPet) {
         const result = await api.getPetByToken(currentToken);
         if (result) {
-          setPetData(result.pet, currentToken, result.medicalRecords || [], result.pet.vaccinations || [], [], null, diseases);
+          setPetData(result.pet, currentToken, result.medicalRecords || [], result.vaccinations || [], [], null, diseases);
         }
       }
       setShowAddProgressModal(false);
@@ -849,7 +829,7 @@ export function ProPatients() {
     if (!currentToken || !newVaccination.name) return;
     setAddingVaccination(true);
     try {
-      const vaccination = await api.createVaccinationByToken(currentToken, {
+      await api.createVaccinationByToken(currentToken, {
         name: newVaccination.name,
         date: newVaccination.date || undefined,
         nextDueDate: newVaccination.nextDueDate || undefined,
@@ -910,7 +890,8 @@ export function ProPatients() {
           const weightRecords = petData.weightRecords || [];
           const tempData = medicalRecords.filter((r: any) => r.temperatureC).map((r: any) => ({ temperatureC: r.temperatureC, date: r.date }));
           const heartData = medicalRecords.filter((r: any) => r.heartRate).map((r: any) => ({ heartRate: r.heartRate, date: r.date }));
-          const healthStats = {
+          const healthStats: any = {
+            petId: result.pet.id,
             weight: weightRecords.length > 0 ? { current: weightRecords[0]?.weightKg, data: weightRecords } : undefined,
             temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
             heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
@@ -970,7 +951,8 @@ export function ProPatients() {
           const weightRecords = petData.weightRecords || [];
           const tempData = medicalRecords.filter((r: any) => r.temperatureC).map((r: any) => ({ temperatureC: r.temperatureC, date: r.date }));
           const heartData = medicalRecords.filter((r: any) => r.heartRate).map((r: any) => ({ heartRate: r.heartRate, date: r.date }));
-          const healthStats = {
+          const healthStats: any = {
+            petId: result.pet.id,
             weight: weightRecords.length > 0 ? { current: weightRecords[0]?.weightKg, data: weightRecords } : undefined,
             temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
             heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
