@@ -305,6 +305,10 @@ export class PetsService {
         notes: dto.notes ?? null,
         images: dto.images ?? [],
         providerId: provider?.id ?? null,
+        // Health data
+        temperatureC: dto.temperatureC ?? null,
+        heartRate: dto.heartRate ?? null,
+        weightKg: dto.weightKg ?? null,
       },
     });
   }
@@ -356,9 +360,90 @@ export class PetsService {
         name: dto.name,
         description: dto.description ?? null,
         status: dto.status ?? 'ONGOING',
-        diagnosisDate: new Date(),
+        severity: dto.severity ?? null,
+        diagnosisDate: dto.diagnosisDate ? new Date(dto.diagnosisDate) : new Date(),
+        symptoms: dto.symptoms ?? null,
+        treatment: dto.treatment ?? null,
         images: dto.images ?? [],
         notes: dto.notes ?? null,
+        vetId: userId,
+        vetName: dto.vetName ?? provider?.displayName ?? null,
+      },
+      include: { progressEntries: true },
+    });
+  }
+
+  // Vet liste les maladies via token
+  async listDiseasesByToken(token: string) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    return this.prisma.diseaseTracking.findMany({
+      where: { petId: accessToken.petId },
+      include: { progressEntries: { orderBy: { date: 'desc' } } },
+      orderBy: { diagnosisDate: 'desc' },
+    });
+  }
+
+  // Vet récupère le détail d'une maladie via token
+  async getDiseaseByToken(token: string, diseaseId: string) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId: accessToken.petId },
+      include: { progressEntries: { orderBy: { date: 'desc' } } },
+    });
+
+    if (!disease) throw new NotFoundException('Disease not found');
+    return disease;
+  }
+
+  // Vet ajoute une entrée de progression via token
+  async addProgressEntryByToken(token: string, userId: string, diseaseId: string, dto: any) {
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    const disease = await this.prisma.diseaseTracking.findFirst({
+      where: { id: diseaseId, petId: accessToken.petId },
+    });
+
+    if (!disease) throw new NotFoundException('Disease not found');
+
+    // Update disease severity if provided
+    if (dto.severity) {
+      await this.prisma.diseaseTracking.update({
+        where: { id: diseaseId },
+        data: { severity: dto.severity },
+      });
+    }
+
+    return this.prisma.diseaseProgressEntry.create({
+      data: {
+        diseaseId,
+        date: dto.date ? new Date(dto.date) : new Date(),
+        notes: dto.notes,
+        images: dto.images ?? [],
+        severity: dto.severity ?? null,
+        treatmentUpdate: dto.treatmentUpdate ?? null,
       },
     });
   }

@@ -129,12 +129,19 @@ export function ProPatients() {
   // Form states
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '', temperatureC: '', heartRate: '' });
   const [newPrescription, setNewPrescription] = useState({ name: '', dosage: '', frequency: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '', attachments: [] as string[] });
-  const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
+  const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '' });
   const [newVaccination, setNewVaccination] = useState({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
   const [newWeight, setNewWeight] = useState({ weightKg: '', date: new Date().toISOString().split('T')[0], context: '' });
   const [newHealthData, setNewHealthData] = useState({ temperatureC: '', heartRate: '', date: new Date().toISOString().split('T')[0], notes: '' });
   const [showAddHealthDataModal, setShowAddHealthDataModal] = useState(false);
   const [addingHealthData, setAddingHealthData] = useState(false);
+
+  // Disease detail modal
+  const [showDiseaseDetailModal, setShowDiseaseDetailModal] = useState(false);
+  const [selectedDisease, setSelectedDisease] = useState<DiseaseTracking | null>(null);
+  const [showAddProgressModal, setShowAddProgressModal] = useState(false);
+  const [newProgress, setNewProgress] = useState({ notes: '', severity: '', treatmentUpdate: '' });
+  const [addingProgress, setAddingProgress] = useState(false);
 
   // Edit states
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
@@ -680,15 +687,65 @@ export function ProPatients() {
         name: newDisease.name,
         description: newDisease.description || undefined,
         status: newDisease.status,
+        severity: newDisease.severity || undefined,
+        symptoms: newDisease.symptoms || undefined,
+        treatment: newDisease.treatment || undefined,
+        notes: newDisease.notes || undefined,
       });
       addDisease(disease);
       setShowAddDiseaseModal(false);
-      setNewDisease({ name: '', description: '', status: 'ACTIVE' });
+      setNewDisease({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '' });
     } catch (error) {
       console.error('Error:', error);
       alert("Erreur lors de l'ajout");
     } finally {
       setAddingDisease(false);
+    }
+  };
+
+  const handleViewDiseaseDetail = async (disease: DiseaseTracking) => {
+    if (!currentToken) return;
+    try {
+      // Fetch fresh disease data with progress entries
+      const freshDisease = await api.getDiseaseByToken(currentToken, disease.id);
+      setSelectedDisease(freshDisease);
+      setShowDiseaseDetailModal(true);
+    } catch (error) {
+      console.error('Error fetching disease:', error);
+      // Fallback to existing data
+      setSelectedDisease(disease);
+      setShowDiseaseDetailModal(true);
+    }
+  };
+
+  const handleAddProgress = async () => {
+    if (!currentToken || !selectedDisease || !newProgress.notes) return;
+    setAddingProgress(true);
+    try {
+      await api.addProgressEntryByToken(currentToken, selectedDisease.id, {
+        notes: newProgress.notes,
+        severity: newProgress.severity || undefined,
+        treatmentUpdate: newProgress.treatmentUpdate || undefined,
+      });
+      // Refresh disease detail
+      const freshDisease = await api.getDiseaseByToken(currentToken, selectedDisease.id);
+      setSelectedDisease(freshDisease);
+      // Also refresh diseases list
+      const diseases = await api.listDiseasesByToken(currentToken);
+      // Update via context's updateDiseases if available, otherwise refresh all
+      if (scannedPet) {
+        const result = await api.getPetByToken(currentToken);
+        if (result) {
+          setPetData(result.pet, currentToken, result.medicalRecords || [], result.pet.vaccinations || [], [], null, diseases);
+        }
+      }
+      setShowAddProgressModal(false);
+      setNewProgress({ notes: '', severity: '', treatmentUpdate: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout de la mise à jour");
+    } finally {
+      setAddingProgress(false);
     }
   };
 
@@ -1271,21 +1328,32 @@ export function ProPatients() {
                               {/* Image Attachments Preview - like Flutter */}
                               {attachments.length > 0 && (
                                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                                  {attachments.map((url: string, idx: number) => (
+                                  {attachments.filter((url: string) => url && typeof url === 'string').map((url: string, idx: number) => (
                                     <a
                                       key={idx}
                                       href={url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="flex-shrink-0 group relative"
+                                      className="flex-shrink-0 group relative w-16 h-16 rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors bg-gradient-to-br from-purple-50 to-teal-50 overflow-hidden"
                                     >
+                                      {/* Fallback - visible when image fails */}
+                                      <div className="absolute inset-0 flex flex-col items-center justify-center text-purple-600 z-0">
+                                        <FileText size={20} />
+                                        <span className="text-[8px] font-medium mt-0.5">Voir</span>
+                                      </div>
+                                      {/* Image on top */}
                                       <img
                                         src={url}
                                         alt={`Ordonnance ${idx + 1}`}
-                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors"
+                                        className="absolute inset-0 w-full h-full object-cover z-10"
+                                        onError={(e) => {
+                                          // Hide broken image to show fallback underneath
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
                                       />
-                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
-                                        <Eye size={16} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                                      {/* Hover overlay */}
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center z-20">
+                                        <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
                                       </div>
                                     </a>
                                   ))}
@@ -1319,62 +1387,183 @@ export function ProPatients() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Weight history */}
+                    {/* Summary Cards - like Flutter */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {(healthStats.weight?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-coral-50 to-coral-100 border-2 border-coral-200 rounded-xl p-3 text-center">
+                          <Scale size={20} className="mx-auto text-coral-500 mb-1" />
+                          <p className="text-xl font-bold text-coral-600">{parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)}</p>
+                          <p className="text-xs text-coral-500 font-medium">kg</p>
+                        </div>
+                      )}
+                      {(healthStats.temperature?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-200 rounded-xl p-3 text-center">
+                          <Thermometer size={20} className="mx-auto text-teal-500 mb-1" />
+                          <p className="text-xl font-bold text-teal-600">{parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}</p>
+                          <p className="text-xs text-teal-500 font-medium">°C</p>
+                        </div>
+                      )}
+                      {(healthStats.heartRate?.data?.length || 0) > 0 && (
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3 text-center">
+                          <Heart size={20} className="mx-auto text-purple-500 mb-1" />
+                          <p className="text-xl font-bold text-purple-600">{healthStats.heartRate?.current || 0}</p>
+                          <p className="text-xs text-purple-500 font-medium">BPM</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Weight Chart */}
                     {(healthStats.weight?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Scale size={16} className="text-primary-600" />
-                          Poids ({parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)} kg actuel)
+                      <div className="bg-white border-2 border-coral-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Scale size={18} className="text-coral-500" />
+                          Évolution du poids
                         </h4>
-                        <div className="space-y-2">
+                        {/* Mini Chart SVG */}
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.weight!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => parseFloat(String(d.weightKg || 0)));
+                              const min = Math.min(...values) * 0.95;
+                              const max = Math.max(...values) * 1.05;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#F36C6C" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#F36C6C" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#weightGradient)" />
+                                  <polyline points={points} fill="none" stroke="#F36C6C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#F36C6C" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        {/* Data list */}
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.weight!.data.slice(-5).reverse().map((w: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
-                                {w.context && <p className="text-xs text-gray-400">{w.context}</p>}
-                                {w.notes && <p className="text-xs text-gray-400">{w.notes}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-coral-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-coral-600">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
+                              <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    {/* Temperature history */}
+
+                    {/* Temperature Chart */}
                     {(healthStats.temperature?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Thermometer size={16} className="text-red-600" />
-                          Température ({parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}°C actuel)
+                      <div className="bg-white border-2 border-teal-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Thermometer size={18} className="text-teal-500" />
+                          Évolution de la température
                         </h4>
-                        <div className="space-y-2">
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.temperature!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => parseFloat(String(d.temperatureC || 0)));
+                              const min = Math.min(...values, 37) * 0.98;
+                              const max = Math.max(...values, 40) * 1.02;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="tempGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#4ECDC4" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#4ECDC4" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#tempGradient)" />
+                                  <polyline points={points} fill="none" stroke="#4ECDC4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#4ECDC4" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.temperature!.data.slice(-5).reverse().map((t: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
-                                {t.context && <p className="text-xs text-gray-400">{t.context}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-teal-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-teal-600">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
+                              <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    {/* Heart rate history */}
+
+                    {/* Heart Rate Chart */}
                     {(healthStats.heartRate?.data?.length || 0) > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                          <Heart size={16} className="text-pink-600" />
-                          Fréquence cardiaque ({healthStats.heartRate?.current || 0} BPM actuel)
+                      <div className="bg-white border-2 border-purple-100 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                          <Heart size={18} className="text-purple-500" />
+                          Évolution du rythme cardiaque
                         </h4>
-                        <div className="space-y-2">
+                        <div className="h-24 mb-3">
+                          <svg viewBox="0 0 300 80" className="w-full h-full">
+                            {(() => {
+                              const data = healthStats.heartRate!.data.slice(-10);
+                              if (data.length < 2) return null;
+                              const values = data.map((d: any) => d.heartRate || 0);
+                              const min = Math.min(...values) * 0.9;
+                              const max = Math.max(...values) * 1.1;
+                              const range = max - min || 1;
+                              const points = values.map((v: number, i: number) => {
+                                const x = (i / (values.length - 1)) * 280 + 10;
+                                const y = 70 - ((v - min) / range) * 60;
+                                return `${x},${y}`;
+                              }).join(' ');
+                              return (
+                                <>
+                                  <defs>
+                                    <linearGradient id="hrGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                      <stop offset="0%" stopColor="#9B59B6" stopOpacity="0.3" />
+                                      <stop offset="100%" stopColor="#9B59B6" stopOpacity="0" />
+                                    </linearGradient>
+                                  </defs>
+                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#hrGradient)" />
+                                  <polyline points={points} fill="none" stroke="#9B59B6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  {values.map((v: number, i: number) => {
+                                    const x = (i / (values.length - 1)) * 280 + 10;
+                                    const y = 70 - ((v - min) / range) * 60;
+                                    return <circle key={i} cx={x} cy={y} r="4" fill="#9B59B6" />;
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {healthStats.heartRate!.data.slice(-5).reverse().map((h: any, i: number) => (
-                            <div key={i} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                              <span className="font-semibold text-gray-900">{h.heartRate} BPM</span>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
-                                {h.context && <p className="text-xs text-gray-400">{h.context}</p>}
-                              </div>
+                            <div key={i} className="p-2 bg-purple-50 rounded-lg flex items-center justify-between">
+                              <span className="font-bold text-purple-600">{h.heartRate} BPM</span>
+                              <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
                             </div>
                           ))}
                         </div>
@@ -1396,57 +1585,101 @@ export function ProPatients() {
             ) : viewMode === 'diseases' ? (
               <>
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <AlertTriangle className="text-red-600" size={24} />
+                  <AlertTriangle className="text-orange-600" size={24} />
                   Suivi de maladies
                 </h3>
                 {diseases.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertTriangle className="mx-auto text-gray-300 mb-4" size={48} />
-                    <p className="text-gray-500">Aucun suivi</p>
+                    <p className="text-gray-500">Aucune maladie suivie</p>
+                    <p className="text-sm text-gray-400 mt-2">Les suivis de maladies apparaîtront ici</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {diseases.map((d) => {
-                      const canDelete = isOwnRecord(d.providerId);
-                      const statusColor = d.status === 'ACTIVE' ? 'bg-red-100 text-red-700' : d.status === 'MONITORING' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700';
-                      return (
-                        <div key={d.id} className="p-4 bg-white border border-gray-200 rounded-xl">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
-                              <AlertTriangle size={18} className="text-red-600" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-gray-900">{d.name}</p>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
-                                    {d.status === 'ACTIVE' ? 'Actif' : d.status === 'MONITORING' ? 'Surveillance' : 'Résolu'}
-                                  </span>
-                                </div>
-                                {canDelete && (
-                                  <div className="flex items-center gap-2">
-                                    <button onClick={() => handleEditDisease(d)} className="text-blue-400 hover:text-blue-600">
-                                      <Edit2 size={14} />
-                                    </button>
-                                    <button onClick={() => handleDeleteDisease(d.id)} className="text-red-400 hover:text-red-600">
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                )}
+                  <div className="space-y-6">
+                    {(() => {
+                      const ongoing = diseases.filter((d: any) => d.status === 'ONGOING');
+                      const chronic = diseases.filter((d: any) => d.status === 'CHRONIC');
+                      const monitoring = diseases.filter((d: any) => d.status === 'MONITORING');
+                      const cured = diseases.filter((d: any) => d.status === 'CURED');
+
+                      const renderDiseaseCard = (d: any) => {
+                        const canDelete = isOwnRecord(d.providerId);
+                        const progressCount = d.progressEntries?.length || 0;
+                        const statusCfg: Record<string, { bg: string; text: string; border: string; iconBg: string }> = {
+                          ONGOING: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', iconBg: 'bg-red-100' },
+                          CHRONIC: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', iconBg: 'bg-orange-100' },
+                          MONITORING: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', iconBg: 'bg-purple-100' },
+                          CURED: { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', iconBg: 'bg-teal-100' },
+                        };
+                        const sevCfg: Record<string, { bg: string; text: string }> = {
+                          MILD: { bg: 'bg-teal-100', text: 'text-teal-700' },
+                          MODERATE: { bg: 'bg-orange-100', text: 'text-orange-700' },
+                          SEVERE: { bg: 'bg-red-100', text: 'text-red-700' },
+                        };
+                        const cfg = statusCfg[d.status] || statusCfg.ONGOING;
+                        const sev = d.severity ? sevCfg[d.severity] : null;
+
+                        return (
+                          <div key={d.id} onClick={() => handleViewDiseaseDetail(d)} className={`p-4 bg-white rounded-xl border-2 ${cfg.border} shadow-sm cursor-pointer hover:shadow-md transition-shadow`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2.5 ${cfg.iconBg} rounded-xl flex-shrink-0`}>
+                                <AlertTriangle size={18} className={cfg.text} />
                               </div>
-                              {d.description && <p className="text-sm text-gray-600">{d.description}</p>}
-                              <p className="text-xs text-gray-400 mt-1">Diagnostiqué le {format(new Date(d.diagnosedDate), 'dd/MM/yyyy')}</p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-bold text-gray-900">{d.name}</p>
+                                    <span className={`text-[10px] ${cfg.bg} ${cfg.text} px-1.5 py-0.5 rounded font-semibold`}>
+                                      {d.status === 'ONGOING' ? 'En cours' : d.status === 'CHRONIC' ? 'Chronique' : d.status === 'MONITORING' ? 'Surveillance' : 'Guérie'}
+                                    </span>
+                                    {sev && <span className={`text-[10px] ${sev.bg} ${sev.text} px-1.5 py-0.5 rounded font-semibold`}>{d.severity === 'MILD' ? 'Légère' : d.severity === 'MODERATE' ? 'Modérée' : 'Sévère'}</span>}
+                                  </div>
+                                  {canDelete && (
+                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                      <button onClick={() => handleEditDisease(d)} className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                                      <button onClick={() => handleDeleteDisease(d.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                                    </div>
+                                  )}
+                                </div>
+                                {d.description && <p className="text-sm text-gray-600 mb-2 line-clamp-2">{d.description}</p>}
+                                <div className="flex items-center gap-3 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1"><Calendar size={12} />{format(new Date(d.diagnosisDate || d.diagnosedDate), 'dd/MM/yyyy')}</span>
+                                  {d.curedDate && <span className="flex items-center gap-1 text-teal-600"><CheckCircle size={12} />Guéri: {format(new Date(d.curedDate), 'dd/MM/yyyy')}</span>}
+                                  {progressCount > 0 && <span className={`flex items-center gap-1 ${cfg.text} font-medium`}><Clock size={12} />{progressCount} mise{progressCount > 1 ? 's' : ''} à jour</span>}
+                                </div>
+                              </div>
+                              <ChevronRight size={20} className="text-gray-400 flex-shrink-0" />
                             </div>
                           </div>
+                        );
+                      };
+
+                      const renderSection = (title: string, items: any[], dotColor: string) => items.length === 0 ? null : (
+                        <div key={title}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                            <span className="text-sm font-bold text-gray-700">{title}</span>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{items.length}</span>
+                          </div>
+                          <div className="space-y-3">{items.map(renderDiseaseCard)}</div>
                         </div>
                       );
-                    })}
+
+                      return (
+                        <>
+                          {renderSection('En cours', ongoing, 'bg-red-500')}
+                          {renderSection('Chronique', chronic, 'bg-orange-500')}
+                          {renderSection('Sous surveillance', monitoring, 'bg-purple-500')}
+                          {renderSection('Guéries', cured, 'bg-teal-500')}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
                 <div className="mt-6">
-                  <Button onClick={() => setShowAddDiseaseModal(true)} className="w-full">
+                  <Button onClick={() => setShowAddDiseaseModal(true)} className="w-full bg-orange-500 hover:bg-orange-600">
                     <Plus size={16} className="mr-2" />
-                    Ajouter un suivi
+                    Ajouter un suivi de maladie
                   </Button>
                 </div>
               </>
@@ -1683,18 +1916,229 @@ export function ProPatients() {
       {/* Add Disease Modal - Temporarily disabled due to backend schema mismatch */}
       {showAddDiseaseModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="text-orange-600" size={20} />
+              Nouveau suivi de maladie
+            </h2>
+            <div className="space-y-4">
+              <Input label="Nom de la maladie *" placeholder="Ex: Otite, Allergie cutanée..." value={newDisease.name} onChange={(e) => setNewDisease({ ...newDisease, name: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={2} placeholder="Description de la maladie..." value={newDisease.description} onChange={(e) => setNewDisease({ ...newDisease, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select value={newDisease.status} onChange={(e) => setNewDisease({ ...newDisease, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                    <option value="ONGOING">En cours</option>
+                    <option value="CHRONIC">Chronique</option>
+                    <option value="MONITORING">Surveillance</option>
+                    <option value="CURED">Guérie</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sévérité</label>
+                  <select value={newDisease.severity} onChange={(e) => setNewDisease({ ...newDisease, severity: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                    <option value="">Non spécifiée</option>
+                    <option value="MILD">Légère</option>
+                    <option value="MODERATE">Modérée</option>
+                    <option value="SEVERE">Sévère</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Symptômes</label>
+                <textarea rows={2} placeholder="Symptômes observés..." value={newDisease.symptoms} onChange={(e) => setNewDisease({ ...newDisease, symptoms: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Traitement</label>
+                <textarea rows={2} placeholder="Traitement prescrit..." value={newDisease.treatment} onChange={(e) => setNewDisease({ ...newDisease, treatment: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea rows={2} placeholder="Notes additionnelles..." value={newDisease.notes} onChange={(e) => setNewDisease({ ...newDisease, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
+              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Disease Detail Modal */}
+      {showDiseaseDetailModal && selectedDisease && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {(() => {
+              const d = selectedDisease as any;
+              const statusCfg: Record<string, { bg: string; text: string; gradient: string }> = {
+                ONGOING: { bg: 'bg-red-500', text: 'text-red-600', gradient: 'from-red-500 to-red-400' },
+                CHRONIC: { bg: 'bg-orange-500', text: 'text-orange-600', gradient: 'from-orange-500 to-orange-400' },
+                MONITORING: { bg: 'bg-purple-500', text: 'text-purple-600', gradient: 'from-purple-500 to-purple-400' },
+                CURED: { bg: 'bg-teal-500', text: 'text-teal-600', gradient: 'from-teal-500 to-teal-400' },
+              };
+              const sevCfg: Record<string, { bg: string; text: string }> = {
+                MILD: { bg: 'bg-teal-500', text: 'Légère' },
+                MODERATE: { bg: 'bg-orange-500', text: 'Modérée' },
+                SEVERE: { bg: 'bg-red-500', text: 'Sévère' },
+              };
+              const cfg = statusCfg[d.status] || statusCfg.ONGOING;
+              const progressEntries = d.progressEntries || [];
+
+              return (
+                <>
+                  {/* Header */}
+                  <div className={`-mx-6 -mt-6 mb-6 p-6 bg-gradient-to-r ${cfg.gradient} text-white rounded-t-xl`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-bold">{d.name}</h2>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs bg-white/20 px-2 py-1 rounded font-medium">
+                            {d.status === 'ONGOING' ? 'En cours' : d.status === 'CHRONIC' ? 'Chronique' : d.status === 'MONITORING' ? 'Surveillance' : 'Guérie'}
+                          </span>
+                          {d.severity && sevCfg[d.severity] && (
+                            <span className="text-xs bg-white/20 px-2 py-1 rounded font-medium">{sevCfg[d.severity].text}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={() => setShowDiseaseDetailModal(false)} className="p-2 hover:bg-white/20 rounded-lg"><X size={20} /></button>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {d.description && <p className="text-gray-700 mb-4">{d.description}</p>}
+
+                  {/* Info Cards */}
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Date de diagnostic</p>
+                      <p className="font-medium">{format(new Date(d.diagnosisDate || d.diagnosedDate), 'dd/MM/yyyy')}</p>
+                    </div>
+                    {d.curedDate && (
+                      <div className="p-3 bg-teal-50 rounded-lg">
+                        <p className="text-xs text-teal-600 mb-1">Date de guérison</p>
+                        <p className="font-medium text-teal-700">{format(new Date(d.curedDate), 'dd/MM/yyyy')}</p>
+                      </div>
+                    )}
+                    {d.vetName && (
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-500 mb-1">Vétérinaire</p>
+                        <p className="font-medium">{d.vetName}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Symptoms */}
+                  {d.symptoms && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2"><Activity size={16} />Symptômes</h4>
+                      <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">{d.symptoms}</p>
+                    </div>
+                  )}
+
+                  {/* Treatment */}
+                  {d.treatment && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2"><Pill size={16} />Traitement</h4>
+                      <p className="text-gray-600 bg-teal-50 p-3 rounded-lg">{d.treatment}</p>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {d.notes && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2"><FileText size={16} />Notes</h4>
+                      <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">{d.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Timeline */}
+                  {progressEntries.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Clock size={16} />Évolution ({progressEntries.length})</h4>
+                      <div className="space-y-4">
+                        {progressEntries.map((entry: any, idx: number) => (
+                          <div key={entry.id || idx} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-3 h-3 rounded-full ${cfg.bg}`} />
+                              {idx < progressEntries.length - 1 && <div className={`w-0.5 flex-1 ${cfg.bg} opacity-30 mt-1`} />}
+                            </div>
+                            <div className="flex-1 pb-4">
+                              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                  <Calendar size={12} />
+                                  {format(new Date(entry.date), 'dd/MM/yyyy HH:mm')}
+                                  {entry.severity && (
+                                    <span className={`${sevCfg[entry.severity]?.bg || 'bg-gray-500'} text-white px-1.5 py-0.5 rounded text-[10px]`}>
+                                      {sevCfg[entry.severity]?.text || entry.severity}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-gray-700">{entry.notes}</p>
+                                {entry.treatmentUpdate && (
+                                  <div className="mt-2 p-2 bg-teal-50 rounded flex items-start gap-2">
+                                    <Pill size={14} className="text-teal-600 mt-0.5" />
+                                    <p className="text-sm text-teal-700">{entry.treatmentUpdate}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 mt-6 pt-4 border-t">
+                    <Button variant="secondary" className="flex-1" onClick={() => setShowDiseaseDetailModal(false)}>Fermer</Button>
+                    {d.status !== 'CURED' && (
+                      <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={() => setShowAddProgressModal(true)}>
+                        <Plus size={16} className="mr-2" />
+                        Ajouter une mise à jour
+                      </Button>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </Card>
+        </div>
+      )}
+
+      {/* Add Progress Entry Modal */}
+      {showAddProgressModal && selectedDisease && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <AlertTriangle className="text-yellow-600" size={20} />
-              Suivi de maladie
+              <Clock className="text-orange-600" size={20} />
+              Ajouter une mise à jour
             </h2>
-            <div className="text-center py-6">
-              <AlertTriangle className="mx-auto text-yellow-500 mb-4" size={48} />
-              <p className="text-gray-600 mb-2">Cette fonctionnalité est temporairement indisponible.</p>
-              <p className="text-sm text-gray-500">Utilisez l'application mobile pour ajouter un suivi de maladie.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes d'évolution *</label>
+                <textarea rows={3} placeholder="Évolution observée..." value={newProgress.notes} onChange={(e) => setNewProgress({ ...newProgress, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sévérité actuelle</label>
+                <select value={newProgress.severity} onChange={(e) => setNewProgress({ ...newProgress, severity: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="">Pas de changement</option>
+                  <option value="MILD">Légère</option>
+                  <option value="MODERATE">Modérée</option>
+                  <option value="SEVERE">Sévère</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mise à jour traitement</label>
+                <textarea rows={2} placeholder="Changement de dosage, nouveau médicament..." value={newProgress.treatmentUpdate} onChange={(e) => setNewProgress({ ...newProgress, treatmentUpdate: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
             </div>
-            <div className="flex gap-3 mt-4">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Fermer</Button>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowAddProgressModal(false); setNewProgress({ notes: '', severity: '', treatmentUpdate: '' }); }}>Annuler</Button>
+              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddProgress} isLoading={addingProgress} disabled={!newProgress.notes}>Ajouter</Button>
             </div>
           </Card>
         </div>
