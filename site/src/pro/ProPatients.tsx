@@ -743,9 +743,9 @@ export function ProPatients() {
       // Refresh pet data to update health stats
       if (scannedPet && currentToken) {
         const result = await api.getPetByToken(currentToken);
-        if (result) {
-          const petData = result as any;
-          const medicalRecords = petData.medicalRecords || [];
+        if (result?.pet) {
+          const petData = result.pet as any;
+          const medicalRecords = petData.medicalRecords || result.medicalRecords || [];
           const treatments = petData.treatments || [];
           const prescriptions = treatments.map((t: any) => ({
             id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
@@ -762,7 +762,7 @@ export function ProPatients() {
             temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
             heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
           };
-          setPetData(result, currentToken, medicalRecords, petData.vaccinations || [], prescriptions, healthStats, []);
+          setPetData(result.pet, currentToken, medicalRecords, petData.vaccinations || result.vaccinations || [], prescriptions, healthStats, []);
         }
       }
       setShowAddWeightModal(false);
@@ -804,9 +804,9 @@ export function ProPatients() {
       // Refresh pet data
       if (scannedPet && currentToken) {
         const result = await api.getPetByToken(currentToken);
-        if (result) {
-          const petData = result as any;
-          const medicalRecords = petData.medicalRecords || [];
+        if (result?.pet) {
+          const petData = result.pet as any;
+          const medicalRecords = petData.medicalRecords || result.medicalRecords || [];
           const treatments = petData.treatments || [];
           const prescriptions = treatments.map((t: any) => ({
             id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
@@ -822,7 +822,7 @@ export function ProPatients() {
             temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
             heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
           };
-          setPetData(result, currentToken, medicalRecords, petData.vaccinations || [], prescriptions, healthStats, []);
+          setPetData(result.pet, currentToken, medicalRecords, petData.vaccinations || result.vaccinations || [], prescriptions, healthStats, []);
         }
       }
       setShowAddHealthDataModal(false);
