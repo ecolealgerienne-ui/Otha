@@ -1387,185 +1387,275 @@ export function ProPatients() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Summary Cards - like Flutter */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {(healthStats.weight?.data?.length || 0) > 0 && (
-                        <div className="bg-gradient-to-br from-coral-50 to-coral-100 border-2 border-coral-200 rounded-xl p-3 text-center">
-                          <Scale size={20} className="mx-auto text-coral-500 mb-1" />
-                          <p className="text-xl font-bold text-coral-600">{parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)}</p>
-                          <p className="text-xs text-coral-500 font-medium">kg</p>
-                        </div>
-                      )}
-                      {(healthStats.temperature?.data?.length || 0) > 0 && (
-                        <div className="bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-200 rounded-xl p-3 text-center">
-                          <Thermometer size={20} className="mx-auto text-teal-500 mb-1" />
-                          <p className="text-xl font-bold text-teal-600">{parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}</p>
-                          <p className="text-xs text-teal-500 font-medium">°C</p>
-                        </div>
-                      )}
-                      {(healthStats.heartRate?.data?.length || 0) > 0 && (
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3 text-center">
-                          <Heart size={20} className="mx-auto text-purple-500 mb-1" />
-                          <p className="text-xl font-bold text-purple-600">{healthStats.heartRate?.current || 0}</p>
-                          <p className="text-xs text-purple-500 font-medium">BPM</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Weight Chart */}
+                    {/* Weight Section */}
                     {(healthStats.weight?.data?.length || 0) > 0 && (
-                      <div className="bg-white border-2 border-coral-100 rounded-xl p-4">
-                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          <Scale size={18} className="text-coral-500" />
-                          Évolution du poids
-                        </h4>
-                        {/* Mini Chart SVG */}
-                        <div className="h-24 mb-3">
-                          <svg viewBox="0 0 300 80" className="w-full h-full">
-                            {(() => {
-                              const data = healthStats.weight!.data.slice(-10);
-                              if (data.length < 2) return null;
-                              const values = data.map((d: any) => parseFloat(String(d.weightKg || 0)));
-                              const min = Math.min(...values) * 0.95;
-                              const max = Math.max(...values) * 1.05;
-                              const range = max - min || 1;
-                              const points = values.map((v: number, i: number) => {
-                                const x = (i / (values.length - 1)) * 280 + 10;
-                                const y = 70 - ((v - min) / range) * 60;
-                                return `${x},${y}`;
-                              }).join(' ');
-                              return (
-                                <>
-                                  <defs>
-                                    <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                      <stop offset="0%" stopColor="#F36C6C" stopOpacity="0.3" />
-                                      <stop offset="100%" stopColor="#F36C6C" stopOpacity="0" />
-                                    </linearGradient>
-                                  </defs>
-                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#weightGradient)" />
-                                  <polyline points={points} fill="none" stroke="#F36C6C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                                  {values.map((v: number, i: number) => {
-                                    const x = (i / (values.length - 1)) * 280 + 10;
-                                    const y = 70 - ((v - min) / range) * 60;
-                                    return <circle key={i} cx={x} cy={y} r="4" fill="#F36C6C" />;
-                                  })}
-                                </>
-                              );
-                            })()}
-                          </svg>
+                      <div className="bg-white border-2 border-coral-100 rounded-xl overflow-hidden">
+                        <div className="bg-gradient-to-r from-coral-500 to-coral-400 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-white">
+                            <Scale size={20} />
+                            <span className="font-bold">Poids</span>
+                          </div>
+                          <div className="text-white text-right">
+                            <span className="text-2xl font-bold">{parseFloat(String(healthStats.weight?.current || 0)).toFixed(1)}</span>
+                            <span className="text-sm ml-1 opacity-90">kg</span>
+                          </div>
                         </div>
-                        {/* Data list */}
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {healthStats.weight!.data.slice(-5).reverse().map((w: any, i: number) => (
-                            <div key={i} className="p-2 bg-coral-50 rounded-lg flex items-center justify-between">
-                              <span className="font-bold text-coral-600">{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</span>
-                              <span className="text-xs text-gray-500">{format(new Date(w.date), 'dd/MM/yyyy')}</span>
-                            </div>
-                          ))}
+                        <div className="p-4 flex gap-4">
+                          {/* Liste à gauche */}
+                          <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
+                            {healthStats.weight!.data.slice(-10).reverse().map((w: any, i: number) => (
+                              <div key={i} className={`p-2 rounded-lg ${i === 0 ? 'bg-coral-100 border-2 border-coral-300' : 'bg-gray-50'}`}>
+                                <p className={`font-bold ${i === 0 ? 'text-coral-700' : 'text-gray-700'}`}>{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</p>
+                                <p className="text-[10px] text-gray-500">{format(new Date(w.date), 'dd/MM/yy')}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Graphique à droite avec échelle */}
+                          <div className="flex-1">
+                            <svg viewBox="0 0 320 140" className="w-full h-48">
+                              {(() => {
+                                const data = healthStats.weight!.data.slice(-10);
+                                if (data.length < 1) return null;
+                                const values = data.map((d: any) => parseFloat(String(d.weightKg || 0)));
+                                const minVal = Math.floor(Math.min(...values) * 0.9);
+                                const maxVal = Math.ceil(Math.max(...values) * 1.1);
+                                const range = maxVal - minVal || 1;
+                                const yLabels = [maxVal, Math.round((maxVal + minVal) / 2), minVal];
+                                return (
+                                  <>
+                                    <defs>
+                                      <linearGradient id="wGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#F36C6C" stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor="#F36C6C" stopOpacity="0.05" />
+                                      </linearGradient>
+                                    </defs>
+                                    {/* Grid lines */}
+                                    {yLabels.map((label, i) => {
+                                      const y = 20 + (i * 50);
+                                      return (
+                                        <g key={i}>
+                                          <line x1="45" y1={y} x2="310" y2={y} stroke="#e5e7eb" strokeDasharray="4,4" />
+                                          <text x="40" y={y + 4} textAnchor="end" fontSize="11" fill="#9ca3af">{label}</text>
+                                        </g>
+                                      );
+                                    })}
+                                    {/* Y axis label */}
+                                    <text x="12" y="75" textAnchor="middle" fontSize="10" fill="#F36C6C" transform="rotate(-90, 12, 75)">kg</text>
+                                    {/* Area + Line */}
+                                    {data.length >= 2 && (() => {
+                                      const pts = values.map((v: number, i: number) => {
+                                        const x = 55 + (i / (values.length - 1)) * 245;
+                                        const y = 120 - ((v - minVal) / range) * 100;
+                                        return { x, y, v };
+                                      });
+                                      const linePts = pts.map(p => `${p.x},${p.y}`).join(' ');
+                                      const areaPts = `55,120 ${linePts} ${pts[pts.length-1].x},120`;
+                                      return (
+                                        <>
+                                          <polygon points={areaPts} fill="url(#wGrad)" />
+                                          <polyline points={linePts} fill="none" stroke="#F36C6C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                          {pts.map((p, i) => (
+                                            <g key={i}>
+                                              <circle cx={p.x} cy={p.y} r="6" fill="#fff" stroke="#F36C6C" strokeWidth="3" />
+                                              {i === pts.length - 1 && <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#F36C6C">{p.v.toFixed(1)}</text>}
+                                            </g>
+                                          ))}
+                                        </>
+                                      );
+                                    })()}
+                                    {data.length === 1 && (
+                                      <circle cx="180" cy={120 - ((values[0] - minVal) / range) * 100} r="8" fill="#F36C6C" />
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Temperature Chart */}
+                    {/* Temperature Section */}
                     {(healthStats.temperature?.data?.length || 0) > 0 && (
-                      <div className="bg-white border-2 border-teal-100 rounded-xl p-4">
-                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          <Thermometer size={18} className="text-teal-500" />
-                          Évolution de la température
-                        </h4>
-                        <div className="h-24 mb-3">
-                          <svg viewBox="0 0 300 80" className="w-full h-full">
-                            {(() => {
-                              const data = healthStats.temperature!.data.slice(-10);
-                              if (data.length < 2) return null;
-                              const values = data.map((d: any) => parseFloat(String(d.temperatureC || 0)));
-                              const min = Math.min(...values, 37) * 0.98;
-                              const max = Math.max(...values, 40) * 1.02;
-                              const range = max - min || 1;
-                              const points = values.map((v: number, i: number) => {
-                                const x = (i / (values.length - 1)) * 280 + 10;
-                                const y = 70 - ((v - min) / range) * 60;
-                                return `${x},${y}`;
-                              }).join(' ');
-                              return (
-                                <>
-                                  <defs>
-                                    <linearGradient id="tempGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                      <stop offset="0%" stopColor="#4ECDC4" stopOpacity="0.3" />
-                                      <stop offset="100%" stopColor="#4ECDC4" stopOpacity="0" />
-                                    </linearGradient>
-                                  </defs>
-                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#tempGradient)" />
-                                  <polyline points={points} fill="none" stroke="#4ECDC4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                                  {values.map((v: number, i: number) => {
-                                    const x = (i / (values.length - 1)) * 280 + 10;
-                                    const y = 70 - ((v - min) / range) * 60;
-                                    return <circle key={i} cx={x} cy={y} r="4" fill="#4ECDC4" />;
-                                  })}
-                                </>
-                              );
-                            })()}
-                          </svg>
+                      <div className="bg-white border-2 border-teal-100 rounded-xl overflow-hidden">
+                        <div className="bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-white">
+                            <Thermometer size={20} />
+                            <span className="font-bold">Température</span>
+                          </div>
+                          <div className="text-white text-right">
+                            <span className="text-2xl font-bold">{parseFloat(String(healthStats.temperature?.current || 0)).toFixed(1)}</span>
+                            <span className="text-sm ml-1 opacity-90">°C</span>
+                          </div>
                         </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {healthStats.temperature!.data.slice(-5).reverse().map((t: any, i: number) => (
-                            <div key={i} className="p-2 bg-teal-50 rounded-lg flex items-center justify-between">
-                              <span className="font-bold text-teal-600">{parseFloat(String(t.temperatureC || 0)).toFixed(1)}°C</span>
-                              <span className="text-xs text-gray-500">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
-                            </div>
-                          ))}
+                        <div className="p-4 flex gap-4">
+                          <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
+                            {healthStats.temperature!.data.slice(-10).reverse().map((t: any, i: number) => {
+                              const temp = parseFloat(String(t.temperatureC || 0));
+                              const isNormal = temp >= 38 && temp <= 39;
+                              return (
+                                <div key={i} className={`p-2 rounded-lg ${i === 0 ? 'bg-teal-100 border-2 border-teal-300' : 'bg-gray-50'}`}>
+                                  <p className={`font-bold ${i === 0 ? 'text-teal-700' : 'text-gray-700'}`}>
+                                    {temp.toFixed(1)}°C
+                                    {!isNormal && <span className="text-[10px] ml-1 text-orange-500">⚠</span>}
+                                  </p>
+                                  <p className="text-[10px] text-gray-500">{format(new Date(t.date), 'dd/MM/yy')}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex-1">
+                            <svg viewBox="0 0 320 140" className="w-full h-48">
+                              {(() => {
+                                const data = healthStats.temperature!.data.slice(-10);
+                                if (data.length < 1) return null;
+                                const values = data.map((d: any) => parseFloat(String(d.temperatureC || 0)));
+                                const minVal = Math.floor(Math.min(...values, 37) - 0.5);
+                                const maxVal = Math.ceil(Math.max(...values, 40) + 0.5);
+                                const range = maxVal - minVal || 1;
+                                const yLabels = [maxVal, (maxVal + minVal) / 2, minVal];
+                                return (
+                                  <>
+                                    <defs>
+                                      <linearGradient id="tGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#4ECDC4" stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor="#4ECDC4" stopOpacity="0.05" />
+                                      </linearGradient>
+                                    </defs>
+                                    {/* Normal range band (38-39°C) */}
+                                    <rect x="45" y={120 - ((39 - minVal) / range) * 100} width="265" height={((39 - 38) / range) * 100} fill="#4ECDC4" fillOpacity="0.1" />
+                                    {/* Grid lines */}
+                                    {yLabels.map((label, i) => {
+                                      const y = 20 + (i * 50);
+                                      return (
+                                        <g key={i}>
+                                          <line x1="45" y1={y} x2="310" y2={y} stroke="#e5e7eb" strokeDasharray="4,4" />
+                                          <text x="40" y={y + 4} textAnchor="end" fontSize="11" fill="#9ca3af">{label.toFixed(1)}</text>
+                                        </g>
+                                      );
+                                    })}
+                                    <text x="12" y="75" textAnchor="middle" fontSize="10" fill="#4ECDC4" transform="rotate(-90, 12, 75)">°C</text>
+                                    {data.length >= 2 && (() => {
+                                      const pts = values.map((v: number, i: number) => {
+                                        const x = 55 + (i / (values.length - 1)) * 245;
+                                        const y = 120 - ((v - minVal) / range) * 100;
+                                        return { x, y, v };
+                                      });
+                                      const linePts = pts.map(p => `${p.x},${p.y}`).join(' ');
+                                      const areaPts = `55,120 ${linePts} ${pts[pts.length-1].x},120`;
+                                      return (
+                                        <>
+                                          <polygon points={areaPts} fill="url(#tGrad)" />
+                                          <polyline points={linePts} fill="none" stroke="#4ECDC4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                          {pts.map((p, i) => (
+                                            <g key={i}>
+                                              <circle cx={p.x} cy={p.y} r="6" fill="#fff" stroke="#4ECDC4" strokeWidth="3" />
+                                              {i === pts.length - 1 && <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#4ECDC4">{p.v.toFixed(1)}</text>}
+                                            </g>
+                                          ))}
+                                        </>
+                                      );
+                                    })()}
+                                    {data.length === 1 && (
+                                      <circle cx="180" cy={120 - ((values[0] - minVal) / range) * 100} r="8" fill="#4ECDC4" />
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Heart Rate Chart */}
+                    {/* Heart Rate Section */}
                     {(healthStats.heartRate?.data?.length || 0) > 0 && (
-                      <div className="bg-white border-2 border-purple-100 rounded-xl p-4">
-                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          <Heart size={18} className="text-purple-500" />
-                          Évolution du rythme cardiaque
-                        </h4>
-                        <div className="h-24 mb-3">
-                          <svg viewBox="0 0 300 80" className="w-full h-full">
-                            {(() => {
-                              const data = healthStats.heartRate!.data.slice(-10);
-                              if (data.length < 2) return null;
-                              const values = data.map((d: any) => d.heartRate || 0);
-                              const min = Math.min(...values) * 0.9;
-                              const max = Math.max(...values) * 1.1;
-                              const range = max - min || 1;
-                              const points = values.map((v: number, i: number) => {
-                                const x = (i / (values.length - 1)) * 280 + 10;
-                                const y = 70 - ((v - min) / range) * 60;
-                                return `${x},${y}`;
-                              }).join(' ');
-                              return (
-                                <>
-                                  <defs>
-                                    <linearGradient id="hrGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                      <stop offset="0%" stopColor="#9B59B6" stopOpacity="0.3" />
-                                      <stop offset="100%" stopColor="#9B59B6" stopOpacity="0" />
-                                    </linearGradient>
-                                  </defs>
-                                  <polygon points={`10,70 ${points} 290,70`} fill="url(#hrGradient)" />
-                                  <polyline points={points} fill="none" stroke="#9B59B6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                                  {values.map((v: number, i: number) => {
-                                    const x = (i / (values.length - 1)) * 280 + 10;
-                                    const y = 70 - ((v - min) / range) * 60;
-                                    return <circle key={i} cx={x} cy={y} r="4" fill="#9B59B6" />;
-                                  })}
-                                </>
-                              );
-                            })()}
-                          </svg>
+                      <div className="bg-white border-2 border-purple-100 rounded-xl overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-500 to-purple-400 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-white">
+                            <Heart size={20} />
+                            <span className="font-bold">Rythme cardiaque</span>
+                          </div>
+                          <div className="text-white text-right">
+                            <span className="text-2xl font-bold">{healthStats.heartRate?.current || 0}</span>
+                            <span className="text-sm ml-1 opacity-90">BPM</span>
+                          </div>
                         </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {healthStats.heartRate!.data.slice(-5).reverse().map((h: any, i: number) => (
-                            <div key={i} className="p-2 bg-purple-50 rounded-lg flex items-center justify-between">
-                              <span className="font-bold text-purple-600">{h.heartRate} BPM</span>
-                              <span className="text-xs text-gray-500">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
-                            </div>
-                          ))}
+                        <div className="p-4 flex gap-4">
+                          <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
+                            {healthStats.heartRate!.data.slice(-10).reverse().map((h: any, i: number) => {
+                              const hr = h.heartRate || 0;
+                              const isNormal = hr >= 60 && hr <= 140;
+                              return (
+                                <div key={i} className={`p-2 rounded-lg ${i === 0 ? 'bg-purple-100 border-2 border-purple-300' : 'bg-gray-50'}`}>
+                                  <p className={`font-bold ${i === 0 ? 'text-purple-700' : 'text-gray-700'}`}>
+                                    {hr} BPM
+                                    {!isNormal && <span className="text-[10px] ml-1 text-orange-500">⚠</span>}
+                                  </p>
+                                  <p className="text-[10px] text-gray-500">{format(new Date(h.date), 'dd/MM/yy')}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex-1">
+                            <svg viewBox="0 0 320 140" className="w-full h-48">
+                              {(() => {
+                                const data = healthStats.heartRate!.data.slice(-10);
+                                if (data.length < 1) return null;
+                                const values = data.map((d: any) => d.heartRate || 0);
+                                const minVal = Math.floor(Math.min(...values, 60) * 0.85);
+                                const maxVal = Math.ceil(Math.max(...values, 140) * 1.15);
+                                const range = maxVal - minVal || 1;
+                                const yLabels = [maxVal, Math.round((maxVal + minVal) / 2), minVal];
+                                return (
+                                  <>
+                                    <defs>
+                                      <linearGradient id="hGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#9B59B6" stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor="#9B59B6" stopOpacity="0.05" />
+                                      </linearGradient>
+                                    </defs>
+                                    {/* Normal range band (60-140 BPM) */}
+                                    <rect x="45" y={120 - ((140 - minVal) / range) * 100} width="265" height={((140 - 60) / range) * 100} fill="#9B59B6" fillOpacity="0.1" />
+                                    {yLabels.map((label, i) => {
+                                      const y = 20 + (i * 50);
+                                      return (
+                                        <g key={i}>
+                                          <line x1="45" y1={y} x2="310" y2={y} stroke="#e5e7eb" strokeDasharray="4,4" />
+                                          <text x="40" y={y + 4} textAnchor="end" fontSize="11" fill="#9ca3af">{label}</text>
+                                        </g>
+                                      );
+                                    })}
+                                    <text x="12" y="75" textAnchor="middle" fontSize="10" fill="#9B59B6" transform="rotate(-90, 12, 75)">BPM</text>
+                                    {data.length >= 2 && (() => {
+                                      const pts = values.map((v: number, i: number) => {
+                                        const x = 55 + (i / (values.length - 1)) * 245;
+                                        const y = 120 - ((v - minVal) / range) * 100;
+                                        return { x, y, v };
+                                      });
+                                      const linePts = pts.map(p => `${p.x},${p.y}`).join(' ');
+                                      const areaPts = `55,120 ${linePts} ${pts[pts.length-1].x},120`;
+                                      return (
+                                        <>
+                                          <polygon points={areaPts} fill="url(#hGrad)" />
+                                          <polyline points={linePts} fill="none" stroke="#9B59B6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                          {pts.map((p, i) => (
+                                            <g key={i}>
+                                              <circle cx={p.x} cy={p.y} r="6" fill="#fff" stroke="#9B59B6" strokeWidth="3" />
+                                              {i === pts.length - 1 && <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#9B59B6">{p.v}</text>}
+                                            </g>
+                                          ))}
+                                        </>
+                                      );
+                                    })()}
+                                    {data.length === 1 && (
+                                      <circle cx="180" cy={120 - ((values[0] - minVal) / range) * 100} r="8" fill="#9B59B6" />
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     )}
