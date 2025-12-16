@@ -102,6 +102,17 @@ final isHostProvider = FutureProvider<bool>((ref) async {
   return (await s.read(key: 'is_host:$email')) == 'true';
 });
 
+/// Provider for user's pets (for home carousel)
+final myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final pets = await api.myPets();
+    return pets.map((p) => Map<String, dynamic>.from(p as Map)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
 final avatarUrlProvider = FutureProvider<String?>((ref) async {
   final user = ref.watch(sessionProvider).user ?? {};
   final fromApi = ((user['photoUrl'] ?? user['avatar']) ?? '').toString();
@@ -847,44 +858,90 @@ class HomeScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 slivers: [
                   const SliverToBoxAdapter(child: _HomeBootstrap()),
-                  SliverToBoxAdapter(child: _Header(
-                    isPro: isPro,
-                    name: greetingName,
-                    avatarUrl: avatarUrl,
-                    trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
-                    isDark: isDark,
-                  )),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                  // ▼ Banners de RDV/réservations (chacun gère son propre espacement)
-                  const SliverToBoxAdapter(child: _NextConfirmedBanner()),
-                  const SliverToBoxAdapter(child: _NextPendingBanner()),
+                  // ▼ Header avec animation d'entrée
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 0),
+                      child: _Header(
+                        isPro: isPro,
+                        name: greetingName,
+                        avatarUrl: avatarUrl,
+                        trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                  // ▼ Mes Compagnons carousel (only for non-pro users)
+                  if (!isPro)
+                    SliverToBoxAdapter(
+                      child: _FadeSlideIn(
+                        delay: const Duration(milliseconds: 100),
+                        child: const _MyPetsCarousel(),
+                      ),
+                    ),
+
+                  // ▼ Banners de RDV/réservations (avec animations staggered)
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 180),
+                      child: const _NextConfirmedBanner(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 220),
+                      child: const _NextPendingBanner(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: _NextConfirmedDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _InProgressDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
 
-                  const SliverToBoxAdapter(child: _ExploreGrid()),
+                  // ▼ Services carousel avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 280),
+                      child: const _ExploreGrid(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  // ▼ Preview carte (tap => /maps/nearby)
-                  const SliverToBoxAdapter(child: _MapPreview()),
+                  // ▼ Preview carte avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 350),
+                      child: const _MapPreview(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  // ▼ Mes animaux (carnet de santé)
-                  const SliverToBoxAdapter(child: _MyPetsButton()),
+                  // ▼ Mes animaux (carnet de santé) avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 420),
+                      child: const _MyPetsButton(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  // ▼ Top spécialistes (caché temporairement)
-                  // const SliverToBoxAdapter(child: _SectionTitle('Top spécialistes')),
-                  // const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  // const SliverToBoxAdapter(child: _TopSpecialistsList()),
-                  // const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ▼ Vethub en bas
-                  SliverToBoxAdapter(child: _SectionTitle('Vethub', isDark: isDark)),
+                  // ▼ Vethub en bas avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 480),
+                      child: _SectionTitle('Vethub', isDark: isDark),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  const SliverToBoxAdapter(child: _VethubRow()),
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 520),
+                      child: const _VethubRow(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 ],
               ),
@@ -894,6 +951,79 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// -------------------- Staggered Animation Wrapper --------------------
+class _FadeSlideIn extends StatefulWidget {
+  const _FadeSlideIn({
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 400),
+    this.offset = const Offset(0, 20),
+  });
+
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final Offset offset;
+
+  @override
+  State<_FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    );
+
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    _slide = Tween<Offset>(
+      begin: widget.offset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Start animation after delay
+    Future.delayed(widget.delay, () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => Opacity(
+        opacity: _opacity.value,
+        child: Transform.translate(
+          offset: _slide.value,
+          child: child,
+        ),
+      ),
+      child: widget.child,
     );
   }
 }
@@ -919,6 +1049,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.55);
     final avatarBg = isDark ? const Color(0xFF2A1A1C) : const Color(0xFFFFEEF0);
@@ -927,38 +1058,93 @@ class _Header extends StatelessWidget {
 
     final hasAvatar = _isHttp(avatarUrl);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+    // Greeting based on time of day
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Bonjour' : (hour < 18 ? 'Bon après-midi' : 'Bonsoir');
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF2A1A1C), const Color(0xFF1A1A1A)]
+              : [const Color(0xFFFFF5F5), const Color(0xFFFFEEF0)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? coral.withOpacity(0.2) : coral.withOpacity(0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: coral.withOpacity(isDark ? 0.1 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(24),
+          // Avatar with coral ring
+          GestureDetector(
             onTap: () => context.push('/settings'),
-            child: CircleAvatar(
-              radius: 22,
-              backgroundColor: avatarBg,
-              backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
-              child: !hasAvatar
-                  ? Text(_initials(display),
-                      style: const TextStyle(color: coral, fontWeight: FontWeight.w800))
-                  : null,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [coral, coralDark],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: coral.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 26,
+                backgroundColor: avatarBg,
+                backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+                child: !hasAvatar
+                    ? Text(_initials(display),
+                        style: const TextStyle(color: coral, fontWeight: FontWeight.w800, fontSize: 16))
+                    : null,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Greeting line
+                Text(
+                  greeting,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: subtitleColor,
+                    fontFamily: 'SFPRO',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // Name with verified badge
                 Row(
                   children: [
                     Flexible(
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(fontSize: 18, color: textColor, fontFamily: 'SFPRO'),
-                          children: [
-                            TextSpan(text: '${l10n.welcomeToVegece.split('\n').first.replaceAll('sur Vegece', '').trim()}, '),
-                            TextSpan(text: display, style: const TextStyle(fontWeight: FontWeight.w800, color: coral)),
-                          ],
+                      child: Text(
+                        display,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          fontFamily: 'SFPRO',
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -967,23 +1153,31 @@ class _Header extends StatelessWidget {
                     if (trustStatus == 'VERIFIED') ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDark ? coral.withOpacity(0.2) : const Color(0xFFFFE4EC),
+                          gradient: const LinearGradient(
+                            colors: [coral, coralDark],
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: coral.withOpacity(0.3)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: coral.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.verified, size: 12, color: coral),
+                            Icon(Icons.verified, size: 12, color: Colors.white),
                             SizedBox(width: 4),
                             Text(
                               'Vérifié',
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: coral,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -994,12 +1188,13 @@ class _Header extends StatelessWidget {
                 ),
                 if (subtitle != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(subtitle, style: TextStyle(fontSize: 12.5, color: subtitleColor, fontFamily: 'SFPRO')),
                   ),
               ],
             ),
           ),
+          // Notification button with badge
           Consumer(
             builder: (_, ref, __) {
               final unreadCount = ref.watch(unreadNotificationsCountProvider).maybeWhen(
@@ -1007,40 +1202,70 @@ class _Header extends StatelessWidget {
                 orElse: () => 0,
               );
 
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    onPressed: () => _showNotifDialog(context),
-                    icon: Icon(Icons.notifications_none, color: isDark ? Colors.white : Colors.black87),
+              return GestureDetector(
+                onTap: () => _showNotifDialog(context),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: coral,
-                          shape: BoxShape.circle,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.notifications_outlined,
+                          color: isDark ? Colors.white : Colors.black87,
+                          size: 22,
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Center(
-                          child: Text(
-                            unreadCount > 99 ? '99+' : unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [coral, coralDark],
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: coral.withOpacity(0.4),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Center(
+                              child: Text(
+                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               );
             },
           ),
@@ -1420,15 +1645,34 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
             now.isAfter(dtUtc.subtract(const Duration(minutes: 15))) &&
             now.isBefore(dtUtc.add(const Duration(minutes: 30)));
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1A2E1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFE8F5E9), const Color(0xFFF1F8F1)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22C55E).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1446,23 +1690,71 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E), // ✅ vert
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF22C55E).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Rendez-vous confirmé',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF22C55E),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$when',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              service,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.event_available, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Prochain rendez-vous: $when — $service',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -1886,15 +2178,34 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
 
         final service = _serviceName(m);
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF2E2A1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFFFF8E1), const Color(0xFFFFFBF0)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFFFA000).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFA000).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1912,23 +2223,71 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFA000), // ✅ orange/jaune
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFFFA000), Color(0xFFE65100)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFFA000).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'En attente de confirmation',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFFFA000),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              service,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.hourglass_empty, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'En attente de confirmation: $when — $service',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -3253,6 +3612,163 @@ class _MyPetsButton extends ConsumerWidget {
   }
 }
 
+/// -------------------- Mes Compagnons Carousel --------------------
+class _MyPetsCarousel extends ConsumerWidget {
+  const _MyPetsCarousel({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final petsAsync = ref.watch(myPetsProvider);
+
+    const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
+
+    return petsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (pets) {
+        if (pets.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section title with "Voir tous" button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.myAnimals,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'SFPRO',
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.push('/pets'),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Voir tous',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: coral,
+                            fontFamily: 'SFPRO',
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward_ios, size: 12, color: coral),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Horizontal scrolling pet cards
+            SizedBox(
+              height: 140,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: pets.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final pet = pets[index];
+                  final name = (pet['name'] ?? 'Mon animal').toString();
+                  final species = (pet['species'] ?? '').toString().toLowerCase();
+                  final photoUrl = (pet['photoUrl'] ?? pet['photo_url'] ?? '').toString();
+                  final hasPhoto = photoUrl.startsWith('http');
+
+                  // Determine icon based on species
+                  IconData speciesIcon = Icons.pets;
+                  if (species.contains('chien') || species.contains('dog')) {
+                    speciesIcon = Icons.pets;
+                  } else if (species.contains('chat') || species.contains('cat')) {
+                    speciesIcon = Icons.pets;
+                  } else if (species.contains('oiseau') || species.contains('bird')) {
+                    speciesIcon = Icons.flutter_dash;
+                  }
+
+                  return GestureDetector(
+                    onTap: () => context.push('/pets/${pet['id']}'),
+                    child: Container(
+                      width: 110,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFD6DA),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: coral.withOpacity(isDark ? 0.1 : 0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Pet avatar with coral ring
+                          Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [coral, coralDark],
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundColor: isDark ? const Color(0xFF2A1A1C) : const Color(0xFFFFEEF0),
+                              backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                              child: !hasPhoto
+                                  ? Icon(speciesIcon, color: coral, size: 28)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Pet name
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'SFPRO',
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// -------------------- Preview Map (Home) --------------------
 class _MapPreview extends ConsumerWidget {
   const _MapPreview({super.key});
@@ -3288,135 +3804,163 @@ class _MapPreview extends ConsumerWidget {
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
         : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
+    const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          height: 180,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1) Carte non interactive OU placeholder si pas de centre
-              if (center == null)
-                _MapPlaceholder(isDark: isDark)
-              else
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: coral.withOpacity(isDark ? 0.15 : 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: 180,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1) Carte non interactive OU placeholder si pas de centre
+                if (center == null)
+                  _MapPlaceholder(isDark: isDark)
+                else
+                  IgnorePointer(
+                    ignoring: true,
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: center,
+                        initialZoom: 12,
+                        interactionOptions:
+                            const InteractionOptions(flags: InteractiveFlag.none),
+                      ),
+                      children: [
+                        // ✅ Utiliser CartoDB (theme clair ou sombre)
+                        TileLayer(
+                          urlTemplate: tileUrl,
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'com.vethome.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 44,
+                              height: 44,
+                              point: center,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [coral, coralDark],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: coral.withOpacity(0.5),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.my_location,
+                                      size: 20, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // 2) Liseré rose premium
                 IgnorePointer(
                   ignoring: true,
-                  child: FlutterMap(
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 12,
-                      interactionOptions:
-                          const InteractionOptions(flags: InteractiveFlag.none),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: coral.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    children: [
-                      // ✅ Utiliser CartoDB (theme clair ou sombre)
-                      TileLayer(
-                        urlTemplate: tileUrl,
-                        subdomains: const ['a', 'b', 'c', 'd'],
-                        userAgentPackageName: 'com.vethome.app',
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            width: 38,
-                            height: 38,
-                            point: center,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF36C6C), // rose crevette
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Color(0x33000000),
-                                    blurRadius: 6,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.my_location,
-                                    size: 18, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
                 ),
 
-              // 2) Liseré rose
-              IgnorePointer(
-                ignoring: true,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: borderColor),
-                    borderRadius: BorderRadius.circular(16),
+                // 3) Flou léger au-dessus de la carte
+                if (center != null)
+                  ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                      child: Container(color: Colors.transparent),
+                    ),
                   ),
-                ),
-              ),
 
-              // 3) Flou léger au-dessus de la carte
-              if (center != null)
-                ClipRect(
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
-                    child: Container(color: Colors.transparent),
-                  ),
-                ),
-
-              // 4) Overlay cliquable (ouvre la vraie carte)
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => context.push('/maps/nearby'),
-                ),
-              ),
-
-              // 5) Bouton "Professionnels à proximité" en haut à gauche
-              Positioned(
-                left: 12,
-                top: 12,
-                child: Material(
+                // 4) Overlay cliquable (ouvre la vraie carte)
+                Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(24),
                     onTap: () => context.push('/maps/nearby'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2968F),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFF2968F).withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                  ),
+                ),
+
+                // 5) Bouton "Professionnels à proximité" avec design premium
+                Positioned(
+                  left: 14,
+                  top: 14,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => context.push('/maps/nearby'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [coral, coralDark],
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.badge_outlined, size: 16, color: Colors.white),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.nearbyProfessionals,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontFamily: 'SFPRO',
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: coral.withOpacity(0.5),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.badge_outlined, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.nearbyProfessionals,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'SFPRO',
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
