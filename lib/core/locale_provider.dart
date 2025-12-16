@@ -281,6 +281,18 @@ class AppLocalizations {
       'lightMode': 'Mode clair',
       'darkMode': 'Mode sombre',
       'addressHint': 'Numéro, rue, quartier, wilaya...',
+      'findVetNearby': 'Trouvez un vétérinaire proche',
+      'searchVet': 'Rechercher un vétérinaire...',
+      'noVetFound': 'Aucun vétérinaire trouvé',
+      'tryOtherTerms': 'Essayez avec d\'autres termes',
+      'noVetAvailable': 'Aucun vétérinaire disponible pour le moment',
+      'clearSearch': 'Effacer la recherche',
+      'viewProfile': 'Voir profil',
+      'kmAway': 'km',
+      'openNow': 'Ouvert',
+      'closedNow': 'Fermé',
+      'opensAt': 'Ouvre à',
+      'closesAt': 'Ferme à',
     },
     'en': {
       'appName': 'Vegece',
@@ -420,6 +432,18 @@ class AppLocalizations {
       'lightMode': 'Light mode',
       'darkMode': 'Dark mode',
       'addressHint': 'Number, street, neighborhood, city...',
+      'findVetNearby': 'Find a vet nearby',
+      'searchVet': 'Search for a vet...',
+      'noVetFound': 'No vet found',
+      'tryOtherTerms': 'Try other terms',
+      'noVetAvailable': 'No vet available at the moment',
+      'clearSearch': 'Clear search',
+      'viewProfile': 'View profile',
+      'kmAway': 'km',
+      'openNow': 'Open',
+      'closedNow': 'Closed',
+      'opensAt': 'Opens at',
+      'closesAt': 'Closes at',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -559,6 +583,18 @@ class AppLocalizations {
       'lightMode': 'الوضع الفاتح',
       'darkMode': 'الوضع الداكن',
       'addressHint': 'الرقم، الشارع، الحي، المدينة...',
+      'findVetNearby': 'ابحث عن طبيب بيطري قريب',
+      'searchVet': 'ابحث عن طبيب بيطري...',
+      'noVetFound': 'لم يتم العثور على طبيب بيطري',
+      'tryOtherTerms': 'جرب مصطلحات أخرى',
+      'noVetAvailable': 'لا يوجد طبيب بيطري متاح حالياً',
+      'clearSearch': 'مسح البحث',
+      'viewProfile': 'عرض الملف',
+      'kmAway': 'كم',
+      'openNow': 'مفتوح',
+      'closedNow': 'مغلق',
+      'opensAt': 'يفتح في',
+      'closesAt': 'يغلق في',
     },
   };
 
@@ -706,6 +742,18 @@ class AppLocalizations {
   String get lightMode => _get('lightMode');
   String get darkMode => _get('darkMode');
   String get addressHint => _get('addressHint');
+  String get findVetNearby => _get('findVetNearby');
+  String get searchVet => _get('searchVet');
+  String get noVetFound => _get('noVetFound');
+  String get tryOtherTerms => _get('tryOtherTerms');
+  String get noVetAvailable => _get('noVetAvailable');
+  String get clearSearch => _get('clearSearch');
+  String get viewProfile => _get('viewProfile');
+  String get kmAway => _get('kmAway');
+  String get openNow => _get('openNow');
+  String get closedNow => _get('closedNow');
+  String get opensAt => _get('opensAt');
+  String get closesAt => _get('closesAt');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
