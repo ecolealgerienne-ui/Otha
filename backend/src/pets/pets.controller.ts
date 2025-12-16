@@ -127,6 +127,32 @@ export class PetsController {
     return this.pets.createDiseaseByToken(token, req.user.sub, dto);
   }
 
+  // Vet liste les maladies via token
+  @Get('by-token/:token/diseases')
+  listDiseasesByToken(@Param('token') token: string) {
+    return this.pets.listDiseasesByToken(token);
+  }
+
+  // Vet récupère le détail d'une maladie via token
+  @Get('by-token/:token/diseases/:diseaseId')
+  getDiseaseByToken(
+    @Param('token') token: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.getDiseaseByToken(token, diseaseId);
+  }
+
+  // Vet ajoute une entrée de progression via token
+  @Post('by-token/:token/diseases/:diseaseId/progress')
+  addProgressEntryByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.addProgressEntryByToken(token, req.user.sub, diseaseId, dto);
+  }
+
   // Vet ajoute une vaccination via token
   @Post('by-token/:token/vaccinations')
   createVaccinationByToken(

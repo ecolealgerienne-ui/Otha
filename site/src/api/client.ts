@@ -473,6 +473,50 @@ class ApiClient {
     return data?.data || data;
   }
 
+  // ==================== DISEASE TRACKING (by token) ====================
+  async listDiseasesByToken(token: string): Promise<DiseaseTracking[]> {
+    const { data } = await this.client.get(`/pets/by-token/${token}/diseases`);
+    return data?.data || data || [];
+  }
+
+  async getDiseaseByToken(token: string, diseaseId: string): Promise<DiseaseTracking> {
+    const { data } = await this.client.get(`/pets/by-token/${token}/diseases/${diseaseId}`);
+    return data?.data || data;
+  }
+
+  async createDiseaseByToken(
+    token: string,
+    disease: {
+      name: string;
+      description?: string;
+      status?: string;
+      severity?: string;
+      symptoms?: string;
+      treatment?: string;
+      images?: string[];
+      notes?: string;
+      diagnosisDate?: string;
+    }
+  ): Promise<DiseaseTracking> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/diseases`, disease);
+    return data?.data || data;
+  }
+
+  async addProgressEntryByToken(
+    token: string,
+    diseaseId: string,
+    entry: {
+      notes: string;
+      severity?: string;
+      treatmentUpdate?: string;
+      images?: string[];
+      date?: string;
+    }
+  ): Promise<any> {
+    const { data } = await this.client.post(`/pets/by-token/${token}/diseases/${diseaseId}/progress`, entry);
+    return data?.data || data;
+  }
+
   async updateDisease(
     diseaseId: string,
     updates: { name?: string; description?: string; status?: string; notes?: string; images?: string[] }

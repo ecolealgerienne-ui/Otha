@@ -133,8 +133,15 @@ export function ScannedPetProvider({ children }: { children: ReactNode }) {
           // No active booking - that's ok
         }
 
-        // Map diseaseTrackings to diseases for consistency
-        const diseases = (petData.diseaseTrackings || []) as unknown as DiseaseTracking[];
+        // Load diseases - try from petData first, then via API if empty
+        let diseases: DiseaseTracking[] = (petData.diseaseTrackings || []) as unknown as DiseaseTracking[];
+        if (diseases.length === 0 && result.token) {
+          try {
+            diseases = await api.listDiseasesByToken(result.token);
+          } catch {
+            // Diseases not available - that's ok
+          }
+        }
 
         // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
         const treatments = petData.treatments || [];

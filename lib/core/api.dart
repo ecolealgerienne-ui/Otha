@@ -1554,6 +1554,8 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? description,
     String? status,
     String? severity,
+    String? symptoms,
+    String? treatment,
     String? notes,
     List<String>? images,
   }) async {
@@ -1563,10 +1565,46 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (description != null) 'description': description,
       if (status != null) 'status': status,
       if (severity != null) 'severity': severity,
+      if (symptoms != null) 'symptoms': symptoms,
+      if (treatment != null) 'treatment': treatment,
       if (notes != null) 'notes': notes,
       if (images != null) 'images': images,
     };
     final res = await _dio.post('/pets/by-token/$token/diseases', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// List diseases via token (vet access)
+  Future<List<dynamic>> listDiseasesByToken(String token) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/by-token/$token/diseases');
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  /// Get disease detail via token (vet access)
+  Future<Map<String, dynamic>> getDiseaseByToken(String token, String diseaseId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/by-token/$token/diseases/$diseaseId');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Add disease progress entry via token (vet access)
+  Future<Map<String, dynamic>> addDiseaseProgressByToken(
+    String token,
+    String diseaseId, {
+    required String notes,
+    String? severity,
+    String? treatmentUpdate,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'notes': notes,
+      if (severity != null) 'severity': severity,
+      if (treatmentUpdate != null) 'treatmentUpdate': treatmentUpdate,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/by-token/$token/diseases/$diseaseId/progress', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
