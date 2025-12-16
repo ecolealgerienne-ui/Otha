@@ -89,6 +89,7 @@ export function ProPatients() {
     removeRecord,
     removePrescription,
     removeDisease,
+    updateDiseases,
     clearPet,
     isPolling,
     startPolling,
@@ -129,7 +130,7 @@ export function ProPatients() {
   // Form states
   const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '', temperatureC: '', heartRate: '' });
   const [newPrescription, setNewPrescription] = useState({ name: '', dosage: '', frequency: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '', attachments: [] as string[] });
-  const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '' });
+  const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '', images: [] as string[] });
   const [newVaccination, setNewVaccination] = useState({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
   const [newWeight, setNewWeight] = useState({ weightKg: '', date: new Date().toISOString().split('T')[0], context: '' });
   const [newHealthData, setNewHealthData] = useState({ temperatureC: '', heartRate: '', date: new Date().toISOString().split('T')[0], notes: '' });
@@ -140,8 +141,12 @@ export function ProPatients() {
   const [showDiseaseDetailModal, setShowDiseaseDetailModal] = useState(false);
   const [selectedDisease, setSelectedDisease] = useState<DiseaseTracking | null>(null);
   const [showAddProgressModal, setShowAddProgressModal] = useState(false);
-  const [newProgress, setNewProgress] = useState({ notes: '', severity: '', treatmentUpdate: '' });
+  const [newProgress, setNewProgress] = useState({ notes: '', severity: '', treatmentUpdate: '', images: [] as string[] });
   const [addingProgress, setAddingProgress] = useState(false);
+
+  // Image preview modal
+  const [showImagePreviewModal, setShowImagePreviewModal] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   // Edit states
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
@@ -179,6 +184,22 @@ export function ProPatients() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount/unmount
+
+  // Load diseases when switching to diseases view if empty
+  useEffect(() => {
+    if (viewMode === 'diseases' && diseases.length === 0 && currentToken && scannedPet) {
+      (async () => {
+        try {
+          const loadedDiseases = await api.listDiseasesByToken(currentToken);
+          if (loadedDiseases.length > 0) {
+            updateDiseases(loadedDiseases);
+          }
+        } catch (error) {
+          console.error('Error loading diseases:', error);
+        }
+      })();
+    }
+  }, [viewMode, diseases.length, currentToken, scannedPet, updateDiseases]);
 
   // Refresh countdown every minute
   useEffect(() => {
@@ -310,7 +331,15 @@ export function ProPatients() {
       }
 
       // Map diseaseTrackings to diseases (data comes from getPetByToken)
-      const diseases = (petData.diseaseTrackings || []);
+      // If not included in petData, load via API
+      let diseases = (petData.diseaseTrackings || []);
+      if (diseases.length === 0) {
+        try {
+          diseases = await api.listDiseasesByToken(token);
+        } catch {
+          // Diseases not available - that's ok
+        }
+      }
       // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
       const treatments = petData.treatments || [];
       const prescriptions = treatments.map((t: any) => ({
@@ -619,6 +648,65 @@ export function ProPatients() {
     }));
   };
 
+  // Disease image upload handlers
+  const [uploadingDiseaseImage, setUploadingDiseaseImage] = useState(false);
+
+  const handleDiseaseImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploadingDiseaseImage(true);
+    try {
+      const url = await api.uploadFile(file);
+      setNewDisease((prev) => ({ ...prev, images: [...prev.images, url] }));
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert("Erreur lors du téléversement de l'image");
+    } finally {
+      setUploadingDiseaseImage(false);
+    }
+  };
+
+  const removeDiseaseImage = (index: number) => {
+    setNewDisease((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleProgressImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploadingDiseaseImage(true);
+    try {
+      const url = await api.uploadFile(file);
+      setNewProgress((prev) => ({ ...prev, images: [...prev.images, url] }));
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert("Erreur lors du téléversement de l'image");
+    } finally {
+      setUploadingDiseaseImage(false);
+    }
+  };
+
+  const removeProgressImage = (index: number) => {
+    setNewProgress((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
   // Add handlers
   const handleAddRecord = async () => {
     if (!currentToken || !newRecord.title) return;
@@ -691,10 +779,11 @@ export function ProPatients() {
         symptoms: newDisease.symptoms || undefined,
         treatment: newDisease.treatment || undefined,
         notes: newDisease.notes || undefined,
+        images: newDisease.images.length > 0 ? newDisease.images : undefined,
       });
       addDisease(disease);
       setShowAddDiseaseModal(false);
-      setNewDisease({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '' });
+      setNewDisease({ name: '', description: '', status: 'ONGOING', severity: '', symptoms: '', treatment: '', notes: '', images: [] });
     } catch (error) {
       console.error('Error:', error);
       alert("Erreur lors de l'ajout");
@@ -726,6 +815,7 @@ export function ProPatients() {
         notes: newProgress.notes,
         severity: newProgress.severity || undefined,
         treatmentUpdate: newProgress.treatmentUpdate || undefined,
+        images: newProgress.images.length > 0 ? newProgress.images : undefined,
       });
       // Refresh disease detail
       const freshDisease = await api.getDiseaseByToken(currentToken, selectedDisease.id);
@@ -740,7 +830,7 @@ export function ProPatients() {
         }
       }
       setShowAddProgressModal(false);
-      setNewProgress({ notes: '', severity: '', treatmentUpdate: '' });
+      setNewProgress({ notes: '', severity: '', treatmentUpdate: '', images: [] });
     } catch (error) {
       console.error('Error:', error);
       alert("Erreur lors de l'ajout de la mise à jour");
@@ -1325,16 +1415,14 @@ export function ProPatients() {
                                   </span>
                                 )}
                               </div>
-                              {/* Image Attachments Preview - like Flutter */}
+                              {/* Image Attachments Preview - click to open modal */}
                               {attachments.length > 0 && (
                                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
                                   {attachments.filter((url: string) => url && typeof url === 'string').map((url: string, idx: number) => (
-                                    <a
+                                    <button
                                       key={idx}
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex-shrink-0 group relative w-16 h-16 rounded-lg border border-gray-200 group-hover:border-purple-400 transition-colors bg-gradient-to-br from-purple-50 to-teal-50 overflow-hidden"
+                                      onClick={() => { setPreviewImageUrl(url); setShowImagePreviewModal(true); }}
+                                      className="flex-shrink-0 group relative w-16 h-16 rounded-lg border border-gray-200 hover:border-purple-400 transition-colors bg-gradient-to-br from-purple-50 to-teal-50 overflow-hidden"
                                     >
                                       {/* Fallback - visible when image fails */}
                                       <div className="absolute inset-0 flex flex-col items-center justify-center text-purple-600 z-0">
@@ -1355,7 +1443,7 @@ export function ProPatients() {
                                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center z-20">
                                         <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
                                       </div>
-                                    </a>
+                                    </button>
                                   ))}
                                 </div>
                               )}
@@ -1401,20 +1489,20 @@ export function ProPatients() {
                           </div>
                         </div>
                         <div className="p-4 flex gap-4">
-                          {/* Liste à gauche */}
+                          {/* Liste à gauche - newest first */}
                           <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
-                            {healthStats.weight!.data.slice(-10).reverse().map((w: any, i: number) => (
+                            {healthStats.weight!.data.slice(0, 10).map((w: any, i: number) => (
                               <div key={i} className={`p-2 rounded-lg ${i === 0 ? 'bg-coral-100 border-2 border-coral-300' : 'bg-gray-50'}`}>
                                 <p className={`font-bold ${i === 0 ? 'text-coral-700' : 'text-gray-700'}`}>{parseFloat(String(w.weightKg || 0)).toFixed(1)} kg</p>
                                 <p className="text-[10px] text-gray-500">{format(new Date(w.date), 'dd/MM/yy')}</p>
                               </div>
                             ))}
                           </div>
-                          {/* Graphique à droite avec échelle */}
+                          {/* Graphique à droite avec échelle - chronological (oldest to newest) */}
                           <div className="flex-1">
                             <svg viewBox="0 0 320 140" className="w-full h-48">
                               {(() => {
-                                const data = healthStats.weight!.data.slice(-10);
+                                const data = healthStats.weight!.data.slice(0, 10).slice().reverse();
                                 if (data.length < 1) return null;
                                 const values = data.map((d: any) => parseFloat(String(d.weightKg || 0)));
                                 const minVal = Math.floor(Math.min(...values) * 0.9);
@@ -1490,7 +1578,7 @@ export function ProPatients() {
                         </div>
                         <div className="p-4 flex gap-4">
                           <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
-                            {healthStats.temperature!.data.slice(-10).reverse().map((t: any, i: number) => {
+                            {healthStats.temperature!.data.slice(0, 10).map((t: any, i: number) => {
                               const temp = parseFloat(String(t.temperatureC || 0));
                               const isNormal = temp >= 38 && temp <= 39;
                               return (
@@ -1507,7 +1595,7 @@ export function ProPatients() {
                           <div className="flex-1">
                             <svg viewBox="0 0 320 140" className="w-full h-48">
                               {(() => {
-                                const data = healthStats.temperature!.data.slice(-10);
+                                const data = healthStats.temperature!.data.slice(0, 10).slice().reverse();
                                 if (data.length < 1) return null;
                                 const values = data.map((d: any) => parseFloat(String(d.temperatureC || 0)));
                                 const minVal = Math.floor(Math.min(...values, 37) - 0.5);
@@ -1583,7 +1671,7 @@ export function ProPatients() {
                         </div>
                         <div className="p-4 flex gap-4">
                           <div className="w-1/3 space-y-2 max-h-48 overflow-y-auto pr-2 border-r border-gray-100">
-                            {healthStats.heartRate!.data.slice(-10).reverse().map((h: any, i: number) => {
+                            {healthStats.heartRate!.data.slice(0, 10).map((h: any, i: number) => {
                               const hr = h.heartRate || 0;
                               const isNormal = hr >= 60 && hr <= 140;
                               return (
@@ -1600,7 +1688,7 @@ export function ProPatients() {
                           <div className="flex-1">
                             <svg viewBox="0 0 320 140" className="w-full h-48">
                               {(() => {
-                                const data = healthStats.heartRate!.data.slice(-10);
+                                const data = healthStats.heartRate!.data.slice(0, 10).slice().reverse();
                                 if (data.length < 1) return null;
                                 const values = data.map((d: any) => d.heartRate || 0);
                                 const minVal = Math.floor(Math.min(...values, 60) * 0.85);
@@ -2049,10 +2137,39 @@ export function ProPatients() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea rows={2} placeholder="Notes additionnelles..." value={newDisease.notes} onChange={(e) => setNewDisease({ ...newDisease, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
               </div>
+              {/* Image upload section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {newDisease.images.map((url, idx) => (
+                    <div key={idx} className="relative w-16 h-16 group">
+                      <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover rounded-lg border" />
+                      <button
+                        onClick={() => removeDiseaseImage(idx)}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                    {uploadingDiseaseImage ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500" />
+                    ) : (
+                      <>
+                        <Upload size={18} className="text-gray-400" />
+                        <span className="text-[9px] text-gray-400 mt-0.5">Ajouter</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleDiseaseImageUpload} className="hidden" disabled={uploadingDiseaseImage} />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">Photos de la lésion, symptômes visibles, etc.</p>
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
-              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowAddDiseaseModal(false); setNewDisease({ ...newDisease, images: [] }); }}>Annuler</Button>
+              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name || uploadingDiseaseImage}>Ajouter</Button>
             </div>
           </Card>
         </div>
@@ -2225,10 +2342,39 @@ export function ProPatients() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mise à jour traitement</label>
                 <textarea rows={2} placeholder="Changement de dosage, nouveau médicament..." value={newProgress.treatmentUpdate} onChange={(e) => setNewProgress({ ...newProgress, treatmentUpdate: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
               </div>
+              {/* Image upload section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos d'évolution</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {newProgress.images.map((url, idx) => (
+                    <div key={idx} className="relative w-16 h-16 group">
+                      <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover rounded-lg border" />
+                      <button
+                        onClick={() => removeProgressImage(idx)}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                    {uploadingDiseaseImage ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500" />
+                    ) : (
+                      <>
+                        <Upload size={18} className="text-gray-400" />
+                        <span className="text-[9px] text-gray-400 mt-0.5">Ajouter</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleProgressImageUpload} className="hidden" disabled={uploadingDiseaseImage} />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">Documentez l'évolution avec des photos</p>
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => { setShowAddProgressModal(false); setNewProgress({ notes: '', severity: '', treatmentUpdate: '' }); }}>Annuler</Button>
-              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddProgress} isLoading={addingProgress} disabled={!newProgress.notes}>Ajouter</Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowAddProgressModal(false); setNewProgress({ notes: '', severity: '', treatmentUpdate: '', images: [] }); }}>Annuler</Button>
+              <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleAddProgress} isLoading={addingProgress} disabled={!newProgress.notes || uploadingDiseaseImage}>Ajouter</Button>
             </div>
           </Card>
         </div>
@@ -2374,6 +2520,38 @@ export function ProPatients() {
               <Button className="flex-1" onClick={handleSaveDisease} isLoading={savingDisease} disabled={!editingDisease.name}>Enregistrer</Button>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {showImagePreviewModal && previewImageUrl && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowImagePreviewModal(false)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full">
+            <button
+              onClick={() => setShowImagePreviewModal(false)}
+              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Aperçu"
+              className="w-full h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              <a
+                href={previewImageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/90 hover:bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Eye size={16} />
+                Ouvrir dans un nouvel onglet
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
