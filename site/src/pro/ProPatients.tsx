@@ -663,7 +663,13 @@ export function ProPatients() {
     setUploadingDiseaseImage(true);
     try {
       const url = await api.uploadFile(file);
-      setNewDisease((prev) => ({ ...prev, images: [...prev.images, url] }));
+      console.log('📷 Disease image uploaded:', url);
+      if (url && typeof url === 'string' && url.length > 0) {
+        setNewDisease((prev) => ({ ...prev, images: [...prev.images, url] }));
+      } else {
+        console.error('Invalid upload URL:', url);
+        alert("Erreur: URL de l'image invalide");
+      }
     } catch (error) {
       console.error('Upload error:', error);
       alert("Erreur lors du téléversement de l'image");
@@ -2142,11 +2148,26 @@ export function ProPatients() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Photos</label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {newDisease.images.map((url, idx) => (
-                    <div key={idx} className="relative w-16 h-16 group">
-                      <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover rounded-lg border" />
+                    <div key={idx} className="relative w-16 h-16 group rounded-lg border overflow-hidden bg-gray-100">
+                      <img
+                        src={url}
+                        alt={`Photo ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error('Image load error for URL:', url);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const parent = (e.target as HTMLImageElement).parentElement;
+                          if (parent && !parent.querySelector('.img-error-fallback')) {
+                            const fallback = document.createElement('div');
+                            fallback.className = 'img-error-fallback absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-500';
+                            fallback.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><span class="text-[8px] mt-0.5">Erreur</span>';
+                            parent.appendChild(fallback);
+                          }
+                        }}
+                      />
                       <button
                         onClick={() => removeDiseaseImage(idx)}
-                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       >
                         <X size={12} />
                       </button>

@@ -790,20 +790,29 @@ class ApiClient {
       const { uploadUrl, key } = await this.getPresignedUrl(file.name, file.type);
       await this.uploadToPresignedUrl(uploadUrl, file);
       const { url } = await this.confirmUpload(key);
+      console.log('📤 S3 upload successful, URL:', url);
       return url;
-    } catch {
+    } catch (s3Error) {
+      console.log('⚠️ S3 upload failed, trying local upload:', s3Error);
       // Fallback to local upload
       const formData = new FormData();
       formData.append('file', file);
       const { data } = await this.client.post('/uploads/local', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      console.log('📤 Local upload response:', data);
       // Handle both {url: "..."} and {data: {url: "..."}} response formats
-      const url = data?.data?.url || data?.url;
+      let url = data?.data?.url || data?.url;
       if (!url) {
-        console.error('Upload response:', data);
+        console.error('Upload response missing URL:', data);
         throw new Error('No URL in upload response');
       }
+      // Fix mixed content: if site is HTTPS and URL is HTTP, try to fix it
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+        console.log('⚠️ Converting HTTP URL to HTTPS for mixed content:', url);
+        url = url.replace('http://', 'https://');
+      }
+      console.log('📤 Final upload URL:', url);
       return url;
     }
   }
