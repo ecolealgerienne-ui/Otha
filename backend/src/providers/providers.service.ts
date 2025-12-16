@@ -351,8 +351,17 @@ async upsertMyProvider(userId: string, dto: any) {
         finalUrl = this.maps.ensureAtCenter(finalUrl, lat!, lng!);
       }
     }
-    normalized = { kind: 'vet', mapsUrl: this.maps.sanitizeMapsUrl(finalUrl) };
+    // Préserver les specialties existantes et juste mettre à jour mapsUrl
+    const existingSpec = (existing?.specialties as any) ?? {};
+    normalized = {
+      ...existingSpec,
+      kind: existingSpec.kind || 'vet',
+      mapsUrl: this.maps.sanitizeMapsUrl(finalUrl)
+    };
   }
+
+  // Si aucune modification de specialties n'est demandée mais qu'on met à jour avatarUrl,
+  // on ne touche PAS aux specialties existantes (normalized reste undefined)
 
   if (existing) {
     const data: Prisma.ProviderProfileUpdateInput = {
