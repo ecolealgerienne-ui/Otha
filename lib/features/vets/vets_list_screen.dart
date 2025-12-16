@@ -473,7 +473,9 @@ class _VetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = (vet['id'] ?? '').toString();
     final name = (vet['displayName'] ?? 'Vétérinaire').toString();
-    final bio = (vet['bio'] ?? '').toString();
+    final rawBio = (vet['bio'] ?? '').toString();
+    // Limiter la bio à 280 caractères
+    final bio = rawBio.length > 280 ? '${rawBio.substring(0, 277)}...' : rawBio;
     final photoUrl = (vet['photoUrl'] ?? '').toString();
     final distanceKm = vet['distanceKm'] as double?;
     final services = (vet['services'] as List?) ?? [];
@@ -505,221 +507,232 @@ class _VetCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photo de profil à gauche
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
-                  borderRadius: BorderRadius.circular(14),
-                  image: hasPhoto
-                      ? DecorationImage(
-                          image: NetworkImage(photoUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: !hasPhoto
-                    ? Center(
-                        child: Text(
-                          _initials(name),
-                          style: const TextStyle(
-                            color: _coral,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
-                            fontFamily: 'SFPRO',
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 14),
+              // Ligne du haut: Photo + Infos
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Photo de profil à gauche
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                      borderRadius: BorderRadius.circular(12),
+                      image: hasPhoto
+                          ? DecorationImage(
+                              image: NetworkImage(photoUrl),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: !hasPhoto
+                        ? Center(
+                            child: Text(
+                              _initials(name),
+                              style: const TextStyle(
+                                color: _coral,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
 
-              // Infos à droite
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nom + distance
-                    Row(
+                  // Infos
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            name,
+                        // Nom + distance
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: textColor,
+                                  fontFamily: 'SFPRO',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (distanceKm != null) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.near_me, size: 10, color: _coral),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${distanceKm.toStringAsFixed(1)} ${l10n.kmAway}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: _coral,
+                                        fontFamily: 'SFPRO',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+
+                        // Bio (max 280 caractères)
+                        if (bio.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            bio,
                             style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color: textColor,
+                              color: subtitleColor,
+                              fontSize: 12,
+                              height: 1.3,
                               fontFamily: 'SFPRO',
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (distanceKm != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.near_me, size: 12, color: _coral),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${distanceKm.toStringAsFixed(1)} ${l10n.kmAway}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: _coral,
-                                    fontFamily: 'SFPRO',
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ],
                     ),
+                  ),
+                ],
+              ),
 
-                    // Bio courte
-                    if (bio.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        bio,
-                        style: TextStyle(
-                          color: subtitleColor,
-                          fontSize: 13,
-                          height: 1.3,
-                          fontFamily: 'SFPRO',
+              // Services en carousel horizontal
+              if (services.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 28,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: services.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final s = services[index];
+                      final title = (s['title'] ?? s['name'] ?? '').toString();
+                      if (title.isEmpty) return const SizedBox.shrink();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
+                          ),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade700,
+                            fontFamily: 'SFPRO',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 12),
+
+              // Ligne du bas: Statut ouverture à gauche + Bouton à droite
+              Row(
+                children: [
+                  // Statut disponibilité à GAUCHE
+                  if (availStatus.nextChange != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: availStatus.isOpen
+                            ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50)
+                            : (isDark ? Colors.orange.withOpacity(0.2) : Colors.orange.shade50),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
-
-                    const SizedBox(height: 10),
-
-                    // Services (chips) + Statut disponibilité
-                    Row(
-                      children: [
-                        // Services
-                        if (services.isNotEmpty)
-                          Expanded(
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: services.take(2).map((s) {
-                                final title = (s['title'] ?? s['name'] ?? '').toString();
-                                if (title.isEmpty) return const SizedBox.shrink();
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    title,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
-                                      fontFamily: 'SFPRO',
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          )
-                        else
-                          const Spacer(),
-
-                        // Statut disponibilité
-                        if (availStatus.nextChange != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            availStatus.isOpen ? Icons.check_circle : Icons.schedule,
+                            size: 12,
+                            color: availStatus.isOpen
+                                ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                                : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            availStatus.isOpen
+                                ? '${l10n.openNow} • ${availStatus.nextChange}'
+                                : '${l10n.opensAt} ${availStatus.nextChange}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                               color: availStatus.isOpen
-                                  ? (isDark ? Colors.green.withOpacity(0.2) : Colors.green.shade50)
-                                  : (isDark ? Colors.orange.withOpacity(0.2) : Colors.orange.shade50),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  availStatus.isOpen ? Icons.check_circle : Icons.schedule,
-                                  size: 12,
-                                  color: availStatus.isOpen
-                                      ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
-                                      : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  availStatus.isOpen
-                                      ? '${l10n.openNow} • ${l10n.closesAt} ${availStatus.nextChange}'
-                                      : '${l10n.opensAt} ${availStatus.nextChange}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: availStatus.isOpen
-                                        ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
-                                        : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
-                                    fontFamily: 'SFPRO',
-                                  ),
-                                ),
-                              ],
+                                  ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
+                                  : (isDark ? Colors.orange.shade300 : Colors.orange.shade700),
+                              fontFamily: 'SFPRO',
                             ),
                           ),
+                        ],
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
+
+                  const Spacer(),
+
+                  // Bouton voir profil à DROITE
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [_coral, Color(0xFFF2968F)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _coral.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
                     ),
-
-                    const SizedBox(height: 10),
-
-                    // Bouton voir profil
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [_coral, Color(0xFFF2968F)],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.viewProfile,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontFamily: 'SFPRO',
                           ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _coral.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              l10n.viewProfile,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                fontFamily: 'SFPRO',
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward, size: 14, color: Colors.white),
-                          ],
-                        ),
-                      ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward, size: 12, color: Colors.white),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
