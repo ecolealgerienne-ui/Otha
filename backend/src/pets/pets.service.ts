@@ -265,10 +265,6 @@ export class PetsService {
             allergies: true,
             preventiveCare: { orderBy: { lastDate: 'desc' } },
             owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
-            diseaseTrackings: {
-              orderBy: { diagnosisDate: 'desc' },
-              include: { progressEntries: { orderBy: { date: 'desc' }, take: 5 } },
-            },
           },
         },
       },
