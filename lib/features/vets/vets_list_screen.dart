@@ -431,7 +431,7 @@ class _VetCard extends StatelessWidget {
     final weekday = now.weekday; // 1=Lundi ... 7=Dimanche
     final currentMinutes = now.hour * 60 + now.minute;
 
-    // Chercher les créneaux du jour actuel
+    // 1. Chercher si ouvert maintenant
     for (final slot in availability) {
       final day = slot['dayOfWeek'] as int?;
       if (day == null || day != weekday) continue;
@@ -454,14 +454,70 @@ class _VetCard extends StatelessWidget {
             isOpen: true,
             nextChange: '${closeHour.toString().padLeft(2, '0')}:${closeMin.toString().padLeft(2, '0')}'
           );
-        } else if (currentMinutes < startMinutes) {
-          // Fermé mais ouvre plus tard aujourd'hui
-          final openHour = startMinutes ~/ 60;
-          final openMin = startMinutes % 60;
-          return (
-            isOpen: false,
-            nextChange: '${openHour.toString().padLeft(2, '0')}:${openMin.toString().padLeft(2, '0')}'
-          );
+        }
+      }
+    }
+
+    // 2. Pas ouvert maintenant - chercher la prochaine ouverture
+    // D'abord, chercher plus tard aujourd'hui
+    int? nextOpenMinutesToday;
+    for (final slot in availability) {
+      final day = slot['dayOfWeek'] as int?;
+      if (day == null || day != weekday) continue;
+
+      final startTime = slot['startTime']?.toString() ?? '';
+      final startParts = startTime.split(':');
+      if (startParts.length >= 2) {
+        final startMinutes = (int.tryParse(startParts[0]) ?? 0) * 60 + (int.tryParse(startParts[1]) ?? 0);
+        if (startMinutes > currentMinutes) {
+          if (nextOpenMinutesToday == null || startMinutes < nextOpenMinutesToday) {
+            nextOpenMinutesToday = startMinutes;
+          }
+        }
+      }
+    }
+
+    if (nextOpenMinutesToday != null) {
+      final openHour = nextOpenMinutesToday ~/ 60;
+      final openMin = nextOpenMinutesToday % 60;
+      return (
+        isOpen: false,
+        nextChange: '${openHour.toString().padLeft(2, '0')}:${openMin.toString().padLeft(2, '0')}'
+      );
+    }
+
+    // 3. Pas d'ouverture plus tard aujourd'hui - chercher demain ou les jours suivants
+    for (int i = 1; i <= 7; i++) {
+      final nextDay = ((weekday - 1 + i) % 7) + 1; // 1-7, avec rotation
+
+      int? earliestOpenMinutes;
+      for (final slot in availability) {
+        final day = slot['dayOfWeek'] as int?;
+        if (day == null || day != nextDay) continue;
+
+        final startTime = slot['startTime']?.toString() ?? '';
+        final startParts = startTime.split(':');
+        if (startParts.length >= 2) {
+          final startMinutes = (int.tryParse(startParts[0]) ?? 0) * 60 + (int.tryParse(startParts[1]) ?? 0);
+          if (earliestOpenMinutes == null || startMinutes < earliestOpenMinutes) {
+            earliestOpenMinutes = startMinutes;
+          }
+        }
+      }
+
+      if (earliestOpenMinutes != null) {
+        final openHour = earliestOpenMinutes ~/ 60;
+        final openMin = earliestOpenMinutes % 60;
+        final timeStr = '${openHour.toString().padLeft(2, '0')}:${openMin.toString().padLeft(2, '0')}';
+
+        // Si c'est demain, on affiche juste l'heure
+        // Si c'est plus tard, on pourrait ajouter le jour mais gardons simple
+        if (i == 1) {
+          return (isOpen: false, nextChange: timeStr);
+        } else {
+          // Afficher le jour en français abrégé
+          const jours = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+          return (isOpen: false, nextChange: '${jours[nextDay]} $timeStr');
         }
       }
     }
