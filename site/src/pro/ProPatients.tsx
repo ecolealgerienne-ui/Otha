@@ -126,11 +126,14 @@ export function ProPatients() {
   const [confirmingByCode, setConfirmingByCode] = useState(false);
 
   // Form states
-  const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '' });
-  const [newPrescription, setNewPrescription] = useState({ title: '', description: '', imageUrl: '' });
+  const [newRecord, setNewRecord] = useState({ title: '', type: 'CONSULTATION', description: '', temperatureC: '', heartRate: '' });
+  const [newPrescription, setNewPrescription] = useState({ name: '', dosage: '', frequency: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '', attachments: [] as string[] });
   const [newDisease, setNewDisease] = useState({ name: '', description: '', status: 'ACTIVE' });
   const [newVaccination, setNewVaccination] = useState({ name: '', date: '', nextDueDate: '', batchNumber: '', notes: '' });
-  const [newWeight, setNewWeight] = useState({ weightKg: '', context: '' });
+  const [newWeight, setNewWeight] = useState({ weightKg: '', date: new Date().toISOString().split('T')[0], context: '' });
+  const [newHealthData, setNewHealthData] = useState({ temperatureC: '', heartRate: '', date: new Date().toISOString().split('T')[0], notes: '' });
+  const [showAddHealthDataModal, setShowAddHealthDataModal] = useState(false);
+  const [addingHealthData, setAddingHealthData] = useState(false);
 
   // Edit states
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
@@ -621,20 +624,36 @@ export function ProPatients() {
   };
 
   const handleAddPrescription = async () => {
-    if (!currentToken || !newPrescription.title) return;
+    if (!currentToken || !newPrescription.name) return;
     setAddingPrescription(true);
     try {
-      const prescription = await api.createPrescriptionByToken(currentToken, {
-        title: newPrescription.title,
-        description: newPrescription.description || undefined,
-        imageUrl: newPrescription.imageUrl || undefined,
+      // Use treatments API (Flutter uses treatments for "Ordonnances")
+      const treatment = await api.createTreatmentByToken(currentToken, {
+        name: newPrescription.name,
+        dosage: newPrescription.dosage || undefined,
+        frequency: newPrescription.frequency || undefined,
+        startDate: newPrescription.startDate || undefined,
+        endDate: newPrescription.endDate || undefined,
+        notes: newPrescription.notes || undefined,
       });
-      addPrescription(prescription);
+      // Map treatment to prescription format for display
+      const prescriptionForDisplay = {
+        id: treatment.id,
+        petId: treatment.petId,
+        providerId: treatment.providerId || null,
+        title: treatment.name,
+        description: [treatment.dosage, treatment.frequency, treatment.notes].filter(Boolean).join(' - '),
+        imageUrl: treatment.attachments?.[0] || null,
+        date: treatment.startDate,
+        isActive: treatment.isActive,
+        endDate: treatment.endDate,
+      };
+      addPrescription(prescriptionForDisplay as any);
       setShowAddPrescriptionModal(false);
-      setNewPrescription({ title: '', description: '', imageUrl: '' });
+      setNewPrescription({ name: '', dosage: '', frequency: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '', attachments: [] });
     } catch (error) {
       console.error('Error:', error);
-      alert("Erreur lors de l'ajout");
+      alert("Erreur lors de l'ajout de l'ordonnance");
     } finally {
       setAddingPrescription(false);
     }
@@ -705,27 +724,99 @@ export function ProPatients() {
     try {
       await api.createWeightRecordByToken(currentToken, {
         weightKg: weightValue,
+        date: newWeight.date || undefined,
         context: newWeight.context || undefined,
       });
-      // Refresh health stats
+      // Refresh pet data to update health stats
       if (scannedPet && currentToken) {
         const result = await api.getPetByToken(currentToken);
         if (result) {
-          const [presc, stats, dis] = await Promise.all([
-            api.getPetPrescriptions(result.pet.id).catch(() => []),
-            api.getPetHealthStats(result.pet.id).catch(() => null),
-            api.getPetDiseases(result.pet.id).catch(() => []),
-          ]);
-          setPetData(result.pet, currentToken, result.medicalRecords || [], result.vaccinations || [], presc, stats, dis);
+          const petData = result as any;
+          const medicalRecords = petData.medicalRecords || [];
+          const treatments = petData.treatments || [];
+          const prescriptions = treatments.map((t: any) => ({
+            id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
+            description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+            imageUrl: t.attachments?.[0] || null, date: t.startDate, isActive: t.isActive, endDate: t.endDate,
+          }));
+          // Build health stats from weightRecords and medicalRecords
+          const weightRecords = petData.weightRecords || [];
+          const tempData = medicalRecords.filter((r: any) => r.temperatureC).map((r: any) => ({ temperatureC: r.temperatureC, date: r.date }));
+          const heartData = medicalRecords.filter((r: any) => r.heartRate).map((r: any) => ({ heartRate: r.heartRate, date: r.date }));
+          const healthStats = {
+            weight: weightRecords.length > 0 ? { current: weightRecords[0]?.weightKg, data: weightRecords } : undefined,
+            temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
+            heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
+          };
+          setPetData(result, currentToken, medicalRecords, petData.vaccinations || [], prescriptions, healthStats, []);
         }
       }
       setShowAddWeightModal(false);
-      setNewWeight({ weightKg: '', context: '' });
+      setNewWeight({ weightKg: '', date: new Date().toISOString().split('T')[0], context: '' });
     } catch (error) {
       console.error('Error:', error);
       alert("Erreur lors de l'ajout du poids");
     } finally {
       setAddingWeight(false);
+    }
+  };
+
+  const handleAddHealthData = async () => {
+    if (!currentToken) return;
+    if (!newHealthData.temperatureC && !newHealthData.heartRate) {
+      alert('Veuillez entrer au moins une donnée (température ou rythme cardiaque)');
+      return;
+    }
+    const temp = newHealthData.temperatureC ? parseFloat(newHealthData.temperatureC) : undefined;
+    const hr = newHealthData.heartRate ? parseInt(newHealthData.heartRate) : undefined;
+    if (temp !== undefined && (temp < 30 || temp > 45)) {
+      alert('Température invalide (30-45°C)');
+      return;
+    }
+    if (hr !== undefined && (hr < 20 || hr > 300)) {
+      alert('Rythme cardiaque invalide (20-300 bpm)');
+      return;
+    }
+    setAddingHealthData(true);
+    try {
+      await api.createMedicalRecordByToken(currentToken, {
+        title: 'Contrôle de santé',
+        type: 'HEALTH_CHECK',
+        description: newHealthData.notes || 'Données de santé enregistrées',
+        temperatureC: temp,
+        heartRate: hr,
+        date: newHealthData.date,
+      });
+      // Refresh pet data
+      if (scannedPet && currentToken) {
+        const result = await api.getPetByToken(currentToken);
+        if (result) {
+          const petData = result as any;
+          const medicalRecords = petData.medicalRecords || [];
+          const treatments = petData.treatments || [];
+          const prescriptions = treatments.map((t: any) => ({
+            id: t.id, petId: t.petId, providerId: t.providerId || null, title: t.name,
+            description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+            imageUrl: t.attachments?.[0] || null, date: t.startDate, isActive: t.isActive, endDate: t.endDate,
+          }));
+          const weightRecords = petData.weightRecords || [];
+          const tempData = medicalRecords.filter((r: any) => r.temperatureC).map((r: any) => ({ temperatureC: r.temperatureC, date: r.date }));
+          const heartData = medicalRecords.filter((r: any) => r.heartRate).map((r: any) => ({ heartRate: r.heartRate, date: r.date }));
+          const healthStats = {
+            weight: weightRecords.length > 0 ? { current: weightRecords[0]?.weightKg, data: weightRecords } : undefined,
+            temperature: tempData.length > 0 ? { current: tempData[0]?.temperatureC, average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length, data: tempData } : undefined,
+            heartRate: heartData.length > 0 ? { current: heartData[0]?.heartRate, average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length), data: heartData } : undefined,
+          };
+          setPetData(result, currentToken, medicalRecords, petData.vaccinations || [], prescriptions, healthStats, []);
+        }
+      }
+      setShowAddHealthDataModal(false);
+      setNewHealthData({ temperatureC: '', heartRate: '', date: new Date().toISOString().split('T')[0], notes: '' });
+    } catch (error) {
+      console.error('Error:', error);
+      alert("Erreur lors de l'ajout des données de santé");
+    } finally {
+      setAddingHealthData(false);
     }
   };
 
@@ -1259,10 +1350,14 @@ export function ProPatients() {
                     )}
                   </div>
                 )}
-                <div className="mt-6">
+                <div className="mt-6 space-y-3">
                   <Button onClick={() => setShowAddWeightModal(true)} className="w-full">
-                    <Plus size={16} className="mr-2" />
+                    <Scale size={16} className="mr-2" />
                     Ajouter un poids
+                  </Button>
+                  <Button onClick={() => setShowAddHealthDataModal(true)} variant="secondary" className="w-full">
+                    <Activity size={16} className="mr-2" />
+                    Ajouter température / BPM
                   </Button>
                 </div>
               </>
@@ -1516,70 +1611,50 @@ export function ProPatients() {
         </div>
       )}
 
-      {/* Add Prescription Modal */}
+      {/* Add Prescription/Treatment Modal */}
       {showAddPrescriptionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Ajouter une ordonnance</h2>
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Pill className="text-purple-600" size={20} />
+              Ajouter une ordonnance
+            </h2>
             <div className="space-y-4">
-              <Input label="Titre" placeholder="Ex: Antibiotiques" value={newPrescription.title} onChange={(e) => setNewPrescription({ ...newPrescription, title: e.target.value })} />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea rows={3} placeholder="Posologie, durée..." value={newPrescription.description} onChange={(e) => setNewPrescription({ ...newPrescription, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              <Input label="Médicament *" placeholder="Ex: Amoxicilline" value={newPrescription.name} onChange={(e) => setNewPrescription({ ...newPrescription, name: e.target.value })} />
+              <Input label="Posologie" placeholder="Ex: 1 comprimé 2x/jour" value={newPrescription.dosage} onChange={(e) => setNewPrescription({ ...newPrescription, dosage: e.target.value })} />
+              <Input label="Fréquence" placeholder="Ex: Matin et soir" value={newPrescription.frequency} onChange={(e) => setNewPrescription({ ...newPrescription, frequency: e.target.value })} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input type="date" label="Date de début" value={newPrescription.startDate} onChange={(e) => setNewPrescription({ ...newPrescription, startDate: e.target.value })} />
+                <Input type="date" label="Date de fin (opt.)" value={newPrescription.endDate} onChange={(e) => setNewPrescription({ ...newPrescription, endDate: e.target.value })} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image (optionnel)</label>
-                {newPrescription.imageUrl ? (
-                  <div className="relative">
-                    <img src={newPrescription.imageUrl} alt="Ordonnance" className="w-full h-32 object-cover rounded-lg" />
-                    <button onClick={() => setNewPrescription({ ...newPrescription, imageUrl: '' })} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"><X size={14} /></button>
-                  </div>
-                ) : (
-                  <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-400">
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                    {uploadingImage ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
-                    ) : (
-                      <div className="text-center">
-                        <Upload className="mx-auto text-gray-400 mb-2" size={24} />
-                        <span className="text-sm text-gray-500">Téléverser une image</span>
-                      </div>
-                    )}
-                  </label>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea rows={2} placeholder="Informations complémentaires..." value={newPrescription.notes} onChange={(e) => setNewPrescription({ ...newPrescription, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => setShowAddPrescriptionModal(false)}>Annuler</Button>
-              <Button className="flex-1" onClick={handleAddPrescription} isLoading={addingPrescription} disabled={!newPrescription.title}>Ajouter</Button>
+              <Button className="flex-1" onClick={handleAddPrescription} isLoading={addingPrescription} disabled={!newPrescription.name}>Ajouter</Button>
             </div>
           </Card>
         </div>
       )}
 
-      {/* Add Disease Modal */}
+      {/* Add Disease Modal - Temporarily disabled due to backend schema mismatch */}
       {showAddDiseaseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Ajouter un suivi de maladie</h2>
-            <div className="space-y-4">
-              <Input label="Nom de la pathologie" placeholder="Ex: Otite" value={newDisease.name} onChange={(e) => setNewDisease({ ...newDisease, name: e.target.value })} />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea rows={3} placeholder="Symptômes, observations..." value={newDisease.description} onChange={(e) => setNewDisease({ ...newDisease, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                <select value={newDisease.status} onChange={(e) => setNewDisease({ ...newDisease, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
-                  <option value="ACTIVE">Actif</option>
-                  <option value="MONITORING">Surveillance</option>
-                  <option value="RESOLVED">Résolu</option>
-                </select>
-              </div>
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="text-yellow-600" size={20} />
+              Suivi de maladie
+            </h2>
+            <div className="text-center py-6">
+              <AlertTriangle className="mx-auto text-yellow-500 mb-4" size={48} />
+              <p className="text-gray-600 mb-2">Cette fonctionnalité est temporairement indisponible.</p>
+              <p className="text-sm text-gray-500">Utilisez l'application mobile pour ajouter un suivi de maladie.</p>
             </div>
-            <div className="flex gap-3 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Annuler</Button>
-              <Button className="flex-1" onClick={handleAddDisease} isLoading={addingDisease} disabled={!newDisease.name}>Ajouter</Button>
+            <div className="flex gap-3 mt-4">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddDiseaseModal(false)}>Fermer</Button>
             </div>
           </Card>
         </div>
@@ -1621,14 +1696,47 @@ export function ProPatients() {
             </h2>
             <div className="space-y-4">
               <Input type="number" step="0.1" min="0" label="Poids (kg) *" placeholder="Ex: 5.2" value={newWeight.weightKg} onChange={(e) => setNewWeight({ ...newWeight, weightKg: e.target.value })} />
+              <Input type="date" label="Date" value={newWeight.date} onChange={(e) => setNewWeight({ ...newWeight, date: e.target.value })} />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contexte (optionnel)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>
                 <textarea rows={2} placeholder="Ex: Consultation de routine, post-opération..." value={newWeight.context} onChange={(e) => setNewWeight({ ...newWeight, context: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" className="flex-1" onClick={() => setShowAddWeightModal(false)}>Annuler</Button>
               <Button className="flex-1" onClick={handleAddWeight} isLoading={addingWeight} disabled={!newWeight.weightKg}>Ajouter</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Health Data Modal */}
+      {showAddHealthDataModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Activity className="text-red-600" size={20} />
+              Ajouter des données de santé
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">Ajoutez au moins une donnée (température ou rythme cardiaque)</p>
+            <div className="space-y-4">
+              <div>
+                <Input type="number" step="0.1" min="30" max="45" label="Température (°C)" placeholder="Ex: 38.5" value={newHealthData.temperatureC} onChange={(e) => setNewHealthData({ ...newHealthData, temperatureC: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Normal: 38-39°C</p>
+              </div>
+              <div>
+                <Input type="number" min="20" max="300" label="Rythme cardiaque (bpm)" placeholder="Ex: 80" value={newHealthData.heartRate} onChange={(e) => setNewHealthData({ ...newHealthData, heartRate: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Normal: 60-140 bpm</p>
+              </div>
+              <Input type="date" label="Date" value={newHealthData.date} onChange={(e) => setNewHealthData({ ...newHealthData, date: e.target.value })} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>
+                <textarea rows={2} placeholder="Observations..." value={newHealthData.notes} onChange={(e) => setNewHealthData({ ...newHealthData, notes: e.target.value })} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowAddHealthDataModal(false)}>Annuler</Button>
+              <Button className="flex-1" onClick={handleAddHealthData} isLoading={addingHealthData} disabled={!newHealthData.temperatureC && !newHealthData.heartRate}>Ajouter</Button>
             </div>
           </Card>
         </div>
