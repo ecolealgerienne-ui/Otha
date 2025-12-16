@@ -365,7 +365,7 @@ class ApiClient {
     return petData;
   }
 
-  async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string }): Promise<MedicalRecord> {
+  async createMedicalRecordByToken(token: string, record: { title: string; type: string; description?: string; vetName?: string; temperatureC?: number; heartRate?: number; date?: string }): Promise<MedicalRecord> {
     const { data } = await this.client.post(`/pets/by-token/${token}/medical-records`, record);
     return data?.data || data;
   }
