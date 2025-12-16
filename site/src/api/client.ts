@@ -759,10 +759,16 @@ class ApiClient {
       // Fallback to local upload
       const formData = new FormData();
       formData.append('file', file);
-      const { data } = await this.client.post<{ url: string }>('/uploads/local', formData, {
+      const { data } = await this.client.post('/uploads/local', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return data.url;
+      // Handle both {url: "..."} and {data: {url: "..."}} response formats
+      const url = data?.data?.url || data?.url;
+      if (!url) {
+        console.error('Upload response:', data);
+        throw new Error('No URL in upload response');
+      }
+      return url;
     }
   }
 }
