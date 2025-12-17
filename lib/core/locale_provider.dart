@@ -1538,7 +1538,6 @@ class AppLocalizations {
   String get diseaseDeleted => _get('diseaseDeleted');
   String get unableToLoadImage => _get('unableToLoadImage');
   String get update => _get('update');
-  String get edit => _get('edit');
   String get goBack => _get('goBack');
 }
 
