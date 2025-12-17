@@ -1554,7 +1554,6 @@ class AppLocalizations {
   String get unableToLoadImage => _get('unableToLoadImage');
   String get update => _get('update');
   String get goBack => _get('goBack');
-  String get addPhoto => _get('addPhoto');
   String get uploading => _get('uploading');
   String get noImages => _get('noImages');
   String get imageAdded => _get('imageAdded');
