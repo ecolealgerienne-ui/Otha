@@ -327,10 +327,11 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                       child: Column(
                         children: [
                           // Primary button - Back to home
-                          SizedBox(
-                            width: double.infinity,
+                          ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 400),
-                            child: FilledButton(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
                               onPressed: () => context.go('/home'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: _coral,
@@ -357,12 +358,14 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                               ),
                             ),
                           ),
+                          ),
                           const SizedBox(height: 12),
                           // Secondary button - View bookings
-                          SizedBox(
-                            width: double.infinity,
+                          ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 400),
-                            child: OutlinedButton(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
                               onPressed: () => context.go('/bookings'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: _coral,
@@ -393,6 +396,7 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                                 ],
                               ),
                             ),
+                          ),
                           ),
                         ],
                       ),

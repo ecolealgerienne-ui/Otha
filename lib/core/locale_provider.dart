@@ -318,6 +318,8 @@ class AppLocalizations {
       'bookingRef': 'Réf.',
       'backToHome': 'Retour à l\'accueil',
       'viewMyBookings': 'Voir mes rendez-vous',
+      'pendingConfirmation': 'En attente de confirmation',
+      'explore': 'Explorer',
     },
     'en': {
       'appName': 'Vegece',
@@ -494,6 +496,8 @@ class AppLocalizations {
       'bookingRef': 'Ref.',
       'backToHome': 'Back to home',
       'viewMyBookings': 'View my appointments',
+      'pendingConfirmation': 'Pending confirmation',
+      'explore': 'Explore',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -670,6 +674,8 @@ class AppLocalizations {
       'bookingRef': 'المرجع',
       'backToHome': 'العودة للرئيسية',
       'viewMyBookings': 'عرض مواعيدي',
+      'pendingConfirmation': 'في انتظار التأكيد',
+      'explore': 'استكشف',
     },
   };
 
@@ -854,6 +860,8 @@ class AppLocalizations {
   String get bookingRef => _get('bookingRef');
   String get backToHome => _get('backToHome');
   String get viewMyBookings => _get('viewMyBookings');
+  String get pendingConfirmation => _get('pendingConfirmation');
+  String get explore => _get('explore');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
