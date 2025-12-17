@@ -2084,6 +2084,7 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
         // Theme support
         final themeMode = ref.watch(themeProvider);
         final isDark = themeMode == AppThemeMode.dark;
+        final l10n = AppLocalizations.of(context);
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -2150,7 +2151,7 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'En attente de confirmation',
+                              l10n.pendingConfirmation,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -3382,7 +3383,7 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Text(
-                                                'Explorer',
+                                                l10n.explore,
                                                 style: TextStyle(
                                                   fontFamily: 'SFPRO',
                                                   fontSize: 12,
