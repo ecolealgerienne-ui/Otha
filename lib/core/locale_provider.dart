@@ -467,6 +467,29 @@ class AppLocalizations {
       'dataWillAppearAfterVisits': 'Les données apparaîtront après les visites vétérinaires',
       'appointmentConfirmedSuccess': 'Rendez-vous confirmé avec succès',
       'owner': 'Propriétaire',
+      // Disease detail screen
+      'photos': 'Photos',
+      'information': 'Informations',
+      'symptoms': 'Symptômes',
+      'evolution': 'Évolution',
+      'healingDate': 'Date de guérison',
+      'unknownDate': 'Date inconnue',
+      'addUpdate': 'Ajouter une mise à jour',
+      'notesRequired': 'Notes *',
+      'observedEvolution': 'Évolution observée...',
+      'severity': 'Sévérité',
+      'treatmentUpdate': 'Mise à jour traitement',
+      'dosageChangeMed': 'Changement de dosage, nouveau médicament...',
+      'notesAreRequired': 'Les notes sont obligatoires',
+      'updateAdded': 'Mise à jour ajoutée',
+      'deleteDisease': 'Supprimer la maladie',
+      'confirmDeleteDisease': 'Êtes-vous sûr de vouloir supprimer',
+      'actionIrreversible': 'Cette action est irréversible.',
+      'diseaseDeleted': 'Maladie supprimée',
+      'unableToLoadImage': 'Impossible de charger l\'image',
+      'update': 'Mise à jour',
+      'edit': 'Modifier',
+      'goBack': 'Retour',
     },
     'en': {
       'appName': 'Vegece',
@@ -792,6 +815,29 @@ class AppLocalizations {
       'dataWillAppearAfterVisits': 'Data will appear after veterinary visits',
       'appointmentConfirmedSuccess': 'Appointment confirmed successfully',
       'owner': 'Owner',
+      // Disease detail screen
+      'photos': 'Photos',
+      'information': 'Information',
+      'symptoms': 'Symptoms',
+      'evolution': 'Evolution',
+      'healingDate': 'Healing date',
+      'unknownDate': 'Unknown date',
+      'addUpdate': 'Add an update',
+      'notesRequired': 'Notes *',
+      'observedEvolution': 'Observed evolution...',
+      'severity': 'Severity',
+      'treatmentUpdate': 'Treatment update',
+      'dosageChangeMed': 'Dosage change, new medication...',
+      'notesAreRequired': 'Notes are required',
+      'updateAdded': 'Update added',
+      'deleteDisease': 'Delete disease',
+      'confirmDeleteDisease': 'Are you sure you want to delete',
+      'actionIrreversible': 'This action is irreversible.',
+      'diseaseDeleted': 'Disease deleted',
+      'unableToLoadImage': 'Unable to load image',
+      'update': 'Update',
+      'edit': 'Edit',
+      'goBack': 'Go back',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1117,6 +1163,29 @@ class AppLocalizations {
       'dataWillAppearAfterVisits': 'ستظهر البيانات بعد زيارات الطبيب البيطري',
       'appointmentConfirmedSuccess': 'تم تأكيد الموعد بنجاح',
       'owner': 'المالك',
+      // Disease detail screen
+      'photos': 'الصور',
+      'information': 'المعلومات',
+      'symptoms': 'الأعراض',
+      'evolution': 'التطور',
+      'healingDate': 'تاريخ الشفاء',
+      'unknownDate': 'تاريخ غير معروف',
+      'addUpdate': 'إضافة تحديث',
+      'notesRequired': 'ملاحظات *',
+      'observedEvolution': 'التطور الملاحظ...',
+      'severity': 'الشدة',
+      'treatmentUpdate': 'تحديث العلاج',
+      'dosageChangeMed': 'تغيير الجرعة، دواء جديد...',
+      'notesAreRequired': 'الملاحظات مطلوبة',
+      'updateAdded': 'تمت إضافة التحديث',
+      'deleteDisease': 'حذف المرض',
+      'confirmDeleteDisease': 'هل أنت متأكد من حذف',
+      'actionIrreversible': 'هذا الإجراء لا رجعة فيه.',
+      'diseaseDeleted': 'تم حذف المرض',
+      'unableToLoadImage': 'تعذر تحميل الصورة',
+      'update': 'تحديث',
+      'edit': 'تعديل',
+      'goBack': 'رجوع',
     },
   };
 
@@ -1448,6 +1517,29 @@ class AppLocalizations {
   String get dataWillAppearAfterVisits => _get('dataWillAppearAfterVisits');
   String get appointmentConfirmedSuccess => _get('appointmentConfirmedSuccess');
   String get owner => _get('owner');
+  // Disease detail screen
+  String get photos => _get('photos');
+  String get information => _get('information');
+  String get symptoms => _get('symptoms');
+  String get evolution => _get('evolution');
+  String get healingDate => _get('healingDate');
+  String get unknownDate => _get('unknownDate');
+  String get addUpdate => _get('addUpdate');
+  String get notesRequired => _get('notesRequired');
+  String get observedEvolution => _get('observedEvolution');
+  String get severity => _get('severity');
+  String get treatmentUpdate => _get('treatmentUpdate');
+  String get dosageChangeMed => _get('dosageChangeMed');
+  String get notesAreRequired => _get('notesAreRequired');
+  String get updateAdded => _get('updateAdded');
+  String get deleteDisease => _get('deleteDisease');
+  String get confirmDeleteDisease => _get('confirmDeleteDisease');
+  String get actionIrreversible => _get('actionIrreversible');
+  String get diseaseDeleted => _get('diseaseDeleted');
+  String get unableToLoadImage => _get('unableToLoadImage');
+  String get update => _get('update');
+  String get edit => _get('edit');
+  String get goBack => _get('goBack');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
