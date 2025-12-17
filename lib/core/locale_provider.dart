@@ -1393,7 +1393,6 @@ class AppLocalizations {
   String get overdue => _get('overdue');
   String get nextReminder => _get('nextReminder');
   String get batch => _get('batch');
-  String get veterinarian => _get('veterinarian');
   String get date => _get('date');
   String get reminder => _get('reminder');
   String get noVaccine => _get('noVaccine');
