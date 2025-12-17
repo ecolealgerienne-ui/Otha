@@ -1,14 +1,17 @@
 // lib/features/pets/pets_management_screen.dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
+// Theme colors
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
-const _ink = Color(0xFF222222);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
 
 /// Provider pour la liste des animaux avec toutes leurs données
 final myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -25,7 +28,7 @@ class PetsManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(viewportFraction: 0.92);
   int _currentPage = 0;
 
   @override
@@ -36,85 +39,111 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final petsAsync = ref.watch(myPetsProvider);
 
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F9FA);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context, ref),
+            _buildHeader(context, ref, isDark, l10n, textPrimary),
             Expanded(
               child: petsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
-                error: (e, _) => Center(child: Text('Erreur: $e')),
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: _coral),
+                ),
+                error: (e, _) => _buildErrorState(isDark, l10n, e.toString()),
                 data: (pets) {
                   if (pets.isEmpty) {
-                    return _buildEmptyState(context);
+                    return _buildEmptyState(context, ref, isDark, l10n);
                   }
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: PageView.builder(
-                          controller: _pageController,
-                          onPageChanged: (index) => setState(() => _currentPage = index),
-                          itemCount: pets.length,
-                          itemBuilder: (context, index) => Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: _PetSwipeCard(pet: pets[index]),
-                          ),
-                        ),
-                      ),
-                      if (pets.length > 1) _buildPageIndicator(pets.length),
-                      const SizedBox(height: 16),
-                    ],
-                  );
+                  return _buildPetsCarousel(pets, isDark, l10n);
                 },
               ),
             ),
           ],
         ),
       ),
+      // Floating add button
+      floatingActionButton: petsAsync.maybeWhen(
+        data: (pets) => pets.isNotEmpty
+            ? FloatingActionButton(
+                onPressed: () async {
+                  await context.push('/pets/add');
+                  ref.invalidate(myPetsProvider);
+                },
+                backgroundColor: _coral,
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+            : null,
+        orElse: () => null,
+      ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+  ) {
+    final cardColor = isDark ? _darkCard : Colors.white;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(8, 8, 16, 16),
+      decoration: BoxDecoration(
+        color: cardColor,
         boxShadow: [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back),
-            style: IconButton.styleFrom(
-              backgroundColor: _coralSoft,
-              foregroundColor: _coral,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? _darkBg : _coralSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: _coral,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          const SizedBox(width: 8),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mes animaux',
+                  l10n.myAnimals,
                   style: TextStyle(
                     fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'SFPRO',
+                    color: textPrimary,
                   ),
                 ),
                 Text(
-                  'Swipez pour naviguer',
+                  l10n.swipeToNavigate,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey,
+                    fontFamily: 'SFPRO',
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                 ),
               ],
@@ -122,19 +151,13 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
           ),
           IconButton(
             onPressed: () => ref.invalidate(myPetsProvider),
-            icon: const Icon(Icons.refresh),
-            style: IconButton.styleFrom(
-              backgroundColor: _coralSoft,
-              foregroundColor: _coral,
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () => context.push('/pets/add'),
-            icon: const Icon(Icons.add),
-            style: IconButton.styleFrom(
-              backgroundColor: _coral,
-              foregroundColor: Colors.white,
+            icon: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? _darkBg : _coralSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.refresh_rounded, color: _coral, size: 20),
             ),
           ),
         ],
@@ -142,7 +165,35 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
     );
   }
 
-  Widget _buildPageIndicator(int count) {
+  Widget _buildPetsCarousel(
+    List<Map<String, dynamic>> pets,
+    bool isDark,
+    AppLocalizations l10n,
+  ) {
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            itemCount: pets.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+              child: _PetCard(
+                pet: pets[index],
+                isDark: isDark,
+                l10n: l10n,
+              ),
+            ),
+          ),
+        ),
+        if (pets.length > 1) _buildPageIndicator(pets.length, isDark),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildPageIndicator(int count, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -150,12 +201,12 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
         children: List.generate(count, (index) {
           final isActive = index == _currentPage;
           return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 300),
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 24 : 8,
+            width: isActive ? 28 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color: isActive ? _coral : Colors.grey.shade300,
+              color: isActive ? _coral : (isDark ? Colors.grey[700] : Colors.grey[300]),
               borderRadius: BorderRadius.circular(4),
             ),
           );
@@ -164,37 +215,88 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+    AppLocalizations l10n,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.pets,
+                size: 64,
+                color: _coral,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              l10n.noPets,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                fontFamily: 'SFPRO',
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.addFirstPet,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontFamily: 'SFPRO',
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () async {
+                await context.push('/pets/add');
+                ref.invalidate(myPetsProvider);
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: Text(l10n.addPet),
+              style: FilledButton.styleFrom(
+                backgroundColor: _coral,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(bool isDark, AppLocalizations l10n, String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: _coralSoft,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.pets, size: 48, color: _coral),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Aucun animal',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ajoutez votre premier animal',
-            style: TextStyle(color: Colors.grey.shade600),
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: _coral,
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => context.push('/pets/add'),
-            icon: const Icon(Icons.add),
-            label: const Text('Ajouter un animal'),
-            style: FilledButton.styleFrom(
-              backgroundColor: _coral,
-              foregroundColor: Colors.white,
+          Text(
+            '${l10n.error}: $error',
+            style: TextStyle(
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
           ),
         ],
@@ -203,12 +305,18 @@ class _PetsManagementScreenState extends ConsumerState<PetsManagementScreen> {
   }
 }
 
-class _PetSwipeCard extends ConsumerWidget {
+class _PetCard extends ConsumerWidget {
   final Map<String, dynamic> pet;
+  final bool isDark;
+  final AppLocalizations l10n;
 
-  const _PetSwipeCard({required this.pet});
+  const _PetCard({
+    required this.pet,
+    required this.isDark,
+    required this.l10n,
+  });
 
-  String _getSpeciesIcon(String? species) {
+  String _getSpeciesEmoji(String? species) {
     switch (species?.toLowerCase()) {
       case 'dog':
         return '🐕';
@@ -225,24 +333,24 @@ class _PetSwipeCard extends ConsumerWidget {
     }
   }
 
-  String _getSpeciesLabel(String? species) {
+  String _getSpeciesLabel(String? species, AppLocalizations l10n) {
     switch (species?.toLowerCase()) {
       case 'dog':
-        return 'Chien';
+        return l10n.dog;
       case 'cat':
-        return 'Chat';
+        return l10n.cat;
       case 'bird':
-        return 'Oiseau';
+        return l10n.bird;
       case 'rodent':
-        return 'Rongeur';
+        return l10n.rodent;
       case 'reptile':
-        return 'Reptile';
+        return l10n.reptile;
       default:
-        return 'Animal';
+        return l10n.animal;
     }
   }
 
-  String _calculateAge(String? birthDateIso) {
+  String _calculateAge(String? birthDateIso, AppLocalizations l10n) {
     if (birthDateIso == null || birthDateIso.isEmpty) return '';
     try {
       final birthDate = DateTime.parse(birthDateIso);
@@ -254,12 +362,10 @@ class _PetSwipeCard extends ConsumerWidget {
       if (now.day < birthDate.day) totalMonths--;
 
       if (totalMonths < 12) {
-        return '$totalMonths mois';
+        return '$totalMonths ${l10n.months}';
       } else {
         final y = totalMonths ~/ 12;
-        final m = totalMonths % 12;
-        if (m == 0) return '$y an${y > 1 ? 's' : ''}';
-        return '$y an${y > 1 ? 's' : ''} $m mois';
+        return '$y ${y > 1 ? l10n.years : l10n.year}';
       }
     } catch (_) {
       return '';
@@ -283,273 +389,289 @@ class _PetSwipeCard extends ConsumerWidget {
     final photoUrl = pet['photoUrl']?.toString();
     final birthDate = pet['birthDate']?.toString();
     final weight = pet['weightKg'];
-    final color = (pet['color'] ?? '').toString();
-    final isNeutered = pet['isNeutered'] == true;
-    final microchip = (pet['microchipNumber'] ?? pet['idNumber'] ?? '').toString();
+    final hasPhoto = photoUrl != null && photoUrl.startsWith('http');
 
-    // Données avancées
+    final age = _calculateAge(birthDate, l10n);
+    final formattedWeight = _formatWeight(weight);
+
+    // Alerts
     final vaccinations = (pet['vaccinations'] as List?) ?? [];
     final treatments = (pet['treatments'] as List?) ?? [];
     final allergies = (pet['allergies'] as List?) ?? [];
-    final weightRecords = (pet['weightRecords'] as List?) ?? [];
 
-    final age = _calculateAge(birthDate);
-    final formattedWeight = _formatWeight(weight);
-
-    // Calculer les alertes
-    final alerts = <Widget>[];
-
-    // Vérifier vaccins à venir
+    int upcomingVaccines = 0;
     for (final vax in vaccinations) {
       final nextDue = vax['nextDueDate']?.toString();
       if (nextDue != null && nextDue.isNotEmpty) {
         try {
           final dueDate = DateTime.parse(nextDue);
           final daysUntil = dueDate.difference(DateTime.now()).inDays;
-          if (daysUntil >= 0 && daysUntil <= 30) {
-            alerts.add(_AlertChip(
-              icon: Icons.vaccines,
-              text: 'Vaccin ${vax['name']} dans $daysUntil j',
-              color: daysUntil <= 7 ? Colors.red : Colors.orange,
-            ));
-          }
+          if (daysUntil >= 0 && daysUntil <= 30) upcomingVaccines++;
         } catch (_) {}
       }
     }
 
-    // Traitements actifs
     final activeTreatments = treatments.where((t) => t['isActive'] == true).length;
-    if (activeTreatments > 0) {
-      alerts.add(_AlertChip(
-        icon: Icons.medication,
-        text: '$activeTreatments traitement${activeTreatments > 1 ? 's' : ''} en cours',
-        color: Colors.blue,
-      ));
-    }
 
-    // Allergies
-    if (allergies.isNotEmpty) {
-      alerts.add(_AlertChip(
-        icon: Icons.warning_amber,
-        text: '${allergies.length} allergie${allergies.length > 1 ? 's' : ''}',
-        color: Colors.red,
-      ));
-    }
-
-    // Évolution du poids
-    String weightTrend = '';
-    if (weightRecords.length >= 2) {
-      final latest = double.tryParse(weightRecords[0]['weightKg']?.toString() ?? '');
-      final previous = double.tryParse(weightRecords[1]['weightKg']?.toString() ?? '');
-      if (latest != null && previous != null) {
-        final diff = latest - previous;
-        if (diff > 0) {
-          weightTrend = '+${diff.toStringAsFixed(1)} kg';
-        } else if (diff < 0) {
-          weightTrend = '${diff.toStringAsFixed(1)} kg';
-        }
-      }
-    }
-
-    return Card(
-      elevation: 8,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        children: [
-          // Photo section (réduite)
-          Expanded(
-            flex: 2,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: _coralSoft,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                image: photoUrl != null && photoUrl.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(photoUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: photoUrl == null || photoUrl.isEmpty
-                  ? Center(
-                      child: Text(
-                        _getSpeciesIcon(species),
-                        style: const TextStyle(fontSize: 80),
-                      ),
-                    )
-                  : null,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image
+            _buildBackgroundImage(hasPhoto, photoUrl, species),
 
-          // Info section
-          Expanded(
-            flex: 5,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                    // Nom et genre
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: _ink,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: gender == 'MALE'
-                                ? Colors.blue.shade50
-                                : gender == 'FEMALE'
-                                    ? Colors.pink.shade50
-                                    : Colors.grey.shade100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            gender == 'MALE'
-                                ? Icons.male
-                                : gender == 'FEMALE'
-                                    ? Icons.female
-                                    : Icons.question_mark,
-                            color: gender == 'MALE'
-                                ? Colors.blue
-                                : gender == 'FEMALE'
-                                    ? Colors.pink
-                                    : Colors.grey,
-                            size: 24,
-                          ),
-                        ),
-                      ],
+            // Gradient overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.85),
+                  ],
+                  stops: const [0.0, 0.35, 0.6, 1.0],
+                ),
+              ),
+            ),
+
+            // Species badge
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _coral.withOpacity(0.5),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _getSpeciesEmoji(species),
+                      style: const TextStyle(fontSize: 16),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(width: 6),
+                    Text(
+                      _getSpeciesLabel(species, l10n),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'SFPRO',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                    // Espèce et race
+            // Gender badge
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: gender == 'MALE'
+                      ? Colors.blue.withOpacity(0.3)
+                      : gender == 'FEMALE'
+                          ? Colors.pink.withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: gender == 'MALE'
+                        ? Colors.blue.withOpacity(0.5)
+                        : gender == 'FEMALE'
+                            ? Colors.pink.withOpacity(0.5)
+                            : Colors.grey.withOpacity(0.5),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  gender == 'MALE'
+                      ? Icons.male
+                      : gender == 'FEMALE'
+                          ? Icons.female
+                          : Icons.question_mark,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+
+            // Content at bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'SFPRO',
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Breed + Age + Weight
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _coralSoft,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _getSpeciesLabel(species),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _coral,
-                            ),
-                          ),
-                        ),
                         if (breed.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              breed,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            breed,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'SFPRO',
+                              color: Colors.white.withOpacity(0.85),
                             ),
                           ),
+                          if (age.isNotEmpty || formattedWeight.isNotEmpty)
+                            Text(
+                              ' • ',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Caractéristiques
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (age.isNotEmpty)
-                          _InfoChip(icon: Icons.cake, label: age),
-                        if (formattedWeight.isNotEmpty)
-                          _InfoChip(
-                            icon: Icons.monitor_weight,
-                            label: formattedWeight,
-                            trailing: weightTrend.isNotEmpty
-                                ? Text(
-                                    weightTrend,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: weightTrend.startsWith('+')
-                                          ? Colors.orange
-                                          : Colors.green,
-                                    ),
-                                  )
-                                : null,
+                        if (age.isNotEmpty) ...[
+                          Text(
+                            age,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'SFPRO',
+                              color: Colors.white.withOpacity(0.75),
+                            ),
                           ),
-                        if (color.isNotEmpty)
-                          _InfoChip(icon: Icons.palette, label: color),
-                        if (isNeutered)
-                          const _InfoChip(icon: Icons.check_circle, label: 'Stérilisé'),
-                        if (microchip.isNotEmpty)
-                          _InfoChip(icon: Icons.memory, label: 'Pucé'),
+                          if (formattedWeight.isNotEmpty)
+                            Text(
+                              ' • ',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                        ],
+                        if (formattedWeight.isNotEmpty)
+                          Text(
+                            formattedWeight,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'SFPRO',
+                              color: Colors.white.withOpacity(0.75),
+                            ),
+                          ),
                       ],
                     ),
 
-                    // Alertes
-                    if (alerts.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
+                    // Alerts
+                    if (upcomingVaccines > 0 || activeTreatments > 0 || allergies.isNotEmpty) ...[
+                      const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: alerts,
+                        children: [
+                          if (upcomingVaccines > 0)
+                            _AlertBadge(
+                              icon: Icons.vaccines,
+                              text: '$upcomingVaccines ${l10n.vaccinesDue}',
+                              color: Colors.orange,
+                            ),
+                          if (activeTreatments > 0)
+                            _AlertBadge(
+                              icon: Icons.medication,
+                              text: '$activeTreatments ${l10n.activeTreatments}',
+                              color: Colors.blue,
+                            ),
+                          if (allergies.isNotEmpty)
+                            _AlertBadge(
+                              icon: Icons.warning_amber_rounded,
+                              text: '${allergies.length} ${l10n.allergies}',
+                              color: Colors.red,
+                            ),
+                        ],
                       ),
                     ],
 
-                    const Spacer(),
+                    const SizedBox(height: 20),
 
-                    // Actions rapides - 3 boutons sur une ligne
-                    Row(
-                      children: [
-                        // Modifier
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.edit_outlined,
-                            label: 'Modifier',
-                            onTap: () async {
-                              await context.push('/pets/edit', extra: pet);
-                              if (context.mounted) {
-                                ref.invalidate(myPetsProvider);
-                              }
-                            },
+                    // Action buttons with glassmorphism
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _GlassButton(
+                                icon: Icons.medical_services_rounded,
+                                label: l10n.healthRecord,
+                                onTap: () => context.push('/pets/$id/health-stats'),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                              _GlassButton(
+                                icon: Icons.qr_code_2_rounded,
+                                label: l10n.qrCode,
+                                onTap: () => context.push('/pets/$id/qr'),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                              _GlassButton(
+                                icon: Icons.edit_rounded,
+                                label: l10n.modify,
+                                onTap: () async {
+                                  await context.push('/pets/edit', extra: pet);
+                                  ref.invalidate(myPetsProvider);
+                                },
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Carnet santé
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.medical_services_outlined,
-                            label: 'Carnet',
-                            onTap: () => context.push('/pets/$id/health-stats'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // QR Code
-                        Expanded(
-                          child: _QuickActionButton(
-                            icon: Icons.qr_code_2,
-                            label: 'QR Code',
-                            onTap: () => context.push('/pets/$id/qr'),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -557,63 +679,61 @@ class _PetSwipeCard extends ConsumerWidget {
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
   }
 
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Widget? trailing;
+  Widget _buildBackgroundImage(bool hasPhoto, String? photoUrl, String? species) {
+    if (hasPhoto) {
+      return Image.network(
+        photoUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholder(species),
+      );
+    }
+    return _buildPlaceholder(species);
+  }
 
-  const _InfoChip({required this.icon, required this.label, this.trailing});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildPlaceholder(String? species) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF2A1A1C), const Color(0xFF1A1010)]
+              : [const Color(0xFFFFEEF0), const Color(0xFFFFD6DA)],
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.grey.shade700),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 4),
-            trailing!,
-          ],
-        ],
+      child: Center(
+        child: Text(
+          _getSpeciesEmoji(species),
+          style: const TextStyle(fontSize: 120),
+        ),
       ),
     );
   }
 }
 
-class _AlertChip extends StatelessWidget {
+class _AlertBadge extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
 
-  const _AlertChip({required this.icon, required this.text, required this.color});
+  const _AlertBadge({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -625,6 +745,7 @@ class _AlertChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
+              fontFamily: 'SFPRO',
               color: color,
             ),
           ),
@@ -634,12 +755,12 @@ class _AlertChip extends StatelessWidget {
   }
 }
 
-class _QuickActionButton extends StatelessWidget {
+class _GlassButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _QuickActionButton({
+  const _GlassButton({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -647,32 +768,30 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: _coralSoft,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _coral.withOpacity(0.3)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: _coral, size: 22),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: _coral,
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'SFPRO',
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

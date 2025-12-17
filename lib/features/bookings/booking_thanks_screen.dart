@@ -360,13 +360,13 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // Secondary button - View bookings
+                          // Secondary button - View booking details
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 400),
                             child: SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () => context.go('/bookings'),
+                                onPressed: () => context.go('/booking-details', extra: widget.createdBooking),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: _coral,
                                   side: BorderSide(
@@ -383,10 +383,10 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.calendar_today_rounded, size: 18),
+                                    const Icon(Icons.visibility_rounded, size: 18),
                                     const SizedBox(width: 8),
                                     Text(
-                                      l10n.viewMyBookings,
+                                      l10n.viewBookingDetails,
                                       style: const TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
