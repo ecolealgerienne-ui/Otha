@@ -995,6 +995,9 @@ export class BookingsService {
       },
     });
 
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(b.userId);
+
     // 🏥 NOUVEAU: Créer automatiquement un acte médical pour chaque animal
     const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
     const petIds = Array.isArray(b.petIds) ? b.petIds : [];
@@ -1382,6 +1385,9 @@ export class BookingsService {
         netToProviderDa: net,
       },
     });
+
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(booking.userId);
 
     // Créer l'acte médical pour chaque animal
     const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
@@ -2110,6 +2116,9 @@ export class BookingsService {
         netToProviderDa: net,
       },
     });
+
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(booking.userId);
 
     // 🏥 Créer l'acte médical pour chaque animal
     const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
