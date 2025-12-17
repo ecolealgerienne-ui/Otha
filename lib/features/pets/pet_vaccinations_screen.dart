@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _mint = Color(0xFF4ECDC4);
 const _ink = Color(0xFF222222);
 const _orange = Color(0xFFF39C12);
 const _purple = Color(0xFF9B59B6);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
 
 // Provider pour les vaccinations d'un animal (par petId)
 final vaccinationsProvider = FutureProvider.autoDispose
@@ -31,7 +34,7 @@ final vaccinationsByTokenProvider = FutureProvider.autoDispose
 
 class PetVaccinationsScreen extends ConsumerWidget {
   final String petId;
-  final String? token; // Token optionnel pour accès vétérinaire
+  final String? token;
 
   const PetVaccinationsScreen({super.key, required this.petId, this.token});
 
@@ -39,24 +42,31 @@ class PetVaccinationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Utiliser le provider approprié selon le mode d'accès
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final appBarBg = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     final vaccinationsAsync = isVetAccess
         ? ref.watch(vaccinationsByTokenProvider(token!))
         : ref.watch(vaccinationsProvider(petId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: appBarBg,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'Vaccinations',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Text(
+          l10n.vaccinations,
+          style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary),
         ),
         actions: [
           IconButton(
@@ -67,38 +77,32 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 ref.invalidate(vaccinationsProvider(petId));
               }
             },
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: textPrimary),
           ),
         ],
       ),
       body: vaccinationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: _purple)),
-        error: (error, stack) => _buildError(error.toString(), ref),
+        error: (error, stack) => _buildError(error.toString(), ref, isDark, l10n, textPrimary, textSecondary),
         data: (vaccinations) {
           if (vaccinations.isEmpty) {
-            return _buildEmptyState();
+            return _buildEmptyState(isDark, l10n, textSecondary);
           }
 
-          // Trier: rappels en retard d'abord, puis à venir, puis les autres
           final now = DateTime.now();
           final sorted = vaccinations.toList()..sort((a, b) {
             final aNext = a['nextDueDate'] != null ? DateTime.parse(a['nextDueDate'].toString()) : null;
             final bNext = b['nextDueDate'] != null ? DateTime.parse(b['nextDueDate'].toString()) : null;
-
             if (aNext == null && bNext == null) return 0;
             if (aNext == null) return 1;
             if (bNext == null) return -1;
-
             final aOverdue = aNext.isBefore(now);
             final bOverdue = bNext.isBefore(now);
-
             if (aOverdue && !bOverdue) return -1;
             if (!aOverdue && bOverdue) return 1;
-
             return aNext.compareTo(bNext);
           });
 
-          // Séparer en catégories
           final overdue = sorted.where((v) {
             if (v['nextDueDate'] == null) return false;
             final next = DateTime.parse(v['nextDueDate'].toString());
@@ -125,73 +129,72 @@ class PetVaccinationsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Statistiques rapides
                 if (overdue.isNotEmpty || upcoming.isNotEmpty)
-                  _buildStatsCards(overdue.length, upcoming.length),
+                  _buildStatsCards(overdue.length, upcoming.length, isDark, l10n, textSecondary),
 
                 if (overdue.isNotEmpty || upcoming.isNotEmpty)
                   const SizedBox(height: 24),
 
-                // En retard
                 if (overdue.isNotEmpty) ...[
                   _buildSectionHeader(
                     icon: Icons.warning_rounded,
-                    title: 'Rappels en retard',
+                    title: l10n.overdueReminders,
                     count: overdue.length,
                     color: _coral,
+                    textPrimary: textPrimary,
                   ),
                   const SizedBox(height: 16),
                   ...overdue.map((v) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.overdue),
+                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.overdue, isDark, l10n, textPrimary, textSecondary),
                   )),
                   const SizedBox(height: 32),
                 ],
 
-                // À venir (< 30 jours)
                 if (upcoming.isNotEmpty) ...[
                   _buildSectionHeader(
                     icon: Icons.schedule_rounded,
-                    title: 'Prochainement',
+                    title: l10n.upcoming,
                     count: upcoming.length,
                     color: _orange,
+                    textPrimary: textPrimary,
                   ),
                   const SizedBox(height: 16),
                   ...upcoming.map((v) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.upcoming),
+                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.upcoming, isDark, l10n, textPrimary, textSecondary),
                   )),
                   const SizedBox(height: 32),
                 ],
 
-                // À venir (> 30 jours)
                 if (future.isNotEmpty) ...[
                   _buildSectionHeader(
                     icon: Icons.event_available_rounded,
-                    title: 'Planifiés',
+                    title: l10n.planned,
                     count: future.length,
                     color: _mint,
+                    textPrimary: textPrimary,
                   ),
                   const SizedBox(height: 16),
                   ...future.map((v) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.future),
+                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.future, isDark, l10n, textPrimary, textSecondary),
                   )),
                   const SizedBox(height: 32),
                 ],
 
-                // Sans rappel
                 if (noReminder.isNotEmpty) ...[
                   _buildSectionHeader(
                     icon: Icons.vaccines_rounded,
-                    title: 'Effectués',
+                    title: l10n.completed,
                     count: noReminder.length,
                     color: _purple,
+                    textPrimary: textPrimary,
                   ),
                   const SizedBox(height: 16),
                   ...noReminder.map((v) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.done),
+                    child: _buildVaccinationCard(context, ref, v, VaccineStatus.done, isDark, l10n, textPrimary, textSecondary),
                   )),
                 ],
               ],
@@ -214,15 +217,15 @@ class PetVaccinationsScreen extends ConsumerWidget {
         },
         backgroundColor: _purple,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Ajouter',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        label: Text(
+          l10n.addData,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
     );
   }
 
-  Widget _buildStatsCards(int overdueCount, int upcomingCount) {
+  Widget _buildStatsCards(int overdueCount, int upcomingCount, bool isDark, AppLocalizations l10n, Color textSecondary) {
     return Row(
       children: [
         if (overdueCount > 0)
@@ -230,13 +233,13 @@ class PetVaccinationsScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _coral.withOpacity(0.1),
+                color: _coral.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _coral.withOpacity(0.3), width: 2),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_rounded, color: _coral, size: 32),
+                  const Icon(Icons.warning_rounded, color: _coral, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -244,18 +247,18 @@ class PetVaccinationsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           '$overdueCount',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                             color: _coral,
                           ),
                         ),
                         Text(
-                          'En retard',
+                          l10n.overdue,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            color: textSecondary,
                           ),
                         ),
                       ],
@@ -271,13 +274,13 @@ class PetVaccinationsScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _orange.withOpacity(0.1),
+                color: _orange.withOpacity(isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _orange.withOpacity(0.3), width: 2),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.schedule_rounded, color: _orange, size: 32),
+                  const Icon(Icons.schedule_rounded, color: _orange, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -285,18 +288,18 @@ class PetVaccinationsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           '$upcomingCount',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                             color: _orange,
                           ),
                         ),
                         Text(
-                          'À venir',
+                          l10n.upcoming,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            color: textSecondary,
                           ),
                         ),
                       ],
@@ -315,6 +318,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
     required String title,
     required int count,
     required Color color,
+    required Color textPrimary,
   }) {
     return Row(
       children: [
@@ -322,10 +326,10 @@ class PetVaccinationsScreen extends ConsumerWidget {
         const SizedBox(width: 12),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: _ink,
+            color: textPrimary,
           ),
         ),
         const SizedBox(width: 8),
@@ -353,9 +357,12 @@ class PetVaccinationsScreen extends ConsumerWidget {
     WidgetRef ref,
     Map<String, dynamic> vaccination,
     VaccineStatus status,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+    Color textSecondary,
   ) {
-    final id = vaccination['id']?.toString() ?? '';
-    final name = vaccination['name']?.toString() ?? 'Vaccin';
+    final name = vaccination['name']?.toString() ?? l10n.vaccination;
     final date = vaccination['date'] != null
         ? DateTime.parse(vaccination['date'].toString())
         : null;
@@ -364,28 +371,29 @@ class PetVaccinationsScreen extends ConsumerWidget {
         : null;
     final batchNumber = vaccination['batchNumber']?.toString();
     final vetName = vaccination['vetName']?.toString();
-    final notes = vaccination['notes']?.toString();
 
     final statusColor = _getStatusColor(status);
     final statusIcon = _getStatusIcon(status);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final dividerColor = isDark ? Colors.grey.shade700 : Colors.grey.shade200;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          _showVaccinationDetails(context, ref, vaccination);
+          _showVaccinationDetails(context, ref, vaccination, isDark, l10n, textPrimary, textSecondary);
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: statusColor.withOpacity(0.3),
               width: 2,
             ),
-            boxShadow: const [
+            boxShadow: isDark ? null : const [
               BoxShadow(
                 color: Color(0x0A000000),
                 blurRadius: 10,
@@ -401,7 +409,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -417,19 +425,19 @@ class PetVaccinationsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: _ink,
+                            color: textPrimary,
                           ),
                         ),
                         if (date != null) ...[
                           const SizedBox(height: 2),
                           Text(
-                            'Effectué le ${DateFormat('dd/MM/yyyy').format(date)}',
+                            '${l10n.date}: ${DateFormat('dd/MM/yyyy').format(date)}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: textSecondary,
                             ),
                           ),
                         ],
@@ -445,12 +453,12 @@ class PetVaccinationsScreen extends ConsumerWidget {
               ),
               if (nextDueDate != null) ...[
                 const SizedBox(height: 12),
-                const Divider(height: 1),
+                Divider(height: 1, color: dividerColor),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -462,11 +470,11 @@ class PetVaccinationsScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Prochain rappel',
+                              l10n.nextReminder,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
+                                color: textSecondary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -481,16 +489,15 @@ class PetVaccinationsScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      if (status == VaccineStatus.overdue || status == VaccineStatus.upcoming) ...[
+                      if (status == VaccineStatus.overdue || status == VaccineStatus.upcoming)
                         Text(
-                          _getDaysText(nextDueDate),
+                          _getDaysText(nextDueDate, l10n),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: statusColor,
                           ),
                         ),
-                      ],
                     ],
                   ),
                 ),
@@ -500,21 +507,21 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 Row(
                   children: [
                     if (batchNumber != null) ...[
-                      Icon(Icons.qr_code, size: 14, color: Colors.grey.shade600),
+                      Icon(Icons.qr_code, size: 14, color: textSecondary),
                       const SizedBox(width: 6),
                       Text(
-                        'Lot: $batchNumber',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        '${l10n.batch}: $batchNumber',
+                        style: TextStyle(fontSize: 12, color: textSecondary),
                       ),
                     ],
                     if (batchNumber != null && vetName != null) const SizedBox(width: 12),
                     if (vetName != null) ...[
-                      Icon(Icons.medical_services, size: 14, color: Colors.grey.shade600),
+                      Icon(Icons.medical_services, size: 14, color: textSecondary),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           vetName,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 12, color: textSecondary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -529,9 +536,17 @@ class PetVaccinationsScreen extends ConsumerWidget {
     );
   }
 
-  void _showVaccinationDetails(BuildContext context, WidgetRef ref, Map<String, dynamic> vaccination) {
+  void _showVaccinationDetails(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> vaccination,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final id = vaccination['id']?.toString() ?? '';
-    final name = vaccination['name']?.toString() ?? 'Vaccin';
+    final name = vaccination['name']?.toString() ?? l10n.vaccination;
     final date = vaccination['date'] != null
         ? DateTime.parse(vaccination['date'].toString())
         : null;
@@ -542,29 +557,43 @@ class PetVaccinationsScreen extends ConsumerWidget {
     final vetName = vaccination['vetName']?.toString();
     final notes = vaccination['notes']?.toString();
 
+    final sheetBg = isDark ? _darkCard : Colors.white;
+    final handleColor = isDark ? Colors.grey.shade600 : Colors.grey.shade300;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: sheetBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: handleColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: _ink,
+                      color: textPrimary,
                     ),
                   ),
                 ),
@@ -591,7 +620,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 IconButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _confirmDelete(context, ref, id, name);
+                    _confirmDelete(context, ref, id, name, l10n);
                   },
                   icon: const Icon(Icons.delete),
                   style: IconButton.styleFrom(
@@ -603,27 +632,27 @@ class PetVaccinationsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             if (date != null)
-              _buildDetailRow(Icons.calendar_today, 'Date', DateFormat('dd/MM/yyyy').format(date)),
+              _buildDetailRow(Icons.calendar_today, l10n.date, DateFormat('dd/MM/yyyy').format(date), textPrimary, textSecondary),
             if (nextDueDate != null) ...[
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.event, 'Rappel', DateFormat('dd/MM/yyyy').format(nextDueDate)),
+              _buildDetailRow(Icons.event, l10n.reminder, DateFormat('dd/MM/yyyy').format(nextDueDate), textPrimary, textSecondary),
             ],
             if (batchNumber != null) ...[
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.qr_code, 'Lot', batchNumber),
+              _buildDetailRow(Icons.qr_code, l10n.batch, batchNumber, textPrimary, textSecondary),
             ],
             if (vetName != null) ...[
               const SizedBox(height: 16),
-              _buildDetailRow(Icons.medical_services, 'Vétérinaire', vetName),
+              _buildDetailRow(Icons.medical_services, l10n.veterinarian, vetName, textPrimary, textSecondary),
             ],
             if (notes != null) ...[
               const SizedBox(height: 24),
-              const Text(
-                'Notes',
+              Text(
+                l10n.notes,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey,
+                  color: textSecondary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -631,7 +660,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 notes,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey.shade700,
+                  color: textSecondary,
                   height: 1.5,
                 ),
               ),
@@ -646,7 +675,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Fermer'),
+              child: Text(l10n.close),
             ),
             SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
           ],
@@ -655,27 +684,27 @@ class PetVaccinationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(IconData icon, String label, String value, Color textPrimary, Color textSecondary) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
+        Icon(icon, size: 20, color: textSecondary),
         const SizedBox(width: 12),
         Text(
           '$label:',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade600,
+            color: textSecondary,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: _ink,
+              color: textPrimary,
             ),
             textAlign: TextAlign.end,
           ),
@@ -684,16 +713,16 @@ class PetVaccinationsScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, String id, String name) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, String id, String name, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer le vaccin'),
-        content: Text('Êtes-vous sûr de vouloir supprimer "$name" ?'),
+        title: Text(l10n.deleteVaccine),
+        content: Text('${l10n.confirmDeleteVaccine} "$name" ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -705,8 +734,8 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Vaccin supprimé'),
+                    SnackBar(
+                      content: Text(l10n.vaccineDeleted),
                       backgroundColor: _coral,
                     ),
                   );
@@ -715,13 +744,13 @@ class PetVaccinationsScreen extends ConsumerWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
+                    SnackBar(content: Text('${l10n.error}: $e')),
                   );
                 }
               }
             },
             style: FilledButton.styleFrom(backgroundColor: _coral),
-            child: const Text('Supprimer'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -754,42 +783,46 @@ class PetVaccinationsScreen extends ConsumerWidget {
     }
   }
 
-  String _getDaysText(DateTime nextDue) {
+  String _getDaysText(DateTime nextDue, AppLocalizations l10n) {
     final now = DateTime.now();
     final diff = nextDue.difference(now).inDays;
 
     if (diff < 0) {
       final days = diff.abs();
-      return days == 1 ? 'Retard 1j' : 'Retard ${days}j';
+      return '${l10n.delayDays} ${days}${l10n.day}';
     } else if (diff == 0) {
-      return 'Aujourd\'hui';
+      return l10n.today;
     } else {
-      return diff == 1 ? 'Dans 1j' : 'Dans ${diff}j';
+      return '${l10n.inDays} $diff${diff == 1 ? l10n.day : l10n.days}';
     }
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark, AppLocalizations l10n, Color textSecondary) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.vaccines_outlined, size: 80, color: Colors.grey.shade300),
+          Icon(
+            Icons.vaccines_outlined,
+            size: 80,
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
           const SizedBox(height: 24),
           Text(
-            'Aucun vaccin',
+            l10n.noVaccine,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade600,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Ajoutez les vaccins de votre animal',
+            l10n.addPetVaccines,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade500,
+              color: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
             ),
           ),
         ],
@@ -797,19 +830,19 @@ class PetVaccinationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(String error, WidgetRef ref) {
+  Widget _buildError(String error, WidgetRef ref, bool isDark, AppLocalizations l10n, Color textPrimary, Color textSecondary) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const Icon(Icons.error_outline, size: 64, color: _coral),
           const SizedBox(height: 16),
-          const Text(
-            'Erreur',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          Text(
+            l10n.error,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
           ),
           const SizedBox(height: 8),
-          Text(error, style: TextStyle(color: Colors.grey.shade600)),
+          Text(error, style: TextStyle(color: textSecondary)),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: () {
@@ -820,7 +853,7 @@ class PetVaccinationsScreen extends ConsumerWidget {
               }
             },
             style: FilledButton.styleFrom(backgroundColor: _coral),
-            child: const Text('Réessayer'),
+            child: Text(l10n.retry),
           ),
         ],
       ),
@@ -829,8 +862,8 @@ class PetVaccinationsScreen extends ConsumerWidget {
 }
 
 enum VaccineStatus {
-  overdue,   // En retard
-  upcoming,  // À venir (< 30 jours)
-  future,    // Planifié (> 30 jours)
-  done,      // Effectué sans rappel
+  overdue,
+  upcoming,
+  future,
+  done,
 }

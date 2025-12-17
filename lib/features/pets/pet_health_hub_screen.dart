@@ -4,14 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
-const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
 const _mint = Color(0xFF4ECDC4);
 const _purple = Color(0xFF9B59B6);
 const _orange = Color(0xFFF39C12);
 const _green = Color(0xFF43AA8B);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
 
 // Provider pour les infos d'un animal (propriétaire)
 final petInfoProvider = FutureProvider.autoDispose
@@ -48,9 +50,9 @@ final latestHealthDataProvider = FutureProvider.autoDispose
 
 class PetHealthHubScreen extends ConsumerWidget {
   final String petId;
-  final String? token; // Token optionnel pour accès vétérinaire
-  final bool isVetAccess; // Indique si c'est un accès vétérinaire
-  final bool bookingConfirmed; // Si le RDV vient d'être confirmé
+  final String? token;
+  final bool isVetAccess;
+  final bool bookingConfirmed;
 
   const PetHealthHubScreen({
     super.key,
@@ -62,23 +64,30 @@ class PetHealthHubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Utiliser le provider approprié selon le mode d'accès
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final appBarBg = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     final petAsync = isVetAccess && token != null
         ? ref.watch(petInfoByTokenProvider(token!))
         : ref.watch(petInfoProvider(petId));
     final healthAsync = ref.watch(latestHealthDataProvider(petId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: appBarBg,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: textPrimary),
           onPressed: () {
             if (isVetAccess) {
-              context.go('/pro'); // Retour au dashboard pro
+              context.go('/pro');
             } else {
               context.pop();
             }
@@ -86,11 +95,11 @@ class PetHealthHubScreen extends ConsumerWidget {
         ),
         title: petAsync.when(
           data: (pet) => Text(
-            'Santé de ${pet?['name'] ?? 'Animal'}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            '${l10n.petHealth} ${pet?['name'] ?? ''}',
+            style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary),
           ),
-          loading: () => const Text('Santé'),
-          error: (_, __) => const Text('Santé'),
+          loading: () => Text(l10n.petHealth, style: TextStyle(color: textPrimary)),
+          error: (_, __) => Text(l10n.petHealth, style: TextStyle(color: textPrimary)),
         ),
         actions: [
           IconButton(
@@ -102,7 +111,7 @@ class PetHealthHubScreen extends ConsumerWidget {
               }
               ref.invalidate(latestHealthDataProvider(petId));
             },
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: textPrimary),
           ),
         ],
       ),
@@ -127,18 +136,18 @@ class PetHealthHubScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: isDark ? _green.withOpacity(0.2) : const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: _green),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: _green),
-                      SizedBox(width: 12),
+                      const Icon(Icons.check_circle, color: _green),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Rendez-vous confirmé avec succès',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: _green),
+                          l10n.appointmentConfirmedSuccess,
+                          style: const TextStyle(fontWeight: FontWeight.w600, color: _green),
                         ),
                       ),
                     ],
@@ -161,17 +170,17 @@ class PetHealthHubScreen extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? _darkCard : Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.person, size: 20, color: Colors.grey.shade600),
+                          Icon(Icons.person, size: 20, color: textSecondary),
                           const SizedBox(width: 8),
                           Text(
-                            'Propriétaire: $ownerName',
-                            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                            '${l10n.owner}: $ownerName',
+                            style: TextStyle(fontSize: 14, color: textSecondary),
                           ),
                           if (ownerPhone.isNotEmpty) ...[
                             const Spacer(),
@@ -203,16 +212,16 @@ class PetHealthHubScreen extends ConsumerWidget {
                 ),
 
               // Vue d'ensemble rapide
-              _buildQuickOverview(healthAsync),
+              _buildQuickOverview(healthAsync, isDark, l10n, textPrimary, textSecondary),
               const SizedBox(height: 32),
 
               // Section titre
-              const Text(
-                'Accès rapide',
+              Text(
+                l10n.quickAccess,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: _ink,
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -221,10 +230,13 @@ class PetHealthHubScreen extends ConsumerWidget {
               _buildActionCard(
                 context: context,
                 icon: Icons.history_rounded,
-                title: 'Historique médical',
-                subtitle: 'Consultations, diagnostics, traitements',
+                title: l10n.medicalHistoryTitle,
+                subtitle: l10n.consultationsDiagnosis,
                 color: Colors.blue,
                 gradientColor: Colors.blue.withOpacity(0.7),
+                isDark: isDark,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
                 onTap: () {
                   final url = isVetAccess && token != null
                       ? '/pets/$petId/medical?token=$token'
@@ -237,10 +249,13 @@ class PetHealthHubScreen extends ConsumerWidget {
               _buildActionCard(
                 context: context,
                 icon: Icons.analytics_rounded,
-                title: 'Statistiques de santé',
-                subtitle: 'Poids, température, fréquence cardiaque',
+                title: l10n.healthStats,
+                subtitle: l10n.weightTempHeart,
                 color: _coral,
                 gradientColor: _coral.withOpacity(0.7),
+                isDark: isDark,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
                 onTap: () {
                   final url = isVetAccess && token != null
                       ? '/pets/$petId/health-stats-detail?token=$token'
@@ -253,10 +268,13 @@ class PetHealthHubScreen extends ConsumerWidget {
               _buildActionCard(
                 context: context,
                 icon: Icons.medication_rounded,
-                title: 'Ordonnances',
-                subtitle: 'Médicaments et traitements prescrits',
+                title: l10n.prescriptions,
+                subtitle: l10n.prescribedMedications,
                 color: _mint,
                 gradientColor: _mint.withOpacity(0.7),
+                isDark: isDark,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
                 onTap: () {
                   final url = isVetAccess && token != null
                       ? '/pets/$petId/prescriptions?token=$token'
@@ -269,10 +287,13 @@ class PetHealthHubScreen extends ConsumerWidget {
               _buildActionCard(
                 context: context,
                 icon: Icons.vaccines_rounded,
-                title: 'Vaccinations',
-                subtitle: 'Calendrier et rappels de vaccins',
+                title: l10n.vaccinations,
+                subtitle: l10n.vaccineCalendar,
                 color: _purple,
                 gradientColor: _purple.withOpacity(0.7),
+                isDark: isDark,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
                 onTap: () {
                   final url = isVetAccess && token != null
                       ? '/pets/$petId/vaccinations?token=$token'
@@ -285,10 +306,13 @@ class PetHealthHubScreen extends ConsumerWidget {
               _buildActionCard(
                 context: context,
                 icon: Icons.monitor_heart_rounded,
-                title: 'Suivi de maladie',
-                subtitle: 'Photos, évolution, notes',
+                title: l10n.diseaseFollowUp,
+                subtitle: l10n.photosEvolutionNotes,
                 color: _orange,
                 gradientColor: _orange.withOpacity(0.7),
+                isDark: isDark,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
                 onTap: () {
                   final url = isVetAccess && token != null
                       ? '/pets/$petId/diseases?token=$token'
@@ -303,11 +327,17 @@ class PetHealthHubScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickOverview(AsyncValue<Map<String, dynamic>?> healthAsync) {
+  Widget _buildQuickOverview(
+    AsyncValue<Map<String, dynamic>?> healthAsync,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return healthAsync.when(
       data: (stats) {
         if (stats == null) {
-          return _buildEmptyOverview();
+          return _buildEmptyOverview(isDark, l10n, textSecondary);
         }
 
         final weight = stats['weight'] as Map<String, dynamic>?;
@@ -322,12 +352,14 @@ class PetHealthHubScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [_coral.withOpacity(0.1), _mint.withOpacity(0.1)],
+              colors: isDark
+                  ? [_coral.withOpacity(0.2), _mint.withOpacity(0.2)]
+                  : [_coral.withOpacity(0.1), _mint.withOpacity(0.1)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white, width: 2),
+            border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.white, width: 2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,21 +375,21 @@ class PetHealthHubScreen extends ConsumerWidget {
                     child: const Icon(Icons.favorite, color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'État de santé',
+                          l10n.healthStatus,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: _ink,
+                            color: textPrimary,
                           ),
                         ),
                         Text(
-                          'Dernières mesures enregistrées',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          l10n.latestMeasurements,
+                          style: TextStyle(fontSize: 13, color: textSecondary),
                         ),
                       ],
                     ),
@@ -371,9 +403,11 @@ class PetHealthHubScreen extends ConsumerWidget {
                     Expanded(
                       child: _buildMiniStat(
                         icon: Icons.monitor_weight,
-                        label: 'Poids',
-                        value: '${currentWeight.toStringAsFixed(1)} kg',
+                        label: l10n.weight,
+                        value: '${currentWeight.toStringAsFixed(1)} ${l10n.kg}',
                         color: _coral,
+                        isDark: isDark,
+                        textPrimary: textPrimary,
                       ),
                     ),
                   if (currentWeight != null && currentTemp != null) const SizedBox(width: 12),
@@ -381,9 +415,11 @@ class PetHealthHubScreen extends ConsumerWidget {
                     Expanded(
                       child: _buildMiniStat(
                         icon: Icons.thermostat,
-                        label: 'Temp.',
+                        label: l10n.temp,
                         value: '${currentTemp.toStringAsFixed(1)}°C',
                         color: _mint,
+                        isDark: isDark,
+                        textPrimary: textPrimary,
                       ),
                     ),
                   if ((currentWeight != null || currentTemp != null) && currentHeart != null)
@@ -392,9 +428,11 @@ class PetHealthHubScreen extends ConsumerWidget {
                     Expanded(
                       child: _buildMiniStat(
                         icon: Icons.favorite,
-                        label: 'Cœur',
-                        value: '$currentHeart bpm',
+                        label: l10n.heart,
+                        value: '$currentHeart ${l10n.bpm}',
                         color: _purple,
+                        isDark: isDark,
+                        textPrimary: textPrimary,
                       ),
                     ),
                 ],
@@ -403,39 +441,39 @@ class PetHealthHubScreen extends ConsumerWidget {
           ),
         );
       },
-      loading: () => _buildLoadingSkeleton(),
-      error: (_, __) => _buildEmptyOverview(),
+      loading: () => _buildLoadingSkeleton(isDark),
+      error: (_, __) => _buildEmptyOverview(isDark, l10n, textSecondary),
     );
   }
 
-  Widget _buildEmptyOverview() {
+  Widget _buildEmptyOverview(bool isDark, AppLocalizations l10n, Color textSecondary) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.grey.shade400, size: 40),
+          Icon(Icons.info_outline, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 40),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Aucune donnée de santé',
+                  l10n.noHealthDataYet,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade700,
+                    color: textSecondary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Les données apparaîtront après les visites vétérinaires',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  l10n.dataWillAppearAfterVisits,
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade600 : Colors.grey.shade500),
                 ),
               ],
             ),
@@ -445,11 +483,11 @@ class PetHealthHubScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoadingSkeleton() {
+  Widget _buildLoadingSkeleton(bool isDark) {
     return Container(
       height: 140,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: isDark ? _darkCard : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(20),
       ),
     );
@@ -460,11 +498,13 @@ class PetHealthHubScreen extends ConsumerWidget {
     required String label,
     required String value,
     required Color color,
+    required bool isDark,
+    required Color textPrimary,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -473,16 +513,16 @@ class PetHealthHubScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: _ink,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade500 : Colors.grey.shade600),
           ),
         ],
       ),
@@ -496,6 +536,9 @@ class PetHealthHubScreen extends ConsumerWidget {
     required String subtitle,
     required Color color,
     required Color gradientColor,
+    required bool isDark,
+    required Color textPrimary,
+    required Color textSecondary,
     required VoidCallback onTap,
     String? badge,
   }) {
@@ -508,13 +551,15 @@ class PetHealthHubScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.white, color.withOpacity(0.05)],
+              colors: isDark
+                  ? [_darkCard, color.withOpacity(0.1)]
+                  : [Colors.white, color.withOpacity(0.05)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: color.withOpacity(0.2), width: 2),
-            boxShadow: [
+            boxShadow: isDark ? null : [
               BoxShadow(
                 color: color.withOpacity(0.1),
                 blurRadius: 10,
@@ -554,10 +599,10 @@ class PetHealthHubScreen extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: _ink,
+                              color: textPrimary,
                             ),
                           ),
                         ),
@@ -584,7 +629,7 @@ class PetHealthHubScreen extends ConsumerWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade600,
+                        color: textSecondary,
                       ),
                     ),
                   ],
