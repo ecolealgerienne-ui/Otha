@@ -177,10 +177,123 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     );
   }
 
+  /// Vérifie si l'utilisateur a déjà un RDV vétérinaire en cours
+  Future<Map<String, dynamic>?> _checkExistingBooking() async {
+    try {
+      final bookings = await ref.read(apiProvider).myBookings();
+      for (final b in bookings) {
+        if (b is! Map) continue;
+        final status = (b['status'] ?? '').toString().toUpperCase();
+        // Bloquer si un RDV est en attente ou confirmé
+        if (status == 'PENDING' || status == 'CONFIRMED' || status == 'AWAITING_CONFIRMATION' || status == 'PENDING_PRO_VALIDATION') {
+          return Map<String, dynamic>.from(b);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null; // En cas d'erreur, on laisse passer
+    }
+  }
+
+  /// Affiche un dialog si l'utilisateur a déjà un RDV
+  void _showExistingBookingDialog(BuildContext context, Map<String, dynamic> existing) {
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final scheduledAt = existing['scheduledAt']?.toString() ?? '';
+    DateTime? dt;
+    try { dt = DateTime.parse(scheduledAt); } catch (_) {}
+    final dateStr = dt != null
+        ? DateFormat('EEEE d MMMM à HH:mm', 'fr_FR').format(dt)
+        : 'bientôt';
+
+    final providerName = (existing['provider']?['displayName'] ??
+                          existing['providerProfile']?['displayName'] ??
+                          'un vétérinaire').toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.event_busy, color: _coral, size: 32),
+        ),
+        title: Text(
+          'Vous avez déjà un rendez-vous',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+          ),
+        ),
+        content: Text(
+          'Vous avez un rendez-vous prévu $dateStr chez $providerName.\n\nVeuillez annuler ce rendez-vous avant d\'en prendre un nouveau.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark ? Colors.grey[300] : Colors.grey[700],
+          ),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.grey[400] : Colors.grey[600],
+                    side: BorderSide(color: isDark ? Colors.grey[600]! : Colors.grey[300]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Fermer'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    // Naviguer vers les détails du RDV existant
+                    context.push('/booking-details', extra: existing);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _coral,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Voir mon RDV'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmBooking() async {
     if (_selectedServiceId == null || _selectedSlotIso == null || _selectedPetId == null) return;
 
     setState(() => _booking = true);
+
+    // Vérifier si l'utilisateur a déjà un RDV en cours
+    final existingBooking = await _checkExistingBooking();
+    if (existingBooking != null) {
+      if (mounted) {
+        setState(() => _booking = false);
+        _showExistingBookingDialog(context, existingBooking);
+      }
+      return;
+    }
+
     try {
       final res = await ref.read(apiProvider).createBooking(
         serviceId: _selectedServiceId!,

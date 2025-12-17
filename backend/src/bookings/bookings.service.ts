@@ -995,6 +995,9 @@ export class BookingsService {
       },
     });
 
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(b.userId);
+
     // 🏥 NOUVEAU: Créer automatiquement un acte médical pour chaque animal
     const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
     const petIds = Array.isArray(b.petIds) ? b.petIds : [];
@@ -1243,168 +1246,6 @@ export class BookingsService {
     }));
   }
 
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /**
-   * Génère un code OTP 6 chiffres pour un booking
-   * Le client peut demander ce code pour le montrer au pro
-   */
-  async generateBookingOtp(userId: string, bookingId: string) {
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, userId },
-      include: { provider: true },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier que le RDV n'est pas déjà terminé/annulé
-    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
-      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
-    }
-
-    // Générer un code 6 chiffres
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        confirmationOtp: otp,
-        confirmationOtpExpiresAt: expiresAt,
-        confirmationOtpAttempts: 0,
-      },
-    });
-
-    return {
-      otp,
-      expiresAt: expiresAt.toISOString(),
-      expiresInSeconds: 600,
-    };
-  }
-
-  /**
-   * Récupère l'OTP actif pour un booking (côté client)
-   * Si l'OTP est expiré, en génère un nouveau
-   */
-  async getBookingOtp(userId: string, bookingId: string) {
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, userId },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier si un OTP valide existe
-    if (
-      booking.confirmationOtp &&
-      booking.confirmationOtpExpiresAt &&
-      booking.confirmationOtpExpiresAt > new Date()
-    ) {
-      const remainingMs = booking.confirmationOtpExpiresAt.getTime() - Date.now();
-      return {
-        otp: booking.confirmationOtp,
-        expiresAt: booking.confirmationOtpExpiresAt.toISOString(),
-        expiresInSeconds: Math.floor(remainingMs / 1000),
-      };
-    }
-
-    // Sinon, générer un nouveau
-    return this.generateBookingOtp(userId, bookingId);
-  }
-
-  /**
-   * Le PRO vérifie l'OTP donné par le client
-   * Si valide → confirme le booking et crée la commission
-   */
-  async verifyBookingOtpByPro(proUserId: string, bookingId: string, otp: string) {
-    const prov = await this.prisma.providerProfile.findUnique({
-      where: { userId: proUserId },
-    });
-    if (!prov) throw new ForbiddenException('No provider profile');
-
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, providerId: prov.id },
-      include: { service: true, user: true },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier le statut
-    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
-      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
-    }
-
-    // Vérifier le nombre de tentatives
-    if (booking.confirmationOtpAttempts >= 5) {
-      throw new BadRequestException('Trop de tentatives. Demandez au client de régénérer le code.');
-    }
-
-    // Vérifier l'expiration
-    if (!booking.confirmationOtp || !booking.confirmationOtpExpiresAt) {
-      throw new BadRequestException('Aucun code OTP actif. Le client doit en générer un.');
-    }
-    if (booking.confirmationOtpExpiresAt < new Date()) {
-      throw new BadRequestException('Code OTP expiré. Le client doit en régénérer un.');
-    }
-
-    // Vérifier le code
-    if (booking.confirmationOtp !== otp) {
-      await this.prisma.booking.update({
-        where: { id: bookingId },
-        data: { confirmationOtpAttempts: { increment: 1 } },
-      });
-      throw new BadRequestException('Code OTP invalide');
-    }
-
-    // ✅ OTP valide → Confirmer le booking
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: 'COMPLETED',
-        proConfirmedAt: new Date(),
-        clientConfirmedAt: new Date(), // Les deux confirment via OTP
-        confirmationMethod: 'OTP',
-        confirmationOtp: null, // Nettoyer l'OTP
-        confirmationOtpExpiresAt: null,
-      },
-    });
-
-    // Créer la commission
-    const gross = Number((booking.service.price as any)?.toNumber?.() ?? 0);
-    const commission = COMMISSION_DA;
-    const net = Math.max(gross - commission, 0);
-
-    await this.prisma.providerEarning.upsert({
-      where: { bookingId: booking.id },
-      update: {},
-      create: {
-        providerId: prov.id,
-        bookingId: booking.id,
-        serviceId: booking.serviceId,
-        grossPriceDa: gross,
-        commissionDa: commission,
-        netToProviderDa: net,
-      },
-    });
-
-    // Créer l'acte médical pour chaque animal
-    const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
-    for (const petId of petIds) {
-      await this.prisma.medicalRecord.create({
-        data: {
-          petId,
-          type: 'VET_VISIT',
-          title: `Visite vétérinaire - ${booking.service.title}`,
-          description: `Rendez-vous confirmé par OTP`,
-          date: booking.scheduledAt,
-          vetId: prov.id,
-          vetName: prov.displayName,
-          providerType: 'VET',
-          bookingId: booking.id,
-          durationMinutes: booking.service.durationMin || 30,
-        },
-      });
-    }
-
-    return { success: true, message: 'Rendez-vous confirmé avec succès' };
-  }
-
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
 
   /**
@@ -1540,7 +1381,7 @@ export class BookingsService {
   async clientConfirmWithMethod(
     userId: string,
     bookingId: string,
-    method: 'SIMPLE' | 'OTP' | 'QR_SCAN',
+    method: 'SIMPLE' | 'QR_SCAN',
     rating?: number,
     comment?: string,
   ) {
@@ -1926,7 +1767,28 @@ export class BookingsService {
       };
     }
 
-    // VERIFIED → peut réserver sans limite
+    // VERIFIED → vérifier qu'il n'a pas déjà un RDV véto actif
+    const activeVetBooking = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+      },
+      select: { id: true, scheduledAt: true, provider: { select: { displayName: true } } },
+    });
+
+    if (activeVetBooking) {
+      const dateStr = activeVetBooking.scheduledAt
+        ? activeVetBooking.scheduledAt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+        : 'bientôt';
+      const providerName = activeVetBooking.provider?.displayName || 'un vétérinaire';
+      return {
+        canBook: false,
+        reason: `Vous avez déjà un rendez-vous prévu ${dateStr} chez ${providerName}. Veuillez l'annuler avant d'en prendre un nouveau.`,
+        trustStatus: user.trustStatus,
+        isFirstBooking: false,
+      };
+    }
+
     return {
       canBook: true,
       trustStatus: user.trustStatus,
@@ -2110,6 +1972,9 @@ export class BookingsService {
         netToProviderDa: net,
       },
     });
+
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(booking.userId);
 
     // 🏥 Créer l'acte médical pour chaque animal
     const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';

@@ -1,7 +1,5 @@
 // lib/features/bookings/booking_proximity_confirmation_screen.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -34,19 +32,12 @@ class _BookingProximityConfirmationScreenState
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Pour l'OTP
-  String? _otpCode;
-  int _otpExpiresInSeconds = 0;
-  Timer? _otpTimer;
-  bool _showOtpSection = false;
-
   // Pour le rating
   int _rating = 5;
   final _commentController = TextEditingController();
 
   @override
   void dispose() {
-    _otpTimer?.cancel();
     _commentController.dispose();
     super.dispose();
   }
@@ -98,92 +89,6 @@ class _BookingProximityConfirmationScreenState
     }
   }
 
-  /// Afficher le code OTP
-  Future<void> _showOtpCode() async {
-    setState(() {
-      _showOtpSection = true;
-      _isLoading = true;
-    });
-
-    try {
-      final api = ref.read(apiProvider);
-      final result = await api.getBookingOtp(widget.bookingId);
-
-      if (!mounted) return;
-
-      setState(() {
-        _otpCode = result['otp']?.toString();
-        _otpExpiresInSeconds = (result['expiresInSeconds'] as num?)?.toInt() ?? 600;
-      });
-
-      // Démarrer le timer
-      _startOtpTimer();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _startOtpTimer() {
-    _otpTimer?.cancel();
-    _otpTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        _otpExpiresInSeconds--;
-        if (_otpExpiresInSeconds <= 0) {
-          timer.cancel();
-          _otpCode = null;
-        }
-      });
-    });
-  }
-
-  /// Régénérer le code OTP
-  Future<void> _regenerateOtp() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final api = ref.read(apiProvider);
-      final result = await api.generateBookingOtp(widget.bookingId);
-
-      if (!mounted) return;
-
-      setState(() {
-        _otpCode = result['otp']?.toString();
-        _otpExpiresInSeconds = (result['expiresInSeconds'] as num?)?.toInt() ?? 600;
-      });
-
-      _startOtpTimer();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  /// Copier le code OTP
-  void _copyOtp() {
-    if (_otpCode == null) return;
-    Clipboard.setData(ClipboardData(text: _otpCode!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code copié !')),
-    );
-  }
-
   /// Aller au scan QR
   void _goToQrScan() {
     // Naviguer vers l'écran de QR code de l'animal
@@ -217,12 +122,6 @@ class _BookingProximityConfirmationScreenState
         ),
       );
     }
-  }
-
-  String _formatExpiration(int seconds) {
-    final min = seconds ~/ 60;
-    final sec = seconds % 60;
-    return '${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -482,7 +381,7 @@ class _BookingProximityConfirmationScreenState
               const SizedBox(height: 16),
             ],
 
-            // Bouton 1: Confirmer ma visite (simple)
+            // Bouton: Confirmer ma visite (simple)
             _ConfirmButton(
               icon: Icons.check_circle,
               label: 'Confirmer ma visite',
@@ -494,108 +393,7 @@ class _BookingProximityConfirmationScreenState
 
             const SizedBox(height: 12),
 
-            // Bouton 2: Confirmer avec code OTP
-            _ConfirmButton(
-              icon: Icons.pin,
-              label: 'Confirmer avec code OTP',
-              subtitle: 'Montrez le code au vétérinaire',
-              color: _coral,
-              isLoading: _isLoading,
-              onPressed: _showOtpCode,
-            ),
-
-            // Section OTP (affichée après clic)
-            if (_showOtpSection) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _coral.withOpacity(0.3)),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Votre code de confirmation',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_otpCode != null) ...[
-                      GestureDetector(
-                        onTap: _copyOtp,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _coralSoft,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _otpCode!,
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 8,
-                                  color: _coral,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.copy, color: _coral, size: 20),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.timer, size: 16, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Expire dans ${_formatExpiration(_otpExpiresInSeconds)}',
-                            style: TextStyle(
-                              color: _otpExpiresInSeconds < 60
-                                  ? Colors.red
-                                  : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: _isLoading ? null : _regenerateOtp,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Nouveau code'),
-                      ),
-                    ] else if (_isLoading) ...[
-                      const CircularProgressIndicator(color: _coral),
-                    ] else ...[
-                      const Text('Code expiré'),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _regenerateOtp,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Générer un nouveau code'),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 12),
-
-            // Bouton 3: Scanner QR animal
+            // Bouton: Scanner QR animal
             _ConfirmButton(
               icon: Icons.qr_code_scanner,
               label: 'Scanner mon QR animal',

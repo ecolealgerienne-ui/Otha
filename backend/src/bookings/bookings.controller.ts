@@ -482,44 +482,6 @@ export class BookingsController {
     return this.svc.checkGracePeriods();
   }
 
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /**
-   * CLIENT: Récupérer son code OTP (le génère si nécessaire)
-   * GET /bookings/:id/otp
-   */
-  @Get(':id/otp')
-  getBookingOtp(@Req() req: any, @Param('id') id: string) {
-    return this.svc.getBookingOtp(req.user.sub, id);
-  }
-
-  /**
-   * CLIENT: Générer un nouveau code OTP
-   * POST /bookings/:id/otp/generate
-   */
-  @Post(':id/otp/generate')
-  generateBookingOtp(@Req() req: any, @Param('id') id: string) {
-    return this.svc.generateBookingOtp(req.user.sub, id);
-  }
-
-  /**
-   * PRO: Vérifier le code OTP donné par le client
-   * POST /bookings/:id/otp/verify
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PRO', 'ADMIN')
-  @Post(':id/otp/verify')
-  verifyBookingOtp(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() body: { otp: string },
-  ) {
-    if (!body?.otp || typeof body.otp !== 'string') {
-      throw new BadRequestException('otp is required');
-    }
-    return this.svc.verifyBookingOtpByPro(req.user.sub, id, body.otp);
-  }
-
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
 
   /**
@@ -562,11 +524,11 @@ export class BookingsController {
   clientConfirmWithMethod(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() body: { method: 'SIMPLE' | 'OTP' | 'QR_SCAN'; rating?: number; comment?: string },
+    @Body() body: { method: 'SIMPLE' | 'QR_SCAN'; rating?: number; comment?: string },
   ) {
-    const validMethods = ['SIMPLE', 'OTP', 'QR_SCAN'];
+    const validMethods = ['SIMPLE', 'QR_SCAN'];
     if (!body?.method || !validMethods.includes(body.method)) {
-      throw new BadRequestException('method must be SIMPLE, OTP, or QR_SCAN');
+      throw new BadRequestException('method must be SIMPLE or QR_SCAN');
     }
     return this.svc.clientConfirmWithMethod(
       req.user.sub,

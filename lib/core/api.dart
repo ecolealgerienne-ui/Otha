@@ -3480,35 +3480,6 @@ final hay = [
     return list.length;
   }
 
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /// CLIENT: Récupérer le code OTP pour un booking (le génère si nécessaire)
-  Future<Map<String, dynamic>> getBookingOtp(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.get('/bookings/$bookingId/otp'));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
-  /// CLIENT: Générer un nouveau code OTP pour un booking
-  Future<Map<String, dynamic>> generateBookingOtp(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/otp/generate'));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
-  /// PRO: Vérifier le code OTP donné par le client
-  Future<Map<String, dynamic>> verifyBookingOtp({
-    required String bookingId,
-    required String otp,
-  }) async {
-    final res = await _authRetry(() async => await _dio.post(
-      '/bookings/$bookingId/otp/verify',
-      data: {'otp': otp},
-    ));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
 
   /// CLIENT: Vérifier si proche du cabinet (pour afficher page confirmation)
@@ -3539,10 +3510,10 @@ final hay = [
     return Map<String, dynamic>.from(data as Map);
   }
 
-  /// CLIENT: Confirmer avec une méthode spécifique (SIMPLE, OTP, QR_SCAN)
+  /// CLIENT: Confirmer avec une méthode spécifique (SIMPLE, QR_SCAN)
   Future<Map<String, dynamic>> clientConfirmWithMethod({
     required String bookingId,
-    required String method, // 'SIMPLE' | 'OTP' | 'QR_SCAN'
+    required String method, // 'SIMPLE' | 'QR_SCAN'
     int? rating,
     String? comment,
   }) async {

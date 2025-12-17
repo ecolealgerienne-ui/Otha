@@ -8,8 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
-import 'booking_flow_screen.dart';
-import 'booking_thanks_screen.dart';
 
 class BookingDetailsScreen extends ConsumerStatefulWidget {
   const BookingDetailsScreen({super.key, required this.booking});
@@ -328,53 +326,16 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
   Future<void> _modifyBooking() async {
     final l10n = AppLocalizations.of(context);
-    final pid = _effectiveProviderId, sid = _serviceId;
-    if (pid == null || sid == null) {
+    final pid = _effectiveProviderId;
+    if (pid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.modificationImpossible)),
       );
       return;
     }
 
-    final created = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BookingFlowScreen(providerId: pid, serviceId: sid)),
-    );
-
-    if (!mounted) return;
-
-    if (created is! Map || ((created['id'] ?? '').toString().isEmpty)) return;
-
-    if (_bookingId != null) {
-      setState(() => _busy = true);
-      try {
-        await ref.read(apiProvider).setMyBookingStatus(
-          bookingId: _bookingId!,
-          status: 'CANCELLED',
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.oldBookingCancelled)),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${l10n.error}: $e')),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BookingThanksScreen(createdBooking: Map<String, dynamic>.from(created)),
-      ),
-    );
-
-    if (!mounted) return;
-    context.pop(true);
+    // Naviguer vers la page du vétérinaire pour reprendre un nouveau RDV
+    context.push('/explore/vets/$pid');
   }
 
   @override
@@ -406,33 +367,50 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     final service = _serviceName(_m);
     final price = _servicePrice(_m);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Si on ne peut pas pop (rien dans la pile), aller à home
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
         backgroundColor: bgColor,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                ),
-              ],
+        appBar: AppBar(
+          backgroundColor: bgColor,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: textPrimary,
+              ),
             ),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 18,
-              color: textPrimary,
-            ),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
           ),
-          onPressed: () => context.pop(),
-        ),
         title: Text(
           l10n.bookingDetailsTitle,
           style: TextStyle(
@@ -744,7 +722,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                 // Modify button
                 Expanded(
                   child: FilledButton.tonal(
-                    onPressed: (_busy || _effectiveProviderId == null || _serviceId == null)
+                    onPressed: (_busy || _effectiveProviderId == null)
                         ? null
                         : _modifyBooking,
                     style: FilledButton.styleFrom(
@@ -809,6 +787,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }
