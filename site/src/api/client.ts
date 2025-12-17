@@ -783,22 +783,22 @@ class ApiClient {
     // Extract extension from filename
     const ext = filename.includes('.') ? filename.split('.').pop() : undefined;
 
-    const { data } = await this._client.post<{
-      url: string;
-      publicUrl: string;
-      key: string;
-      needsConfirm?: boolean;
-    }>(
+    const { data } = await this._client.post(
       '/uploads/presign',
       { mimeType: contentType, ext, folder: 'uploads' }
     );
 
+    // Handle wrapped response { data: { url, publicUrl, ... } }
+    const result = data?.data || data;
+
+    console.log('📤 Presign raw response:', result);
+
     // Map backend response to frontend expected format
     return {
-      uploadUrl: data.url,
-      publicUrl: data.publicUrl,
-      key: data.key,
-      needsConfirm: data.needsConfirm ?? false,
+      uploadUrl: result.url,
+      publicUrl: result.publicUrl,
+      key: result.key,
+      needsConfirm: result.needsConfirm ?? false,
     };
   }
 
@@ -809,8 +809,10 @@ class ApiClient {
   }
 
   async confirmUpload(key: string): Promise<{ success: boolean; url?: string }> {
-    const { data } = await this._client.post<{ success: boolean; key: string }>('/uploads/confirm', { key });
-    return data;
+    const { data } = await this._client.post('/uploads/confirm', { key });
+    // Handle wrapped response
+    const result = data?.data || data;
+    return result;
   }
 
   async uploadFile(file: File): Promise<string> {
