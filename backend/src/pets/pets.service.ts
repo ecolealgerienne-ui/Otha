@@ -182,7 +182,7 @@ export class PetsService {
 
   // ============ ACCESS TOKENS (QR Code) ============
 
-  async generateAccessToken(ownerId: string, petId: string, expiresInMinutes = 1440) { // 24h par défaut au lieu de 30min
+  async generateAccessToken(ownerId: string, petId: string, expiresInMinutes = 30) { // 30 minutes par défaut
     const pet = await this.prisma.pet.findUnique({ where: { id: petId } });
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.ownerId !== ownerId) throw new ForbiddenException();

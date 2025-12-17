@@ -73,8 +73,9 @@ export class PetsController {
   // ============ ACCESS TOKENS (QR Code) ============
 
   @Post(':petId/access-token')
-  generateAccessToken(@Req() req: any, @Param('petId') petId: string) {
-    return this.pets.generateAccessToken(req.user.sub, petId);
+  generateAccessToken(@Req() req: any, @Param('petId') petId: string, @Body() body?: { expirationMinutes?: number }) {
+    const expirationMinutes = body?.expirationMinutes ?? 30;
+    return this.pets.generateAccessToken(req.user.sub, petId, expirationMinutes);
   }
 
   /**
