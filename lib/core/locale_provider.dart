@@ -359,6 +359,18 @@ class AppLocalizations {
       'allergies': 'allergie(s)',
       'healthRecord': 'Carnet',
       'qrCode': 'QR Code',
+      // QR Code screen
+      'medicalQrCode': 'QR Code Médical',
+      'active': 'Actif',
+      'expiresIn': 'Expire dans',
+      'instructions': 'Instructions',
+      'qrInstruction1': 'Montrez ce QR code à votre vétérinaire',
+      'qrInstruction2': 'Il pourra consulter l\'historique médical',
+      'qrInstruction3': 'Et ajouter les nouveaux actes médicaux',
+      'generateNewCode': 'Générer un nouveau code',
+      'appointmentConfirmed': 'Rendez-vous confirmé !',
+      'visitRegisteredSuccess': 'Votre visite a été enregistrée avec succès',
+      'retry': 'Réessayer',
     },
     'en': {
       'appName': 'Vegece',
@@ -576,6 +588,18 @@ class AppLocalizations {
       'allergies': 'allergy(ies)',
       'healthRecord': 'Health',
       'qrCode': 'QR Code',
+      // QR Code screen
+      'medicalQrCode': 'Medical QR Code',
+      'active': 'Active',
+      'expiresIn': 'Expires in',
+      'instructions': 'Instructions',
+      'qrInstruction1': 'Show this QR code to your veterinarian',
+      'qrInstruction2': 'They can view the medical history',
+      'qrInstruction3': 'And add new medical records',
+      'generateNewCode': 'Generate new code',
+      'appointmentConfirmed': 'Appointment confirmed!',
+      'visitRegisteredSuccess': 'Your visit has been successfully registered',
+      'retry': 'Retry',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -793,6 +817,18 @@ class AppLocalizations {
       'allergies': 'حساسية(ات)',
       'healthRecord': 'الصحة',
       'qrCode': 'رمز QR',
+      // QR Code screen
+      'medicalQrCode': 'رمز QR الطبي',
+      'active': 'نشط',
+      'expiresIn': 'ينتهي في',
+      'instructions': 'التعليمات',
+      'qrInstruction1': 'أظهر رمز QR هذا للطبيب البيطري',
+      'qrInstruction2': 'سيتمكن من عرض السجل الطبي',
+      'qrInstruction3': 'وإضافة السجلات الطبية الجديدة',
+      'generateNewCode': 'إنشاء رمز جديد',
+      'appointmentConfirmed': 'تم تأكيد الموعد!',
+      'visitRegisteredSuccess': 'تم تسجيل زيارتك بنجاح',
+      'retry': 'إعادة المحاولة',
     },
   };
 
@@ -1018,6 +1054,18 @@ class AppLocalizations {
   String get allergies => _get('allergies');
   String get healthRecord => _get('healthRecord');
   String get qrCode => _get('qrCode');
+  // QR Code screen
+  String get medicalQrCode => _get('medicalQrCode');
+  String get active => _get('active');
+  String get expiresIn => _get('expiresIn');
+  String get instructions => _get('instructions');
+  String get qrInstruction1 => _get('qrInstruction1');
+  String get qrInstruction2 => _get('qrInstruction2');
+  String get qrInstruction3 => _get('qrInstruction3');
+  String get generateNewCode => _get('generateNewCode');
+  String get appointmentConfirmed => _get('appointmentConfirmed');
+  String get visitRegisteredSuccess => _get('visitRegisteredSuccess');
+  String get retry => _get('retry');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

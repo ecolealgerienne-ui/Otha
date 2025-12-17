@@ -1438,9 +1438,11 @@ Future<List<Map<String, dynamic>>> providerAgenda({
 
   // --------------- Pet Access Token (QR Code) ---------------
 
-  Future<Map<String, dynamic>> generatePetAccessToken(String petId) async {
+  Future<Map<String, dynamic>> generatePetAccessToken(String petId, {int expirationMinutes = 30}) async {
     await ensureAuth();
-    final res = await _dio.post('/pets/$petId/access-token');
+    final res = await _dio.post('/pets/$petId/access-token', data: {
+      'expirationMinutes': expirationMinutes,
+    });
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
