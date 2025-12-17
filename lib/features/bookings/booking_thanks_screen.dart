@@ -211,7 +211,7 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                     AnimatedBuilder(
                       animation: _checkController,
                       builder: (context, child) {
-                        final delay = (_checkAnimation.value - 0.3).clamp(0.0, 1.0) / 0.7;
+                        final delay = ((_checkAnimation.value - 0.3).clamp(0.0, 1.0) / 0.7).clamp(0.0, 1.0);
                         return Opacity(
                           opacity: delay,
                           child: Transform.translate(
@@ -315,7 +315,7 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                     AnimatedBuilder(
                       animation: _checkController,
                       builder: (context, child) {
-                        final delay = (_checkAnimation.value - 0.5).clamp(0.0, 1.0) / 0.5;
+                        final delay = ((_checkAnimation.value - 0.5).clamp(0.0, 1.0) / 0.5).clamp(0.0, 1.0);
                         return Opacity(
                           opacity: delay,
                           child: Transform.translate(
