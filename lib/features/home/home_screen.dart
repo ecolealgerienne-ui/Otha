@@ -17,7 +17,6 @@ import '../../core/session_controller.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 // 👇 pour le bouton "Modifier" (pending)
-import '../bookings/booking_flow_screen.dart';
 import '../bookings/booking_confirmation_popup.dart';
 import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
 import '../adopt/adoption_pet_creation_dialog.dart';
@@ -2038,23 +2037,17 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
 
   Future<void> _modify(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
     final pid = _providerId(m);
-    final sid = _serviceId(m);
-    if (pid == null || sid == null) {
+    if (pid == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Modification impossible (pro/service manquants).')),
+          const SnackBar(content: Text('Modification impossible (pro manquant).')),
         );
       }
       return;
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BookingFlowScreen(providerId: pid, serviceId: sid)),
-    );
-    if (!context.mounted) return;
-
-    ref.invalidate(nextConfirmedBookingProvider);
-    ref.invalidate(nextPendingBookingProvider);
+    // Naviguer vers la page du vétérinaire pour reprendre un nouveau RDV
+    GoRouter.of(context).push('/explore/vets/$pid');
   }
 
   @override

@@ -24,7 +24,6 @@ import '../features/home/home_screen.dart';
 
 // Bookings & provider (hérités)
 import '../features/providers/provider_details_screen.dart';
-import '../features/bookings/booking_flow_screen.dart';
 import '../features/bookings/booking_details_screen.dart';
 import '../features/bookings/booking_thanks_screen.dart';
 import '../features/bookings/booking_proximity_confirmation_screen.dart';
@@ -493,10 +492,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       ),
       GoRoute(
         path: '/book/:providerId/:serviceId',
-        builder: (ctx, st) => BookingFlowScreen(
-          providerId: st.pathParameters['providerId']!,
-          serviceId: st.pathParameters['serviceId']!,
-        ),
+        redirect: (ctx, st) => '/explore/vets/${st.pathParameters['providerId']}',
       ),
 
       // -------- Map --------
