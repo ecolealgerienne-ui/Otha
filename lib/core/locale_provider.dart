@@ -320,6 +320,25 @@ class AppLocalizations {
       'viewMyBookings': 'Voir mes rendez-vous',
       'pendingConfirmation': 'En attente de confirmation',
       'explore': 'Explorer',
+      // Booking details
+      'bookingDetailsTitle': 'Détails du rendez-vous',
+      'dateLabel': 'Date',
+      'timeLabel': 'Heure',
+      'locationLabel': 'Chez',
+      'serviceLabel': 'Service choisi',
+      'amountLabel': 'Montant à régler',
+      'confirmedBooking': 'Rendez-vous confirmé',
+      'pendingStatusMessage': 'Le professionnel doit confirmer votre demande',
+      'confirmedStatusMessage': 'Votre rendez-vous est validé',
+      'cancelBookingTitle': 'Annuler le rendez-vous ?',
+      'cancelBookingMessage': 'Cette action est irréversible. Confirmez-vous l\'annulation ?',
+      'no': 'Non',
+      'yesCancel': 'Oui, annuler',
+      'bookingCancelled': 'Rendez-vous annulé',
+      'modificationImpossible': 'Modification impossible (pro/service manquants)',
+      'oldBookingCancelled': 'Ancien rendez-vous annulé',
+      'modify': 'Modifier',
+      'directions': 'Itinéraire',
     },
     'en': {
       'appName': 'Vegece',
@@ -498,6 +517,25 @@ class AppLocalizations {
       'viewMyBookings': 'View my appointments',
       'pendingConfirmation': 'Pending confirmation',
       'explore': 'Explore',
+      // Booking details
+      'bookingDetailsTitle': 'Appointment details',
+      'dateLabel': 'Date',
+      'timeLabel': 'Time',
+      'locationLabel': 'Location',
+      'serviceLabel': 'Service selected',
+      'amountLabel': 'Amount to pay',
+      'confirmedBooking': 'Appointment confirmed',
+      'pendingStatusMessage': 'The professional must confirm your request',
+      'confirmedStatusMessage': 'Your appointment is validated',
+      'cancelBookingTitle': 'Cancel appointment?',
+      'cancelBookingMessage': 'This action is irreversible. Do you confirm the cancellation?',
+      'no': 'No',
+      'yesCancel': 'Yes, cancel',
+      'bookingCancelled': 'Appointment cancelled',
+      'modificationImpossible': 'Modification impossible (provider/service missing)',
+      'oldBookingCancelled': 'Previous appointment cancelled',
+      'modify': 'Modify',
+      'directions': 'Directions',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -676,6 +714,25 @@ class AppLocalizations {
       'viewMyBookings': 'عرض مواعيدي',
       'pendingConfirmation': 'في انتظار التأكيد',
       'explore': 'استكشف',
+      // Booking details
+      'bookingDetailsTitle': 'تفاصيل الموعد',
+      'dateLabel': 'التاريخ',
+      'timeLabel': 'الوقت',
+      'locationLabel': 'الموقع',
+      'serviceLabel': 'الخدمة المختارة',
+      'amountLabel': 'المبلغ المستحق',
+      'confirmedBooking': 'موعد مؤكد',
+      'pendingStatusMessage': 'يجب على المختص تأكيد طلبك',
+      'confirmedStatusMessage': 'تم التحقق من موعدك',
+      'cancelBookingTitle': 'إلغاء الموعد؟',
+      'cancelBookingMessage': 'هذا الإجراء لا رجعة فيه. هل تؤكد الإلغاء؟',
+      'no': 'لا',
+      'yesCancel': 'نعم، إلغاء',
+      'bookingCancelled': 'تم إلغاء الموعد',
+      'modificationImpossible': 'التعديل مستحيل (مزود/خدمة مفقودة)',
+      'oldBookingCancelled': 'تم إلغاء الموعد السابق',
+      'modify': 'تعديل',
+      'directions': 'الاتجاهات',
     },
   };
 
@@ -862,6 +919,25 @@ class AppLocalizations {
   String get viewMyBookings => _get('viewMyBookings');
   String get pendingConfirmation => _get('pendingConfirmation');
   String get explore => _get('explore');
+  // Booking details
+  String get bookingDetailsTitle => _get('bookingDetailsTitle');
+  String get dateLabel => _get('dateLabel');
+  String get timeLabel => _get('timeLabel');
+  String get locationLabel => _get('locationLabel');
+  String get serviceLabel => _get('serviceLabel');
+  String get amountLabel => _get('amountLabel');
+  String get confirmedBooking => _get('confirmedBooking');
+  String get pendingStatusMessage => _get('pendingStatusMessage');
+  String get confirmedStatusMessage => _get('confirmedStatusMessage');
+  String get cancelBookingTitle => _get('cancelBookingTitle');
+  String get cancelBookingMessage => _get('cancelBookingMessage');
+  String get no => _get('no');
+  String get yesCancel => _get('yesCancel');
+  String get bookingCancelled => _get('bookingCancelled');
+  String get modificationImpossible => _get('modificationImpossible');
+  String get oldBookingCancelled => _get('oldBookingCancelled');
+  String get modify => _get('modify');
+  String get directions => _get('directions');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
