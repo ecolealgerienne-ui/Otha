@@ -371,6 +371,36 @@ class AppLocalizations {
       'appointmentConfirmed': 'Rendez-vous confirmé !',
       'visitRegisteredSuccess': 'Votre visite a été enregistrée avec succès',
       'retry': 'Réessayer',
+      // Health stats screen
+      'healthStats': 'Statistiques de santé',
+      'addData': 'Ajouter',
+      'addWeight': 'Ajouter poids',
+      'addTempHeart': 'Ajouter temp./rythme',
+      'currentWeight': 'Poids actuel',
+      'temperature': 'Température',
+      'average': 'Moyenne',
+      'weightEvolution': 'Évolution du poids',
+      'temperatureHistory': 'Historique température',
+      'heartRate': 'Rythme cardiaque',
+      'noHealthData': 'Aucune donnée de santé',
+      'healthDataWillAppear': 'Les données de santé apparaîtront ici',
+      'medicalHistory': 'Historique médical',
+      'kg': 'kg',
+      'bpm': 'bpm',
+      // Prescriptions screen
+      'prescriptions': 'Ordonnances',
+      'currentTreatments': 'Traitements en cours',
+      'treatmentHistory': 'Historique',
+      'ongoing': 'En cours',
+      'frequency': 'Fréquence',
+      'startDate': 'Début',
+      'endDate': 'Fin',
+      'noPrescriptions': 'Aucune ordonnance',
+      'prescriptionsWillAppear': 'Les ordonnances apparaîtront ici',
+      'medication': 'Médicament',
+      'notes': 'Notes',
+      'dosage': 'Dosage',
+      'treatmentDetails': 'Détails du traitement',
     },
     'en': {
       'appName': 'Vegece',
@@ -600,6 +630,36 @@ class AppLocalizations {
       'appointmentConfirmed': 'Appointment confirmed!',
       'visitRegisteredSuccess': 'Your visit has been successfully registered',
       'retry': 'Retry',
+      // Health stats screen
+      'healthStats': 'Health statistics',
+      'addData': 'Add',
+      'addWeight': 'Add weight',
+      'addTempHeart': 'Add temp./heart rate',
+      'currentWeight': 'Current weight',
+      'temperature': 'Temperature',
+      'average': 'Average',
+      'weightEvolution': 'Weight evolution',
+      'temperatureHistory': 'Temperature history',
+      'heartRate': 'Heart rate',
+      'noHealthData': 'No health data',
+      'healthDataWillAppear': 'Health data will appear here',
+      'medicalHistory': 'Medical history',
+      'kg': 'kg',
+      'bpm': 'bpm',
+      // Prescriptions screen
+      'prescriptions': 'Prescriptions',
+      'currentTreatments': 'Current treatments',
+      'treatmentHistory': 'History',
+      'ongoing': 'Ongoing',
+      'frequency': 'Frequency',
+      'startDate': 'Start',
+      'endDate': 'End',
+      'noPrescriptions': 'No prescriptions',
+      'prescriptionsWillAppear': 'Prescriptions will appear here',
+      'medication': 'Medication',
+      'notes': 'Notes',
+      'dosage': 'Dosage',
+      'treatmentDetails': 'Treatment details',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -829,6 +889,36 @@ class AppLocalizations {
       'appointmentConfirmed': 'تم تأكيد الموعد!',
       'visitRegisteredSuccess': 'تم تسجيل زيارتك بنجاح',
       'retry': 'إعادة المحاولة',
+      // Health stats screen
+      'healthStats': 'إحصائيات الصحة',
+      'addData': 'إضافة',
+      'addWeight': 'إضافة الوزن',
+      'addTempHeart': 'إضافة الحرارة/النبض',
+      'currentWeight': 'الوزن الحالي',
+      'temperature': 'الحرارة',
+      'average': 'المتوسط',
+      'weightEvolution': 'تطور الوزن',
+      'temperatureHistory': 'سجل الحرارة',
+      'heartRate': 'معدل ضربات القلب',
+      'noHealthData': 'لا توجد بيانات صحية',
+      'healthDataWillAppear': 'ستظهر البيانات الصحية هنا',
+      'medicalHistory': 'السجل الطبي',
+      'kg': 'كغ',
+      'bpm': 'نبضة/د',
+      // Prescriptions screen
+      'prescriptions': 'الوصفات الطبية',
+      'currentTreatments': 'العلاجات الحالية',
+      'treatmentHistory': 'السجل',
+      'ongoing': 'جاري',
+      'frequency': 'التكرار',
+      'startDate': 'البداية',
+      'endDate': 'النهاية',
+      'noPrescriptions': 'لا توجد وصفات طبية',
+      'prescriptionsWillAppear': 'ستظهر الوصفات الطبية هنا',
+      'medication': 'الدواء',
+      'notes': 'ملاحظات',
+      'dosage': 'الجرعة',
+      'treatmentDetails': 'تفاصيل العلاج',
     },
   };
 
@@ -1066,6 +1156,36 @@ class AppLocalizations {
   String get appointmentConfirmed => _get('appointmentConfirmed');
   String get visitRegisteredSuccess => _get('visitRegisteredSuccess');
   String get retry => _get('retry');
+  // Health stats screen
+  String get healthStats => _get('healthStats');
+  String get addData => _get('addData');
+  String get addWeight => _get('addWeight');
+  String get addTempHeart => _get('addTempHeart');
+  String get currentWeight => _get('currentWeight');
+  String get temperature => _get('temperature');
+  String get average => _get('average');
+  String get weightEvolution => _get('weightEvolution');
+  String get temperatureHistory => _get('temperatureHistory');
+  String get heartRate => _get('heartRate');
+  String get noHealthData => _get('noHealthData');
+  String get healthDataWillAppear => _get('healthDataWillAppear');
+  String get medicalHistory => _get('medicalHistory');
+  String get kg => _get('kg');
+  String get bpm => _get('bpm');
+  // Prescriptions screen
+  String get prescriptions => _get('prescriptions');
+  String get currentTreatments => _get('currentTreatments');
+  String get treatmentHistory => _get('treatmentHistory');
+  String get ongoing => _get('ongoing');
+  String get frequency => _get('frequency');
+  String get startDate => _get('startDate');
+  String get endDate => _get('endDate');
+  String get noPrescriptions => _get('noPrescriptions');
+  String get prescriptionsWillAppear => _get('prescriptionsWillAppear');
+  String get medication => _get('medication');
+  String get notes => _get('notes');
+  String get dosage => _get('dosage');
+  String get treatmentDetails => _get('treatmentDetails');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
