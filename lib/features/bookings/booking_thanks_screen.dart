@@ -332,32 +332,32 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                             child: SizedBox(
                               width: double.infinity,
                               child: FilledButton(
-                              onPressed: () => context.go('/home'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _coral,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.home_rounded, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    l10n.backToHome,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: 'SFPRO',
-                                    ),
+                                onPressed: () => context.go('/home'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _coral,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                ],
+                                  elevation: 0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.home_rounded, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      l10n.backToHome,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        fontFamily: 'SFPRO',
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                           ),
                           const SizedBox(height: 12),
                           // Secondary button - View bookings
@@ -366,37 +366,37 @@ class _BookingThanksScreenState extends ConsumerState<BookingThanksScreen>
                             child: SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                              onPressed: () => context.go('/bookings'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: _coral,
-                                side: BorderSide(
-                                  color: isDark
-                                      ? _coral.withOpacity(0.5)
-                                      : _coral.withOpacity(0.3),
-                                  width: 1.5,
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.calendar_today_rounded, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    l10n.viewMyBookings,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'SFPRO',
-                                    ),
+                                onPressed: () => context.go('/bookings'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _coral,
+                                  side: BorderSide(
+                                    color: isDark
+                                        ? _coral.withOpacity(0.5)
+                                        : _coral.withOpacity(0.3),
+                                    width: 1.5,
                                   ),
-                                ],
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.calendar_today_rounded, size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      l10n.viewMyBookings,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        fontFamily: 'SFPRO',
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                           ),
                         ],
                       ),
