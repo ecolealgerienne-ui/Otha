@@ -1767,7 +1767,28 @@ export class BookingsService {
       };
     }
 
-    // VERIFIED → peut réserver sans limite
+    // VERIFIED → vérifier qu'il n'a pas déjà un RDV véto actif
+    const activeVetBooking = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+      },
+      select: { id: true, scheduledAt: true, provider: { select: { displayName: true } } },
+    });
+
+    if (activeVetBooking) {
+      const dateStr = activeVetBooking.scheduledAt
+        ? activeVetBooking.scheduledAt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+        : 'bientôt';
+      const providerName = activeVetBooking.provider?.displayName || 'un vétérinaire';
+      return {
+        canBook: false,
+        reason: `Vous avez déjà un rendez-vous prévu ${dateStr} chez ${providerName}. Veuillez l'annuler avant d'en prendre un nouveau.`,
+        trustStatus: user.trustStatus,
+        isFirstBooking: false,
+      };
+    }
+
     return {
       canBook: true,
       trustStatus: user.trustStatus,
