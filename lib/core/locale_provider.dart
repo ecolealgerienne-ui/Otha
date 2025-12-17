@@ -311,6 +311,13 @@ class AppLocalizations {
       'oneStepAtTime': 'Une étape à la fois',
       'trustRestrictionMessage': 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant d\'en réserver un autre.\n\nCela nous aide à garantir un service de qualité pour tous.',
       'understood': 'J\'ai compris',
+      // Booking thanks
+      'thankYou': 'Merci !',
+      'bookingConfirmedTitle': 'Rendez-vous confirmé',
+      'bookingPendingMessage': 'Votre demande a bien été envoyée.\nNous vous notifierons dès que le vétérinaire confirme.',
+      'bookingRef': 'Réf.',
+      'backToHome': 'Retour à l\'accueil',
+      'viewMyBookings': 'Voir mes rendez-vous',
     },
     'en': {
       'appName': 'Vegece',
@@ -480,6 +487,13 @@ class AppLocalizations {
       'oneStepAtTime': 'One step at a time',
       'trustRestrictionMessage': 'As a new client, you must first honor your current appointment before booking another.\n\nThis helps us ensure quality service for everyone.',
       'understood': 'I understand',
+      // Booking thanks
+      'thankYou': 'Thank you!',
+      'bookingConfirmedTitle': 'Appointment confirmed',
+      'bookingPendingMessage': 'Your request has been sent.\nWe will notify you once the vet confirms.',
+      'bookingRef': 'Ref.',
+      'backToHome': 'Back to home',
+      'viewMyBookings': 'View my appointments',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -649,6 +663,13 @@ class AppLocalizations {
       'oneStepAtTime': 'خطوة واحدة في كل مرة',
       'trustRestrictionMessage': 'بصفتك عميلاً جديداً، يجب عليك أولاً حضور موعدك الحالي قبل حجز موعد آخر.\n\nهذا يساعدنا على ضمان خدمة عالية الجودة للجميع.',
       'understood': 'فهمت',
+      // Booking thanks
+      'thankYou': 'شكراً !',
+      'bookingConfirmedTitle': 'تم تأكيد الموعد',
+      'bookingPendingMessage': 'تم إرسال طلبك بنجاح.\nسنُعلمك فور تأكيد الطبيب البيطري.',
+      'bookingRef': 'المرجع',
+      'backToHome': 'العودة للرئيسية',
+      'viewMyBookings': 'عرض مواعيدي',
     },
   };
 
@@ -826,6 +847,13 @@ class AppLocalizations {
   String get oneStepAtTime => _get('oneStepAtTime');
   String get trustRestrictionMessage => _get('trustRestrictionMessage');
   String get understood => _get('understood');
+  // Booking thanks
+  String get thankYou => _get('thankYou');
+  String get bookingConfirmedTitle => _get('bookingConfirmedTitle');
+  String get bookingPendingMessage => _get('bookingPendingMessage');
+  String get bookingRef => _get('bookingRef');
+  String get backToHome => _get('backToHome');
+  String get viewMyBookings => _get('viewMyBookings');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
