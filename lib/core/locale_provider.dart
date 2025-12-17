@@ -340,6 +340,25 @@ class AppLocalizations {
       'oldBookingCancelled': 'Ancien rendez-vous annulé',
       'modify': 'Modifier',
       'directions': 'Itinéraire',
+      // Pets management
+      'swipeToNavigate': 'Swipez pour naviguer',
+      'noPets': 'Aucun animal',
+      'addFirstPet': 'Ajoutez votre premier compagnon pour accéder à son carnet de santé',
+      'addPet': 'Ajouter un animal',
+      'dog': 'Chien',
+      'cat': 'Chat',
+      'bird': 'Oiseau',
+      'rodent': 'Rongeur',
+      'reptile': 'Reptile',
+      'animal': 'Animal',
+      'months': 'mois',
+      'year': 'an',
+      'years': 'ans',
+      'vaccinesDue': 'vaccin(s) à faire',
+      'activeTreatments': 'traitement(s) en cours',
+      'allergies': 'allergie(s)',
+      'healthRecord': 'Carnet',
+      'qrCode': 'QR Code',
     },
     'en': {
       'appName': 'Vegece',
@@ -538,6 +557,25 @@ class AppLocalizations {
       'oldBookingCancelled': 'Previous appointment cancelled',
       'modify': 'Modify',
       'directions': 'Directions',
+      // Pets management
+      'swipeToNavigate': 'Swipe to navigate',
+      'noPets': 'No pets',
+      'addFirstPet': 'Add your first companion to access their health record',
+      'addPet': 'Add a pet',
+      'dog': 'Dog',
+      'cat': 'Cat',
+      'bird': 'Bird',
+      'rodent': 'Rodent',
+      'reptile': 'Reptile',
+      'animal': 'Animal',
+      'months': 'months',
+      'year': 'year',
+      'years': 'years',
+      'vaccinesDue': 'vaccine(s) due',
+      'activeTreatments': 'active treatment(s)',
+      'allergies': 'allergy(ies)',
+      'healthRecord': 'Health',
+      'qrCode': 'QR Code',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -736,6 +774,25 @@ class AppLocalizations {
       'oldBookingCancelled': 'تم إلغاء الموعد السابق',
       'modify': 'تعديل',
       'directions': 'الاتجاهات',
+      // Pets management
+      'swipeToNavigate': 'اسحب للتنقل',
+      'noPets': 'لا توجد حيوانات',
+      'addFirstPet': 'أضف رفيقك الأول للوصول إلى سجله الصحي',
+      'addPet': 'إضافة حيوان',
+      'dog': 'كلب',
+      'cat': 'قطة',
+      'bird': 'طائر',
+      'rodent': 'قارض',
+      'reptile': 'زاحف',
+      'animal': 'حيوان',
+      'months': 'أشهر',
+      'year': 'سنة',
+      'years': 'سنوات',
+      'vaccinesDue': 'لقاح(ات) مستحقة',
+      'activeTreatments': 'علاج(ات) جارية',
+      'allergies': 'حساسية(ات)',
+      'healthRecord': 'الصحة',
+      'qrCode': 'رمز QR',
     },
   };
 
@@ -942,6 +999,25 @@ class AppLocalizations {
   String get oldBookingCancelled => _get('oldBookingCancelled');
   String get modify => _get('modify');
   String get directions => _get('directions');
+  // Pets management
+  String get swipeToNavigate => _get('swipeToNavigate');
+  String get noPets => _get('noPets');
+  String get addFirstPet => _get('addFirstPet');
+  String get addPet => _get('addPet');
+  String get dog => _get('dog');
+  String get cat => _get('cat');
+  String get bird => _get('bird');
+  String get rodent => _get('rodent');
+  String get reptile => _get('reptile');
+  String get animal => _get('animal');
+  String get months => _get('months');
+  String get year => _get('year');
+  String get years => _get('years');
+  String get vaccinesDue => _get('vaccinesDue');
+  String get activeTreatments => _get('activeTreatments');
+  String get allergies => _get('allergies');
+  String get healthRecord => _get('healthRecord');
+  String get qrCode => _get('qrCode');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
