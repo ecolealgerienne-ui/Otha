@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
 
 /// Provider pour l'historique médical d'un animal (par petId)
 final medicalRecordsProvider = FutureProvider.autoDispose
@@ -49,7 +52,7 @@ final petInfoByTokenProvider = FutureProvider.autoDispose
 
 class PetMedicalHistoryScreen extends ConsumerWidget {
   final String petId;
-  final String? token; // Token optionnel pour accès vétérinaire
+  final String? token;
 
   const PetMedicalHistoryScreen({super.key, required this.petId, this.token});
 
@@ -57,7 +60,13 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Utiliser le provider approprié selon le mode d'accès
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     final petAsync = isVetAccess
         ? ref.watch(petInfoByTokenProvider(token!))
         : ref.watch(petInfoProvider(petId));
@@ -66,18 +75,18 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
         : ref.watch(medicalRecordsProvider(petId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context, ref, petAsync),
+            _buildHeader(context, ref, petAsync, isDark, l10n, textPrimary),
             Expanded(
               child: recordsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
-                error: (e, _) => Center(child: Text('Erreur: $e')),
+                error: (e, _) => Center(child: Text('${l10n.error}: $e', style: TextStyle(color: textPrimary))),
                 data: (records) {
                   if (records.isEmpty) {
-                    return _buildEmptyState(context);
+                    return _buildEmptyState(context, isDark, l10n, textSecondary);
                   }
                   return RefreshIndicator(
                     color: _coral,
@@ -93,7 +102,15 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
                       itemCount: records.length,
                       itemBuilder: (_, i) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _RecordCard(record: records[i], petId: petId, token: token),
+                        child: _RecordCard(
+                          record: records[i],
+                          petId: petId,
+                          token: token,
+                          isDark: isDark,
+                          l10n: l10n,
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                        ),
                       ),
                     ),
                   );
@@ -112,19 +129,28 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
         },
         backgroundColor: _coral,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Ajouter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        label: Text(l10n.addData, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, AsyncValue<Map<String, dynamic>?> petAsync) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<Map<String, dynamic>?> petAsync,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+  ) {
     final petName = petAsync.whenOrNull(data: (pet) => pet?['name']?.toString()) ?? 'Animal';
+    final headerBg = isDark ? _darkCard : Colors.white;
+    final buttonBg = isDark ? _coral.withOpacity(0.2) : _coralSoft;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
+      decoration: BoxDecoration(
+        color: headerBg,
+        boxShadow: isDark ? null : const [
           BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
@@ -134,7 +160,7 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
             onPressed: () => context.pop(),
             icon: const Icon(Icons.arrow_back),
             style: IconButton.styleFrom(
-              backgroundColor: _coralSoft,
+              backgroundColor: buttonBg,
               foregroundColor: _coral,
             ),
           ),
@@ -144,18 +170,18 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sante de $petName',
-                  style: const TextStyle(
+                  '${l10n.healthOf} $petName',
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: _ink,
+                    color: textPrimary,
                   ),
                 ),
-                const Text(
-                  'Historique medical',
+                Text(
+                  l10n.medicalHistoryTitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey,
                   ),
                 ),
               ],
@@ -169,9 +195,9 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
               context.push(url);
             },
             icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'Statistiques de santé',
+            tooltip: l10n.healthStats,
             style: IconButton.styleFrom(
-              backgroundColor: _coralSoft,
+              backgroundColor: buttonBg,
               foregroundColor: _coral,
             ),
           ),
@@ -186,7 +212,7 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.refresh),
             style: IconButton.styleFrom(
-              backgroundColor: _coralSoft,
+              backgroundColor: buttonBg,
               foregroundColor: _coral,
             ),
           ),
@@ -195,31 +221,34 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, bool isDark, AppLocalizations l10n, Color textSecondary) {
+    final buttonBg = isDark ? _coral.withOpacity(0.2) : _coralSoft;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: _coralSoft,
+            decoration: BoxDecoration(
+              color: buttonBg,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.medical_services, size: 48, color: _coral),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Aucun historique',
+          Text(
+            l10n.noHistory,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Ajoutez le premier record medical',
-            style: TextStyle(color: Colors.grey.shade600),
+            l10n.addFirstRecord,
+            style: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -230,7 +259,7 @@ class PetMedicalHistoryScreen extends ConsumerWidget {
               context.push(url);
             },
             icon: const Icon(Icons.add),
-            label: const Text('Ajouter un record'),
+            label: Text(l10n.addRecord),
             style: FilledButton.styleFrom(
               backgroundColor: _coral,
               foregroundColor: Colors.white,
@@ -246,8 +275,20 @@ class _RecordCard extends ConsumerWidget {
   final Map<String, dynamic> record;
   final String petId;
   final String? token;
+  final bool isDark;
+  final AppLocalizations l10n;
+  final Color textPrimary;
+  final Color textSecondary;
 
-  const _RecordCard({required this.record, required this.petId, this.token});
+  const _RecordCard({
+    required this.record,
+    required this.petId,
+    this.token,
+    required this.isDark,
+    required this.l10n,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
 
   bool get isVetAccess => token != null && token!.isNotEmpty;
 
@@ -285,20 +326,20 @@ class _RecordCard extends ConsumerWidget {
     }
   }
 
-  String _getTypeLabel(String type) {
+  String _getTypeLabel(String type, AppLocalizations l10n) {
     switch (type.toUpperCase()) {
       case 'VACCINATION':
-        return 'Vaccination';
+        return l10n.vaccination;
       case 'SURGERY':
-        return 'Chirurgie';
+        return l10n.surgery;
       case 'CHECKUP':
-        return 'Controle';
+        return l10n.checkup;
       case 'TREATMENT':
-        return 'Traitement';
+        return l10n.treatment;
       case 'MEDICATION':
-        return 'Medicament';
+        return l10n.medication;
       default:
-        return 'Autre';
+        return l10n.other;
     }
   }
 
@@ -319,15 +360,17 @@ class _RecordCard extends ConsumerWidget {
     }
 
     final typeColor = _getTypeColor(type);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final noteBgColor = isDark ? Colors.grey.shade800 : Colors.grey.shade50;
 
     return Material(
-      color: Colors.white,
+      color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
+          boxShadow: isDark ? null : const [
             BoxShadow(
               color: Color(0x0A000000),
               blurRadius: 10,
@@ -340,12 +383,11 @@ class _RecordCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                // Type icon
                 Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.1),
+                    color: typeColor.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(_getTypeIcon(type), color: typeColor, size: 22),
@@ -357,10 +399,10 @@ class _RecordCard extends ConsumerWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
-                          color: _ink,
+                          color: textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -369,11 +411,11 @@ class _RecordCard extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: typeColor.withOpacity(0.1),
+                              color: typeColor.withOpacity(isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              _getTypeLabel(type),
+                              _getTypeLabel(type, l10n),
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -383,11 +425,11 @@ class _RecordCard extends ConsumerWidget {
                           ),
                           if (date != null) ...[
                             const SizedBox(width: 8),
-                            Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
+                            Icon(Icons.calendar_today, size: 12, color: textSecondary),
                             const SizedBox(width: 4),
                             Text(
                               DateFormat('dd/MM/yyyy').format(date),
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              style: TextStyle(fontSize: 11, color: textSecondary),
                             ),
                           ],
                         ],
@@ -395,22 +437,21 @@ class _RecordCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Delete button
                 IconButton(
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Supprimer'),
-                        content: const Text('Voulez-vous supprimer ce record ?'),
+                        title: Text(l10n.deleteRecord),
+                        content: Text(l10n.confirmDeleteRecord),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Annuler'),
+                            child: Text(l10n.cancel),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
@@ -425,7 +466,7 @@ class _RecordCard extends ConsumerWidget {
                       }
                     }
                   },
-                  icon: Icon(Icons.delete_outline, color: Colors.grey.shade400, size: 20),
+                  icon: Icon(Icons.delete_outline, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 20),
                 ),
               ],
             ),
@@ -433,7 +474,7 @@ class _RecordCard extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(
                 description,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+                style: TextStyle(fontSize: 13, color: textSecondary, height: 1.4),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -442,11 +483,11 @@ class _RecordCard extends ConsumerWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.person, size: 14, color: Colors.grey.shade500),
+                  Icon(Icons.person, size: 14, color: textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     'Dr. $vetName',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: textSecondary),
                   ),
                 ],
               ),
@@ -456,18 +497,18 @@ class _RecordCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: noteBgColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.note, size: 14, color: Colors.grey.shade500),
+                    Icon(Icons.note, size: 14, color: textSecondary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         notes,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                        style: TextStyle(fontSize: 12, color: textSecondary, fontStyle: FontStyle.italic),
                       ),
                     ),
                   ],
@@ -492,7 +533,7 @@ class _RecordCard extends ConsumerWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 60,
                         height: 60,
-                        color: Colors.grey.shade200,
+                        color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                         child: const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),

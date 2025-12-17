@@ -401,6 +401,72 @@ class AppLocalizations {
       'notes': 'Notes',
       'dosage': 'Dosage',
       'treatmentDetails': 'Détails du traitement',
+      // Vaccinations screen
+      'vaccinations': 'Vaccinations',
+      'overdueReminders': 'Rappels en retard',
+      'upcoming': 'Prochainement',
+      'planned': 'Planifiés',
+      'completed': 'Effectués',
+      'overdue': 'En retard',
+      'nextReminder': 'Prochain rappel',
+      'batch': 'Lot',
+      'veterinarian': 'Vétérinaire',
+      'date': 'Date',
+      'reminder': 'Rappel',
+      'noVaccine': 'Aucun vaccin',
+      'addPetVaccines': 'Ajoutez les vaccins de votre animal',
+      'deleteVaccine': 'Supprimer le vaccin',
+      'confirmDeleteVaccine': 'Êtes-vous sûr de vouloir supprimer',
+      'vaccineDeleted': 'Vaccin supprimé',
+      'today': 'Aujourd\'hui',
+      'delayDays': 'Retard',
+      'inDays': 'Dans',
+      'day': 'jour',
+      'days': 'jours',
+      // Diseases screen
+      'diseaseFollowUp': 'Suivi de maladie',
+      'ongoingStatus': 'En cours',
+      'chronicStatus': 'Chronique',
+      'monitoringStatus': 'Sous surveillance',
+      'curedStatus': 'Guéries',
+      'mildSeverity': 'Légère',
+      'moderateSeverity': 'Modérée',
+      'severeSeverity': 'Sévère',
+      'diagnosis': 'Diagnostic',
+      'cured': 'Guéri',
+      'updates': 'mise(s) à jour',
+      'noDisease': 'Aucune maladie',
+      'diseaseFollowUpWillAppear': 'Le suivi des maladies apparaîtra ici',
+      // Medical history screen
+      'healthOf': 'Santé de',
+      'medicalHistoryTitle': 'Historique médical',
+      'vaccination': 'Vaccination',
+      'surgery': 'Chirurgie',
+      'checkup': 'Contrôle',
+      'treatment': 'Traitement',
+      'other': 'Autre',
+      'noHistory': 'Aucun historique',
+      'addFirstRecord': 'Ajoutez le premier record médical',
+      'addRecord': 'Ajouter un record',
+      'deleteRecord': 'Supprimer',
+      'confirmDeleteRecord': 'Voulez-vous supprimer ce record ?',
+      // Health hub screen
+      'petHealth': 'Santé',
+      'healthStatus': 'État de santé',
+      'latestMeasurements': 'Dernières mesures enregistrées',
+      'weight': 'Poids',
+      'temp': 'Temp.',
+      'heart': 'Cœur',
+      'quickAccess': 'Accès rapide',
+      'consultationsDiagnosis': 'Consultations, diagnostics, traitements',
+      'weightTempHeart': 'Poids, température, fréquence cardiaque',
+      'prescribedMedications': 'Médicaments et traitements prescrits',
+      'vaccineCalendar': 'Calendrier et rappels de vaccins',
+      'photosEvolutionNotes': 'Photos, évolution, notes',
+      'noHealthDataYet': 'Aucune donnée de santé',
+      'dataWillAppearAfterVisits': 'Les données apparaîtront après les visites vétérinaires',
+      'appointmentConfirmedSuccess': 'Rendez-vous confirmé avec succès',
+      'owner': 'Propriétaire',
     },
     'en': {
       'appName': 'Vegece',
@@ -660,6 +726,72 @@ class AppLocalizations {
       'notes': 'Notes',
       'dosage': 'Dosage',
       'treatmentDetails': 'Treatment details',
+      // Vaccinations screen
+      'vaccinations': 'Vaccinations',
+      'overdueReminders': 'Overdue reminders',
+      'upcoming': 'Upcoming',
+      'planned': 'Planned',
+      'completed': 'Completed',
+      'overdue': 'Overdue',
+      'nextReminder': 'Next reminder',
+      'batch': 'Batch',
+      'veterinarian': 'Veterinarian',
+      'date': 'Date',
+      'reminder': 'Reminder',
+      'noVaccine': 'No vaccine',
+      'addPetVaccines': 'Add your pet\'s vaccines',
+      'deleteVaccine': 'Delete vaccine',
+      'confirmDeleteVaccine': 'Are you sure you want to delete',
+      'vaccineDeleted': 'Vaccine deleted',
+      'today': 'Today',
+      'delayDays': 'Overdue',
+      'inDays': 'In',
+      'day': 'day',
+      'days': 'days',
+      // Diseases screen
+      'diseaseFollowUp': 'Disease follow-up',
+      'ongoingStatus': 'Ongoing',
+      'chronicStatus': 'Chronic',
+      'monitoringStatus': 'Monitoring',
+      'curedStatus': 'Cured',
+      'mildSeverity': 'Mild',
+      'moderateSeverity': 'Moderate',
+      'severeSeverity': 'Severe',
+      'diagnosis': 'Diagnosis',
+      'cured': 'Cured',
+      'updates': 'update(s)',
+      'noDisease': 'No disease',
+      'diseaseFollowUpWillAppear': 'Disease follow-up will appear here',
+      // Medical history screen
+      'healthOf': 'Health of',
+      'medicalHistoryTitle': 'Medical history',
+      'vaccination': 'Vaccination',
+      'surgery': 'Surgery',
+      'checkup': 'Checkup',
+      'treatment': 'Treatment',
+      'other': 'Other',
+      'noHistory': 'No history',
+      'addFirstRecord': 'Add the first medical record',
+      'addRecord': 'Add a record',
+      'deleteRecord': 'Delete',
+      'confirmDeleteRecord': 'Do you want to delete this record?',
+      // Health hub screen
+      'petHealth': 'Health',
+      'healthStatus': 'Health status',
+      'latestMeasurements': 'Latest recorded measurements',
+      'weight': 'Weight',
+      'temp': 'Temp.',
+      'heart': 'Heart',
+      'quickAccess': 'Quick access',
+      'consultationsDiagnosis': 'Consultations, diagnoses, treatments',
+      'weightTempHeart': 'Weight, temperature, heart rate',
+      'prescribedMedications': 'Prescribed medications and treatments',
+      'vaccineCalendar': 'Vaccine calendar and reminders',
+      'photosEvolutionNotes': 'Photos, evolution, notes',
+      'noHealthDataYet': 'No health data yet',
+      'dataWillAppearAfterVisits': 'Data will appear after veterinary visits',
+      'appointmentConfirmedSuccess': 'Appointment confirmed successfully',
+      'owner': 'Owner',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -919,6 +1051,72 @@ class AppLocalizations {
       'notes': 'ملاحظات',
       'dosage': 'الجرعة',
       'treatmentDetails': 'تفاصيل العلاج',
+      // Vaccinations screen
+      'vaccinations': 'التطعيمات',
+      'overdueReminders': 'تذكيرات متأخرة',
+      'upcoming': 'قادم',
+      'planned': 'مخطط',
+      'completed': 'مكتمل',
+      'overdue': 'متأخر',
+      'nextReminder': 'التذكير التالي',
+      'batch': 'الدفعة',
+      'veterinarian': 'طبيب بيطري',
+      'date': 'التاريخ',
+      'reminder': 'تذكير',
+      'noVaccine': 'لا يوجد لقاح',
+      'addPetVaccines': 'أضف لقاحات حيوانك الأليف',
+      'deleteVaccine': 'حذف اللقاح',
+      'confirmDeleteVaccine': 'هل أنت متأكد من حذف',
+      'vaccineDeleted': 'تم حذف اللقاح',
+      'today': 'اليوم',
+      'delayDays': 'تأخير',
+      'inDays': 'في',
+      'day': 'يوم',
+      'days': 'أيام',
+      // Diseases screen
+      'diseaseFollowUp': 'متابعة المرض',
+      'ongoingStatus': 'جاري',
+      'chronicStatus': 'مزمن',
+      'monitoringStatus': 'تحت المراقبة',
+      'curedStatus': 'شُفي',
+      'mildSeverity': 'خفيفة',
+      'moderateSeverity': 'متوسطة',
+      'severeSeverity': 'شديدة',
+      'diagnosis': 'التشخيص',
+      'cured': 'شُفي',
+      'updates': 'تحديث(ات)',
+      'noDisease': 'لا يوجد مرض',
+      'diseaseFollowUpWillAppear': 'ستظهر متابعة المرض هنا',
+      // Medical history screen
+      'healthOf': 'صحة',
+      'medicalHistoryTitle': 'السجل الطبي',
+      'vaccination': 'تطعيم',
+      'surgery': 'جراحة',
+      'checkup': 'فحص',
+      'treatment': 'علاج',
+      'other': 'آخر',
+      'noHistory': 'لا يوجد سجل',
+      'addFirstRecord': 'أضف أول سجل طبي',
+      'addRecord': 'إضافة سجل',
+      'deleteRecord': 'حذف',
+      'confirmDeleteRecord': 'هل تريد حذف هذا السجل؟',
+      // Health hub screen
+      'petHealth': 'الصحة',
+      'healthStatus': 'الحالة الصحية',
+      'latestMeasurements': 'آخر القياسات المسجلة',
+      'weight': 'الوزن',
+      'temp': 'الحرارة',
+      'heart': 'القلب',
+      'quickAccess': 'وصول سريع',
+      'consultationsDiagnosis': 'الاستشارات والتشخيصات والعلاجات',
+      'weightTempHeart': 'الوزن والحرارة ومعدل ضربات القلب',
+      'prescribedMedications': 'الأدوية والعلاجات الموصوفة',
+      'vaccineCalendar': 'جدول اللقاحات والتذكيرات',
+      'photosEvolutionNotes': 'الصور والتطور والملاحظات',
+      'noHealthDataYet': 'لا توجد بيانات صحية بعد',
+      'dataWillAppearAfterVisits': 'ستظهر البيانات بعد زيارات الطبيب البيطري',
+      'appointmentConfirmedSuccess': 'تم تأكيد الموعد بنجاح',
+      'owner': 'المالك',
     },
   };
 
@@ -1186,6 +1384,71 @@ class AppLocalizations {
   String get notes => _get('notes');
   String get dosage => _get('dosage');
   String get treatmentDetails => _get('treatmentDetails');
+  // Vaccinations screen
+  String get vaccinations => _get('vaccinations');
+  String get overdueReminders => _get('overdueReminders');
+  String get upcoming => _get('upcoming');
+  String get planned => _get('planned');
+  String get completed => _get('completed');
+  String get overdue => _get('overdue');
+  String get nextReminder => _get('nextReminder');
+  String get batch => _get('batch');
+  String get veterinarian => _get('veterinarian');
+  String get date => _get('date');
+  String get reminder => _get('reminder');
+  String get noVaccine => _get('noVaccine');
+  String get addPetVaccines => _get('addPetVaccines');
+  String get deleteVaccine => _get('deleteVaccine');
+  String get confirmDeleteVaccine => _get('confirmDeleteVaccine');
+  String get vaccineDeleted => _get('vaccineDeleted');
+  String get today => _get('today');
+  String get delayDays => _get('delayDays');
+  String get inDays => _get('inDays');
+  String get day => _get('day');
+  String get days => _get('days');
+  // Diseases screen
+  String get diseaseFollowUp => _get('diseaseFollowUp');
+  String get ongoingStatus => _get('ongoingStatus');
+  String get chronicStatus => _get('chronicStatus');
+  String get monitoringStatus => _get('monitoringStatus');
+  String get curedStatus => _get('curedStatus');
+  String get mildSeverity => _get('mildSeverity');
+  String get moderateSeverity => _get('moderateSeverity');
+  String get severeSeverity => _get('severeSeverity');
+  String get diagnosis => _get('diagnosis');
+  String get cured => _get('cured');
+  String get updates => _get('updates');
+  String get noDisease => _get('noDisease');
+  String get diseaseFollowUpWillAppear => _get('diseaseFollowUpWillAppear');
+  // Medical history screen
+  String get healthOf => _get('healthOf');
+  String get medicalHistoryTitle => _get('medicalHistoryTitle');
+  String get vaccination => _get('vaccination');
+  String get surgery => _get('surgery');
+  String get checkup => _get('checkup');
+  String get treatment => _get('treatment');
+  String get other => _get('other');
+  String get noHistory => _get('noHistory');
+  String get addFirstRecord => _get('addFirstRecord');
+  String get addRecord => _get('addRecord');
+  String get deleteRecord => _get('deleteRecord');
+  String get confirmDeleteRecord => _get('confirmDeleteRecord');
+  // Health hub screen
+  String get petHealth => _get('petHealth');
+  String get healthStatus => _get('healthStatus');
+  String get latestMeasurements => _get('latestMeasurements');
+  String get weight => _get('weight');
+  String get temp => _get('temp');
+  String get heart => _get('heart');
+  String get consultationsDiagnosis => _get('consultationsDiagnosis');
+  String get weightTempHeart => _get('weightTempHeart');
+  String get prescribedMedications => _get('prescribedMedications');
+  String get vaccineCalendar => _get('vaccineCalendar');
+  String get photosEvolutionNotes => _get('photosEvolutionNotes');
+  String get noHealthDataYet => _get('noHealthDataYet');
+  String get dataWillAppearAfterVisits => _get('dataWillAppearAfterVisits');
+  String get appointmentConfirmedSuccess => _get('appointmentConfirmedSuccess');
+  String get owner => _get('owner');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
