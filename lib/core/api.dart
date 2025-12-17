@@ -381,45 +381,15 @@ class ApiClient {
         }
       }
     } on DioException catch (e) {
-      // Si presign échoue (404 ou autre), on tente le local
-      if (e.response?.statusCode != 404 && e.response?.statusCode != 500) {
-        rethrow;
-      }
+      // S3 presign a échoué - on remonte l'erreur au lieu de fallback silencieux
+      debugPrint('S3 presign FAILED: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
     }
 
-    // Priorité 2: Upload local (fallback dev)
-    final candidates = <String>['/uploads/local', '/upload/local', '/uploads', '/upload'];
-
-    DioException? last;
-    for (final path in candidates) {
-      try {
-        final res = await _authRetry(() async {
-          final form = FormData.fromMap({
-            'file': await MultipartFile.fromFile(file.path, filename: filename),
-          });
-          return await _dio.post(path, data: form);
-        });
-        final m = _unwrap<Map<String, dynamic>>(res.data);
-        final url = (m['url'] ??
-                m['Location'] ??
-                m['location'] ??
-                m['publicUrl'] ??
-                m['public_url'] ??
-                '')
-            .toString();
-        if (url.isNotEmpty) return url;
-
-        final loc = res.headers['location']?.first;
-        if (loc != null && loc.isNotEmpty) return loc;
-      } on DioException catch (e) {
-        last = e;
-        if (e.response?.statusCode != 404) rethrow;
-      }
-    }
-
-    throw last ?? DioException(
-      requestOptions: RequestOptions(path: '/uploads'),
-      error: 'Aucun endpoint d\'upload disponible',
+    // Si on arrive ici, presign n'a pas retourné de publicUrl valide
+    throw DioException(
+      requestOptions: RequestOptions(path: '/uploads/presign'),
+      error: 'S3 presign n\'a pas retourné d\'URL publique',
     );
   }
 

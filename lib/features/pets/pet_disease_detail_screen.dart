@@ -1,7 +1,10 @@
 // lib/features/pets/pet_disease_detail_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
@@ -622,123 +625,18 @@ class PetDiseaseDetailScreen extends ConsumerWidget {
   }
 
   void _showAddProgressDialog(BuildContext context, WidgetRef ref, bool isDark, AppLocalizations l10n, Color textPrimary, Color textSecondary) {
-    final notesController = TextEditingController();
-    String? selectedSeverity;
-    final treatmentController = TextEditingController();
-
-    final dialogBg = isDark ? _darkCard : Colors.white;
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: dialogBg,
-        title: Text(l10n.addUpdate, style: TextStyle(color: textPrimary)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: notesController,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  labelText: l10n.notesRequired,
-                  labelStyle: TextStyle(color: textSecondary),
-                  hintText: l10n.observedEvolution,
-                  hintStyle: TextStyle(color: textSecondary.withOpacity(0.5)),
-                  border: const OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textSecondary.withOpacity(0.3)),
-                  ),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedSeverity,
-                dropdownColor: dialogBg,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  labelText: l10n.severity,
-                  labelStyle: TextStyle(color: textSecondary),
-                  border: const OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textSecondary.withOpacity(0.3)),
-                  ),
-                ),
-                items: [
-                  DropdownMenuItem(value: 'MILD', child: Text(l10n.mildSeverity)),
-                  DropdownMenuItem(value: 'MODERATE', child: Text(l10n.moderateSeverity)),
-                  DropdownMenuItem(value: 'SEVERE', child: Text(l10n.severeSeverity)),
-                ],
-                onChanged: (value) => selectedSeverity = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: treatmentController,
-                style: TextStyle(color: textPrimary),
-                decoration: InputDecoration(
-                  labelText: l10n.treatmentUpdate,
-                  labelStyle: TextStyle(color: textSecondary),
-                  hintText: l10n.dosageChangeMed,
-                  hintStyle: TextStyle(color: textSecondary.withOpacity(0.5)),
-                  border: const OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textSecondary.withOpacity(0.3)),
-                  ),
-                ),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (notesController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.notesAreRequired)),
-                );
-                return;
-              }
-
-              try {
-                final api = ref.read(apiProvider);
-                await api.addDiseaseProgress(
-                  petId,
-                  diseaseId,
-                  notes: notesController.text.trim(),
-                  severity: selectedSeverity,
-                  treatmentUpdate: treatmentController.text.trim().isNotEmpty
-                      ? treatmentController.text.trim()
-                      : null,
-                );
-
-                ref.invalidate(diseaseDetailProvider((petId: petId, diseaseId: diseaseId)));
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.updateAdded),
-                      backgroundColor: _mint,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${l10n.error}: $e')),
-                  );
-                }
-              }
-            },
-            style: FilledButton.styleFrom(backgroundColor: _orange),
-            child: Text(l10n.addData),
-          ),
-        ],
+      builder: (context) => _AddProgressDialog(
+        petId: petId,
+        diseaseId: diseaseId,
+        isDark: isDark,
+        l10n: l10n,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        onSuccess: () {
+          ref.invalidate(diseaseDetailProvider((petId: petId, diseaseId: diseaseId)));
+        },
       ),
     );
   }
@@ -1056,6 +954,325 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog for adding progress update with image upload support
+class _AddProgressDialog extends ConsumerStatefulWidget {
+  final String petId;
+  final String diseaseId;
+  final bool isDark;
+  final AppLocalizations l10n;
+  final Color textPrimary;
+  final Color textSecondary;
+  final VoidCallback onSuccess;
+
+  const _AddProgressDialog({
+    required this.petId,
+    required this.diseaseId,
+    required this.isDark,
+    required this.l10n,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.onSuccess,
+  });
+
+  @override
+  ConsumerState<_AddProgressDialog> createState() => _AddProgressDialogState();
+}
+
+class _AddProgressDialogState extends ConsumerState<_AddProgressDialog> {
+  final _notesController = TextEditingController();
+  final _treatmentController = TextEditingController();
+  String? _selectedSeverity;
+  final List<String> _imageUrls = [];
+  bool _isUploading = false;
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    _treatmentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    setState(() => _isUploading = true);
+    try {
+      final api = ref.read(apiProvider);
+      final url = await api.uploadLocalFile(
+        File(pickedFile.path),
+        folder: 'diseases',
+      );
+      setState(() {
+        _imageUrls.add(url);
+        _isUploading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.l10n.imageAdded),
+            backgroundColor: _mint,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${widget.l10n.imageUploadError}: $e'),
+            backgroundColor: _coral,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_notesController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.l10n.notesAreRequired)),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.addDiseaseProgress(
+        widget.petId,
+        widget.diseaseId,
+        notes: _notesController.text.trim(),
+        severity: _selectedSeverity,
+        treatmentUpdate: _treatmentController.text.trim().isNotEmpty
+            ? _treatmentController.text.trim()
+            : null,
+        images: _imageUrls.isNotEmpty ? _imageUrls : null,
+      );
+
+      widget.onSuccess();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.l10n.updateAdded),
+            backgroundColor: _mint,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${widget.l10n.error}: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogBg = widget.isDark ? _darkCard : Colors.white;
+
+    return AlertDialog(
+      backgroundColor: dialogBg,
+      title: Text(widget.l10n.addUpdate, style: TextStyle(color: widget.textPrimary)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Notes field
+            TextField(
+              controller: _notesController,
+              style: TextStyle(color: widget.textPrimary),
+              decoration: InputDecoration(
+                labelText: widget.l10n.notesRequired,
+                labelStyle: TextStyle(color: widget.textSecondary),
+                hintText: widget.l10n.observedEvolution,
+                hintStyle: TextStyle(color: widget.textSecondary.withOpacity(0.5)),
+                border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: widget.textSecondary.withOpacity(0.3)),
+                ),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+
+            // Severity dropdown
+            DropdownButtonFormField<String>(
+              value: _selectedSeverity,
+              dropdownColor: dialogBg,
+              style: TextStyle(color: widget.textPrimary),
+              decoration: InputDecoration(
+                labelText: widget.l10n.severity,
+                labelStyle: TextStyle(color: widget.textSecondary),
+                border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: widget.textSecondary.withOpacity(0.3)),
+                ),
+              ),
+              items: [
+                DropdownMenuItem(value: 'MILD', child: Text(widget.l10n.mildSeverity)),
+                DropdownMenuItem(value: 'MODERATE', child: Text(widget.l10n.moderateSeverity)),
+                DropdownMenuItem(value: 'SEVERE', child: Text(widget.l10n.severeSeverity)),
+              ],
+              onChanged: (value) => setState(() => _selectedSeverity = value),
+            ),
+            const SizedBox(height: 16),
+
+            // Treatment update field
+            TextField(
+              controller: _treatmentController,
+              style: TextStyle(color: widget.textPrimary),
+              decoration: InputDecoration(
+                labelText: widget.l10n.treatmentUpdate,
+                labelStyle: TextStyle(color: widget.textSecondary),
+                hintText: widget.l10n.dosageChangeMed,
+                hintStyle: TextStyle(color: widget.textSecondary.withOpacity(0.5)),
+                border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: widget.textSecondary.withOpacity(0.3)),
+                ),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+
+            // Image upload section
+            Row(
+              children: [
+                Icon(Icons.photo_library, size: 18, color: widget.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  widget.l10n.photos,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: widget.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                if (_isUploading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _orange,
+                    ),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: _pickAndUploadImage,
+                    icon: const Icon(Icons.add_photo_alternate, size: 18),
+                    label: Text(widget.l10n.addPhoto),
+                    style: TextButton.styleFrom(foregroundColor: _orange),
+                  ),
+              ],
+            ),
+
+            // Display uploaded images
+            if (_imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 80,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _imageUrls.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _imageUrls[index],
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 80,
+                              height: 80,
+                              color: widget.isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                              child: Icon(Icons.broken_image, color: Colors.grey.shade400),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _imageUrls.removeAt(index));
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ] else if (!_isUploading) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.l10n.noImages,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.textSecondary.withOpacity(0.7),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: Text(widget.l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: _isSubmitting || _isUploading ? null : _submit,
+          style: FilledButton.styleFrom(backgroundColor: _orange),
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(widget.l10n.addData),
+        ),
+      ],
     );
   }
 }

@@ -779,12 +779,27 @@ class ApiClient {
   async getPresignedUrl(
     filename: string,
     contentType: string
-  ): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
-    const { data } = await this._client.post<{ uploadUrl: string; fileUrl: string; key: string }>(
+  ): Promise<{ uploadUrl: string; publicUrl: string; key: string; needsConfirm: boolean }> {
+    // Extract extension from filename
+    const ext = filename.includes('.') ? filename.split('.').pop() : undefined;
+
+    const { data } = await this._client.post<{
+      url: string;
+      publicUrl: string;
+      key: string;
+      needsConfirm?: boolean;
+    }>(
       '/uploads/presign',
-      { filename, contentType }
+      { mimeType: contentType, ext, folder: 'uploads' }
     );
-    return data;
+
+    // Map backend response to frontend expected format
+    return {
+      uploadUrl: data.url,
+      publicUrl: data.publicUrl,
+      key: data.key,
+      needsConfirm: data.needsConfirm ?? false,
+    };
   }
 
   async uploadToPresignedUrl(uploadUrl: string, file: File): Promise<void> {
@@ -793,41 +808,37 @@ class ApiClient {
     });
   }
 
-  async confirmUpload(key: string): Promise<{ url: string }> {
-    const { data } = await this._client.post<{ url: string }>('/uploads/confirm', { key });
+  async confirmUpload(key: string): Promise<{ success: boolean; url?: string }> {
+    const { data } = await this._client.post<{ success: boolean; key: string }>('/uploads/confirm', { key });
     return data;
   }
 
   async uploadFile(file: File): Promise<string> {
     try {
       // Try S3 presigned upload first
-      const { uploadUrl, key } = await this.getPresignedUrl(file.name, file.type);
+      const { uploadUrl, publicUrl, key, needsConfirm } = await this.getPresignedUrl(file.name, file.type);
+
+      console.log('📤 S3 presign response:', { uploadUrl: uploadUrl?.substring(0, 50) + '...', publicUrl, key, needsConfirm });
+
+      if (!uploadUrl) {
+        throw new Error('No uploadUrl in presign response');
+      }
+
       await this.uploadToPresignedUrl(uploadUrl, file);
-      const { url } = await this.confirmUpload(key);
-      console.log('📤 S3 upload successful, URL:', url);
-      return url;
+      console.log('📤 S3 PUT upload successful');
+
+      // Confirm upload to set ACL if needed
+      if (needsConfirm && key) {
+        console.log('📤 Confirming upload for ACL...');
+        await this.confirmUpload(key);
+        console.log('📤 ACL confirmed');
+      }
+
+      console.log('📤 S3 upload complete, URL:', publicUrl);
+      return publicUrl;
     } catch (s3Error) {
-      console.log('⚠️ S3 upload failed, trying local upload:', s3Error);
-      // Fallback to local upload
-      const formData = new FormData();
-      formData.append('file', file);
-      const { data } = await this._client.post('/uploads/local', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      console.log('📤 Local upload response:', data);
-      // Handle both {url: "..."} and {data: {url: "..."}} response formats
-      let url = data?.data?.url || data?.url;
-      if (!url) {
-        console.error('Upload response missing URL:', data);
-        throw new Error('No URL in upload response');
-      }
-      // Fix mixed content: if site is HTTPS and URL is HTTP, try to fix it
-      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
-        console.log('⚠️ Converting HTTP URL to HTTPS for mixed content:', url);
-        url = url.replace('http://', 'https://');
-      }
-      console.log('📤 Final upload URL:', url);
-      return url;
+      console.error('❌ S3 upload failed:', s3Error);
+      throw s3Error; // Don't fallback to local - S3 should always work
     }
   }
 }
