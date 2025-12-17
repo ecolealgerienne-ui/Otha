@@ -318,6 +318,7 @@ class AppLocalizations {
       'bookingRef': 'Réf.',
       'backToHome': 'Retour à l\'accueil',
       'viewMyBookings': 'Voir mes rendez-vous',
+      'viewBookingDetails': 'Voir le rendez-vous',
       'pendingConfirmation': 'En attente de confirmation',
       'explore': 'Explorer',
       // Booking details
@@ -515,6 +516,7 @@ class AppLocalizations {
       'bookingRef': 'Ref.',
       'backToHome': 'Back to home',
       'viewMyBookings': 'View my appointments',
+      'viewBookingDetails': 'View appointment',
       'pendingConfirmation': 'Pending confirmation',
       'explore': 'Explore',
       // Booking details
@@ -712,6 +714,7 @@ class AppLocalizations {
       'bookingRef': 'المرجع',
       'backToHome': 'العودة للرئيسية',
       'viewMyBookings': 'عرض مواعيدي',
+      'viewBookingDetails': 'عرض الموعد',
       'pendingConfirmation': 'في انتظار التأكيد',
       'explore': 'استكشف',
       // Booking details
@@ -917,6 +920,7 @@ class AppLocalizations {
   String get bookingRef => _get('bookingRef');
   String get backToHome => _get('backToHome');
   String get viewMyBookings => _get('viewMyBookings');
+  String get viewBookingDetails => _get('viewBookingDetails');
   String get pendingConfirmation => _get('pendingConfirmation');
   String get explore => _get('explore');
   // Booking details
