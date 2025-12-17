@@ -490,6 +490,11 @@ class AppLocalizations {
       'update': 'Mise à jour',
       'edit': 'Modifier',
       'goBack': 'Retour',
+      'addPhoto': 'Ajouter photo',
+      'uploading': 'Upload...',
+      'noImages': 'Aucune image',
+      'imageAdded': 'Image ajoutée',
+      'imageUploadError': 'Erreur upload image',
     },
     'en': {
       'appName': 'Vegece',
@@ -838,6 +843,11 @@ class AppLocalizations {
       'update': 'Update',
       'edit': 'Edit',
       'goBack': 'Go back',
+      'addPhoto': 'Add photo',
+      'uploading': 'Uploading...',
+      'noImages': 'No images',
+      'imageAdded': 'Image added',
+      'imageUploadError': 'Image upload error',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1186,6 +1196,11 @@ class AppLocalizations {
       'update': 'تحديث',
       'edit': 'تعديل',
       'goBack': 'رجوع',
+      'addPhoto': 'إضافة صورة',
+      'uploading': 'جاري الرفع...',
+      'noImages': 'لا توجد صور',
+      'imageAdded': 'تمت إضافة الصورة',
+      'imageUploadError': 'خطأ في رفع الصورة',
     },
   };
 
@@ -1539,6 +1554,11 @@ class AppLocalizations {
   String get unableToLoadImage => _get('unableToLoadImage');
   String get update => _get('update');
   String get goBack => _get('goBack');
+  String get addPhoto => _get('addPhoto');
+  String get uploading => _get('uploading');
+  String get noImages => _get('noImages');
+  String get imageAdded => _get('imageAdded');
+  String get imageUploadError => _get('imageUploadError');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
