@@ -553,6 +553,7 @@ class AppLocalizations {
       'confirmDropOff': 'Confirmer le dépôt',
       'confirmPickup': 'Confirmer la récupération',
       // Daycare booking form
+      'bookingType': 'Type de réservation',
       'selectAnimal': 'Sélectionnez votre animal',
       'selectDate': 'Sélectionnez la date',
       'selectDates': 'Sélectionnez les dates',
@@ -980,6 +981,7 @@ class AppLocalizations {
       'confirmDropOff': 'Confirm drop-off',
       'confirmPickup': 'Confirm pickup',
       // Daycare booking form
+      'bookingType': 'Booking type',
       'selectAnimal': 'Select your pet',
       'selectDate': 'Select date',
       'selectDates': 'Select dates',
@@ -1407,6 +1409,7 @@ class AppLocalizations {
       'confirmDropOff': 'تأكيد التسليم',
       'confirmPickup': 'تأكيد الاستلام',
       // Daycare booking form
+      'bookingType': 'نوع الحجز',
       'selectAnimal': 'اختر حيوانك',
       'selectDate': 'اختر التاريخ',
       'selectDates': 'اختر التواريخ',
@@ -1837,6 +1840,7 @@ class AppLocalizations {
   String get lateFeeAmount => _get('lateFeeAmount');
   String get confirmDropOff => _get('confirmDropOff');
   String get confirmPickup => _get('confirmPickup');
+  String get bookingType => _get('bookingType');
   String get selectAnimal => _get('selectAnimal');
   String get selectDate => _get('selectDate');
   String get selectDates => _get('selectDates');
