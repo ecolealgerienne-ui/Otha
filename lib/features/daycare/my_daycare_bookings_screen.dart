@@ -309,7 +309,7 @@ class _BookingCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        provider?['displayName'] ?? l10n.daycareTitle,
+                        provider?['displayName'] ?? l10n.daycare,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
