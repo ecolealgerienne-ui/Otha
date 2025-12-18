@@ -495,6 +495,64 @@ class AppLocalizations {
       'noImages': 'Aucune image',
       'imageAdded': 'Image ajoutée',
       'imageUploadError': 'Erreur upload image',
+      // Daycare
+      'daycaresTitle': 'Garderies',
+      'searchDaycare': 'Rechercher une garderie...',
+      'noDaycareFound': 'Aucune garderie trouvée',
+      'noDaycareAvailable': 'Aucune garderie disponible',
+      'open247': 'Ouvert 24h/24 - 7j/7',
+      'openFromTo': 'Ouvert de {start} à {end}',
+      'maxCapacity': 'Capacité maximale',
+      'animalsCount': '{count} animaux',
+      'hourlyRate': 'Tarif horaire',
+      'dailyRate': 'Tarif journalier',
+      'perHour': '/heure',
+      'perDay': '/jour',
+      'fromPrice': 'À partir de',
+      'bookNow': 'Réserver maintenant',
+      'schedules': 'Horaires',
+      'availableDays': 'Jours de disponibilité',
+      'pricing': 'Tarifs',
+      'acceptedAnimals': 'Types d\'animaux acceptés',
+      'aboutDaycare': 'À propos',
+      'noImageAvailable': 'Aucune image',
+      'myDaycareBookings': 'Mes réservations garderie',
+      'allBookings': 'Toutes',
+      'pendingBookings': 'En attente',
+      'confirmedBookings': 'Confirmées',
+      'inProgressBookings': 'En cours',
+      'completedBookings': 'Terminées',
+      'cancelledBookings': 'Annulées',
+      'noBookingInCategory': 'Aucune réservation dans cette catégorie',
+      'noBookings': 'Aucune réservation',
+      'bookDaycare': 'Réserver une garderie',
+      'newBooking': 'Nouvelle réservation',
+      'arrival': 'Arrivée',
+      'departure': 'Départ',
+      'droppedAt': 'Déposé à',
+      'pickedUpAt': 'Récupéré à',
+      'priceLabel': 'Prix',
+      'commissionLabel': 'Commission',
+      'totalLabel': 'Total',
+      'animalLabel': 'Animal',
+      'notSpecified': 'Non spécifié',
+      'notesLabel': 'Notes',
+      'mon': 'Lun',
+      'tue': 'Mar',
+      'wed': 'Mer',
+      'thu': 'Jeu',
+      'fri': 'Ven',
+      'sat': 'Sam',
+      'sun': 'Dim',
+      'daycareBookingDetails': 'Détails de la réservation',
+      'dropOffTime': 'Heure de dépôt',
+      'pickupTime': 'Heure de récupération',
+      'lateFeePending': 'Frais de retard en attente',
+      'lateFeeWaived': 'Frais de retard annulés',
+      'lateFeeAmount': 'Frais de retard',
+      'confirmDropOff': 'Confirmer le dépôt',
+      'confirmPickup': 'Confirmer la récupération',
+      'viewDaycareDetails': 'Voir les détails',
     },
     'en': {
       'appName': 'Vegece',
@@ -848,6 +906,64 @@ class AppLocalizations {
       'noImages': 'No images',
       'imageAdded': 'Image added',
       'imageUploadError': 'Image upload error',
+      // Daycare
+      'daycaresTitle': 'Daycares',
+      'searchDaycare': 'Search for a daycare...',
+      'noDaycareFound': 'No daycare found',
+      'noDaycareAvailable': 'No daycare available',
+      'open247': 'Open 24/7',
+      'openFromTo': 'Open from {start} to {end}',
+      'maxCapacity': 'Maximum capacity',
+      'animalsCount': '{count} animals',
+      'hourlyRate': 'Hourly rate',
+      'dailyRate': 'Daily rate',
+      'perHour': '/hour',
+      'perDay': '/day',
+      'fromPrice': 'Starting from',
+      'bookNow': 'Book now',
+      'schedules': 'Hours',
+      'availableDays': 'Available days',
+      'pricing': 'Pricing',
+      'acceptedAnimals': 'Accepted animal types',
+      'aboutDaycare': 'About',
+      'noImageAvailable': 'No image',
+      'myDaycareBookings': 'My daycare bookings',
+      'allBookings': 'All',
+      'pendingBookings': 'Pending',
+      'confirmedBookings': 'Confirmed',
+      'inProgressBookings': 'In progress',
+      'completedBookings': 'Completed',
+      'cancelledBookings': 'Cancelled',
+      'noBookingInCategory': 'No booking in this category',
+      'noBookings': 'No bookings',
+      'bookDaycare': 'Book a daycare',
+      'newBooking': 'New booking',
+      'arrival': 'Arrival',
+      'departure': 'Departure',
+      'droppedAt': 'Dropped at',
+      'pickedUpAt': 'Picked up at',
+      'priceLabel': 'Price',
+      'commissionLabel': 'Commission',
+      'totalLabel': 'Total',
+      'animalLabel': 'Animal',
+      'notSpecified': 'Not specified',
+      'notesLabel': 'Notes',
+      'mon': 'Mon',
+      'tue': 'Tue',
+      'wed': 'Wed',
+      'thu': 'Thu',
+      'fri': 'Fri',
+      'sat': 'Sat',
+      'sun': 'Sun',
+      'daycareBookingDetails': 'Booking details',
+      'dropOffTime': 'Drop-off time',
+      'pickupTime': 'Pickup time',
+      'lateFeePending': 'Late fee pending',
+      'lateFeeWaived': 'Late fee waived',
+      'lateFeeAmount': 'Late fee',
+      'confirmDropOff': 'Confirm drop-off',
+      'confirmPickup': 'Confirm pickup',
+      'viewDaycareDetails': 'View details',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1201,6 +1317,64 @@ class AppLocalizations {
       'noImages': 'لا توجد صور',
       'imageAdded': 'تمت إضافة الصورة',
       'imageUploadError': 'خطأ في رفع الصورة',
+      // Daycare
+      'daycaresTitle': 'الحضانات',
+      'searchDaycare': 'ابحث عن حضانة...',
+      'noDaycareFound': 'لم يتم العثور على حضانة',
+      'noDaycareAvailable': 'لا توجد حضانة متاحة',
+      'open247': 'مفتوح 24/7',
+      'openFromTo': 'مفتوح من {start} إلى {end}',
+      'maxCapacity': 'السعة القصوى',
+      'animalsCount': '{count} حيوانات',
+      'hourlyRate': 'السعر بالساعة',
+      'dailyRate': 'السعر اليومي',
+      'perHour': '/ساعة',
+      'perDay': '/يوم',
+      'fromPrice': 'ابتداءً من',
+      'bookNow': 'احجز الآن',
+      'schedules': 'المواعيد',
+      'availableDays': 'الأيام المتاحة',
+      'pricing': 'الأسعار',
+      'acceptedAnimals': 'أنواع الحيوانات المقبولة',
+      'aboutDaycare': 'حول',
+      'noImageAvailable': 'لا توجد صورة',
+      'myDaycareBookings': 'حجوزاتي في الحضانة',
+      'allBookings': 'الكل',
+      'pendingBookings': 'قيد الانتظار',
+      'confirmedBookings': 'مؤكدة',
+      'inProgressBookings': 'جارية',
+      'completedBookings': 'مكتملة',
+      'cancelledBookings': 'ملغاة',
+      'noBookingInCategory': 'لا توجد حجوزات في هذه الفئة',
+      'noBookings': 'لا توجد حجوزات',
+      'bookDaycare': 'احجز حضانة',
+      'newBooking': 'حجز جديد',
+      'arrival': 'الوصول',
+      'departure': 'المغادرة',
+      'droppedAt': 'تم التسليم في',
+      'pickedUpAt': 'تم الاستلام في',
+      'priceLabel': 'السعر',
+      'commissionLabel': 'العمولة',
+      'totalLabel': 'المجموع',
+      'animalLabel': 'الحيوان',
+      'notSpecified': 'غير محدد',
+      'notesLabel': 'ملاحظات',
+      'mon': 'إثن',
+      'tue': 'ثلا',
+      'wed': 'أرب',
+      'thu': 'خمي',
+      'fri': 'جمع',
+      'sat': 'سبت',
+      'sun': 'أحد',
+      'daycareBookingDetails': 'تفاصيل الحجز',
+      'dropOffTime': 'وقت التسليم',
+      'pickupTime': 'وقت الاستلام',
+      'lateFeePending': 'رسوم التأخير معلقة',
+      'lateFeeWaived': 'تم التنازل عن رسوم التأخير',
+      'lateFeeAmount': 'رسوم التأخير',
+      'confirmDropOff': 'تأكيد التسليم',
+      'confirmPickup': 'تأكيد الاستلام',
+      'viewDaycareDetails': 'عرض التفاصيل',
     },
   };
 
@@ -1558,6 +1732,64 @@ class AppLocalizations {
   String get noImages => _get('noImages');
   String get imageAdded => _get('imageAdded');
   String get imageUploadError => _get('imageUploadError');
+  // Daycare getters
+  String get daycaresTitle => _get('daycaresTitle');
+  String get searchDaycare => _get('searchDaycare');
+  String get noDaycareFound => _get('noDaycareFound');
+  String get noDaycareAvailable => _get('noDaycareAvailable');
+  String get open247 => _get('open247');
+  String openFromTo(String start, String end) => _get('openFromTo').replaceAll('{start}', start).replaceAll('{end}', end);
+  String get maxCapacity => _get('maxCapacity');
+  String animalsCount(int count) => _get('animalsCount').replaceAll('{count}', count.toString());
+  String get hourlyRate => _get('hourlyRate');
+  String get dailyRate => _get('dailyRate');
+  String get perHour => _get('perHour');
+  String get perDay => _get('perDay');
+  String get fromPrice => _get('fromPrice');
+  String get bookNow => _get('bookNow');
+  String get schedules => _get('schedules');
+  String get availableDays => _get('availableDays');
+  String get pricing => _get('pricing');
+  String get acceptedAnimals => _get('acceptedAnimals');
+  String get aboutDaycare => _get('aboutDaycare');
+  String get noImageAvailable => _get('noImageAvailable');
+  String get myDaycareBookings => _get('myDaycareBookings');
+  String get allBookings => _get('allBookings');
+  String get pendingBookings => _get('pendingBookings');
+  String get confirmedBookings => _get('confirmedBookings');
+  String get inProgressBookings => _get('inProgressBookings');
+  String get completedBookings => _get('completedBookings');
+  String get cancelledBookings => _get('cancelledBookings');
+  String get noBookingInCategory => _get('noBookingInCategory');
+  String get noBookings => _get('noBookings');
+  String get bookDaycare => _get('bookDaycare');
+  String get newBooking => _get('newBooking');
+  String get arrival => _get('arrival');
+  String get departure => _get('departure');
+  String get droppedAt => _get('droppedAt');
+  String get pickedUpAt => _get('pickedUpAt');
+  String get priceLabel => _get('priceLabel');
+  String get commissionLabel => _get('commissionLabel');
+  String get totalLabel => _get('totalLabel');
+  String get animalLabel => _get('animalLabel');
+  String get notSpecified => _get('notSpecified');
+  String get notesLabel => _get('notesLabel');
+  String get mon => _get('mon');
+  String get tue => _get('tue');
+  String get wed => _get('wed');
+  String get thu => _get('thu');
+  String get fri => _get('fri');
+  String get sat => _get('sat');
+  String get sun => _get('sun');
+  String get daycareBookingDetails => _get('daycareBookingDetails');
+  String get dropOffTime => _get('dropOffTime');
+  String get pickupTime => _get('pickupTime');
+  String get lateFeePending => _get('lateFeePending');
+  String get lateFeeWaived => _get('lateFeeWaived');
+  String get lateFeeAmount => _get('lateFeeAmount');
+  String get confirmDropOff => _get('confirmDropOff');
+  String get confirmPickup => _get('confirmPickup');
+  String get viewDaycareDetails => _get('viewDaycareDetails');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
