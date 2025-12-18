@@ -1926,22 +1926,19 @@ class AppLocalizations {
   String get yourAnimal => _get('yourAnimal');
   String get oneStepAtATime => _get('oneStepAtATime');
   String get viewDaycareDetails => _get('viewDaycareDetails');
-  // Booking confirmation
+  // Booking confirmation (daycare)
   String get bookingSent => _get('bookingSent');
   String get bookingSentDescription => _get('bookingSentDescription');
   String get commissionIncluded => _get('commissionIncluded');
   String get daycareWillContact => _get('daycareWillContact');
   String get seeMyBooking => _get('seeMyBooking');
-  String get backToHome => _get('backToHome');
   String get at => _get('at');
-  // Booking details
+  // Booking details (daycare)
   String get datesLabel => _get('datesLabel');
   String get plannedArrival => _get('plannedArrival');
   String get plannedDeparture => _get('plannedDeparture');
   String get cancelBooking => _get('cancelBooking');
   String get cancelBookingConfirm => _get('cancelBookingConfirm');
-  String get cancelBookingMessage => _get('cancelBookingMessage');
-  String get yesCancel => _get('yesCancel');
   String get bookingCancelledSuccess => _get('bookingCancelledSuccess');
   // Status descriptions
   String get pendingDescription => _get('pendingDescription');
