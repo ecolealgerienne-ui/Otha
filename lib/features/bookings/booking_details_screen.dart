@@ -511,6 +511,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         ),
       ),
       bottomNavigationBar: _buildBottomBar(isDark, l10n, cardColor, textPrimary),
+      ),
     );
   }
 
