@@ -79,65 +79,46 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Image gallery with proper gesture handling
+                  // Image gallery
                   if (images.isNotEmpty)
-                    GestureDetector(
-                      onHorizontalDragEnd: (details) {
-                        if (details.primaryVelocity == null) return;
-                        if (details.primaryVelocity! < 0) {
-                          // Swipe left - next
-                          if (_currentImageIndex < images.length - 1) {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        } else if (details.primaryVelocity! > 0) {
-                          // Swipe right - previous
-                          if (_currentImageIndex > 0) {
-                            _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        }
+                    PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (index) {
+                        setState(() => _currentImageIndex = index);
                       },
-                      child: PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: (index) {
-                          setState(() => _currentImageIndex = index);
-                        },
-                        physics: const ClampingScrollPhysics(),
-                        itemCount: images.length,
-                        itemBuilder: (context, index) {
-                          return Image.network(
-                            images[index].toString(),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
-                          );
-                        },
-                      ),
+                      itemCount: images.length,
+                      itemBuilder: (context, index) {
+                        return Image.network(
+                          images[index].toString(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
+                        );
+                      },
                     )
                   else
                     _buildPlaceholder(isDark),
 
-                  // Gradient pour lisibilite
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.5),
-                        ],
+                  // Gradient pour lisibilite - IgnorePointer pour ne pas bloquer le swipe
+                  IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.5),
+                          ],
+                          stops: const [0.0, 0.4, 1.0],
+                        ),
                       ),
                     ),
                   ),
 
-                  // Badges
+                  // Badges - position plus haute
                   Positioned(
-                    top: 100,
+                    bottom: 50,
                     left: 16,
                     right: 16,
                     child: Row(
