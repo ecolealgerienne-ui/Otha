@@ -963,14 +963,14 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? notes,
   }) async {
     await ensureAuth();
-    final res = await _dio.post('/daycare/bookings', data: {
+    final res = await _authRetry(() async => await _dio.post('/daycare/bookings', data: {
       'petId': petId,
       'providerId': providerId,
       'startDate': startDate,
       'endDate': endDate,
       'priceDa': priceDa,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
-    });
+    }));
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
