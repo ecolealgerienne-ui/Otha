@@ -570,6 +570,29 @@ class AppLocalizations {
       'yourAnimal': 'Votre animal',
       'oneStepAtATime': 'Une étape à la fois',
       'viewDaycareDetails': 'Voir les détails',
+      // Booking confirmation
+      'bookingSent': 'Réservation envoyée !',
+      'bookingSentDescription': 'Votre demande a été envoyée avec succès.',
+      'commissionIncluded': '(commission incluse)',
+      'daycareWillContact': 'La garderie vous contactera pour confirmer votre réservation.',
+      'seeMyBooking': 'Voir ma réservation',
+      'backToHome': 'Retour à l\'accueil',
+      'at': 'à',
+      // Booking details
+      'datesLabel': 'Dates',
+      'plannedArrival': 'Arrivée prévue',
+      'plannedDeparture': 'Départ prévu',
+      'cancelBooking': 'Annuler la réservation',
+      'cancelBookingConfirm': 'Annuler la réservation ?',
+      'cancelBookingMessage': 'Cette action est irréversible. Voulez-vous vraiment annuler ?',
+      'yesCancel': 'Oui, annuler',
+      'bookingCancelledSuccess': 'Réservation annulée avec succès',
+      // Status descriptions
+      'pendingDescription': 'En attente de confirmation par la garderie',
+      'confirmedDescription': 'Votre réservation est confirmée',
+      'inProgressDescription': 'Votre animal est actuellement en garderie',
+      'completedDescription': 'Garde terminée avec succès',
+      'cancelledDescription': 'Cette réservation a été annulée',
     },
     'en': {
       'appName': 'Vegece',
@@ -998,6 +1021,29 @@ class AppLocalizations {
       'yourAnimal': 'Your pet',
       'oneStepAtATime': 'One step at a time',
       'viewDaycareDetails': 'View details',
+      // Booking confirmation
+      'bookingSent': 'Booking sent!',
+      'bookingSentDescription': 'Your request has been sent successfully.',
+      'commissionIncluded': '(commission included)',
+      'daycareWillContact': 'The daycare will contact you to confirm your booking.',
+      'seeMyBooking': 'See my booking',
+      'backToHome': 'Back to home',
+      'at': 'at',
+      // Booking details
+      'datesLabel': 'Dates',
+      'plannedArrival': 'Planned arrival',
+      'plannedDeparture': 'Planned departure',
+      'cancelBooking': 'Cancel booking',
+      'cancelBookingConfirm': 'Cancel booking?',
+      'cancelBookingMessage': 'This action is irreversible. Do you really want to cancel?',
+      'yesCancel': 'Yes, cancel',
+      'bookingCancelledSuccess': 'Booking cancelled successfully',
+      // Status descriptions
+      'pendingDescription': 'Awaiting confirmation from the daycare',
+      'confirmedDescription': 'Your booking is confirmed',
+      'inProgressDescription': 'Your pet is currently at the daycare',
+      'completedDescription': 'Care completed successfully',
+      'cancelledDescription': 'This booking has been cancelled',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1426,6 +1472,29 @@ class AppLocalizations {
       'yourAnimal': 'حيوانك',
       'oneStepAtATime': 'خطوة بخطوة',
       'viewDaycareDetails': 'عرض التفاصيل',
+      // Booking confirmation
+      'bookingSent': 'تم إرسال الحجز!',
+      'bookingSentDescription': 'تم إرسال طلبك بنجاح.',
+      'commissionIncluded': '(العمولة مشمولة)',
+      'daycareWillContact': 'ستتصل بك الحضانة لتأكيد حجزك.',
+      'seeMyBooking': 'عرض حجزي',
+      'backToHome': 'العودة للرئيسية',
+      'at': 'في',
+      // Booking details
+      'datesLabel': 'التواريخ',
+      'plannedArrival': 'الوصول المخطط',
+      'plannedDeparture': 'المغادرة المخططة',
+      'cancelBooking': 'إلغاء الحجز',
+      'cancelBookingConfirm': 'إلغاء الحجز؟',
+      'cancelBookingMessage': 'هذا الإجراء لا رجعة فيه. هل تريد حقاً الإلغاء؟',
+      'yesCancel': 'نعم، إلغاء',
+      'bookingCancelledSuccess': 'تم إلغاء الحجز بنجاح',
+      // Status descriptions
+      'pendingDescription': 'في انتظار تأكيد الحضانة',
+      'confirmedDescription': 'تم تأكيد حجزك',
+      'inProgressDescription': 'حيوانك حالياً في الحضانة',
+      'completedDescription': 'تمت الرعاية بنجاح',
+      'cancelledDescription': 'تم إلغاء هذا الحجز',
     },
   };
 
@@ -1857,6 +1926,29 @@ class AppLocalizations {
   String get yourAnimal => _get('yourAnimal');
   String get oneStepAtATime => _get('oneStepAtATime');
   String get viewDaycareDetails => _get('viewDaycareDetails');
+  // Booking confirmation
+  String get bookingSent => _get('bookingSent');
+  String get bookingSentDescription => _get('bookingSentDescription');
+  String get commissionIncluded => _get('commissionIncluded');
+  String get daycareWillContact => _get('daycareWillContact');
+  String get seeMyBooking => _get('seeMyBooking');
+  String get backToHome => _get('backToHome');
+  String get at => _get('at');
+  // Booking details
+  String get datesLabel => _get('datesLabel');
+  String get plannedArrival => _get('plannedArrival');
+  String get plannedDeparture => _get('plannedDeparture');
+  String get cancelBooking => _get('cancelBooking');
+  String get cancelBookingConfirm => _get('cancelBookingConfirm');
+  String get cancelBookingMessage => _get('cancelBookingMessage');
+  String get yesCancel => _get('yesCancel');
+  String get bookingCancelledSuccess => _get('bookingCancelledSuccess');
+  // Status descriptions
+  String get pendingDescription => _get('pendingDescription');
+  String get confirmedDescription => _get('confirmedDescription');
+  String get inProgressDescription => _get('inProgressDescription');
+  String get completedDescription => _get('completedDescription');
+  String get cancelledDescription => _get('cancelledDescription');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
