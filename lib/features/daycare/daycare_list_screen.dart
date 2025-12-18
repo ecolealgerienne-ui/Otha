@@ -1,7 +1,6 @@
 // lib/features/daycare/daycare_list_screen.dart
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,28 +11,17 @@ import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 import '../../core/session_controller.dart';
 
-// ═══════════════════════════════════════════════════════════════
-// DESIGN CONSTANTS
-// ═══════════════════════════════════════════════════════════════
+// Design constants - même thème que vet_details_screen
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
-const _teal = Color(0xFF00ACC1);
-const _tealSoft = Color(0xFFE0F7FA);
-const _green = Color(0xFF43AA8B);
-const _greenSoft = Color(0xFFE8F5F0);
-const _purple = Color(0xFF7B68EE);
-const _purpleSoft = Color(0xFFF0EDFF);
-
-// Dark mode colors
-const _darkBg = Color(0xFF0F0F0F);
-const _darkCard = Color(0xFF1A1A1A);
-const _darkCardAlt = Color(0xFF242424);
-const _darkBorder = Color(0xFF2A2A2A);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 // Commission cachée ajoutée au prix affiché
 const kDaycareCommissionDa = 100;
 
-/// Provider qui charge la liste des garderies autour du centre
+/// Provider qui charge la liste des garderies
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
 
@@ -187,43 +175,21 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
   return unique;
 });
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN SCREEN
-// ═══════════════════════════════════════════════════════════════
 class DaycareListScreen extends ConsumerStatefulWidget {
   const DaycareListScreen({super.key});
   @override
   ConsumerState<DaycareListScreen> createState() => _DaycareListScreenState();
 }
 
-class _DaycareListScreenState extends ConsumerState<DaycareListScreen>
-    with SingleTickerProviderStateMixin {
+class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
   String _searchQuery = '';
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
-    _animationController.forward();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(daycareProvidersListProvider);
     });
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   List<Map<String, dynamic>> _filterDaycares(List<Map<String, dynamic>> daycares) {
@@ -246,186 +212,151 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen>
     final l10n = AppLocalizations.of(context);
     final async = ref.watch(daycareProvidersListProvider);
 
-    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
-    final cardColor = isDark ? _darkCard : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary = isDark ? Colors.white70 : Colors.black54;
+    final bgColor = isDark ? _darkBg : Colors.white;
+    final cardColor = isDark ? _darkCard : const Color(0xFFF7F9FB);
+    final cardBorder = isDark ? _darkCardBorder : const Color(0xFFE6EDF2);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: CustomScrollView(
-        slivers: [
-          // Premium App Bar avec effet glassmorphism
-          SliverAppBar(
-            expandedHeight: 140,
-            floating: true,
-            pinned: true,
-            backgroundColor: isDark ? _darkCard : Colors.white,
-            surfaceTintColor: Colors.transparent,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [_darkCard, _darkCardAlt]
-                        : [Colors.white, const Color(0xFFFAF9FF)],
-                  ),
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.pets, color: _coral, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              l10n.daycaresTitle,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // Barre de recherche
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              style: TextStyle(color: textPrimary),
+              decoration: InputDecoration(
+                hintText: l10n.searchDaycare,
+                hintStyle: TextStyle(color: textSecondary),
+                prefixIcon: Icon(Icons.search, color: textSecondary),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: textSecondary),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                filled: true,
+                fillColor: cardColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cardBorder),
                 ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cardBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _coral, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+            ),
+          ),
+
+          // Contenu
+          Expanded(
+            child: async.when(
+              loading: () => Center(
+                child: CircularProgressIndicator(color: isDark ? _coral : null),
+              ),
+              error: (err, st) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: textSecondary),
+                    const SizedBox(height: 16),
+                    Text('Erreur: $err', style: TextStyle(color: textSecondary)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(daycareProvidersListProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Réessayer'),
+                      style: FilledButton.styleFrom(backgroundColor: _coral),
+                    ),
+                  ],
+                ),
+              ),
+              data: (daycares) {
+                final filtered = _filterDaycares(daycares);
+
+                if (filtered.isEmpty) {
+                  return Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [_coral, Color(0xFFFF8A80)],
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _coral.withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.pets_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Text(
-                              l10n.daycaresTitle,
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                color: textPrimary,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _searchQuery.isEmpty ? Icons.pets : Icons.search_off,
+                            size: 40,
+                            color: _coral,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty ? l10n.noDaycareAvailable : l10n.noDaycareFound,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textSecondary,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+                  );
+                }
 
-          // Search bar avec glassmorphism
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isDark ? Colors.black : Colors.black).withOpacity(0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    style: TextStyle(color: textPrimary),
-                    decoration: InputDecoration(
-                      hintText: l10n.searchDaycare,
-                      hintStyle: TextStyle(color: textSecondary),
-                      prefixIcon: Icon(Icons.search_rounded, color: _coral),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear_rounded, color: textSecondary),
-                              onPressed: () => setState(() => _searchQuery = ''),
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: isDark ? _darkCardAlt : Colors.grey[50],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Content
-          async.when(
-            loading: () => const SliverFillRemaining(
-              child: Center(
-                child: _PremiumLoader(),
-              ),
-            ),
-            error: (err, st) => SliverFillRemaining(
-              child: _ErrorView(
-                error: err.toString(),
-                onRetry: () => ref.invalidate(daycareProvidersListProvider),
-                isDark: isDark,
-              ),
-            ),
-            data: (daycares) {
-              final filtered = _filterDaycares(daycares);
-
-              if (filtered.isEmpty) {
-                return SliverFillRemaining(
-                  child: _EmptyView(
-                    searchQuery: _searchQuery,
-                    l10n: l10n,
-                    isDark: isDark,
-                  ),
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    return _DaycareCard(
+                      daycare: filtered[index],
+                      isDark: isDark,
+                      cardColor: cardColor,
+                      cardBorder: cardBorder,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    );
+                  },
                 );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: Offset(0, 0.1 + (index * 0.02)),
-                            end: Offset.zero,
-                          ).animate(CurvedAnimation(
-                            parent: _animationController,
-                            curve: Interval(
-                              (index * 0.1).clamp(0.0, 0.5),
-                              ((index * 0.1) + 0.5).clamp(0.0, 1.0),
-                              curve: Curves.easeOutCubic,
-                            ),
-                          )),
-                          child: _PremiumDaycareCard(
-                            daycare: filtered[index],
-                            isDark: isDark,
-                            l10n: l10n,
-                          ),
-                        ),
-                      );
-                    },
-                    childCount: filtered.length,
-                  ),
-                ),
-              );
-            },
+              },
+            ),
           ),
         ],
       ),
@@ -433,27 +364,32 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen>
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PREMIUM DAYCARE CARD
-// ═══════════════════════════════════════════════════════════════
-class _PremiumDaycareCard extends StatefulWidget {
+class _DaycareCard extends StatefulWidget {
   final Map<String, dynamic> daycare;
   final bool isDark;
+  final Color cardColor;
+  final Color cardBorder;
+  final Color textPrimary;
+  final Color? textSecondary;
   final AppLocalizations l10n;
 
-  const _PremiumDaycareCard({
+  const _DaycareCard({
     required this.daycare,
     required this.isDark,
+    required this.cardColor,
+    required this.cardBorder,
+    required this.textPrimary,
+    required this.textSecondary,
     required this.l10n,
   });
 
   @override
-  State<_PremiumDaycareCard> createState() => _PremiumDaycareCardState();
+  State<_DaycareCard> createState() => _DaycareCardState();
 }
 
-class _PremiumDaycareCardState extends State<_PremiumDaycareCard> {
+class _DaycareCardState extends State<_DaycareCard> {
   final PageController _pageController = PageController();
-  int _currentImageIndex = 0;
+  int _currentPage = 0;
 
   @override
   void dispose() {
@@ -476,337 +412,275 @@ class _PremiumDaycareCardState extends State<_PremiumDaycareCard> {
     final openingTime = widget.daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
 
-    final cardColor = widget.isDark ? _darkCard : Colors.white;
-    final textPrimary = widget.isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary = widget.isDark ? Colors.white60 : Colors.black54;
-
     String? priceText;
     if (hourlyRate != null) {
       final priceWithCommission = (hourlyRate as int) + kDaycareCommissionDa;
-      priceText = '${widget.l10n.fromPrice} $priceWithCommission DA${widget.l10n.perHour}';
+      priceText = '$priceWithCommission DA${widget.l10n.perHour}';
     } else if (dailyRate != null) {
       final priceWithCommission = (dailyRate as int) + kDaycareCommissionDa;
-      priceText = '${widget.l10n.fromPrice} $priceWithCommission DA${widget.l10n.perDay}';
+      priceText = '$priceWithCommission DA${widget.l10n.perDay}';
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: (widget.isDark ? Colors.black : _coral).withOpacity(widget.isDark ? 0.3 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          onTap: () {
-            final id = (widget.daycare['id'] ?? '').toString();
-            if (id.isNotEmpty) {
-              context.push('/explore/daycare/$id', extra: widget.daycare);
-            }
-          },
-          borderRadius: BorderRadius.circular(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image gallery avec effet parallaxe
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: SizedBox(
-                  height: 200,
-                  child: Stack(
-                    children: [
-                      // Images
-                      images.isNotEmpty
-                          ? PageView.builder(
-                              controller: _pageController,
-                              onPageChanged: (index) {
-                                setState(() => _currentImageIndex = index);
-                              },
-                              itemCount: images.length,
-                              itemBuilder: (context, index) {
-                                return Image.network(
-                                  images[index].toString(),
-                                  width: double.infinity,
-                                  height: 200,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                                );
-                              },
-                            )
-                          : _buildPlaceholder(),
+    return GestureDetector(
+      onTap: () {
+        final id = (widget.daycare['id'] ?? '').toString();
+        if (id.isNotEmpty) {
+          context.push('/explore/daycare/$id', extra: widget.daycare);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: widget.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: widget.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image avec PageView
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: 160,
+                child: Stack(
+                  children: [
+                    // Images
+                    images.isNotEmpty
+                        ? PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (index) {
+                              setState(() => _currentPage = index);
+                            },
+                            itemCount: images.length,
+                            itemBuilder: (context, index) {
+                              return Image.network(
+                                images[index].toString(),
+                                width: double.infinity,
+                                height: 160,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                              );
+                            },
+                          )
+                        : _buildPlaceholder(),
 
-                      // Gradient overlay
-                      Positioned.fill(
-                        child: DecoratedBox(
+                    // Badges
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Row(
+                        children: [
+                          if (distanceKm != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.location_on, size: 14, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${distanceKm.toStringAsFixed(1)} km',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // Badge 24/7
+                    if (is24_7)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.1),
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.4),
-                              ],
-                              stops: const [0.0, 0.5, 1.0],
+                            color: _coral,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            widget.l10n.open247,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
                             ),
                           ),
                         ),
                       ),
 
-                      // Distance badge
-                      if (distanceKm != null)
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withOpacity(0.3)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.location_on_rounded, size: 16, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${distanceKm.toStringAsFixed(1)} km',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                    // Indicateurs de page
+                    if (images.length > 1)
+                      Positioned(
+                        bottom: 12,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(images.length, (index) {
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: _currentPage == index ? 16 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                color: _currentPage == index
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.5),
                               ),
-                            ),
-                          ),
+                            );
+                          }),
                         ),
-
-                      // 24/7 badge
-                      if (is24_7)
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [_green, Color(0xFF66BB6A)],
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _green.withOpacity(0.4),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              widget.l10n.open247,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Image indicators
-                      if (images.length > 1)
-                        Positioned(
-                          bottom: 16,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(images.length, (index) {
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
-                                width: _currentImageIndex == index ? 20 : 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(3),
-                                  color: _currentImageIndex == index
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.4),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
+            ),
 
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nom et horaires
+            // Contenu
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nom
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      color: widget.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Adresse
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Icon(Icons.location_on, size: 14, color: widget.textSecondary),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                              color: textPrimary,
-                              letterSpacing: -0.3,
-                            ),
+                            address,
+                            style: TextStyle(fontSize: 13, color: widget.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
+                  ],
 
-                    if (address.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.place_rounded, size: 16, color: textSecondary),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              address,
-                              style: TextStyle(fontSize: 13, color: textSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-
-                    // Horaires si pas 24/7
-                    if (!is24_7) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: widget.isDark ? _teal.withOpacity(0.15) : _tealSoft,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.access_time_rounded, size: 16, color: _teal),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.l10n.openFromTo(openingTime, closingTime),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: _teal,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    if (bio.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        bio,
-                        style: TextStyle(fontSize: 14, color: textSecondary, height: 1.5),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    // Info chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                  // Horaires si pas 24/7
+                  if (!is24_7) ...[
+                    const SizedBox(height: 8),
+                    Row(
                       children: [
-                        if (capacity != null)
-                          _InfoChip(
-                            icon: Icons.pets_rounded,
-                            label: widget.l10n.animalsCount(capacity as int),
-                            color: _purple,
-                            isDark: widget.isDark,
-                          ),
-                        ...animalTypes.take(3).map((type) {
-                          return _InfoChip(
-                            icon: _getAnimalIcon(type.toString()),
-                            label: type.toString(),
-                            color: _coral,
-                            isDark: widget.isDark,
-                          );
-                        }),
+                        Icon(Icons.access_time, size: 14, color: widget.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.l10n.openFromTo(openingTime, closingTime),
+                          style: TextStyle(fontSize: 13, color: widget.textSecondary),
+                        ),
                       ],
                     ),
+                  ],
 
-                    if (priceText != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: widget.isDark
-                                ? [_coral.withOpacity(0.15), _coral.withOpacity(0.08)]
-                                : [_coralSoft, _coralSoft.withOpacity(0.5)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
+                  // Bio
+                  if (bio.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      bio,
+                      style: TextStyle(fontSize: 13, color: widget.textSecondary, height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // Infos (capacité + types d'animaux)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (capacity != null)
+                        _buildChip(
+                          Icons.pets,
+                          widget.l10n.animalsCount(capacity as int),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ...animalTypes.take(2).map((type) {
+                        return _buildChip(Icons.pets, type.toString());
+                      }),
+                    ],
+                  ),
+
+                  // Prix
+                  if (priceText != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              priceText,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: _coral,
-                              ),
+                              widget.l10n.fromPrice,
+                              style: TextStyle(fontSize: 11, color: widget.textSecondary),
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
+                            Text(
+                              priceText,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
                                 color: _coral,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 18,
-                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _coral,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.l10n.bookNow,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -815,267 +689,39 @@ class _PremiumDaycareCardState extends State<_PremiumDaycareCard> {
   Widget _buildPlaceholder() {
     return Container(
       width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: widget.isDark
-              ? [_darkCardAlt, _darkCard]
-              : [_coralSoft, const Color(0xFFFFF5F5)],
-        ),
-      ),
+      height: 160,
+      color: widget.isDark ? _darkCard : _coralSoft,
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.pets_rounded,
-              size: 48,
-              color: _coral.withOpacity(0.5),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.l10n.noImageAvailable,
-              style: TextStyle(
-                color: _coral.withOpacity(0.5),
-                fontSize: 12,
-              ),
-            ),
-          ],
+        child: Icon(
+          Icons.pets,
+          size: 48,
+          color: _coral.withOpacity(0.5),
         ),
       ),
     );
   }
 
-  IconData _getAnimalIcon(String type) {
-    final lower = type.toLowerCase();
-    if (lower.contains('chien') || lower.contains('dog')) return Icons.pets;
-    if (lower.contains('chat') || lower.contains('cat')) return Icons.pets;
-    if (lower.contains('oiseau') || lower.contains('bird')) return Icons.flutter_dash;
-    return Icons.pets;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HELPER WIDGETS
-// ═══════════════════════════════════════════════════════════════
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isDark;
-
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildChip(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        color: widget.isDark ? _coral.withOpacity(0.15) : _coralSoft,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: _coral),
+          const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PremiumLoader extends StatefulWidget {
-  const _PremiumLoader();
-
-  @override
-  State<_PremiumLoader> createState() => _PremiumLoaderState();
-}
-
-class _PremiumLoaderState extends State<_PremiumLoader>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Transform.rotate(
-              angle: _controller.value * 2 * math.pi,
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                    colors: [
-                      _coral.withOpacity(0),
-                      _coral,
-                    ],
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Chargement...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  final String searchQuery;
-  final AppLocalizations l10n;
-  final bool isDark;
-
-  const _EmptyView({
-    required this.searchQuery,
-    required this.l10n,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white70 : Colors.grey[600];
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? _darkCardAlt : _coralSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              searchQuery.isEmpty ? Icons.pets_rounded : Icons.search_off_rounded,
-              size: 48,
               color: _coral,
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            searchQuery.isEmpty ? l10n.noDaycareAvailable : l10n.noDaycareFound,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String error;
-  final VoidCallback onRetry;
-  final bool isDark;
-
-  const _ErrorView({
-    required this.error,
-    required this.onRetry,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 48,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Erreur: $error',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _coral,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

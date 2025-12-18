@@ -7,67 +7,37 @@ import 'package:intl/intl.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 
-// ═══════════════════════════════════════════════════════════════
-// DESIGN CONSTANTS
-// ═══════════════════════════════════════════════════════════════
+// Clean color palette - coral only
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
-const _teal = Color(0xFF00ACC1);
-const _green = Color(0xFF43AA8B);
-const _greenSoft = Color(0xFFE8F5F0);
-const _orange = Color(0xFFFF9800);
-const _orangeSoft = Color(0xFFFFF3E0);
-const _blue = Color(0xFF5C6BC0);
-const _blueSoft = Color(0xFFE8EAF6);
-const _purple = Color(0xFF7B68EE);
 
-// Dark mode colors
-const _darkBg = Color(0xFF0F0F0F);
-const _darkCard = Color(0xFF1A1A1A);
-const _darkCardAlt = Color(0xFF242424);
+// Dark mode
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 class MyDaycareBookingsScreen extends ConsumerStatefulWidget {
   const MyDaycareBookingsScreen({super.key});
 
   @override
-  ConsumerState<MyDaycareBookingsScreen> createState() => _MyDaycareBookingsScreenState();
+  ConsumerState<MyDaycareBookingsScreen> createState() =>
+      _MyDaycareBookingsScreenState();
 }
 
-class _MyDaycareBookingsScreenState extends ConsumerState<MyDaycareBookingsScreen>
-    with SingleTickerProviderStateMixin {
+class _MyDaycareBookingsScreenState
+    extends ConsumerState<MyDaycareBookingsScreen> {
   Future<List<dynamic>>? _bookingsFuture;
   String _selectedFilter = 'ALL';
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _bookingsFuture = _loadBookings();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<List<dynamic>> _loadBookings() async {
     final api = ref.read(apiProvider);
-    try {
-      return await api.myDaycareBookings();
-    } catch (e) {
-      rethrow;
-    }
+    return await api.myDaycareBookings();
   }
 
   @override
@@ -75,285 +45,189 @@ class _MyDaycareBookingsScreenState extends ConsumerState<MyDaycareBookingsScree
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     final l10n = AppLocalizations.of(context);
 
-    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F9FA);
     final cardColor = isDark ? _darkCard : Colors.white;
+    final borderColor = isDark ? _darkCardBorder : const Color(0xFFE8E8E8);
     final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
     final textSecondary = isDark ? Colors.white60 : Colors.black54;
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: CustomScrollView(
-        slivers: [
-          // Premium App Bar
-          SliverAppBar(
-            expandedHeight: 120,
-            floating: true,
-            pinned: true,
-            backgroundColor: isDark ? _darkCard : Colors.white,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark ? _darkCardAlt : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: 18,
+      appBar: AppBar(
+        backgroundColor: cardColor,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+          onPressed: () => context.pop(),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _coralSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.pets_rounded, color: _coral, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                l10n.myDaycareBookings,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                   color: textPrimary,
                 ),
-              ),
-              onPressed: () => context.pop(),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [_darkCard, _darkCardAlt]
-                        : [Colors.white, const Color(0xFFFAF9FF)],
-                  ),
-                ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(60, 16, 20, 0),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [_coral, Color(0xFFFF8A80)],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _coral.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.pets_rounded,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            l10n.myDaycareBookings,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: textPrimary,
-                              letterSpacing: -0.5,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: borderColor),
+        ),
+      ),
+      body: Column(
+        children: [
           // Filters
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: l10n.allBookings,
-                      selected: _selectedFilter == 'ALL',
-                      onTap: () => setState(() => _selectedFilter = 'ALL'),
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 10),
-                    _FilterChip(
-                      label: l10n.pendingBookings,
-                      selected: _selectedFilter == 'PENDING',
-                      onTap: () => setState(() => _selectedFilter = 'PENDING'),
-                      isDark: isDark,
-                      color: _orange,
-                    ),
-                    const SizedBox(width: 10),
-                    _FilterChip(
-                      label: l10n.confirmedBookings,
-                      selected: _selectedFilter == 'CONFIRMED',
-                      onTap: () => setState(() => _selectedFilter = 'CONFIRMED'),
-                      isDark: isDark,
-                      color: _blue,
-                    ),
-                    const SizedBox(width: 10),
-                    _FilterChip(
-                      label: l10n.inProgressBookings,
-                      selected: _selectedFilter == 'IN_PROGRESS',
-                      onTap: () => setState(() => _selectedFilter = 'IN_PROGRESS'),
-                      isDark: isDark,
-                      color: _green,
-                    ),
-                    const SizedBox(width: 10),
-                    _FilterChip(
-                      label: l10n.completedBookings,
-                      selected: _selectedFilter == 'COMPLETED',
-                      onTap: () => setState(() => _selectedFilter = 'COMPLETED'),
-                      isDark: isDark,
-                      color: _purple,
-                    ),
-                  ],
-                ),
+          Container(
+            color: cardColor,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
+                children: [
+                  _FilterChip(
+                    label: l10n.allBookings,
+                    selected: _selectedFilter == 'ALL',
+                    onTap: () => setState(() => _selectedFilter = 'ALL'),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: l10n.pendingBookings,
+                    selected: _selectedFilter == 'PENDING',
+                    onTap: () => setState(() => _selectedFilter = 'PENDING'),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: l10n.confirmedBookings,
+                    selected: _selectedFilter == 'CONFIRMED',
+                    onTap: () => setState(() => _selectedFilter = 'CONFIRMED'),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: l10n.inProgressBookings,
+                    selected: _selectedFilter == 'IN_PROGRESS',
+                    onTap: () => setState(() => _selectedFilter = 'IN_PROGRESS'),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: l10n.completedBookings,
+                    selected: _selectedFilter == 'COMPLETED',
+                    onTap: () => setState(() => _selectedFilter = 'COMPLETED'),
+                    isDark: isDark,
+                  ),
+                ],
               ),
             ),
           ),
+          Container(height: 1, color: borderColor),
 
           // Content
-          FutureBuilder<List<dynamic>>(
-            future: _bookingsFuture,
-            builder: (ctx, snap) {
-              if (snap.connectionState != ConnectionState.done) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: _PremiumLoader(),
-                  ),
-                );
-              }
+          Expanded(
+            child: FutureBuilder<List<dynamic>>(
+              future: _bookingsFuture,
+              builder: (ctx, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _coral),
+                  );
+                }
 
-              if (snap.hasError) {
-                return SliverFillRemaining(
-                  child: _ErrorView(
+                if (snap.hasError) {
+                  return _ErrorView(
                     error: snap.error.toString(),
                     onRetry: () => setState(() => _bookingsFuture = _loadBookings()),
                     isDark: isDark,
-                  ),
-                );
-              }
+                    l10n: l10n,
+                  );
+                }
 
-              final allBookings = snap.data ?? [];
-              final filtered = _selectedFilter == 'ALL'
-                  ? allBookings
-                  : allBookings.where((b) => b['status'] == _selectedFilter).toList();
+                final allBookings = snap.data ?? [];
+                final filtered = _selectedFilter == 'ALL'
+                    ? allBookings
+                    : allBookings.where((b) => b['status'] == _selectedFilter).toList();
 
-              if (filtered.isEmpty) {
-                return SliverFillRemaining(
-                  child: _EmptyView(
+                if (filtered.isEmpty) {
+                  return _EmptyView(
                     filter: _selectedFilter,
                     l10n: l10n,
                     isDark: isDark,
                     onAddNew: () => context.push('/daycare/booking'),
-                  ),
-                );
-              }
+                  );
+                }
 
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, index) {
-                      return FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: Offset(0, 0.1 + (index * 0.02)),
-                            end: Offset.zero,
-                          ).animate(CurvedAnimation(
-                            parent: _animationController,
-                            curve: Interval(
-                              (index * 0.08).clamp(0.0, 0.5),
-                              ((index * 0.08) + 0.5).clamp(0.0, 1.0),
-                              curve: Curves.easeOutCubic,
-                            ),
-                          )),
-                          child: _PremiumBookingCard(
-                            booking: filtered[index],
-                            isDark: isDark,
-                            l10n: l10n,
-                          ),
-                        ),
-                      );
-                    },
-                    childCount: filtered.length,
-                  ),
-                ),
-              );
-            },
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filtered.length,
+                  itemBuilder: (ctx, index) {
+                    return _BookingCard(
+                      booking: filtered[index],
+                      isDark: isDark,
+                      l10n: l10n,
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-
-      // FAB
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [_coral, Color(0xFFFF8A80)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _coral.withOpacity(0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => context.push('/daycare/booking'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.add_rounded, color: Colors.white),
-          label: Text(
-            l10n.newBooking,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/daycare/booking'),
+        backgroundColor: _coral,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          l10n.newBooking,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PREMIUM BOOKING CARD
-// ═══════════════════════════════════════════════════════════════
-class _PremiumBookingCard extends StatelessWidget {
+// ───────────────────────────────────────────────────────────────
+// BOOKING CARD
+// ───────────────────────────────────────────────────────────────
+class _BookingCard extends StatelessWidget {
   final Map<String, dynamic> booking;
   final bool isDark;
   final AppLocalizations l10n;
+  final Color cardColor;
+  final Color borderColor;
+  final Color textPrimary;
+  final Color textSecondary;
 
-  const _PremiumBookingCard({
+  const _BookingCard({
     required this.booking,
     required this.isDark,
     required this.l10n,
+    required this.cardColor,
+    required this.borderColor,
+    required this.textPrimary,
+    required this.textSecondary,
   });
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return _orange;
-      case 'CONFIRMED':
-        return _blue;
-      case 'IN_PROGRESS':
-        return _green;
-      case 'COMPLETED':
-        return _purple;
-      case 'CANCELLED':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
 
   String _getStatusLabel(String status) {
     switch (status) {
@@ -377,15 +251,15 @@ class _PremiumBookingCard extends StatelessWidget {
       case 'PENDING':
         return Icons.hourglass_empty_rounded;
       case 'CONFIRMED':
-        return Icons.check_circle_rounded;
+        return Icons.check_circle_outline_rounded;
       case 'IN_PROGRESS':
         return Icons.pets_rounded;
       case 'COMPLETED':
         return Icons.done_all_rounded;
       case 'CANCELLED':
-        return Icons.cancel_rounded;
+        return Icons.cancel_outlined;
       default:
-        return Icons.info_rounded;
+        return Icons.info_outline_rounded;
     }
   }
 
@@ -403,89 +277,53 @@ class _PremiumBookingCard extends StatelessWidget {
         ? DateTime.parse(booking['actualPickup']).toLocal()
         : null;
 
-    final dateFormat = DateFormat('dd/MM/yyyy à HH:mm');
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
     final timeFormat = DateFormat('HH:mm');
 
-    final cardColor = isDark ? _darkCard : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary = isDark ? Colors.white60 : Colors.black54;
-    final statusColor = _getStatusColor(status);
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? Colors.black : statusColor).withOpacity(isDark ? 0.3 : 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with status
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [statusColor.withOpacity(0.15), statusColor.withOpacity(0.08)]
-                    : [statusColor.withOpacity(0.08), statusColor.withOpacity(0.03)],
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [statusColor, statusColor.withOpacity(0.8)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: _coralSoft,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    _getStatusIcon(status),
-                    color: Colors.white,
-                    size: 22,
-                  ),
+                  child: Icon(_getStatusIcon(status), color: _coral, size: 22),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        provider?['displayName'] ?? 'Garderie',
+                        provider?['displayName'] ?? l10n.daycareTitle,
                         style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                           color: textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Row(
                         children: [
                           Icon(Icons.pets_rounded, size: 14, color: textSecondary),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4),
                           Text(
-                            '${l10n.animalLabel}: ${pet?['name'] ?? l10n.notSpecified}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: textSecondary,
-                            ),
+                            pet?['name'] ?? l10n.notSpecified,
+                            style: TextStyle(fontSize: 13, color: textSecondary),
                           ),
                         ],
                       ),
@@ -493,18 +331,17 @@ class _PremiumBookingCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                    color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _getStatusLabel(status),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _coral,
                     ),
                   ),
                 ),
@@ -512,168 +349,169 @@ class _PremiumBookingCard extends StatelessWidget {
             ),
           ),
 
-          // Content
+          Container(height: 1, color: borderColor),
+
+          // Dates section
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Dates
-                _buildDateRow(
-                  Icons.login_rounded,
-                  l10n.arrival,
-                  dateFormat.format(startDate),
-                  _teal,
-                  isDark,
-                  textPrimary,
-                  textSecondary,
+                _DateRow(
+                  icon: Icons.login_rounded,
+                  label: l10n.arrival,
+                  value: dateFormat.format(startDate),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
                 ),
-                const SizedBox(height: 12),
-                _buildDateRow(
-                  Icons.logout_rounded,
-                  l10n.departure,
-                  dateFormat.format(endDate),
-                  _coral,
-                  isDark,
-                  textPrimary,
-                  textSecondary,
+                const SizedBox(height: 10),
+                _DateRow(
+                  icon: Icons.logout_rounded,
+                  label: l10n.departure,
+                  value: dateFormat.format(endDate),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
                 ),
-
-                // Actual times
                 if (actualDropOff != null) ...[
-                  const SizedBox(height: 12),
-                  _buildDateRow(
-                    Icons.check_circle_rounded,
-                    l10n.droppedAt,
-                    timeFormat.format(actualDropOff),
-                    _green,
-                    isDark,
-                    textPrimary,
-                    textSecondary,
+                  const SizedBox(height: 10),
+                  _DateRow(
+                    icon: Icons.check_rounded,
+                    label: l10n.droppedAt,
+                    value: timeFormat.format(actualDropOff),
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    highlight: true,
                   ),
                 ],
                 if (actualPickup != null) ...[
-                  const SizedBox(height: 12),
-                  _buildDateRow(
-                    Icons.check_circle_rounded,
-                    l10n.pickedUpAt,
-                    timeFormat.format(actualPickup),
-                    _blue,
-                    isDark,
-                    textPrimary,
-                    textSecondary,
-                  ),
-                ],
-
-                const SizedBox(height: 20),
-
-                // Pricing
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? _darkCardAlt : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildPriceColumn(
-                        l10n.priceLabel,
-                        '${booking['priceDa']} DA',
-                        textPrimary,
-                        textSecondary,
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: textSecondary.withOpacity(0.2),
-                      ),
-                      _buildPriceColumn(
-                        l10n.commissionLabel,
-                        '${booking['commissionDa']} DA',
-                        textPrimary,
-                        textSecondary,
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: textSecondary.withOpacity(0.2),
-                      ),
-                      _buildPriceColumn(
-                        l10n.totalLabel,
-                        '${booking['totalDa']} DA',
-                        _coral,
-                        textSecondary,
-                        isTotal: true,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Notes
-                if (booking['notes'] != null && booking['notes'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isDark ? _blue.withOpacity(0.1) : _blueSoft,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _blue.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.note_rounded, size: 18, color: _blue),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${l10n.notesLabel}: ${booking['notes']}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: textPrimary.withOpacity(0.8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 10),
+                  _DateRow(
+                    icon: Icons.check_rounded,
+                    label: l10n.pickedUpAt,
+                    value: timeFormat.format(actualPickup),
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    highlight: true,
                   ),
                 ],
               ],
             ),
           ),
+
+          Container(height: 1, color: borderColor),
+
+          // Pricing
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _PriceItem(
+                    label: l10n.priceLabel,
+                    value: '${booking['priceDa']} DA',
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: borderColor,
+                ),
+                Expanded(
+                  child: _PriceItem(
+                    label: l10n.commissionLabel,
+                    value: '${booking['commissionDa']} DA',
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: borderColor,
+                ),
+                Expanded(
+                  child: _PriceItem(
+                    label: l10n.totalLabel,
+                    value: '${booking['totalDa']} DA',
+                    textPrimary: _coral,
+                    textSecondary: textSecondary,
+                    isTotal: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Notes
+          if (booking['notes'] != null && booking['notes'].toString().isNotEmpty) ...[
+            Container(height: 1, color: borderColor),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.note_outlined, size: 16, color: textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      booking['notes'].toString(),
+                      style: TextStyle(fontSize: 13, color: textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
 
-  Widget _buildDateRow(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-    bool isDark,
-    Color textPrimary,
-    Color textSecondary,
-  ) {
+class _DateRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool highlight;
+
+  const _DateRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.textPrimary,
+    required this.textSecondary,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.15 : 0.1),
-            borderRadius: BorderRadius.circular(10),
+            color: highlight ? _coralSoft : textSecondary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(icon, size: 18, color: color),
+          child: Icon(
+            icon,
+            size: 14,
+            color: highlight ? _coral : textSecondary,
+          ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Text(
           '$label: ',
-          style: TextStyle(fontSize: 14, color: textSecondary),
+          style: TextStyle(fontSize: 13, color: textSecondary),
         ),
         Expanded(
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: textPrimary,
             ),
@@ -682,30 +520,38 @@ class _PremiumBookingCard extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _buildPriceColumn(
-    String label,
-    String value,
-    Color valueColor,
-    Color labelColor, {
-    bool isTotal = false,
-  }) {
+class _PriceItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool isTotal;
+
+  const _PriceItem({
+    required this.label,
+    required this.value,
+    required this.textPrimary,
+    required this.textSecondary,
+    this.isTotal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            color: labelColor,
-          ),
+          style: TextStyle(fontSize: 11, color: textSecondary),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: isTotal ? 16 : 14,
-            fontWeight: isTotal ? FontWeight.w800 : FontWeight.w600,
-            color: valueColor,
+            fontSize: isTotal ? 15 : 13,
+            fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
+            color: textPrimary,
           ),
         ),
       ],
@@ -713,87 +559,44 @@ class _PremiumBookingCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 // HELPER WIDGETS
-// ═══════════════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final bool isDark;
-  final Color? color;
 
   const _FilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
     required this.isDark,
-    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final chipColor = color ?? _coral;
-
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          gradient: selected
-              ? LinearGradient(colors: [chipColor, chipColor.withOpacity(0.8)])
-              : null,
-          color: selected ? null : (isDark ? _darkCardAlt : Colors.grey[100]),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: chipColor.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          color: selected ? _coral : (isDark ? _darkCardBorder : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(8),
+          border: selected ? null : Border.all(
+            color: isDark ? _darkCardBorder : const Color(0xFFE0E0E0),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             fontSize: 13,
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PremiumLoader extends StatelessWidget {
-  const _PremiumLoader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const SizedBox(
-          width: 50,
-          height: 50,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            valueColor: AlwaysStoppedAnimation<Color>(_coral),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Chargement...',
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 14,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -822,59 +625,40 @@ class _EmptyView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: isDark ? _darkCardAlt : _coralSoft,
+                color: isDark ? _darkCardBorder : _coralSoft,
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                filter == 'ALL' ? Icons.inbox_rounded : Icons.filter_list_off_rounded,
-                size: 52,
+                filter == 'ALL' ? Icons.inbox_outlined : Icons.filter_list_off_rounded,
+                size: 48,
                 color: _coral,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
             Text(
               filter == 'ALL' ? l10n.noBookings : l10n.noBookingInCategory,
               style: TextStyle(
                 color: textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 28),
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_coral, Color(0xFFFF8A80)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: _coral.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onAddNew,
+              icon: const Icon(Icons.add_rounded, color: Colors.white),
+              label: Text(
+                l10n.bookDaycare,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
-              child: ElevatedButton.icon(
-                onPressed: onAddNew,
-                icon: const Icon(Icons.add_rounded, color: Colors.white),
-                label: Text(
-                  l10n.bookDaycare,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _coral,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -889,11 +673,13 @@ class _ErrorView extends StatelessWidget {
   final String error;
   final VoidCallback onRetry;
   final bool isDark;
+  final AppLocalizations l10n;
 
   const _ErrorView({
     required this.error,
     required this.onRetry,
     required this.isDark,
+    required this.l10n,
   });
 
   @override
@@ -907,34 +693,37 @@ class _ErrorView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: _coralSoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.error_outline_rounded,
-                size: 48,
-                color: Colors.red,
+                size: 40,
+                color: _coral,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text(
-              'Erreur: $error',
+              error,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.grey[700],
+                color: isDark ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
               ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _coral,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              icon: const Icon(Icons.refresh_rounded, color: _coral),
+              label: Text(
+                l10n.retry,
+                style: const TextStyle(color: _coral),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _coral),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
