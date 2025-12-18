@@ -7,9 +7,72 @@ import { DaycareBookingStatus } from './dto/update-status.dto';
 // Durées de restriction progressives (en jours) - mêmes que bookings
 const RESTRICTION_DURATIONS = [3, 7, 14, 30];
 
+// Configuration frais de retard
+const LATE_FEE_GRACE_MINUTES = 15; // 15 min de grâce
+const DEFAULT_HOURLY_RATE_DA = 200; // Tarif horaire par défaut si non configuré
+const DEFAULT_DAILY_RATE_DA = 1500; // Tarif journalier par défaut si non configuré
+
+// Rate limiting OTP
+const OTP_MAX_ATTEMPTS = 3;
+const OTP_BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes de blocage
+
 @Injectable()
 export class DaycareService {
   constructor(private prisma: PrismaService) {}
+
+  // Rate limiting OTP - stockage en mémoire (simple mais efficace)
+  // Key: bookingId_phase, Value: { attempts: number, blockedUntil: Date | null }
+  private otpAttempts = new Map<string, { attempts: number; blockedUntil: Date | null }>();
+
+  private checkOtpRateLimit(bookingId: string, phase: 'drop' | 'pickup'): void {
+    const key = `${bookingId}_${phase}`;
+    const record = this.otpAttempts.get(key);
+
+    if (record) {
+      // Vérifier si bloqué
+      if (record.blockedUntil && record.blockedUntil > new Date()) {
+        const remainingMinutes = Math.ceil((record.blockedUntil.getTime() - Date.now()) / 60000);
+        throw new BadRequestException(
+          `Trop de tentatives. Réessayez dans ${remainingMinutes} minute(s).`
+        );
+      }
+      // Reset si blocage expiré
+      if (record.blockedUntil && record.blockedUntil <= new Date()) {
+        this.otpAttempts.delete(key);
+      }
+    }
+  }
+
+  private recordOtpFailure(bookingId: string, phase: 'drop' | 'pickup'): void {
+    const key = `${bookingId}_${phase}`;
+    const record = this.otpAttempts.get(key) || { attempts: 0, blockedUntil: null };
+
+    record.attempts += 1;
+
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      record.blockedUntil = new Date(Date.now() + OTP_BLOCK_DURATION_MS);
+    }
+
+    this.otpAttempts.set(key, record);
+  }
+
+  private clearOtpAttempts(bookingId: string, phase: 'drop' | 'pickup'): void {
+    const key = `${bookingId}_${phase}`;
+    this.otpAttempts.delete(key);
+  }
+
+  // Calcul de distance GPS (formule Haversine)
+  private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000; // Rayon de la Terre en mètres
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c); // Distance en mètres
+  }
 
   // ==================== TRUST SYSTEM HELPERS ====================
 
@@ -617,6 +680,7 @@ export class DaycareService {
 
   /**
    * Client: Confirmer l'arrivée pour déposer l'animal (avec géoloc)
+   * Calcule la distance au provider si GPS disponible (pour audit admin)
    */
   async clientConfirmDropOff(
     userId: string,
@@ -646,13 +710,19 @@ export class DaycareService {
       throw new BadRequestException('Vous ne pouvez confirmer que le jour du dépôt (24h avant/après)');
     }
 
+    // Calculer la distance au provider si GPS client et provider disponibles
+    let distanceMeters: number | null = null;
+    if (lat && lng && booking.provider?.lat && booking.provider?.lng) {
+      distanceMeters = this.calculateDistance(lat, lng, booking.provider.lat, booking.provider.lng);
+    }
+
     // Si méthode OTP, on génère juste le code SANS changer le statut
     // Le statut changera quand le pro validera
     if (method === 'OTP') {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      return this.prisma.daycareBooking.update({
+      const updated = await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           // NE PAS changer le statut ici !
@@ -670,13 +740,16 @@ export class DaycareService {
           user: { select: { id: true, firstName: true, lastName: true, phone: true } },
         },
       });
+
+      // Retourner avec la distance calculée (pour info admin)
+      return { ...updated, dropDistanceMeters: distanceMeters };
     }
 
     // Pour les autres méthodes (PROXIMITY, MANUAL), on met en attente de validation pro
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    return this.prisma.daycareBooking.update({
+    const updated = await this.prisma.daycareBooking.update({
       where: { id: bookingId },
       data: {
         status: 'PENDING_DROP_VALIDATION',
@@ -693,10 +766,14 @@ export class DaycareService {
         user: { select: { id: true, firstName: true, lastName: true, phone: true } },
       },
     });
+
+    // Retourner avec la distance calculée (pour info admin)
+    return { ...updated, dropDistanceMeters: distanceMeters };
   }
 
   /**
    * Client: Confirmer le retrait de l'animal (avec géoloc)
+   * Calcule la distance au provider si GPS disponible (pour audit admin)
    */
   async clientConfirmPickup(
     userId: string,
@@ -720,9 +797,15 @@ export class DaycareService {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+    // Calculer la distance au provider si GPS client et provider disponibles
+    let distanceMeters: number | null = null;
+    if (lat && lng && booking.provider?.lat && booking.provider?.lng) {
+      distanceMeters = this.calculateDistance(lat, lng, booking.provider.lat, booking.provider.lng);
+    }
+
     // Si méthode OTP, on génère juste le code SANS changer le statut
     if (method === 'OTP') {
-      return this.prisma.daycareBooking.update({
+      const updated = await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           // NE PAS changer le statut ici !
@@ -740,10 +823,13 @@ export class DaycareService {
           user: { select: { id: true, firstName: true, lastName: true, phone: true } },
         },
       });
+
+      // Retourner avec la distance calculée (pour info admin)
+      return { ...updated, pickupDistanceMeters: distanceMeters };
     }
 
     // Pour les autres méthodes, on met en attente de validation pro
-    return this.prisma.daycareBooking.update({
+    const updated = await this.prisma.daycareBooking.update({
       where: { id: bookingId },
       data: {
         status: 'PENDING_PICKUP_VALIDATION',
@@ -760,6 +846,9 @@ export class DaycareService {
         user: { select: { id: true, firstName: true, lastName: true, phone: true } },
       },
     });
+
+    // Retourner avec la distance calculée (pour info admin)
+    return { ...updated, pickupDistanceMeters: distanceMeters };
   }
 
   /**
@@ -984,9 +1073,13 @@ export class DaycareService {
   }
 
   /**
-   * Pro: Valider par code OTP
+   * Pro: Valider par code OTP (avec rate-limiting)
+   * Max 3 tentatives, puis blocage 15 min
    */
   async validateByOtp(userId: string, bookingId: string, otpCode: string, phase: 'drop' | 'pickup') {
+    // Vérifier le rate-limiting AVANT tout
+    this.checkOtpRateLimit(bookingId, phase);
+
     const provider = await this.prisma.providerProfile.findUnique({
       where: { userId },
     });
@@ -1013,11 +1106,16 @@ export class DaycareService {
         throw new BadRequestException('Le client n\'a pas encore généré de code OTP');
       }
       if (booking.dropOtpCode !== otpCode) {
+        // Enregistrer l'échec pour le rate-limiting
+        this.recordOtpFailure(bookingId, phase);
         throw new BadRequestException('Code OTP incorrect');
       }
       if (!booking.dropOtpExpiresAt || now > new Date(booking.dropOtpExpiresAt)) {
         throw new BadRequestException('Le code OTP a expiré');
       }
+
+      // Succès : réinitialiser les tentatives
+      this.clearOtpAttempts(bookingId, phase);
 
       // Valider directement en changeant le statut à IN_PROGRESS
       return this.prisma.daycareBooking.update({
@@ -1044,14 +1142,19 @@ export class DaycareService {
         throw new BadRequestException('Le client n\'a pas encore généré de code OTP');
       }
       if (booking.pickupOtpCode !== otpCode) {
+        // Enregistrer l'échec pour le rate-limiting
+        this.recordOtpFailure(bookingId, phase);
         throw new BadRequestException('Code OTP incorrect');
       }
       if (!booking.pickupOtpExpiresAt || now > new Date(booking.pickupOtpExpiresAt)) {
         throw new BadRequestException('Le code OTP a expiré');
       }
 
+      // Succès : réinitialiser les tentatives
+      this.clearOtpAttempts(bookingId, phase);
+
       // Valider directement en changeant le statut à COMPLETED
-      return this.prisma.daycareBooking.update({
+      const updatedBooking = await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           status: 'COMPLETED',
@@ -1066,6 +1169,11 @@ export class DaycareService {
           user: { select: { id: true, firstName: true, lastName: true, phone: true } },
         },
       });
+
+      // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED) après pickup réussi
+      await this.verifyUserIfNeeded(booking.userId);
+
+      return updatedBooking;
     }
   }
 
@@ -1239,9 +1347,11 @@ export class DaycareService {
 
   /**
    * Calculer les frais de retard lors du retrait
-   * Appelé automatiquement lors du pickup
+   * - Grace period de 15 min (pas de frais)
+   * - Calcul par jours complets + heures restantes
+   * - Utilise tarif journalier + horaire du provider
    */
-  async calculateLateFee(bookingId: string) {
+  async calculateLateFee(bookingId: string, pickupTime?: Date) {
     const booking = await this.prisma.daycareBooking.findUnique({
       where: { id: bookingId },
       include: { provider: true },
@@ -1249,36 +1359,77 @@ export class DaycareService {
 
     if (!booking) throw new NotFoundException('Réservation non trouvée');
 
-    const now = new Date();
+    const now = pickupTime || new Date();
     const endDate = new Date(booking.endDate);
 
     // Si pas de retard, pas de frais
     if (now <= endDate) {
-      return { lateFeeDa: 0, lateFeeHours: 0 };
+      return {
+        lateFeeDa: 0,
+        lateFeeHours: 0,
+        lateDays: 0,
+        lateRemainingHours: 0,
+        daysFee: 0,
+        hoursFee: 0,
+        graceApplied: false,
+        hourlyRate: 0,
+        dailyRate: 0,
+      };
     }
 
-    // Calculer le retard en heures
+    // Calculer le retard en minutes
     const lateMs = now.getTime() - endDate.getTime();
-    const lateHours = lateMs / (1000 * 60 * 60);
+    const lateMinutes = lateMs / (1000 * 60);
 
-    // Récupérer le tarif horaire du provider (dans specialties.hourlyRateDa)
+    // Grace period : si retard <= 15 min, pas de frais
+    if (lateMinutes <= LATE_FEE_GRACE_MINUTES) {
+      return {
+        lateFeeDa: 0,
+        lateFeeHours: lateMinutes / 60,
+        lateDays: 0,
+        lateRemainingHours: 0,
+        daysFee: 0,
+        hoursFee: 0,
+        graceApplied: true,
+        hourlyRate: 0,
+        dailyRate: 0,
+      };
+    }
+
+    // Récupérer les tarifs du provider (dans specialties)
     const specialties = booking.provider?.specialties as any;
-    const hourlyRate = specialties?.hourlyRateDa || specialties?.pricePerHourDa || 200; // 200 DA par défaut
+    const hourlyRate = specialties?.hourlyRateDa || specialties?.pricePerHourDa || DEFAULT_HOURLY_RATE_DA;
+    const dailyRate = specialties?.dailyRateDa || specialties?.pricePerDayDa || DEFAULT_DAILY_RATE_DA;
 
-    // Calculer les frais (arrondi à l'heure supérieure)
-    const roundedHours = Math.ceil(lateHours);
-    const lateFeeDa = roundedHours * hourlyRate;
+    // Calculer le retard facturable (après grace period)
+    const billableMinutes = lateMinutes - LATE_FEE_GRACE_MINUTES;
+    const billableHours = billableMinutes / 60;
+
+    // Séparer en jours complets + heures restantes
+    const lateDays = Math.floor(billableHours / 24);
+    const lateRemainingHours = Math.ceil(billableHours % 24); // Arrondi à l'heure supérieure
+
+    // Calculer les frais
+    const daysFee = lateDays * dailyRate;
+    const hoursFee = lateRemainingHours * hourlyRate;
+    const lateFeeDa = daysFee + hoursFee;
 
     return {
       lateFeeDa,
-      lateFeeHours: lateHours,
-      roundedHours,
+      lateFeeHours: billableHours,
+      lateDays,
+      lateRemainingHours,
+      daysFee,
+      hoursFee,
+      graceApplied: false,
       hourlyRate,
+      dailyRate,
     };
   }
 
   /**
    * Client: Confirmer le retrait avec calcul automatique des frais de retard
+   * Calcule la distance au provider si GPS disponible (pour audit admin)
    */
   async clientConfirmPickupWithLateFee(
     userId: string,
@@ -1298,6 +1449,12 @@ export class DaycareService {
       throw new BadRequestException('L\'animal doit d\'abord être déposé');
     }
 
+    // Calculer la distance au provider si GPS client et provider disponibles
+    let distanceMeters: number | null = null;
+    if (lat && lng && booking.provider?.lat && booking.provider?.lng) {
+      distanceMeters = this.calculateDistance(lat, lng, booking.provider.lat, booking.provider.lng);
+    }
+
     // Calculer les frais de retard
     const lateFee = await this.calculateLateFee(bookingId);
 
@@ -1305,7 +1462,7 @@ export class DaycareService {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    return this.prisma.daycareBooking.update({
+    const updated = await this.prisma.daycareBooking.update({
       where: { id: bookingId },
       data: {
         status: 'PENDING_PICKUP_VALIDATION',
@@ -1326,6 +1483,13 @@ export class DaycareService {
         user: { select: { id: true, firstName: true, lastName: true, phone: true } },
       },
     });
+
+    // Retourner avec distance et détails des frais de retard
+    return {
+      ...updated,
+      pickupDistanceMeters: distanceMeters,
+      lateFeeDetails: lateFee,
+    };
   }
 
   /**
