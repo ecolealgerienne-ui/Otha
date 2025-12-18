@@ -787,7 +787,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           ],
         ),
       ),
-    ),
     );
   }
 }
