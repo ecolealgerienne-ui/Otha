@@ -552,6 +552,22 @@ class AppLocalizations {
       'lateFeeAmount': 'Frais de retard',
       'confirmDropOff': 'Confirmer le dépôt',
       'confirmPickup': 'Confirmer la récupération',
+      // Daycare booking form
+      'selectAnimal': 'Sélectionnez votre animal',
+      'selectDate': 'Sélectionnez la date',
+      'selectDates': 'Sélectionnez les dates',
+      'selectTime': 'Sélectionnez les heures',
+      'notesOptional': 'Notes (optionnel)',
+      'notesHint': 'Informations importantes sur votre animal...',
+      'invalidDuration': 'Durée invalide',
+      'noPetsRegistered': 'Aucun animal enregistré',
+      'registerPetFirst': 'Vous devez d\'abord enregistrer vos animaux avant de réserver.',
+      'addAnimal': 'Ajouter un animal',
+      'pleaseSelectAnimal': 'Veuillez sélectionner un animal',
+      'pleaseSelectDate': 'Veuillez sélectionner la date',
+      'pleaseSelectEndDate': 'Veuillez sélectionner la date de fin',
+      'yourAnimal': 'Votre animal',
+      'oneStepAtATime': 'Une étape à la fois',
       'viewDaycareDetails': 'Voir les détails',
     },
     'en': {
@@ -963,6 +979,22 @@ class AppLocalizations {
       'lateFeeAmount': 'Late fee',
       'confirmDropOff': 'Confirm drop-off',
       'confirmPickup': 'Confirm pickup',
+      // Daycare booking form
+      'selectAnimal': 'Select your pet',
+      'selectDate': 'Select date',
+      'selectDates': 'Select dates',
+      'selectTime': 'Select times',
+      'notesOptional': 'Notes (optional)',
+      'notesHint': 'Important information about your pet...',
+      'invalidDuration': 'Invalid duration',
+      'noPetsRegistered': 'No pets registered',
+      'registerPetFirst': 'You must register your pets before booking.',
+      'addAnimal': 'Add a pet',
+      'pleaseSelectAnimal': 'Please select a pet',
+      'pleaseSelectDate': 'Please select a date',
+      'pleaseSelectEndDate': 'Please select an end date',
+      'yourAnimal': 'Your pet',
+      'oneStepAtATime': 'One step at a time',
       'viewDaycareDetails': 'View details',
     },
     'ar': {
@@ -1374,6 +1406,22 @@ class AppLocalizations {
       'lateFeeAmount': 'رسوم التأخير',
       'confirmDropOff': 'تأكيد التسليم',
       'confirmPickup': 'تأكيد الاستلام',
+      // Daycare booking form
+      'selectAnimal': 'اختر حيوانك',
+      'selectDate': 'اختر التاريخ',
+      'selectDates': 'اختر التواريخ',
+      'selectTime': 'اختر الأوقات',
+      'notesOptional': 'ملاحظات (اختياري)',
+      'notesHint': 'معلومات مهمة عن حيوانك...',
+      'invalidDuration': 'مدة غير صالحة',
+      'noPetsRegistered': 'لا يوجد حيوانات مسجلة',
+      'registerPetFirst': 'يجب عليك تسجيل حيواناتك قبل الحجز.',
+      'addAnimal': 'إضافة حيوان',
+      'pleaseSelectAnimal': 'يرجى اختيار حيوان',
+      'pleaseSelectDate': 'يرجى اختيار تاريخ',
+      'pleaseSelectEndDate': 'يرجى اختيار تاريخ الانتهاء',
+      'yourAnimal': 'حيوانك',
+      'oneStepAtATime': 'خطوة بخطوة',
       'viewDaycareDetails': 'عرض التفاصيل',
     },
   };
@@ -1789,6 +1837,21 @@ class AppLocalizations {
   String get lateFeeAmount => _get('lateFeeAmount');
   String get confirmDropOff => _get('confirmDropOff');
   String get confirmPickup => _get('confirmPickup');
+  String get selectAnimal => _get('selectAnimal');
+  String get selectDate => _get('selectDate');
+  String get selectDates => _get('selectDates');
+  String get selectTime => _get('selectTime');
+  String get notesOptional => _get('notesOptional');
+  String get notesHint => _get('notesHint');
+  String get invalidDuration => _get('invalidDuration');
+  String get noPetsRegistered => _get('noPetsRegistered');
+  String get registerPetFirst => _get('registerPetFirst');
+  String get addAnimal => _get('addAnimal');
+  String get pleaseSelectAnimal => _get('pleaseSelectAnimal');
+  String get pleaseSelectDate => _get('pleaseSelectDate');
+  String get pleaseSelectEndDate => _get('pleaseSelectEndDate');
+  String get yourAnimal => _get('yourAnimal');
+  String get oneStepAtATime => _get('oneStepAtATime');
   String get viewDaycareDetails => _get('viewDaycareDetails');
 }
 
