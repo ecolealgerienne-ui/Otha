@@ -79,23 +79,47 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Image gallery
-                  images.isNotEmpty
-                      ? PageView.builder(
-                          controller: _pageController,
-                          onPageChanged: (index) {
-                            setState(() => _currentImageIndex = index);
-                          },
-                          itemCount: images.length,
-                          itemBuilder: (context, index) {
-                            return Image.network(
-                              images[index].toString(),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
+                  // Image gallery with proper gesture handling
+                  if (images.isNotEmpty)
+                    GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        if (details.primaryVelocity == null) return;
+                        if (details.primaryVelocity! < 0) {
+                          // Swipe left - next
+                          if (_currentImageIndex < images.length - 1) {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
                             );
-                          },
-                        )
-                      : _buildPlaceholder(isDark),
+                          }
+                        } else if (details.primaryVelocity! > 0) {
+                          // Swipe right - previous
+                          if (_currentImageIndex > 0) {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        }
+                      },
+                      child: PageView.builder(
+                        controller: _pageController,
+                        onPageChanged: (index) {
+                          setState(() => _currentImageIndex = index);
+                        },
+                        physics: const ClampingScrollPhysics(),
+                        itemCount: images.length,
+                        itemBuilder: (context, index) {
+                          return Image.network(
+                            images[index].toString(),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    _buildPlaceholder(isDark),
 
                   // Gradient pour lisibilite
                   Container(
