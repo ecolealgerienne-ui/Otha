@@ -597,6 +597,84 @@ class AppLocalizations {
       'inProgressDescription': 'Votre animal est actuellement en garderie',
       'completedDescription': 'Garde terminée avec succès',
       'cancelledDescription': 'Cette réservation a été annulée',
+      // ===== PRO DAYCARE =====
+      'welcome': 'Bienvenue',
+      'myDaycare': 'Ma Garderie',
+      'thisMonth': 'Ce mois',
+      'revenue': 'Revenus',
+      'commissionLabel': 'Commission',
+      'actionsRequired': 'Actions requises',
+      'pendingBookingsX': 'réservation(s) en attente',
+      'validationsToDoX': 'validation(s) à faire',
+      'lateFeesX': 'frais de retard',
+      'nearbyClientsX': 'client(s) à proximité',
+      'tapToValidate': 'Appuyez pour valider',
+      'today': 'Aujourd\'hui',
+      'managePage': 'Gérer la page',
+      'myBookings': 'Mes réservations',
+      'calendar': 'Calendrier',
+      'inCare': 'En garde',
+      'recentBookings': 'Réservations récentes',
+      'viewAll': 'Voir toutes',
+      'lateFees': 'Frais de retard',
+      'lateFeeAccepted': 'Frais de retard acceptés',
+      'lateFeeRejected': 'Frais de retard annulés',
+      'hoursLate': 'h de retard',
+      'validateDropOff': 'Valider le dépôt',
+      'validatePickup': 'Valider le retrait',
+      'scanQrCode': 'Scanner QR code',
+      'scanQrSubtitle': 'Scannez le QR code de l\'animal',
+      'verifyOtp': 'Vérifier code OTP',
+      'verifyOtpSubtitle': 'Entrez le code à 6 chiffres du client',
+      'confirmManually': 'Confirmer manuellement',
+      'confirmManuallySubtitle': 'Validation sans vérification',
+      'dropOffCode': 'Code dépôt',
+      'pickupCode': 'Code retrait',
+      'enterCode': 'Entrez le code',
+      'verify': 'Vérifier',
+      'dropOffConfirmed': 'Dépôt confirmé !',
+      'pickupConfirmed': 'Retrait confirmé !',
+      'allBookings': 'Toutes',
+      'noBookings': 'Aucune réservation',
+      'noAnimalsInCare': 'Aucun animal en garde',
+      'client': 'Client',
+      'animal': 'Animal',
+      'arrival': 'Arrivée',
+      'departure': 'Départ',
+      'reject': 'Refuser',
+      'accept': 'Accepter',
+      'markCompleted': 'Marquer terminée',
+      'dropOffToValidate': 'Dépôt à valider',
+      'pickupToValidate': 'Retrait à valider',
+      'disputed': 'Litige',
+      'validations': 'Validations garderie',
+      'noValidationsPending': 'Aucune validation en attente',
+      'allValidationsDone': 'Toutes les arrivées/départs sont validés',
+      'dropOff': 'Dépôt',
+      'pickup': 'Retrait',
+      'validated': 'Validé',
+      'refused': 'Refusé',
+      'confirmationMethod': 'Méthode de confirmation',
+      'gpsProximity': 'Proximité GPS',
+      'manualValidation': 'Manuel',
+      'inProgress': 'En cours',
+      'newBookingsWillAppear': 'Les nouvelles réservations apparaîtront ici',
+      'loadingBookings': 'Chargement des réservations...',
+      'confirmed': 'Confirmées',
+      'profile': 'Profil',
+      'providerInfo': 'Informations professionnelles',
+      'address': 'Adresse',
+      'bio': 'Description',
+      'pageSettings': 'Paramètres de la page',
+      'capacity': 'Capacité',
+      'animalTypes': 'Types d\'animaux acceptés',
+      'pricing': 'Tarification',
+      'hourlyRate': 'Tarif horaire',
+      'dailyRate': 'Tarif journalier',
+      'availability': 'Disponibilité',
+      'available247': 'Disponible 24h/24',
+      'customHours': 'Horaires personnalisés',
+      'daysOfWeek': 'Jours de la semaine',
     },
     'en': {
       'appName': 'Vegece',
@@ -1052,6 +1130,84 @@ class AppLocalizations {
       'inProgressDescription': 'Your pet is currently at the daycare',
       'completedDescription': 'Care completed successfully',
       'cancelledDescription': 'This booking has been cancelled',
+      // ===== PRO DAYCARE =====
+      'welcome': 'Welcome',
+      'myDaycare': 'My Daycare',
+      'thisMonth': 'This month',
+      'revenue': 'Revenue',
+      'commissionLabel': 'Commission',
+      'actionsRequired': 'Actions required',
+      'pendingBookingsX': 'pending booking(s)',
+      'validationsToDoX': 'validation(s) to do',
+      'lateFeesX': 'late fee(s)',
+      'nearbyClientsX': 'nearby client(s)',
+      'tapToValidate': 'Tap to validate',
+      'today': 'Today',
+      'managePage': 'Manage page',
+      'myBookings': 'My bookings',
+      'calendar': 'Calendar',
+      'inCare': 'In care',
+      'recentBookings': 'Recent bookings',
+      'viewAll': 'View all',
+      'lateFees': 'Late fees',
+      'lateFeeAccepted': 'Late fees accepted',
+      'lateFeeRejected': 'Late fees cancelled',
+      'hoursLate': 'h late',
+      'validateDropOff': 'Validate drop-off',
+      'validatePickup': 'Validate pickup',
+      'scanQrCode': 'Scan QR code',
+      'scanQrSubtitle': 'Scan the pet\'s QR code',
+      'verifyOtp': 'Verify OTP code',
+      'verifyOtpSubtitle': 'Enter client\'s 6-digit code',
+      'confirmManually': 'Confirm manually',
+      'confirmManuallySubtitle': 'Validation without verification',
+      'dropOffCode': 'Drop-off code',
+      'pickupCode': 'Pickup code',
+      'enterCode': 'Enter the code',
+      'verify': 'Verify',
+      'dropOffConfirmed': 'Drop-off confirmed!',
+      'pickupConfirmed': 'Pickup confirmed!',
+      'allBookings': 'All',
+      'noBookings': 'No bookings',
+      'noAnimalsInCare': 'No animals in care',
+      'client': 'Client',
+      'animal': 'Animal',
+      'arrival': 'Arrival',
+      'departure': 'Departure',
+      'reject': 'Reject',
+      'accept': 'Accept',
+      'markCompleted': 'Mark completed',
+      'dropOffToValidate': 'Drop-off to validate',
+      'pickupToValidate': 'Pickup to validate',
+      'disputed': 'Disputed',
+      'validations': 'Daycare validations',
+      'noValidationsPending': 'No validations pending',
+      'allValidationsDone': 'All arrivals/departures validated',
+      'dropOff': 'Drop-off',
+      'pickup': 'Pickup',
+      'validated': 'Validated',
+      'refused': 'Refused',
+      'confirmationMethod': 'Confirmation method',
+      'gpsProximity': 'GPS proximity',
+      'manualValidation': 'Manual',
+      'inProgress': 'In progress',
+      'newBookingsWillAppear': 'New bookings will appear here',
+      'loadingBookings': 'Loading bookings...',
+      'confirmed': 'Confirmed',
+      'profile': 'Profile',
+      'providerInfo': 'Professional information',
+      'address': 'Address',
+      'bio': 'Description',
+      'pageSettings': 'Page settings',
+      'capacity': 'Capacity',
+      'animalTypes': 'Accepted animal types',
+      'pricing': 'Pricing',
+      'hourlyRate': 'Hourly rate',
+      'dailyRate': 'Daily rate',
+      'availability': 'Availability',
+      'available247': 'Available 24/7',
+      'customHours': 'Custom hours',
+      'daysOfWeek': 'Days of the week',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1507,6 +1663,84 @@ class AppLocalizations {
       'inProgressDescription': 'حيوانك حالياً في الحضانة',
       'completedDescription': 'تمت الرعاية بنجاح',
       'cancelledDescription': 'تم إلغاء هذا الحجز',
+      // ===== PRO DAYCARE =====
+      'welcome': 'مرحباً',
+      'myDaycare': 'حضانتي',
+      'thisMonth': 'هذا الشهر',
+      'revenue': 'الإيرادات',
+      'commissionLabel': 'العمولة',
+      'actionsRequired': 'إجراءات مطلوبة',
+      'pendingBookingsX': 'حجز(حجوزات) قيد الانتظار',
+      'validationsToDoX': 'تحقق(تحققات) للقيام بها',
+      'lateFeesX': 'رسوم تأخير',
+      'nearbyClientsX': 'عميل(عملاء) قريب',
+      'tapToValidate': 'انقر للتحقق',
+      'today': 'اليوم',
+      'managePage': 'إدارة الصفحة',
+      'myBookings': 'حجوزاتي',
+      'calendar': 'التقويم',
+      'inCare': 'في الرعاية',
+      'recentBookings': 'الحجوزات الأخيرة',
+      'viewAll': 'عرض الكل',
+      'lateFees': 'رسوم التأخير',
+      'lateFeeAccepted': 'تم قبول رسوم التأخير',
+      'lateFeeRejected': 'تم إلغاء رسوم التأخير',
+      'hoursLate': 'ساعة تأخير',
+      'validateDropOff': 'التحقق من الإيداع',
+      'validatePickup': 'التحقق من الاستلام',
+      'scanQrCode': 'مسح رمز QR',
+      'scanQrSubtitle': 'امسح رمز QR للحيوان',
+      'verifyOtp': 'التحقق من رمز OTP',
+      'verifyOtpSubtitle': 'أدخل الرمز المكون من 6 أرقام للعميل',
+      'confirmManually': 'تأكيد يدوي',
+      'confirmManuallySubtitle': 'التحقق بدون تأكيد',
+      'dropOffCode': 'رمز الإيداع',
+      'pickupCode': 'رمز الاستلام',
+      'enterCode': 'أدخل الرمز',
+      'verify': 'تحقق',
+      'dropOffConfirmed': 'تم تأكيد الإيداع!',
+      'pickupConfirmed': 'تم تأكيد الاستلام!',
+      'allBookings': 'الكل',
+      'noBookings': 'لا توجد حجوزات',
+      'noAnimalsInCare': 'لا توجد حيوانات في الرعاية',
+      'client': 'العميل',
+      'animal': 'الحيوان',
+      'arrival': 'الوصول',
+      'departure': 'المغادرة',
+      'reject': 'رفض',
+      'accept': 'قبول',
+      'markCompleted': 'وضع علامة مكتملة',
+      'dropOffToValidate': 'إيداع للتحقق',
+      'pickupToValidate': 'استلام للتحقق',
+      'disputed': 'متنازع عليه',
+      'validations': 'تحققات الحضانة',
+      'noValidationsPending': 'لا توجد تحققات قيد الانتظار',
+      'allValidationsDone': 'تم التحقق من جميع الوصول/المغادرة',
+      'dropOff': 'إيداع',
+      'pickup': 'استلام',
+      'validated': 'تم التحقق',
+      'refused': 'مرفوض',
+      'confirmationMethod': 'طريقة التأكيد',
+      'gpsProximity': 'قرب GPS',
+      'manualValidation': 'يدوي',
+      'inProgress': 'جارية',
+      'newBookingsWillAppear': 'ستظهر الحجوزات الجديدة هنا',
+      'loadingBookings': 'جاري تحميل الحجوزات...',
+      'confirmed': 'مؤكدة',
+      'profile': 'الملف الشخصي',
+      'providerInfo': 'معلومات مهنية',
+      'address': 'العنوان',
+      'bio': 'الوصف',
+      'pageSettings': 'إعدادات الصفحة',
+      'capacity': 'السعة',
+      'animalTypes': 'أنواع الحيوانات المقبولة',
+      'pricing': 'التسعير',
+      'hourlyRate': 'السعر بالساعة',
+      'dailyRate': 'السعر اليومي',
+      'availability': 'التوفر',
+      'available247': 'متوفر 24/7',
+      'customHours': 'ساعات مخصصة',
+      'daysOfWeek': 'أيام الأسبوع',
     },
   };
 
@@ -1962,6 +2196,76 @@ class AppLocalizations {
   String get inProgressDescription => _get('inProgressDescription');
   String get completedDescription => _get('completedDescription');
   String get cancelledDescription => _get('cancelledDescription');
+  // ===== PRO DAYCARE GETTERS =====
+  String get welcome => _get('welcome');
+  String get myDaycare => _get('myDaycare');
+  String get thisMonth => _get('thisMonth');
+  String get revenue => _get('revenue');
+  String get actionsRequired => _get('actionsRequired');
+  String get pendingBookingsX => _get('pendingBookingsX');
+  String get validationsToDoX => _get('validationsToDoX');
+  String get lateFeesX => _get('lateFeesX');
+  String get nearbyClientsX => _get('nearbyClientsX');
+  String get tapToValidate => _get('tapToValidate');
+  String get today => _get('today');
+  String get managePage => _get('managePage');
+  String get myBookings => _get('myBookings');
+  String get calendar => _get('calendar');
+  String get inCare => _get('inCare');
+  String get recentBookings => _get('recentBookings');
+  String get viewAll => _get('viewAll');
+  String get lateFees => _get('lateFees');
+  String get lateFeeAccepted => _get('lateFeeAccepted');
+  String get lateFeeRejected => _get('lateFeeRejected');
+  String get hoursLate => _get('hoursLate');
+  String get validateDropOff => _get('validateDropOff');
+  String get validatePickup => _get('validatePickup');
+  String get scanQrCode => _get('scanQrCode');
+  String get scanQrSubtitle => _get('scanQrSubtitle');
+  String get verifyOtp => _get('verifyOtp');
+  String get verifyOtpSubtitle => _get('verifyOtpSubtitle');
+  String get confirmManually => _get('confirmManually');
+  String get confirmManuallySubtitle => _get('confirmManuallySubtitle');
+  String get dropOffCode => _get('dropOffCode');
+  String get pickupCode => _get('pickupCode');
+  String get enterCode => _get('enterCode');
+  String get verify => _get('verify');
+  String get dropOffConfirmed => _get('dropOffConfirmed');
+  String get pickupConfirmed => _get('pickupConfirmed');
+  String get client => _get('client');
+  String get animal => _get('animal');
+  String get reject => _get('reject');
+  String get accept => _get('accept');
+  String get markCompleted => _get('markCompleted');
+  String get dropOffToValidate => _get('dropOffToValidate');
+  String get pickupToValidate => _get('pickupToValidate');
+  String get disputed => _get('disputed');
+  String get validations => _get('validations');
+  String get noValidationsPending => _get('noValidationsPending');
+  String get allValidationsDone => _get('allValidationsDone');
+  String get dropOff => _get('dropOff');
+  String get pickup => _get('pickup');
+  String get validated => _get('validated');
+  String get refused => _get('refused');
+  String get confirmationMethod => _get('confirmationMethod');
+  String get gpsProximity => _get('gpsProximity');
+  String get manualValidation => _get('manualValidation');
+  String get inProgress => _get('inProgress');
+  String get newBookingsWillAppear => _get('newBookingsWillAppear');
+  String get loadingBookings => _get('loadingBookings');
+  String get confirmed => _get('confirmed');
+  String get profile => _get('profile');
+  String get providerInfo => _get('providerInfo');
+  String get address => _get('address');
+  String get bio => _get('bio');
+  String get pageSettings => _get('pageSettings');
+  String get capacity => _get('capacity');
+  String get animalTypes => _get('animalTypes');
+  String get noAnimalsInCare => _get('noAnimalsInCare');
+  String get availability => _get('availability');
+  String get available247 => _get('available247');
+  String get customHours => _get('customHours');
+  String get daysOfWeek => _get('daysOfWeek');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

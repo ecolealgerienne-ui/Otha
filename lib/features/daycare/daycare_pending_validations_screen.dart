@@ -5,10 +5,16 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import 'daycare_home_screen.dart'; // Pour accéder au pendingDaycareValidationsProvider
 
 const _green = Color(0xFF22C55E);
 const _greenSoft = Color(0xFFE8F5E9);
+const _greenSoftDark = Color(0xFF1A2E1A);
+const _bgLight = Color(0xFFF7F8FA);
+const _bgDark = Color(0xFF121212);
+const _cardLight = Color(0xFFFFFFFF);
+const _cardDark = Color(0xFF1E1E1E);
 
 class DaycarePendingValidationsScreen extends ConsumerWidget {
   const DaycarePendingValidationsScreen({super.key});
@@ -19,6 +25,7 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
     String bookingId,
     bool approved,
     String phase, // 'drop' ou 'pickup'
+    AppLocalizations l10n,
   ) async {
     try {
       final api = ref.read(apiProvider);
@@ -31,12 +38,12 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
 
       if (!context.mounted) return;
 
-      final action = phase == 'drop' ? 'Dépôt' : 'Retrait';
+      final action = phase == 'drop' ? l10n.dropOff : l10n.pickup;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(approved
-              ? '$action validé avec succès'
-              : '$action refusé'),
+              ? '$action ${l10n.validated.toLowerCase()}'
+              : '$action ${l10n.refused.toLowerCase()}'),
           backgroundColor: approved ? Colors.green : Colors.orange,
         ),
       );
@@ -48,7 +55,7 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur: ${e.toString()}'),
+          content: Text('${l10n.error}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -57,21 +64,25 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final pendingAsync = ref.watch(pendingDaycareValidationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: isDark ? _bgDark : _bgLight,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? _bgDark : _cardLight,
+        foregroundColor: isDark ? Colors.white : null,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'Validations garderie',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Text(
+          l10n.validations,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       body: pendingAsync.when(
@@ -86,14 +97,18 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text(
-                  'Erreur de chargement',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                Text(
+                  l10n.errorConnection,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : null,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   err.toString(),
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -111,7 +126,7 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: _greenSoft,
+                        color: isDark ? _greenSoftDark : _greenSoft,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
@@ -121,17 +136,18 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Aucune validation en attente',
+                    Text(
+                      l10n.noValidationsPending,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : null,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Toutes les arrivées/départs sont validés',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      l10n.allValidationsDone,
+                      style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -151,8 +167,9 @@ class DaycarePendingValidationsScreen extends ConsumerWidget {
               return _DaycareValidationCard(
                 booking: booking,
                 phase: phase,
+                isDark: isDark,
                 onValidate: (approved) =>
-                    _validateBooking(context, ref, booking['id'].toString(), approved, phase),
+                    _validateBooking(context, ref, booking['id'].toString(), approved, phase, l10n),
               );
             },
           );
@@ -166,11 +183,13 @@ class _DaycareValidationCard extends StatefulWidget {
   const _DaycareValidationCard({
     required this.booking,
     required this.phase,
+    required this.isDark,
     required this.onValidate,
   });
 
   final Map<String, dynamic> booking;
   final String phase; // 'drop' ou 'pickup'
+  final bool isDark;
   final Function(bool approved) onValidate;
 
   @override
@@ -193,19 +212,21 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = widget.isDark;
     final user = widget.booking['user'] as Map<String, dynamic>?;
     final pet = widget.booking['pet'] as Map<String, dynamic>?;
 
     final clientName = user != null
         ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-        : 'Client';
+        : l10n.client;
     final clientPhone = user?['phone']?.toString() ?? '';
-    final petName = pet?['name']?.toString() ?? 'Animal';
+    final petName = pet?['name']?.toString() ?? l10n.animal;
     final petSpecies = pet?['species']?.toString() ?? '';
 
     // Déterminer le type d'action
     final isDrop = widget.phase == 'drop';
-    final actionLabel = isDrop ? 'DÉPÔT' : 'RETRAIT';
+    final actionLabel = isDrop ? l10n.dropOff.toUpperCase() : l10n.pickup.toUpperCase();
     final actionIcon = isDrop ? Icons.login : Icons.logout;
     final actionColor = isDrop ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B);
 
@@ -219,7 +240,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
 
     final dateStr = confirmedAt != null
         ? DateFormat('dd/MM/yyyy à HH:mm').format(confirmedAt)
-        : 'Heure inconnue';
+        : l10n.unknownDate;
 
     // Coordonnées de confirmation
     final latField = isDrop ? 'dropCheckinLat' : 'pickupCheckinLat';
@@ -235,11 +256,15 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _cardDark : _cardLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: actionColor.withOpacity(0.3)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+        border: Border.all(color: actionColor.withOpacity(isDark ? 0.4 : 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x0A000000),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -249,7 +274,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: actionColor.withOpacity(0.1),
+              color: actionColor.withOpacity(isDark ? 0.2 : 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
@@ -260,7 +285,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? _cardDark : Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(actionIcon, color: actionColor, size: 24),
@@ -290,9 +315,10 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                           const SizedBox(width: 8),
                           Text(
                             petName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : null,
                             ),
                           ),
                         ],
@@ -302,7 +328,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                           petSpecies,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white60 : Colors.grey.shade600,
                           ),
                         ),
                     ],
@@ -326,9 +352,10 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                     Expanded(
                       child: Text(
                         clientName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : null,
                         ),
                       ),
                     ),
@@ -338,11 +365,11 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.phone, size: 18, color: Colors.grey),
+                      Icon(Icons.phone, size: 18, color: isDark ? Colors.white54 : Colors.grey),
                       const SizedBox(width: 8),
                       Text(
                         clientPhone,
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.grey.shade700),
                       ),
                     ],
                   ),
@@ -352,11 +379,11 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                 // Date/heure de confirmation
                 Row(
                   children: [
-                    const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                    Icon(Icons.access_time, size: 18, color: isDark ? Colors.white54 : Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'Confirmé le $dateStr',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                      '${l10n.confirmedAt} $dateStr',
+                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.grey.shade700),
                     ),
                   ],
                 ),
@@ -372,7 +399,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      method == 'PROXIMITY' ? 'Confirmé par proximité GPS' : 'Confirmé par QR code',
+                      method == 'PROXIMITY' ? l10n.gpsProximity : l10n.qrCodeConfirmation,
                       style: const TextStyle(
                         fontSize: 14,
                         color: _green,
@@ -390,7 +417,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                       const SizedBox(width: 26),
                       Text(
                         'Position: ${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey.shade500),
                       ),
                     ],
                   ),
@@ -399,11 +426,12 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                 const SizedBox(height: 16),
                 Text(
                   isDrop
-                      ? 'Le client confirme avoir déposé $petName. Validez-vous ?'
-                      : 'Le client confirme récupérer $petName. Validez-vous ?',
-                  style: const TextStyle(
+                      ? l10n.clientConfirmsDropOff(petName)
+                      : l10n.clientConfirmsPickup(petName),
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : null,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -421,7 +449,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.close),
-                        label: Text(_isProcessing ? 'Traitement...' : 'Refuser'),
+                        label: Text(_isProcessing ? l10n.loading : l10n.reject),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
@@ -443,7 +471,7 @@ class _DaycareValidationCardState extends State<_DaycareValidationCard> {
                                 ),
                               )
                             : const Icon(Icons.check),
-                        label: Text(_isProcessing ? 'Traitement...' : 'Valider'),
+                        label: Text(_isProcessing ? l10n.loading : l10n.verify),
                         style: FilledButton.styleFrom(
                           backgroundColor: _green,
                           foregroundColor: Colors.white,
