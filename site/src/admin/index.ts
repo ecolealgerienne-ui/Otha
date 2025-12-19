@@ -3,3 +3,4 @@ export { AdminApplications } from './AdminApplications';
 export { AdminUsers } from './AdminUsers';
 export { AdminAdoptions } from './AdminAdoptions';
 export { AdminEarnings } from './AdminEarnings';
+export { AdminFlags } from './AdminFlags';

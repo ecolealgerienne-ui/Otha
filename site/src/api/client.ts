@@ -849,6 +849,78 @@ class ApiClient {
       throw s3Error; // Don't fallback to local - S3 should always work
     }
   }
+
+  // ==================== ADMIN: FLAGS ====================
+  async adminGetFlags(options?: {
+    resolved?: boolean;
+    type?: string;
+    userId?: string;
+    limit?: number;
+  }): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (options?.resolved !== undefined) params.append('resolved', String(options.resolved));
+    if (options?.type) params.append('type', options.type);
+    if (options?.userId) params.append('userId', options.userId);
+    if (options?.limit) params.append('limit', String(options.limit));
+    const { data } = await this._client.get(`/admin/flags?${params}`);
+    return data?.data || data || [];
+  }
+
+  async adminGetFlagStats(): Promise<{
+    total: number;
+    active: number;
+    resolved: number;
+    byType: { type: string; count: number }[];
+  }> {
+    const { data } = await this._client.get('/admin/flags/stats');
+    return data?.data || data;
+  }
+
+  async adminGetFlag(id: string): Promise<any> {
+    const { data } = await this._client.get(`/admin/flags/${id}`);
+    return data?.data || data;
+  }
+
+  async adminCreateFlag(dto: {
+    userId: string;
+    type: string;
+    bookingId?: string;
+    note?: string;
+  }): Promise<any> {
+    const { data } = await this._client.post('/admin/flags', dto);
+    return data?.data || data;
+  }
+
+  async adminResolveFlag(id: string, note?: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/flags/${id}/resolve`, { note });
+    return data?.data || data;
+  }
+
+  async adminUnresolveFlag(id: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/flags/${id}/unresolve`);
+    return data?.data || data;
+  }
+
+  async adminDeleteFlag(id: string): Promise<{ ok: boolean }> {
+    const { data } = await this._client.delete(`/admin/flags/${id}`);
+    return data?.data || data;
+  }
+
+  async adminGetUserFlags(userId: string): Promise<any[]> {
+    const { data } = await this._client.get(`/admin/flags/user/${userId}`);
+    return data?.data || data || [];
+  }
+
+  // ==================== ADMIN: DISPUTED BOOKINGS ====================
+  async adminGetDisputedBookings(): Promise<any[]> {
+    const { data } = await this._client.get('/daycare/admin/disputed-bookings');
+    return data?.data || data || [];
+  }
+
+  async adminCancelDisputedBooking(bookingId: string): Promise<{ ok: boolean; message: string }> {
+    const { data } = await this._client.post(`/daycare/admin/cancel-disputed/${bookingId}`);
+    return data?.data || data;
+  }
 }
 
 // Export singleton instance
