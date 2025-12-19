@@ -388,6 +388,8 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
               _bioCard(isDark, l10n),
               const SizedBox(height: 12),
               _languageCard(isDark, l10n),
+              const SizedBox(height: 12),
+              _themeCard(isDark, l10n),
               const SizedBox(height: 20),
               SizedBox(
                 height: 48,
@@ -688,6 +690,68 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
           ),
           child: Column(
             children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : (isDark ? _inkDark : _ink),
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(height: 4),
+                const Icon(Icons.check_circle, size: 16, color: Colors.white),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _themeCard(bool isDark, AppLocalizations l10n) {
+    final themeMode = ref.watch(themeProvider);
+
+    return _card(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.theme, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _themeOption(l10n.lightMode, Icons.light_mode, AppThemeMode.light, themeMode, isDark),
+              const SizedBox(width: 8),
+              _themeOption(l10n.darkMode, Icons.dark_mode, AppThemeMode.dark, themeMode, isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _themeOption(String label, IconData icon, AppThemeMode mode, AppThemeMode currentMode, bool isDark) {
+    final isSelected = currentMode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          ref.read(themeProvider.notifier).setTheme(mode);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? _primary : (isDark ? Colors.white.withOpacity(0.05) : _primarySoft.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? _primary : (isDark ? Colors.white24 : _primary.withOpacity(0.3)),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : (isDark ? _inkDark : _ink)),
+              const SizedBox(height: 6),
               Text(
                 label,
                 style: TextStyle(
