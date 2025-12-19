@@ -698,7 +698,7 @@ class ApiClient {
   }
 
   // Reset user trust status (admin) - fix accidental penalties
-  async adminResetUserTrustStatus(userId: string): Promise<{ ok: boolean; message: string }> {
+  async adminResetUserTrustStatus(userId: string): Promise<{ ok: boolean; message: string; user?: User }> {
     const { data } = await this._client.post(`/users/${userId}/reset-trust`);
     return data?.data || data;
   }
