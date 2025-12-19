@@ -210,7 +210,12 @@ export class AdminFlagsService {
     });
 
     if (existingFlag) {
-      // Mettre à jour la note existante
+      // Un flag similaire existe déjà - ne pas créer de doublon
+      // On ne met à jour la note que si elle est vraiment différente
+      if (existingFlag.note && existingFlag.note.includes(note.substring(0, 30))) {
+        // La note existe déjà, on ne fait rien
+        return existingFlag;
+      }
       return this.prisma.adminFlag.update({
         where: { id: existingFlag.id },
         data: {
@@ -256,9 +261,14 @@ export class AdminFlagsService {
       throw new NotFoundException('Flag not found');
     }
 
+    const reopenedNote = flag.note ? `${flag.note} | REOPENED` : 'REOPENED';
+
     return this.prisma.adminFlag.update({
       where: { id },
-      data: { resolved: false },
+      data: {
+        resolved: false,
+        note: reopenedNote,
+      },
     });
   }
 
