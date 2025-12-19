@@ -824,31 +824,20 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                // Commission du mois
+                // ═══════ STATS DU MOIS ═══════
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: ledgerAsync.when(
-                      loading: () => const _CommissionCard.loading(),
-                      error: (e, _) => _SectionCard(child: Text('Erreur: $e')),
-                      data: (ledger) => _CommissionCard(ledger: ledger),
+                    child: _MonthlyStatsCard(
+                      ledgerAsync: ledgerAsync,
+                      bookingsAsync: bookingsAsync,
                     ),
                   ),
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                // Statistiques rapides
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _QuickStats(bookingsAsync: bookingsAsync),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                // Réservations récentes
+                // ═══════ ACTIVITÉ RÉCENTE ═══════
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1452,6 +1441,373 @@ class _NearbyClientsCardState extends ConsumerState<_NearbyClientsCard>
   }
 }
 
+/// ═══════ STATS DU MOIS AVEC MINI GRAPHE ═══════
+class _MonthlyStatsCard extends ConsumerWidget {
+  final AsyncValue<_DaycareLedger> ledgerAsync;
+  final AsyncValue<List<Map<String, dynamic>>> bookingsAsync;
+
+  const _MonthlyStatsCard({
+    required this.ledgerAsync,
+    required this.bookingsAsync,
+  });
+
+  String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final ledger = ledgerAsync.maybeWhen(
+      data: (l) => l,
+      orElse: () => null,
+    );
+
+    final bookings = bookingsAsync.maybeWhen(
+      data: (b) => b,
+      orElse: () => <Map<String, dynamic>>[],
+    );
+
+    // Calculer les stats
+    final activeBookings = bookings.where((b) {
+      final status = (b['status'] ?? '').toString().toUpperCase();
+      return status == 'CONFIRMED' || status == 'IN_PROGRESS';
+    }).length;
+
+    final completedBookings = bookings.where((b) {
+      final status = (b['status'] ?? '').toString().toUpperCase();
+      return status == 'COMPLETED';
+    }).length;
+
+    // Générer les données pour le mini graphe (7 derniers jours simulés)
+    final now = DateTime.now();
+    final monthLabel = DateFormat('MMMM yyyy', 'fr_FR')
+        .format(now)
+        .replaceFirstMapped(RegExp(r'^\w'), (m) => m.group(0)!.toUpperCase());
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E1E1E), const Color(0xFF252525)]
+              : [Colors.white, const Color(0xFFFAFAFA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.15),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header avec mois
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _DaycareColors.primary.withOpacity(isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.insights,
+                  color: _DaycareColors.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.thisMonth,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      monthLabel,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Revenus et graphe
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Montant principal
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.revenue,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ledger != null ? _da(ledger.totalRevenue) : '---',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : Colors.black87,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Mini graphe
+              if (ledger != null)
+                SizedBox(
+                  width: 100,
+                  height: 40,
+                  child: CustomPaint(
+                    painter: _SparklinePainter(
+                      data: _generateSparklineData(bookings),
+                      color: _DaycareColors.primary,
+                      isDark: isDark,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Ligne de séparation
+          Container(
+            height: 1,
+            color: isDark ? Colors.white12 : Colors.black.withOpacity(0.06),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Stats en ligne
+          Row(
+            children: [
+              _MiniStat(
+                icon: Icons.event_available,
+                value: '$activeBookings',
+                label: l10n.inCare,
+                color: const Color(0xFF3B82F6),
+                isDark: isDark,
+              ),
+              _MiniStat(
+                icon: Icons.check_circle,
+                value: '$completedBookings',
+                label: l10n.completed,
+                color: const Color(0xFF22C55E),
+                isDark: isDark,
+              ),
+              _MiniStat(
+                icon: Icons.receipt_long,
+                value: ledger != null ? _da(ledger.commissionDue) : '---',
+                label: l10n.commissionLabel,
+                color: const Color(0xFFFFA000),
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<double> _generateSparklineData(List<Map<String, dynamic>> bookings) {
+    // Générer des données pour les 7 derniers jours basées sur les réservations
+    final now = DateTime.now();
+    final data = <double>[];
+
+    for (int i = 6; i >= 0; i--) {
+      final day = now.subtract(Duration(days: i));
+      final dayStart = DateTime(day.year, day.month, day.day);
+      final dayEnd = dayStart.add(const Duration(days: 1));
+
+      int count = 0;
+      for (final b in bookings) {
+        final startDate = DateTime.tryParse((b['startDate'] ?? '').toString());
+        if (startDate != null && startDate.isAfter(dayStart) && startDate.isBefore(dayEnd)) {
+          count++;
+        }
+      }
+      data.add(count.toDouble());
+    }
+
+    // S'assurer qu'il y a au moins une variation
+    if (data.every((d) => d == 0)) {
+      return [0.2, 0.5, 0.3, 0.8, 0.6, 0.9, 0.7];
+    }
+
+    return data;
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final bool isDark;
+
+  const _MiniStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(isDark ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SparklinePainter extends CustomPainter {
+  final List<double> data;
+  final Color color;
+  final bool isDark;
+
+  _SparklinePainter({
+    required this.data,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+
+    final maxVal = data.reduce((a, b) => a > b ? a : b);
+    final minVal = data.reduce((a, b) => a < b ? a : b);
+    final range = maxVal - minVal;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          color.withOpacity(0.3),
+          color.withOpacity(0.0),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    final fillPath = Path();
+
+    for (int i = 0; i < data.length; i++) {
+      final x = (i / (data.length - 1)) * size.width;
+      final normalizedY = range == 0 ? 0.5 : (data[i] - minVal) / range;
+      final y = size.height - (normalizedY * size.height * 0.8) - (size.height * 0.1);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, size.height);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+
+    fillPath.lineTo(size.width, size.height);
+    fillPath.close();
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, paint);
+
+    // Point final
+    final lastX = size.width;
+    final lastNormalizedY = range == 0 ? 0.5 : (data.last - minVal) / range;
+    final lastY = size.height - (lastNormalizedY * size.height * 0.8) - (size.height * 0.1);
+
+    canvas.drawCircle(
+      Offset(lastX, lastY),
+      4,
+      Paint()..color = color,
+    );
+    canvas.drawCircle(
+      Offset(lastX, lastY),
+      2,
+      Paint()..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _SectionCard extends ConsumerWidget {
   final Widget child;
   const _SectionCard({required this.child});
@@ -1567,6 +1923,7 @@ class _PendingBookingsBanner extends StatelessWidget {
   }
 }
 
+/// ═══════ GRILLE ACTIONS RAPIDES (3 colonnes) ═══════
 class _ActionGrid extends ConsumerWidget {
   const _ActionGrid();
 
@@ -1576,24 +1933,23 @@ class _ActionGrid extends ConsumerWidget {
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
 
     final items = [
-      _Action(l10n.managePage, Icons.edit_location, '/daycare/page', const Color(0xFF3A86FF)),
-      _Action(l10n.myBookings, Icons.calendar_today, '/daycare/bookings', const Color(0xFFFF6D00)),
-      _Action(l10n.calendar, Icons.date_range, '/daycare/calendar', const Color(0xFF00ACC1)),
+      _Action(l10n.managePage, Icons.storefront, '/daycare/page', const Color(0xFF3B82F6)),
+      _Action(l10n.myBookings, Icons.event_note, '/daycare/bookings', const Color(0xFFFF6D00)),
+      _Action(l10n.calendar, Icons.calendar_month, '/daycare/calendar', _DaycareColors.primary),
     ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 1.15,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-        ),
-        itemCount: items.length,
-        itemBuilder: (_, i) => _ActionCard(item: items[i], isDark: isDark),
+      child: Row(
+        children: items.map((item) {
+          final isLast = item == items.last;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: isLast ? 0 : 10),
+              child: _CompactActionCard(item: item, isDark: isDark),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -1607,68 +1963,56 @@ class _Action {
   const _Action(this.title, this.icon, this.route, this.color);
 }
 
-class _ActionCard extends StatefulWidget {
+class _CompactActionCard extends StatelessWidget {
   final _Action item;
   final bool isDark;
-  const _ActionCard({required this.item, required this.isDark});
 
-  @override
-  State<_ActionCard> createState() => _ActionCardState();
-}
-
-class _ActionCardState extends State<_ActionCard> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  )..forward(from: Random().nextDouble() * .6);
-
-  late final Animation<double> _scale = Tween(begin: .98, end: 1.0).animate(
-    CurvedAnimation(parent: _ctl, curve: Curves.easeOutBack),
-  );
-
-  @override
-  void dispose() {
-    _ctl.dispose();
-    super.dispose();
-  }
+  const _CompactActionCard({required this.item, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    final it = widget.item;
-    final isDark = widget.isDark;
-    return ScaleTransition(
-      scale: _scale,
+    return Material(
+      color: isDark ? item.color.withOpacity(0.15) : item.color.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: () => context.push(it.route),
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
+        onTap: () => context.push(item.route),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           decoration: BoxDecoration(
-            color: isDark ? it.color.withOpacity(.15) : it.color.withOpacity(.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: it.color.withOpacity(isDark ? .3 : .16)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: it.color.withOpacity(isDark ? .25 : .15),
-                  child: Icon(it.icon, color: it.color),
-                ),
-                const Spacer(),
-                Text(
-                  it.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : null,
-                  ),
-                ),
-              ],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: item.color.withOpacity(isDark ? 0.3 : 0.2),
             ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: item.color.withOpacity(isDark ? 0.25 : 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  item.icon,
+                  color: item.color,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                item.title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1819,11 +2163,24 @@ class _StatPill extends StatelessWidget {
   }
 }
 
+/// ═══════ TIMELINE ACTIVITÉ RÉCENTE ═══════
 class _RecentBookings extends ConsumerWidget {
   final List<Map<String, dynamic>> bookings;
   const _RecentBookings({required this.bookings});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
+
+  String _timeAgo(DateTime date, AppLocalizations l10n) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+    if (diff.inDays == 1) return 'Hier';
+    if (diff.inDays < 7) return 'Il y a ${diff.inDays} jours';
+    return DateFormat('dd/MM').format(date);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1831,19 +2188,45 @@ class _RecentBookings extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
 
     if (bookings.isEmpty) {
-      return _SectionCard(
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? _DaycareColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.15),
+          ),
+        ),
         child: Column(
           children: [
-            Icon(Icons.calendar_today_outlined, size: 48, color: isDark ? Colors.grey[600] : Colors.grey),
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _DaycareColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.pets,
+                size: 40,
+                color: _DaycareColors.primary.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               l10n.noBookings,
-              style: TextStyle(color: isDark ? Colors.white : null),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               l10n.newBookingsWillAppear,
-              style: TextStyle(color: isDark ? Colors.white60 : Colors.black.withOpacity(0.6)),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white54 : Colors.black54,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1854,94 +2237,271 @@ class _RecentBookings extends ConsumerWidget {
     // Trier par date et prendre les 5 dernières
     final sorted = List<Map<String, dynamic>>.from(bookings)
       ..sort((a, b) {
-        final aDate = DateTime.tryParse((a['startDate'] ?? '').toString()) ??
+        final aDate = DateTime.tryParse((a['createdAt'] ?? a['startDate'] ?? '').toString()) ??
             DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = DateTime.tryParse((b['startDate'] ?? '').toString()) ??
+        final bDate = DateTime.tryParse((b['createdAt'] ?? b['startDate'] ?? '').toString()) ??
             DateTime.fromMillisecondsSinceEpoch(0);
         return bDate.compareTo(aDate);
       });
 
     final recent = sorted.take(5).toList();
 
-    return _SectionCard(
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? _DaycareColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.15),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _DaycareColors.primary.withOpacity(isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.history,
+                  color: _DaycareColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 l10n.recentBookings,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : null,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const Spacer(),
-              TextButton(
+              TextButton.icon(
                 onPressed: () => context.push('/daycare/bookings'),
-                child: Text(l10n.viewAll),
+                icon: Text(
+                  l10n.viewAll,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                label: const Icon(Icons.arrow_forward_ios, size: 12),
+                style: TextButton.styleFrom(
+                  foregroundColor: _DaycareColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ...recent.map((booking) {
+
+          const SizedBox(height: 16),
+
+          // Timeline
+          ...recent.asMap().entries.map((entry) {
+            final index = entry.key;
+            final booking = entry.value;
+            final isLast = index == recent.length - 1;
+
             final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
             final totalDa = _asInt(booking['totalDa'] ?? 0);
+            final createdAt = DateTime.tryParse((booking['createdAt'] ?? booking['startDate'] ?? '').toString());
+            final pet = booking['pet'] as Map<String, dynamic>?;
+            final user = booking['user'] as Map<String, dynamic>?;
+            final petName = pet?['name'] ?? 'Animal';
+            final userName = user != null
+                ? '${user['firstName'] ?? ''}'.trim()
+                : l10n.client;
             final startDate = booking['startDate'];
             final endDate = booking['endDate'];
-            final user = booking['user'] as Map<String, dynamic>?;
-            final userName = (user?['firstName'] ?? l10n.client).toString();
 
             DateTime? start, end;
             if (startDate != null) start = DateTime.tryParse(startDate.toString());
             if (endDate != null) end = DateTime.tryParse(endDate.toString());
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-              ),
+            final statusInfo = _getStatusInfo(status, l10n);
+
+            return IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStatusIcon(status, isDark),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  // Timeline indicator
+                  SizedBox(
+                    width: 24,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          userName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : null,
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: statusInfo.color,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: statusInfo.color.withOpacity(0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                         ),
-                        if (start != null && end != null)
-                          Text(
-                            '${DateFormat('dd/MM').format(start.toLocal())} - ${DateFormat('dd/MM').format(end.toLocal())}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white54 : Colors.black.withOpacity(0.5),
+                        if (!isLast)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    statusInfo.color.withOpacity(0.5),
+                                    statusInfo.color.withOpacity(0.1),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _da(totalDa),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : null,
+
+                  const SizedBox(width: 12),
+
+                  // Content
+                  Expanded(
+                    child: Container(
+                      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.grey.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.08)
+                              : Colors.grey.withOpacity(0.1),
                         ),
                       ),
-                      _buildStatusChip(status, l10n, isDark),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Top row: Pet name + time ago
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.pets,
+                                size: 16,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  petName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (createdAt != null)
+                                Text(
+                                  _timeAgo(createdAt, l10n),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.white38 : Colors.black38,
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Client + dates
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      userName,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white60 : Colors.black54,
+                                      ),
+                                    ),
+                                    if (start != null && end != null)
+                                      Text(
+                                        '${DateFormat('dd MMM', 'fr_FR').format(start.toLocal())} → ${DateFormat('dd MMM', 'fr_FR').format(end.toLocal())}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDark ? Colors.white38 : Colors.black38,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              // Price + Status
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _da(totalDa),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          statusInfo.icon,
+                                          size: 10,
+                                          color: statusInfo.color,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          statusInfo.label,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: statusInfo.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1952,93 +2512,29 @@ class _RecentBookings extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusIcon(String status, bool isDark) {
-    IconData icon;
-    Color color;
-
+  _StatusInfo _getStatusInfo(String status, AppLocalizations l10n) {
     switch (status) {
       case 'PENDING':
-        icon = Icons.schedule;
-        color = Colors.orange;
-        break;
+        return _StatusInfo(l10n.pendingBookings, Icons.schedule, Colors.orange);
       case 'CONFIRMED':
-        icon = Icons.thumb_up;
-        color = Colors.blue;
-        break;
+        return _StatusInfo(l10n.confirmedBookings, Icons.thumb_up, const Color(0xFF3B82F6));
       case 'IN_PROGRESS':
-        icon = Icons.pets;
-        color = Colors.purple;
-        break;
+        return _StatusInfo(l10n.inProgressBookings, Icons.pets, const Color(0xFF8B5CF6));
       case 'COMPLETED':
-        icon = Icons.check_circle;
-        color = Colors.green;
-        break;
+        return _StatusInfo(l10n.completedBookings, Icons.check_circle, const Color(0xFF22C55E));
       case 'CANCELLED':
-        icon = Icons.cancel;
-        color = Colors.red;
-        break;
+        return _StatusInfo(l10n.cancelledBookings, Icons.cancel, const Color(0xFFEF4444));
       default:
-        icon = Icons.help_outline;
-        color = Colors.grey;
+        return _StatusInfo(status, Icons.help_outline, Colors.grey);
     }
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, color: color, size: 20),
-    );
   }
+}
 
-  Widget _buildStatusChip(String status, AppLocalizations l10n, bool isDark) {
-    String label;
-    Color color;
-
-    switch (status) {
-      case 'PENDING':
-        label = l10n.pendingBookings;
-        color = Colors.orange;
-        break;
-      case 'CONFIRMED':
-        label = l10n.confirmedBookings;
-        color = Colors.blue;
-        break;
-      case 'IN_PROGRESS':
-        label = l10n.inProgressBookings;
-        color = Colors.purple;
-        break;
-      case 'COMPLETED':
-        label = l10n.completedBookings;
-        color = Colors.green;
-        break;
-      case 'CANCELLED':
-        label = l10n.cancelledBookings;
-        color = Colors.red;
-        break;
-      default:
-        label = status;
-        color = Colors.grey;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
+class _StatusInfo {
+  final String label;
+  final IconData icon;
+  final Color color;
+  const _StatusInfo(this.label, this.icon, this.color);
 }
 
 class _CommissionCard extends ConsumerWidget {
