@@ -610,6 +610,40 @@ class AppLocalizations {
       'lateByMinutes': 'En retard de %s min',
       'lateFeesWillApply': 'Des frais de retard seront appliqués',
       'lateFeeDisclaimer': 'En cas de retard au-delà de l\'heure de départ prévue, des frais supplémentaires seront facturés selon la durée du dépassement.',
+      // Confirmation screens (drop-off / pickup)
+      'confirmDropOffTitle': 'Confirmer le dépôt',
+      'confirmPickupTitle': 'Confirmer le retrait',
+      'dropOffConfirmedTitle': 'Dépôt confirmé !',
+      'pickupConfirmedTitle': 'Retrait confirmé !',
+      'animalDroppedSuccess': 'Votre animal a été déposé avec succès à la garderie.',
+      'animalPickedUpSuccess': 'Votre animal a été récupéré avec succès.',
+      'returnToHome': 'Retourner à l\'accueil',
+      'dropOffConfirmedSnack': 'Dépôt confirmé ! La garderie va valider.',
+      'pickupConfirmedSnack': 'Retrait confirmé ! La garderie va valider.',
+      'verificationCode': 'Code de vérification',
+      'showCodeToDaycare': 'Montrez ce code à la garderie',
+      'codeExpired': 'Code expiré',
+      'expiresInTime': 'Expire dans %s',
+      'codeCopied': 'Code copié !',
+      'chooseConfirmMethod': 'Choisissez une méthode de confirmation :',
+      'scanAnimalQr': 'Scanner le QR code de l\'animal',
+      'getVerificationCode': 'Obtenir un code de vérification',
+      'noAnimalAssociated': 'Aucun animal associé à cette réservation',
+      'daycareWillValidateDropOff': 'La garderie recevra une notification et devra valider le dépôt de votre animal.',
+      'daycareWillValidatePickup': 'La garderie validera le retrait et les éventuels frais de retard.',
+      'dropPetAt': 'Déposer %s',
+      'pickupPetAt': 'Récupérer %s',
+      'nearDaycare': 'Vous êtes à proximité de %s',
+      'plannedFor': 'Prévu: %s',
+      'calculatingFees': 'Calcul des frais...',
+      'lateFeeTitle': 'Frais de retard',
+      'lateDelay': 'Retard: %s',
+      'ratePerHour': '%s DA/h',
+      'totalLateFee': 'Total frais:',
+      'daycareCanAcceptOrRefuse': 'La garderie pourra accepter ou refuser ces frais.',
+      'noLateFee': 'Pas de frais de retard',
+      'confirming': 'Confirmation...',
+      'yourAnimalName': 'Votre animal',
       // ===== PRO DAYCARE =====
       'welcome': 'Bienvenue',
       'myDaycare': 'Ma Garderie',
@@ -1178,6 +1212,40 @@ class AppLocalizations {
       'lateByMinutes': '%s min late',
       'lateFeesWillApply': 'Late fees will apply',
       'lateFeeDisclaimer': 'If you pick up your pet after the scheduled departure time, additional fees will be charged based on the duration of the delay.',
+      // Confirmation screens (drop-off / pickup)
+      'confirmDropOffTitle': 'Confirm drop-off',
+      'confirmPickupTitle': 'Confirm pickup',
+      'dropOffConfirmedTitle': 'Drop-off confirmed!',
+      'pickupConfirmedTitle': 'Pickup confirmed!',
+      'animalDroppedSuccess': 'Your pet has been successfully dropped off at the daycare.',
+      'animalPickedUpSuccess': 'Your pet has been successfully picked up.',
+      'returnToHome': 'Return to home',
+      'dropOffConfirmedSnack': 'Drop-off confirmed! The daycare will validate.',
+      'pickupConfirmedSnack': 'Pickup confirmed! The daycare will validate.',
+      'verificationCode': 'Verification code',
+      'showCodeToDaycare': 'Show this code to the daycare',
+      'codeExpired': 'Code expired',
+      'expiresInTime': 'Expires in %s',
+      'codeCopied': 'Code copied!',
+      'chooseConfirmMethod': 'Choose a confirmation method:',
+      'scanAnimalQr': 'Scan the pet\'s QR code',
+      'getVerificationCode': 'Get a verification code',
+      'noAnimalAssociated': 'No animal associated with this booking',
+      'daycareWillValidateDropOff': 'The daycare will receive a notification and must validate your pet\'s drop-off.',
+      'daycareWillValidatePickup': 'The daycare will validate the pickup and any late fees.',
+      'dropPetAt': 'Drop off %s',
+      'pickupPetAt': 'Pick up %s',
+      'nearDaycare': 'You are near %s',
+      'plannedFor': 'Planned: %s',
+      'calculatingFees': 'Calculating fees...',
+      'lateFeeTitle': 'Late fees',
+      'lateDelay': 'Delay: %s',
+      'ratePerHour': '%s DA/h',
+      'totalLateFee': 'Total fees:',
+      'daycareCanAcceptOrRefuse': 'The daycare can accept or refuse these fees.',
+      'noLateFee': 'No late fees',
+      'confirming': 'Confirming...',
+      'yourAnimalName': 'Your pet',
       // ===== PRO DAYCARE =====
       'welcome': 'Welcome',
       'myDaycare': 'My Daycare',
@@ -1746,6 +1814,40 @@ class AppLocalizations {
       'lateByMinutes': 'متأخر بـ %s دقيقة',
       'lateFeesWillApply': 'سيتم تطبيق رسوم التأخير',
       'lateFeeDisclaimer': 'في حالة التأخر عن موعد المغادرة المحدد، سيتم فرض رسوم إضافية حسب مدة التأخير.',
+      // Confirmation screens (drop-off / pickup)
+      'confirmDropOffTitle': 'تأكيد الإيداع',
+      'confirmPickupTitle': 'تأكيد الاستلام',
+      'dropOffConfirmedTitle': 'تم تأكيد الإيداع!',
+      'pickupConfirmedTitle': 'تم تأكيد الاستلام!',
+      'animalDroppedSuccess': 'تم إيداع حيوانك بنجاح في الحضانة.',
+      'animalPickedUpSuccess': 'تم استلام حيوانك بنجاح.',
+      'returnToHome': 'العودة للرئيسية',
+      'dropOffConfirmedSnack': 'تم تأكيد الإيداع! الحضانة ستتحقق.',
+      'pickupConfirmedSnack': 'تم تأكيد الاستلام! الحضانة ستتحقق.',
+      'verificationCode': 'رمز التحقق',
+      'showCodeToDaycare': 'أظهر هذا الرمز للحضانة',
+      'codeExpired': 'انتهت صلاحية الرمز',
+      'expiresInTime': 'ينتهي في %s',
+      'codeCopied': 'تم نسخ الرمز!',
+      'chooseConfirmMethod': 'اختر طريقة التأكيد:',
+      'scanAnimalQr': 'مسح رمز QR للحيوان',
+      'getVerificationCode': 'الحصول على رمز تحقق',
+      'noAnimalAssociated': 'لا يوجد حيوان مرتبط بهذا الحجز',
+      'daycareWillValidateDropOff': 'ستتلقى الحضانة إشعاراً وستتحقق من إيداع حيوانك.',
+      'daycareWillValidatePickup': 'ستتحقق الحضانة من الاستلام وأي رسوم تأخير.',
+      'dropPetAt': 'إيداع %s',
+      'pickupPetAt': 'استلام %s',
+      'nearDaycare': 'أنت بالقرب من %s',
+      'plannedFor': 'موعد: %s',
+      'calculatingFees': 'جاري حساب الرسوم...',
+      'lateFeeTitle': 'رسوم التأخير',
+      'lateDelay': 'التأخير: %s',
+      'ratePerHour': '%s دج/ساعة',
+      'totalLateFee': 'إجمالي الرسوم:',
+      'daycareCanAcceptOrRefuse': 'يمكن للحضانة قبول أو رفض هذه الرسوم.',
+      'noLateFee': 'لا توجد رسوم تأخير',
+      'confirming': 'جاري التأكيد...',
+      'yourAnimalName': 'حيوانك',
       // ===== PRO DAYCARE =====
       'welcome': 'مرحباً',
       'myDaycare': 'حضانتي',
@@ -2314,6 +2416,40 @@ class AppLocalizations {
   String lateByMinutes(String minutes) => _get('lateByMinutes').replaceAll('%s', minutes);
   String get lateFeesWillApply => _get('lateFeesWillApply');
   String get lateFeeDisclaimer => _get('lateFeeDisclaimer');
+  // Confirmation screens (drop-off / pickup) getters
+  String get confirmDropOffTitle => _get('confirmDropOffTitle');
+  String get confirmPickupTitle => _get('confirmPickupTitle');
+  String get dropOffConfirmedTitle => _get('dropOffConfirmedTitle');
+  String get pickupConfirmedTitle => _get('pickupConfirmedTitle');
+  String get animalDroppedSuccess => _get('animalDroppedSuccess');
+  String get animalPickedUpSuccess => _get('animalPickedUpSuccess');
+  String get returnToHome => _get('returnToHome');
+  String get dropOffConfirmedSnack => _get('dropOffConfirmedSnack');
+  String get pickupConfirmedSnack => _get('pickupConfirmedSnack');
+  String get verificationCode => _get('verificationCode');
+  String get showCodeToDaycare => _get('showCodeToDaycare');
+  String get codeExpired => _get('codeExpired');
+  String expiresInTime(String time) => _get('expiresInTime').replaceAll('%s', time);
+  String get codeCopied => _get('codeCopied');
+  String get chooseConfirmMethod => _get('chooseConfirmMethod');
+  String get scanAnimalQr => _get('scanAnimalQr');
+  String get getVerificationCode => _get('getVerificationCode');
+  String get noAnimalAssociated => _get('noAnimalAssociated');
+  String get daycareWillValidateDropOff => _get('daycareWillValidateDropOff');
+  String get daycareWillValidatePickup => _get('daycareWillValidatePickup');
+  String dropPetAt(String petName) => _get('dropPetAt').replaceAll('%s', petName);
+  String pickupPetAt(String petName) => _get('pickupPetAt').replaceAll('%s', petName);
+  String nearDaycare(String daycareName) => _get('nearDaycare').replaceAll('%s', daycareName);
+  String plannedFor(String date) => _get('plannedFor').replaceAll('%s', date);
+  String get calculatingFees => _get('calculatingFees');
+  String get lateFeeTitle => _get('lateFeeTitle');
+  String lateDelay(String delay) => _get('lateDelay').replaceAll('%s', delay);
+  String ratePerHour(String rate) => _get('ratePerHour').replaceAll('%s', rate);
+  String get totalLateFee => _get('totalLateFee');
+  String get daycareCanAcceptOrRefuse => _get('daycareCanAcceptOrRefuse');
+  String get noLateFee => _get('noLateFee');
+  String get confirming => _get('confirming');
+  String get yourAnimalName => _get('yourAnimalName');
   // ===== PRO DAYCARE GETTERS =====
   String get welcome => _get('welcome');
   String get myDaycare => _get('myDaycare');
