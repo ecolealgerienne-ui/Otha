@@ -303,9 +303,19 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
 
       if (mounted) {
         final m = (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+        // Assurer que le service avec le prix est inclus dans les données
         final bookingData = <String, dynamic>{
           'id': (m['id'] ?? '').toString(),
           ...m,
+          // Inclure les infos du service sélectionné si pas présent dans la réponse API
+          if (m['service'] == null || (m['service'] is Map && m['service']['price'] == null))
+            'service': {
+              'id': _selectedServiceId,
+              'title': _selTitle,
+              'description': _selDesc,
+              'durationMin': _selDurationMin,
+              'price': _selPriceDa,
+            },
         };
         context.go('/booking/thanks', extra: bookingData);
       }

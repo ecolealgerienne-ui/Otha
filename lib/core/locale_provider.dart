@@ -587,6 +587,8 @@ class AppLocalizations {
       'cancelBookingMessage': 'Cette action est irréversible. Voulez-vous vraiment annuler ?',
       'yesCancel': 'Oui, annuler',
       'bookingCancelledSuccess': 'Réservation annulée avec succès',
+      'pendingDaycare': 'Garderie en attente',
+      'yourPet': 'Votre animal',
       // Status descriptions
       'pendingDescription': 'En attente de confirmation par la garderie',
       'confirmedDescription': 'Votre réservation est confirmée',
@@ -1038,6 +1040,8 @@ class AppLocalizations {
       'cancelBookingMessage': 'This action is irreversible. Do you really want to cancel?',
       'yesCancel': 'Yes, cancel',
       'bookingCancelledSuccess': 'Booking cancelled successfully',
+      'pendingDaycare': 'Daycare pending',
+      'yourPet': 'Your pet',
       // Status descriptions
       'pendingDescription': 'Awaiting confirmation from the daycare',
       'confirmedDescription': 'Your booking is confirmed',
@@ -1489,6 +1493,8 @@ class AppLocalizations {
       'cancelBookingMessage': 'هذا الإجراء لا رجعة فيه. هل تريد حقاً الإلغاء؟',
       'yesCancel': 'نعم، إلغاء',
       'bookingCancelledSuccess': 'تم إلغاء الحجز بنجاح',
+      'pendingDaycare': 'حضانة قيد الانتظار',
+      'yourPet': 'حيوانك',
       // Status descriptions
       'pendingDescription': 'في انتظار تأكيد الحضانة',
       'confirmedDescription': 'تم تأكيد حجزك',
@@ -1940,6 +1946,8 @@ class AppLocalizations {
   String get cancelBooking => _get('cancelBooking');
   String get cancelBookingConfirm => _get('cancelBookingConfirm');
   String get bookingCancelledSuccess => _get('bookingCancelledSuccess');
+  String get pendingDaycare => _get('pendingDaycare');
+  String get yourPet => _get('yourPet');
   // Status descriptions
   String get pendingDescription => _get('pendingDescription');
   String get confirmedDescription => _get('confirmedDescription');

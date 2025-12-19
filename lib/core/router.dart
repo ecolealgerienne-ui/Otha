@@ -598,6 +598,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) {
           final data = st.extra as Map<String, dynamic>? ?? {};
           return DaycareBookingConfirmationScreen(
+            booking: data['booking'] as Map<String, dynamic>?,
             bookingId: data['bookingId'] as String?,
             totalDa: data['totalDa'] as int? ?? 0,
             petName: data['petName'] as String?,

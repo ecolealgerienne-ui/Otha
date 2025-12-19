@@ -8,18 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 
-// Clean color palette
-const _coral = Color(0xFFF36C6C);
-const _coralSoft = Color(0xFFFFEEF0);
-const _green = Color(0xFF4CAF50);
-const _orange = Color(0xFFFF9800);
-const _blue = Color(0xFF2196F3);
-
-// Dark mode
-const _darkBg = Color(0xFF121212);
-const _darkCard = Color(0xFF1E1E1E);
-const _darkCardBorder = Color(0xFF2A2A2A);
-
 class DaycareBookingDetailsScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> booking;
 
@@ -33,492 +21,558 @@ class DaycareBookingDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDetailsScreen> {
-  bool _cancelling = false;
+  // Theme colors
+  static const _coral = Color(0xFFF36C6C);
+  static const _coralSoft = Color(0xFFFFEEF0);
+  static const _amber = Color(0xFFFFA000);
+  static const _amberSoft = Color(0xFFFFF8E1);
+  static const _green = Color(0xFF4CAF50);
+  static const _blue = Color(0xFF2196F3);
+  static const _darkBg = Color(0xFF121212);
+  static const _darkCard = Color(0xFF1E1E1E);
+  static const _darkCardAlt = Color(0xFF2A2A2A);
+
+  bool _busy = false;
+
+  Map<String, dynamic> get _m => widget.booking;
+
+  String get _status => (_m['status'] ?? 'PENDING').toString().toUpperCase();
+  bool get _isPending => _status == 'PENDING';
+  bool get _isConfirmed => _status == 'CONFIRMED';
+  bool get _canCancel => _isPending || _isConfirmed;
 
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
 
+    // Colors based on theme
     final bgColor = isDark ? _darkBg : const Color(0xFFF8F9FA);
     final cardColor = isDark ? _darkCard : Colors.white;
-    final borderColor = isDark ? _darkCardBorder : const Color(0xFFE8E8E8);
-    final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary = isDark ? Colors.white60 : Colors.black54;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+    final textSecondary = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
-    final booking = widget.booking;
-    final pet = booking['pet'] as Map<String, dynamic>?;
-    final provider = booking['provider'] as Map<String, dynamic>?;
+    // Parse booking data
+    final pet = _m['pet'] as Map<String, dynamic>?;
+    final provider = _m['provider'] as Map<String, dynamic>?;
     final providerUser = provider?['user'] as Map<String, dynamic>?;
-    final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
-    final startDate = DateTime.parse(booking['startDate']);
-    final endDate = DateTime.parse(booking['endDate']);
-    final priceDa = booking['priceDa'] ?? 0;
-    final commissionDa = booking['commissionDa'] ?? 100;
-    final totalDa = booking['totalDa'] ?? (priceDa + commissionDa);
-    final notes = booking['notes']?.toString();
 
-    final actualDropOff = booking['actualDropOff'] != null
-        ? DateTime.parse(booking['actualDropOff']).toLocal()
-        : null;
-    final actualPickup = booking['actualPickup'] != null
-        ? DateTime.parse(booking['actualPickup']).toLocal()
-        : null;
+    final startDate = DateTime.parse(_m['startDate']).toLocal();
+    final endDate = DateTime.parse(_m['endDate']).toLocal();
+    final totalDa = _m['totalDa'] ?? ((_m['priceDa'] ?? 0) + (_m['commissionDa'] ?? 100));
 
-    final dateFormat = DateFormat('dd MMM yyyy', 'fr_FR');
+    final dateFormat = DateFormat('EEEE d MMMM yyyy', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR');
     final timeFormat = DateFormat('HH:mm');
 
-    final canCancel = status == 'PENDING' || status == 'CONFIRMED';
-    final statusInfo = _getStatusInfo(status, l10n);
+    final providerName = provider?['displayName'] ?? l10n.daycare;
+    final petName = pet?['name'] ?? l10n.notSpecified;
+    final phone = providerUser?['phone'] ?? provider?['phone'];
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: cardColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: Row(
-          children: [
-            Container(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: bgColor,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _coralSoft,
-                borderRadius: BorderRadius.circular(10),
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
-              child: const Icon(Icons.receipt_long_rounded, color: _coral, size: 18),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: textPrimary,
+              ),
             ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                l10n.daycareBookingDetails,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textPrimary,
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+          title: Text(
+            l10n.daycareBookingDetails,
+            style: TextStyle(
+              color: textPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              fontFamily: 'SFPRO',
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: AbsorbPointer(
+          absorbing: _busy,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
+            child: Column(
+              children: [
+                // Status Banner
+                _buildStatusBanner(isDark, l10n, cardColor, textPrimary),
+                const SizedBox(height: 20),
+
+                // Info Cards
+                _buildInfoCard(
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  icon: Icons.pets_rounded,
+                  iconColor: _coral,
+                  title: l10n.animalLabel,
+                  value: petName,
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
+                const SizedBox(height: 12),
+
+                _buildInfoCard(
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  icon: Icons.home_work_rounded,
+                  iconColor: const Color(0xFF6C63FF),
+                  title: l10n.daycare,
+                  value: providerName,
+                ),
+                const SizedBox(height: 12),
+
+                _buildInfoCard(
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  icon: Icons.login_rounded,
+                  iconColor: _green,
+                  title: l10n.plannedArrival,
+                  value: '${dateFormat.format(startDate)}\n${timeFormat.format(startDate)}',
+                ),
+                const SizedBox(height: 12),
+
+                _buildInfoCard(
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  icon: Icons.logout_rounded,
+                  iconColor: _blue,
+                  title: l10n.plannedDeparture,
+                  value: '${dateFormat.format(endDate)}\n${timeFormat.format(endDate)}',
+                ),
+                const SizedBox(height: 12),
+
+                _buildInfoCard(
+                  isDark: isDark,
+                  cardColor: cardColor,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  icon: Icons.payments_rounded,
+                  iconColor: const Color(0xFFFF9800),
+                  title: l10n.totalLabel,
+                  value: '${NumberFormat.decimalPattern('fr_FR').format(totalDa)} DA',
+                  isHighlighted: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: _buildBottomBar(isDark, l10n, cardColor, textPrimary, phone, provider),
+      ),
+    );
+  }
+
+  Widget _buildStatusBanner(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary) {
+    final statusInfo = _getStatusInfo(_status, l10n);
+    final statusColor = statusInfo.color;
+    final statusBgColor = isDark
+        ? statusColor.withOpacity(0.15)
+        : statusColor.withOpacity(0.1);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(isDark ? 0.1 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: statusBgColor,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              statusInfo.icon,
+              color: statusColor,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusInfo.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: textPrimary,
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  statusInfo.description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required bool isDark,
+    required Color cardColor,
+    required Color textPrimary,
+    required Color textSecondary,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String value,
+    bool isHighlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: isHighlighted
+            ? Border.all(color: _coral.withOpacity(0.3), width: 1.5)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(isDark ? 0.15 : 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textSecondary,
+                    fontFamily: 'SFPRO',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: isHighlighted ? 18 : 15,
+                    color: isHighlighted ? _coral : textPrimary,
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary, String? phone, Map<String, dynamic>? provider) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -8),
             ),
           ],
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: borderColor),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Status card
+            // Handle indicator
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: statusInfo.color.withOpacity(isDark ? 0.15 : 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: statusInfo.color.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: statusInfo.color.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(statusInfo.icon, color: statusInfo.color, size: 28),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          statusInfo.label,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: statusInfo.color,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          statusInfo.description,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? Colors.white60 : Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // Pet section
-            _buildSection(
-              title: l10n.animalLabel,
-              icon: Icons.pets_rounded,
-              cardColor: cardColor,
-              borderColor: borderColor,
-              textPrimary: textPrimary,
-              isDark: isDark,
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: isDark ? _darkCardBorder : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: pet?['photoUrl'] != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              pet!['photoUrl'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.pets_rounded,
-                                color: textSecondary,
-                                size: 28,
-                              ),
+            // Action buttons
+            Row(
+              children: [
+                // Cancel button (only when PENDING or CONFIRMED)
+                if (_canCancel)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _busy ? null : _confirmCancel,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _coral,
+                        side: BorderSide(color: _coral.withOpacity(0.5), width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.close_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.cancel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
                             ),
-                          )
-                        : Icon(Icons.pets_rounded, color: textSecondary, size: 28),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 16),
+
+                // Itinerary button (only when CONFIRMED)
+                if (_isConfirmed) ...[
+                  if (_canCancel) const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          pet?['name'] ?? l10n.notSpecified,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
+                    child: FilledButton(
+                      onPressed: _busy ? null : () => _openMaps(provider),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _coral,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.directions_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.directions,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          [
-                            pet?['species'],
-                            pet?['breed'],
-                            if (pet?['age'] != null) '${pet!['age']} ans',
-                          ].where((e) => e != null).join(' • '),
-                          style: TextStyle(fontSize: 13, color: textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Daycare section
-            _buildSection(
-              title: l10n.daycare,
-              icon: Icons.home_work_rounded,
-              cardColor: cardColor,
-              borderColor: borderColor,
-              textPrimary: textPrimary,
-              isDark: isDark,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    provider?['displayName'] ?? l10n.notSpecified,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: textPrimary,
-                    ),
-                  ),
-                  if (provider?['address'] != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined, size: 16, color: textSecondary),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            provider!['address'],
-                            style: TextStyle(fontSize: 13, color: textSecondary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (providerUser?['phone'] != null) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _callPhone(providerUser!['phone']),
-                        icon: const Icon(Icons.phone_rounded, size: 18),
-                        label: Text(providerUser!['phone']),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _coral,
-                          side: const BorderSide(color: _coral),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
-            ),
 
-            const SizedBox(height: 16),
-
-            // Dates section
-            _buildSection(
-              title: l10n.datesLabel,
-              icon: Icons.calendar_today_rounded,
-              cardColor: cardColor,
-              borderColor: borderColor,
-              textPrimary: textPrimary,
-              isDark: isDark,
-              child: Column(
-                children: [
-                  _DateRow(
-                    icon: Icons.login_rounded,
-                    label: l10n.plannedArrival,
-                    value: '${dateFormat.format(startDate)} ${l10n.at} ${timeFormat.format(startDate)}',
-                    isDark: isDark,
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                  ),
-                  const SizedBox(height: 12),
-                  _DateRow(
-                    icon: Icons.logout_rounded,
-                    label: l10n.plannedDeparture,
-                    value: '${dateFormat.format(endDate)} ${l10n.at} ${timeFormat.format(endDate)}',
-                    isDark: isDark,
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                  ),
-                  if (actualDropOff != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(height: 1, color: borderColor),
-                    ),
-                    _DateRow(
-                      icon: Icons.check_circle_rounded,
-                      label: l10n.droppedAt,
-                      value: '${dateFormat.format(actualDropOff)} ${l10n.at} ${timeFormat.format(actualDropOff)}',
-                      isDark: isDark,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      highlight: true,
-                      highlightColor: _green,
-                    ),
-                  ],
-                  if (actualPickup != null) ...[
-                    const SizedBox(height: 12),
-                    _DateRow(
-                      icon: Icons.check_circle_rounded,
-                      label: l10n.pickedUpAt,
-                      value: '${dateFormat.format(actualPickup)} ${l10n.at} ${timeFormat.format(actualPickup)}',
-                      isDark: isDark,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      highlight: true,
-                      highlightColor: _blue,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Price section
-            _buildSection(
-              title: l10n.pricing,
-              icon: Icons.payments_rounded,
-              cardColor: cardColor,
-              borderColor: borderColor,
-              textPrimary: textPrimary,
-              isDark: isDark,
-              child: Column(
-                children: [
-                  _PriceRow(
-                    label: l10n.priceLabel,
-                    value: '$priceDa DA',
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                  ),
-                  const SizedBox(height: 8),
-                  _PriceRow(
-                    label: l10n.commissionLabel,
-                    value: '$commissionDa DA',
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: borderColor),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        l10n.totalLabel,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: textPrimary,
+                // Call button (when not confirmed but has phone)
+                if (!_isConfirmed && phone != null && phone.isNotEmpty) ...[
+                  if (_canCancel) const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _busy ? null : () => _callPhone(phone),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _coral,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
+                        elevation: 0,
                       ),
-                      Text(
-                        '$totalDa DA',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: _coral,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            if (notes != null && notes.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _buildSection(
-                title: l10n.notesLabel,
-                icon: Icons.note_alt_outlined,
-                cardColor: cardColor,
-                borderColor: borderColor,
-                textPrimary: textPrimary,
-                isDark: isDark,
-                child: Text(
-                  notes,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // Cancel button
-            if (canCancel)
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: _cancelling ? null : _cancelBooking,
-                  icon: _cancelling
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.red.shade400,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.call,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
+                            ),
                           ),
-                        )
-                      : const Icon(Icons.cancel_outlined),
-                  label: Text(l10n.cancelBooking),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red.shade400,
-                    side: BorderSide(color: Colors.red.shade400),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
+                ],
 
-            const SizedBox(height: 32),
+                // If no actions available, show back to home button
+                if (!_canCancel && !_isConfirmed && (phone == null || phone.isEmpty))
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => context.go('/home'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _coral,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.home_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.backToHome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required IconData icon,
-    required Color cardColor,
-    required Color borderColor,
-    required Color textPrimary,
-    required bool isDark,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: _coral),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
+  Future<void> _openMaps(Map<String, dynamic>? provider) async {
+    if (provider == null) return;
+
+    try {
+      // Try mapsUrl first
+      final specialties = provider['specialties'];
+      String? mapsUrl;
+      if (specialties is Map) {
+        mapsUrl = (specialties['mapsUrl'] ?? specialties['maps_url'] ?? '').toString().trim();
+      }
+      mapsUrl ??= (provider['mapsUrl'] ?? provider['maps_url'] ?? '').toString().trim();
+
+      if (mapsUrl.isNotEmpty && mapsUrl.startsWith('http')) {
+        final uri = Uri.parse(mapsUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Try lat/lng
+      final lat = provider['lat'];
+      final lng = provider['lng'];
+      if (lat is num && lng is num) {
+        final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Fallback to address search
+      final name = provider['displayName'] ?? '';
+      final addr = provider['address'] ?? '';
+      final q = Uri.encodeComponent([name, addr].where((e) => e.toString().trim().isNotEmpty).join(' '));
+      if (q.isNotEmpty) {
+        final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$q');
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible d\'ouvrir Google Maps: $e')),
+      );
+    }
   }
 
   _StatusInfo _getStatusInfo(String status, AppLocalizations l10n) {
     switch (status) {
       case 'PENDING':
         return _StatusInfo(
-          label: l10n.pendingBookings,
+          label: l10n.pendingConfirmation,
           description: l10n.pendingDescription,
           icon: Icons.hourglass_empty_rounded,
-          color: _orange,
+          color: _amber,
         );
       case 'CONFIRMED':
         return _StatusInfo(
-          label: l10n.confirmedBookings,
+          label: l10n.confirmedBooking,
           description: l10n.confirmedDescription,
-          icon: Icons.check_circle_outline_rounded,
-          color: _blue,
+          icon: Icons.check_circle_rounded,
+          color: _green,
         );
       case 'IN_PROGRESS':
         return _StatusInfo(
           label: l10n.inProgressBookings,
           description: l10n.inProgressDescription,
           icon: Icons.pets_rounded,
-          color: _green,
+          color: _blue,
         );
       case 'COMPLETED':
         return _StatusInfo(
@@ -551,58 +605,61 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
     }
   }
 
-  Future<void> _cancelBooking() async {
+  Future<void> _confirmCancel() async {
     final l10n = AppLocalizations.of(context);
     final isDark = ref.read(themeProvider) == AppThemeMode.dark;
 
-    final confirmed = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (_) => AlertDialog(
         backgroundColor: isDark ? _darkCard : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.warning_rounded, color: Colors.red, size: 32),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          l10n.cancelBookingConfirm,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          l10n.cancelBookingTitle,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontFamily: 'SFPRO',
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
           l10n.cancelBookingMessage,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+          style: TextStyle(
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+            fontFamily: 'SFPRO',
+          ),
         ),
-        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.no, style: TextStyle(color: isDark ? Colors.white60 : Colors.black54)),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              l10n.no,
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontFamily: 'SFPRO',
+              ),
+            ),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l10n.yesCancel),
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: _coral,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              l10n.yesCancel,
+              style: const TextStyle(fontFamily: 'SFPRO'),
+            ),
           ),
         ],
       ),
     );
+    if (ok != true) return;
 
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _cancelling = true);
-
+    setState(() => _busy = true);
     try {
-      final api = ref.read(apiProvider);
-      await api.cancelDaycareBooking(widget.booking['id']);
-
+      await ref.read(apiProvider).cancelDaycareBooking(_m['id']);
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.bookingCancelledSuccess),
@@ -611,11 +668,9 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-
       context.pop(true);
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${l10n.error}: $e'),
@@ -625,9 +680,7 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _cancelling = false);
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 }
@@ -644,93 +697,4 @@ class _StatusInfo {
     required this.icon,
     required this.color,
   });
-}
-
-class _DateRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool isDark;
-  final Color textPrimary;
-  final Color textSecondary;
-  final bool highlight;
-  final Color? highlightColor;
-
-  const _DateRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.isDark,
-    required this.textPrimary,
-    required this.textSecondary,
-    this.highlight = false,
-    this.highlightColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = highlight ? (highlightColor ?? _coral) : textSecondary;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(fontSize: 11, color: textSecondary)),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: highlight ? highlightColor : textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PriceRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color textPrimary;
-  final Color textSecondary;
-
-  const _PriceRow({
-    required this.label,
-    required this.value,
-    required this.textPrimary,
-    required this.textSecondary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontSize: 14, color: textSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
 }

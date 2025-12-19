@@ -18,6 +18,7 @@ const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
 class DaycareBookingConfirmationScreen extends ConsumerWidget {
+  final Map<String, dynamic>? booking;
   final String? bookingId;
   final int totalDa;
   final String? petName;
@@ -26,6 +27,7 @@ class DaycareBookingConfirmationScreen extends ConsumerWidget {
 
   const DaycareBookingConfirmationScreen({
     super.key,
+    this.booking,
     this.bookingId,
     this.totalDa = 0,
     this.petName,
@@ -269,7 +271,11 @@ class DaycareBookingConfirmationScreen extends ConsumerWidget {
                   height: 54,
                   child: FilledButton.icon(
                     onPressed: () {
-                      context.go('/daycare/my-bookings');
+                      if (booking != null) {
+                        context.go('/daycare/booking-details', extra: booking);
+                      } else {
+                        context.go('/daycare/my-bookings');
+                      }
                     },
                     icon: const Icon(Icons.visibility_rounded),
                     label: Text(

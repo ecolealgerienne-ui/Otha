@@ -842,6 +842,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       if (!mounted) return;
 
       context.go('/daycare/booking-confirmation', extra: {
+        'booking': booking,
         'bookingId': booking['id'],
         'totalDa': totalDa,
         'petName': petName,
