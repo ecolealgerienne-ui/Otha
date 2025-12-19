@@ -137,7 +137,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   SizedBox(height: 8),
-                  Text('• Remettre le statut à "NEW"', style: TextStyle(fontSize: 12)),
+                  Text('• Remettre le statut à "VERIFIED"', style: TextStyle(fontSize: 12)),
                   Text('• Décrémenter le compteur de no-show', style: TextStyle(fontSize: 12)),
                   Text('• Lever la restriction de compte', style: TextStyle(fontSize: 12)),
                 ],

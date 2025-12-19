@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, User as UserIcon, Mail, Phone, MapPin, Heart, PawPrint, MessageSquare, ChevronRight, RefreshCw, Copy } from 'lucide-react';
+import { Search, User as UserIcon, Mail, Phone, MapPin, Heart, PawPrint, MessageSquare, ChevronRight, RefreshCw, Copy, Shield, Ban, CheckCircle, Unlock } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
@@ -27,6 +27,7 @@ export function AdminUsers() {
   const [adoptConversations, setAdoptConversations] = useState<AdoptConversation[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [resetTrustLoading, setResetTrustLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -102,6 +103,46 @@ export function AdminUsers() {
         return 'bg-blue-100 text-blue-700';
       default:
         return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getTrustStatusInfo = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return { label: 'Vérifié', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle };
+      case 'RESTRICTED':
+        return { label: 'Restreint', color: 'bg-red-100 text-red-700 border-red-200', icon: Ban };
+      default:
+        return { label: 'Nouveau', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: UserIcon };
+    }
+  };
+
+  const handleResetTrust = async () => {
+    if (!selectedUser) return;
+
+    const confirmed = window.confirm(
+      `Réinitialiser le statut de confiance de ${getDisplayName(selectedUser)} ?\n\n` +
+      `Cette action va:\n` +
+      `• Remettre le statut à "VERIFIED"\n` +
+      `• Décrémenter le compteur de no-show\n` +
+      `• Lever la restriction de compte`
+    );
+
+    if (!confirmed) return;
+
+    setResetTrustLoading(true);
+    try {
+      await api.adminResetUserTrustStatus(selectedUser.id);
+      // Update local state
+      setSelectedUser({ ...selectedUser, trustStatus: 'VERIFIED', restrictedUntil: null });
+      // Refresh users list
+      fetchUsers();
+      alert('✅ Statut de confiance réinitialisé à VERIFIED');
+    } catch (error) {
+      console.error('Error resetting trust status:', error);
+      alert('Erreur lors de la réinitialisation du statut');
+    } finally {
+      setResetTrustLoading(false);
     }
   };
 
@@ -220,14 +261,27 @@ export function AdminUsers() {
                             </span>
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {getDisplayName(user)}
-                          </p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900 truncate">
+                              {getDisplayName(user)}
+                            </p>
+                            {/* Trust status badge */}
+                            {user.trustStatus === 'RESTRICTED' && (
+                              <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                🚫
+                              </span>
+                            )}
+                            {user.trustStatus === 'VERIFIED' && (
+                              <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                                ✓
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-gray-400" />
+                      <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
                     </div>
                   </Card>
                 ))}
@@ -310,6 +364,55 @@ export function AdminUsers() {
                       </div>
                     )}
                   </div>
+                </Card>
+
+                {/* Trust Status Card */}
+                <Card>
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                    <Shield size={18} className="mr-2 text-indigo-500" />
+                    Statut de confiance
+                  </h4>
+
+                  {(() => {
+                    const trustInfo = getTrustStatusInfo(selectedUser.trustStatus || 'NEW');
+                    const TrustIcon = trustInfo.icon;
+                    return (
+                      <div className={`p-4 rounded-lg border ${trustInfo.color}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <TrustIcon size={24} />
+                            <div>
+                              <p className="font-bold text-lg">{trustInfo.label}</p>
+                              {selectedUser.trustStatus === 'RESTRICTED' && selectedUser.restrictedUntil && (
+                                <p className="text-sm opacity-75">
+                                  Jusqu'au {format(new Date(selectedUser.restrictedUntil), 'dd/MM/yyyy', { locale: fr })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {(selectedUser.trustStatus === 'RESTRICTED' || selectedUser.trustStatus === 'NEW') && (
+                            <Button
+                              onClick={handleResetTrust}
+                              disabled={resetTrustLoading}
+                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                            >
+                              {resetTrustLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                              ) : (
+                                <Unlock size={16} />
+                              )}
+                              {selectedUser.trustStatus === 'RESTRICTED' ? 'Lever restriction' : 'Passer à Verified'}
+                            </Button>
+                          )}
+                        </div>
+                        {selectedUser.noShowCount !== undefined && selectedUser.noShowCount > 0 && (
+                          <p className="mt-3 text-sm opacity-75">
+                            No-shows: {selectedUser.noShowCount}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </Card>
 
                 {detailsLoading ? (

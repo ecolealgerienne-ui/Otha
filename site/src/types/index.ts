@@ -17,6 +17,8 @@ export interface User {
   role: Role;
   isFirstBooking?: boolean;
   trustStatus?: TrustStatus;
+  noShowCount?: number;
+  restrictedUntil?: string | null;
   createdAt: string;
   updatedAt: string;
 }

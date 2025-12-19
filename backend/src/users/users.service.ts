@@ -306,16 +306,17 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Remettre à VERIFIED (pas NEW) car c'était un accident
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        trustStatus: 'NEW',
+        trustStatus: 'VERIFIED',
         noShowCount: Math.max(0, (user.noShowCount || 0) - 1), // Décrémenter le no-show count
         restrictedUntil: null,
       },
     });
 
-    return { ok: true, message: 'Trust status reset to NEW' };
+    return { ok: true, message: 'Trust status reset to VERIFIED' };
   }
 
   // Admin: update user info
