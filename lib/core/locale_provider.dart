@@ -589,6 +589,7 @@ class AppLocalizations {
       'bookingCancelledSuccess': 'Réservation annulée avec succès',
       'pendingDaycare': 'Garderie en attente',
       'yourPet': 'Votre animal',
+      'call': 'Appeler',
       // Status descriptions
       'pendingDescription': 'En attente de confirmation par la garderie',
       'confirmedDescription': 'Votre réservation est confirmée',
@@ -1042,6 +1043,7 @@ class AppLocalizations {
       'bookingCancelledSuccess': 'Booking cancelled successfully',
       'pendingDaycare': 'Daycare pending',
       'yourPet': 'Your pet',
+      'call': 'Call',
       // Status descriptions
       'pendingDescription': 'Awaiting confirmation from the daycare',
       'confirmedDescription': 'Your booking is confirmed',
@@ -1495,6 +1497,7 @@ class AppLocalizations {
       'bookingCancelledSuccess': 'تم إلغاء الحجز بنجاح',
       'pendingDaycare': 'حضانة قيد الانتظار',
       'yourPet': 'حيوانك',
+      'call': 'اتصال',
       // Status descriptions
       'pendingDescription': 'في انتظار تأكيد الحضانة',
       'confirmedDescription': 'تم تأكيد حجزك',
@@ -1948,6 +1951,7 @@ class AppLocalizations {
   String get bookingCancelledSuccess => _get('bookingCancelledSuccess');
   String get pendingDaycare => _get('pendingDaycare');
   String get yourPet => _get('yourPet');
+  String get call => _get('call');
   // Status descriptions
   String get pendingDescription => _get('pendingDescription');
   String get confirmedDescription => _get('confirmedDescription');
