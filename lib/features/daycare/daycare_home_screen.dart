@@ -791,287 +791,29 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                   child: _Header(
                     daycareName: daycareName,
                     welcomeText: l10n.welcome,
+                    todayDate: DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now()),
                     isDark: isDark,
                     onAvatarTap: () => context.push('/daycare/settings'),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                // Réservations en attente (si > 0)
+                // ═══════ COMPTEURS D'URGENCE ═══════
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: pendingAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                      data: (pending) {
-                        if (pending.isEmpty) return const SizedBox.shrink();
-                        return _PendingBookingsBanner(
-                          bookings: pending,
-                          isDark: isDark,
-                          label: '${pending.length} ${l10n.pendingBookingsX}',
-                          onTap: () => context.push('/daycare/bookings'),
-                        );
-                      },
-                    ),
+                  child: _UrgentActionsRow(
+                    pendingAsync: pendingAsync,
+                    onPendingTap: () => context.push('/daycare/bookings'),
+                    onValidationsTap: () => context.push('/daycare/pending-validations'),
+                    onLateFeesTap: (fees) => _showLateFeesDialog(context, ref, fees, isDark),
                   ),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                // ✅ Banner bleu : Clients à proximité (cliquable)
+                // ═══════ CLIENTS À PROXIMITÉ (GPS) ═══════
                 SliverToBoxAdapter(
-                  child: Consumer(
-                    builder: (context, ref, _) {
-                      final nearbyAsync = ref.watch(nearbyDaycareClientsProvider);
-                      return nearbyAsync.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (clients) {
-                          if (clients.isEmpty) return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1A2A3A) : const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF3B82F6)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          '${clients.length} ${l10n.nearbyClientsX}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF3B82F6),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    l10n.tapToValidate,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  ...clients.take(5).map((c) {
-                                    final user = c['user'] as Map<String, dynamic>?;
-                                    final pet = c['pet'] as Map<String, dynamic>?;
-                                    final clientName = user != null
-                                        ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-                                        : 'Client';
-                                    final petName = pet?['name'] ?? 'Animal';
-                                    final status = (c['status'] ?? '').toString().toUpperCase();
-                                    final isForPickup = status == 'IN_PROGRESS';
-
-                                    return InkWell(
-                                      onTap: () => _showClientValidationDialog(c, isForPickup),
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Container(
-                                        margin: const EdgeInsets.only(top: 8),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: isForPickup
-                                                ? const Color(0xFFF59E0B).withOpacity(0.3)
-                                                : const Color(0xFF3B82F6).withOpacity(0.3),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: isForPickup
-                                                    ? const Color(0xFFFFF3E0)
-                                                    : const Color(0xFFE3F2FD),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Icon(
-                                                isForPickup ? Icons.logout : Icons.login,
-                                                size: 16,
-                                                color: isForPickup
-                                                    ? const Color(0xFFF59E0B)
-                                                    : const Color(0xFF3B82F6),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    '$clientName - $petName',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    isForPickup ? 'Retrait' : 'Dépôt',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: isForPickup
-                                                          ? const Color(0xFFF59E0B)
-                                                          : const Color(0xFF3B82F6),
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const Icon(
-                                              Icons.chevron_right,
-                                              color: Colors.grey,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                // ✅ Banner vert : Validations en attente (dépôts/retraits)
-                SliverToBoxAdapter(
-                  child: Consumer(
-                    builder: (context, ref, _) {
-                      final validationsAsync = ref.watch(pendingDaycareValidationsProvider);
-                      return validationsAsync.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (validations) {
-                          if (validations.isEmpty) return const SizedBox.shrink();
-
-                          int dropCount = 0;
-                          int pickupCount = 0;
-                          for (final v in validations) {
-                            final st = (v['status'] ?? '').toString().toUpperCase();
-                            if (st == 'PENDING_DROP_VALIDATION') {
-                              dropCount++;
-                            } else if (st == 'PENDING_PICKUP_VALIDATION') {
-                              pickupCount++;
-                            }
-                          }
-
-                          String message;
-                          if (dropCount > 0 && pickupCount > 0) {
-                            message = '$dropCount ${l10n.dropOff}${dropCount > 1 ? 's' : ''} + $pickupCount ${l10n.pickup}${pickupCount > 1 ? 's' : ''}';
-                          } else if (dropCount > 0) {
-                            message = '$dropCount ${l10n.dropOffToValidate}';
-                          } else {
-                            message = '$pickupCount ${l10n.pickupToValidate}';
-                          }
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: GestureDetector(
-                              onTap: () => context.push('/daycare/pending-validations'),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1A2E1A) : const Color(0xFFE8F5E9),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF22C55E)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.pets, color: Color(0xFF22C55E)),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        message,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF22C55E),
-                                        ),
-                                      ),
-                                    ),
-                                    const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF22C55E)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                // ✅ Banner ambre : Frais de retard en attente
-                SliverToBoxAdapter(
-                  child: Consumer(
-                    builder: (context, ref, _) {
-                      final lateFeesAsync = ref.watch(pendingLateFeesProvider);
-                      return lateFeesAsync.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (lateFees) {
-                          if (lateFees.isEmpty) return const SizedBox.shrink();
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: GestureDetector(
-                              onTap: () => _showLateFeesDialog(context, ref, lateFees, isDark),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFF8E1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFFFA000)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.timer, color: Color(0xFFFFA000)),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        '${lateFees.length} ${l10n.lateFeesX}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFFFFA000),
-                                        ),
-                                      ),
-                                    ),
-                                    const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFFFA000)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                  child: _NearbyClientsCard(
+                    onClientTap: (booking, isPickup) => _showClientValidationDialog(booking, isPickup),
                   ),
                 ),
 
@@ -1133,77 +875,579 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 class _Header extends StatelessWidget {
   final String daycareName;
   final String welcomeText;
+  final String todayDate;
   final bool isDark;
   final VoidCallback? onAvatarTap;
   const _Header({
     required this.daycareName,
     required this.welcomeText,
+    required this.todayDate,
     required this.isDark,
     this.onAvatarTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final initial = daycareName.isNotEmpty ? daycareName.characters.first.toUpperCase() : 'G';
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF00838F), const Color(0xFF006064)]
-              : [_DaycareColors.primary, const Color(0xFF0097A7)],
+              ? [const Color(0xFF00838F), const Color(0xFF004D54)]
+              : [const Color(0xFF00BCD4), const Color(0xFF00ACC1)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: _DaycareColors.primary.withOpacity(isDark ? 0.3 : 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: _DaycareColors.primary.withOpacity(isDark ? 0.4 : 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Row(
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(32),
-            onTap: onAvatarTap,
-            child: CircleAvatar(
-              radius: 28,
-              backgroundColor: Colors.white,
-              child: Text(
-                daycareName.isNotEmpty ? daycareName.characters.first.toUpperCase() : 'G',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: _DaycareColors.primary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
+          // Infos à gauche
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(welcomeText, style: const TextStyle(color: Colors.white70)),
+                // Date du jour
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_today, size: 12, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        todayDate,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Bienvenue
+                Text(
+                  welcomeText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // Nom de la garderie
                 Text(
                   daycareName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.pets, color: Colors.white, size: 26),
+          const SizedBox(width: 12),
+          // Avatar à droite
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 32,
+                backgroundColor: Colors.white,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      initial,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: _DaycareColors.primary,
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: _DaycareColors.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'PRO',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// ═══════ COMPTEURS D'URGENCE ═══════
+class _UrgentActionsRow extends ConsumerWidget {
+  final AsyncValue<List<Map<String, dynamic>>> pendingAsync;
+  final VoidCallback onPendingTap;
+  final VoidCallback onValidationsTap;
+  final void Function(List<Map<String, dynamic>>) onLateFeesTap;
+
+  const _UrgentActionsRow({
+    required this.pendingAsync,
+    required this.onPendingTap,
+    required this.onValidationsTap,
+    required this.onLateFeesTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final pendingCount = pendingAsync.maybeWhen(
+      data: (list) => list.length,
+      orElse: () => 0,
+    );
+
+    final validationsAsync = ref.watch(pendingDaycareValidationsProvider);
+    final validationsCount = validationsAsync.maybeWhen(
+      data: (list) => list.length,
+      orElse: () => 0,
+    );
+
+    final lateFeesAsync = ref.watch(pendingLateFeesProvider);
+    final lateFees = lateFeesAsync.maybeWhen(
+      data: (list) => list,
+      orElse: () => <Map<String, dynamic>>[],
+    );
+    final lateFeesCount = lateFees.length;
+
+    // Si tout est à zéro, ne rien afficher
+    if (pendingCount == 0 && validationsCount == 0 && lateFeesCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Réservations en attente
+          Expanded(
+            child: _UrgentCounter(
+              count: pendingCount,
+              label: l10n.pendingBookings,
+              icon: Icons.schedule,
+              color: const Color(0xFFFF6B6B),
+              isDark: isDark,
+              onTap: pendingCount > 0 ? onPendingTap : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Validations à faire
+          Expanded(
+            child: _UrgentCounter(
+              count: validationsCount,
+              label: l10n.validations,
+              icon: Icons.check_circle_outline,
+              color: const Color(0xFF22C55E),
+              isDark: isDark,
+              onTap: validationsCount > 0 ? onValidationsTap : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Frais de retard
+          Expanded(
+            child: _UrgentCounter(
+              count: lateFeesCount,
+              label: l10n.lateFees,
+              icon: Icons.timer,
+              color: const Color(0xFFFFA000),
+              isDark: isDark,
+              onTap: lateFeesCount > 0 ? () => onLateFeesTap(lateFees) : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UrgentCounter extends StatelessWidget {
+  final int count;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+  final VoidCallback? onTap;
+
+  const _UrgentCounter({
+    required this.count,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isDark,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasItems = count > 0;
+    final bgColor = hasItems
+        ? color.withOpacity(isDark ? 0.2 : 0.1)
+        : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08));
+    final borderColor = hasItems
+        ? color.withOpacity(isDark ? 0.4 : 0.3)
+        : (isDark ? Colors.white12 : Colors.grey.withOpacity(0.2));
+    final textColor = hasItems ? color : (isDark ? Colors.white38 : Colors.grey);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: hasItems ? 2 : 1),
+        ),
+        child: Column(
+          children: [
+            // Compteur avec badge
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 28, color: textColor),
+                if (hasItems)
+                  Positioned(
+                    top: -6,
+                    right: -10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ═══════ CARTE GPS EXPANSIBLE ═══════
+class _NearbyClientsCard extends ConsumerStatefulWidget {
+  final void Function(Map<String, dynamic> booking, bool isPickup) onClientTap;
+
+  const _NearbyClientsCard({required this.onClientTap});
+
+  @override
+  ConsumerState<_NearbyClientsCard> createState() => _NearbyClientsCardState();
+}
+
+class _NearbyClientsCardState extends ConsumerState<_NearbyClientsCard>
+    with SingleTickerProviderStateMixin {
+  bool _isExpanded = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+    final nearbyAsync = ref.watch(nearbyDaycareClientsProvider);
+
+    return nearbyAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (clients) {
+        if (clients.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A2A3A) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF3B82F6).withOpacity(0.5),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withOpacity(isDark ? 0.2 : 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header cliquable
+                InkWell(
+                  onTap: () => setState(() => _isExpanded = !_isExpanded),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Icône GPS avec pulsation
+                        AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3B82F6).withOpacity(0.15 * _pulseAnimation.value),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF3B82F6).withOpacity(0.5 * _pulseAnimation.value),
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Color(0xFF3B82F6),
+                                size: 24,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${clients.length} ${l10n.nearbyClientsX}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : const Color(0xFF1E40AF),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                l10n.tapToValidate,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white60 : const Color(0xFF3B82F6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedRotation(
+                          duration: const Duration(milliseconds: 200),
+                          turns: _isExpanded ? 0.5 : 0,
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: isDark ? Colors.white70 : const Color(0xFF3B82F6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Liste expansible
+                AnimatedCrossFade(
+                  firstChild: const SizedBox.shrink(),
+                  secondChild: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      children: clients.take(5).map((c) {
+                        final user = c['user'] as Map<String, dynamic>?;
+                        final pet = c['pet'] as Map<String, dynamic>?;
+                        final clientName = user != null
+                            ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
+                            : 'Client';
+                        final petName = pet?['name'] ?? 'Animal';
+                        final status = (c['status'] ?? '').toString().toUpperCase();
+                        final isForPickup = status == 'IN_PROGRESS';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Material(
+                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              onTap: () => widget.onClientTap(c, isForPickup),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isForPickup
+                                            ? const Color(0xFFFFF3E0)
+                                            : const Color(0xFFE3F2FD),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        isForPickup ? Icons.logout : Icons.login,
+                                        size: 20,
+                                        color: isForPickup
+                                            ? const Color(0xFFF59E0B)
+                                            : const Color(0xFF3B82F6),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            petName,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: isDark ? Colors.white : null,
+                                            ),
+                                          ),
+                                          Text(
+                                            clientName,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: isDark ? Colors.white60 : Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isForPickup
+                                            ? const Color(0xFFF59E0B).withOpacity(0.15)
+                                            : const Color(0xFF3B82F6).withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        isForPickup ? 'Retrait' : 'Dépôt',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isForPickup
+                                              ? const Color(0xFFF59E0B)
+                                              : const Color(0xFF3B82F6),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: isDark ? Colors.white38 : Colors.grey,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  crossFadeState: _isExpanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  duration: const Duration(milliseconds: 300),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
