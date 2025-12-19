@@ -34,6 +34,9 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
   int _selectedImageIndex = 0;
   final ImagePicker _picker = ImagePicker();
 
+  // Provider ID for preview
+  String? _providerId;
+
   // Capacité
   final _capacity = TextEditingController();
 
@@ -114,6 +117,9 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
     try {
       final raw = await api.myProvider();
       final p = _unwrap(raw) ?? {};
+
+      // Store provider ID for preview
+      _providerId = (p['id'] ?? '').toString();
 
       final specs = (p['specialties'] is Map)
           ? Map<String, dynamic>.from(p['specialties'])
@@ -526,9 +532,9 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: TextButton.icon(
-                        onPressed: () {
-                          // TODO: Preview
-                        },
+                        onPressed: _providerId != null && _providerId!.isNotEmpty
+                            ? () => context.push('/daycare/detail/$_providerId')
+                            : null,
                         icon: const Icon(Icons.visibility, size: 18),
                         label: Text(l10n.preview),
                         style: TextButton.styleFrom(
@@ -957,6 +963,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildStepperButton(
                       icon: Icons.remove,
@@ -970,11 +977,11 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
                       isDark: isDark,
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         '$capacity',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: FontWeight.w900,
                           color: isDark ? _inkDark : _ink,
                         ),
@@ -1060,12 +1067,12 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: isDisabled
               ? (isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200)
               : _primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isDisabled
                 ? (isDark ? Colors.white12 : Colors.grey.shade300)
@@ -1074,7 +1081,7 @@ class _DaycarePageEditorScreenState extends ConsumerState<DaycarePageEditorScree
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: 18,
           color: isDisabled ? (isDark ? Colors.white24 : Colors.grey) : _primary,
         ),
       ),
