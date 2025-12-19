@@ -8,7 +8,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 import '../../core/session_controller.dart';
-import '../../core/theme_provider.dart';
 
 class DaycarePageEditorScreen extends ConsumerStatefulWidget {
   const DaycarePageEditorScreen({super.key});
