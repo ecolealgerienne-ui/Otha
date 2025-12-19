@@ -93,10 +93,59 @@ final pendingDaycareValidationsProvider = FutureProvider.autoDispose<List<Map<St
 });
 
 /// Provider pour récupérer les clients à proximité
+/// Filtre côté frontend: seulement les clients < 500m avec localisation fraîche (< 30 min)
 final nearbyDaycareClientsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
+
+  // Récupérer les coordonnées du provider
+  final myProfile = await ref.watch(myDaycareProfileProvider.future);
+  final provLat = (myProfile?['lat'] as num?)?.toDouble();
+  final provLng = (myProfile?['lng'] as num?)?.toDouble();
+
   final result = await api.getDaycareNearbyClients();
-  return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  final clients = result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+  // Si pas de coordonnées provider, retourner tel quel (backend gère)
+  if (provLat == null || provLng == null) {
+    return clients;
+  }
+
+  // Filtrer: seulement les clients vraiment proches (< 500m) et avec localisation récente (< 30 min)
+  final now = DateTime.now();
+  return clients.where((client) {
+    final clientLat = (client['lat'] as num?)?.toDouble();
+    final clientLng = (client['lng'] as num?)?.toDouble();
+
+    if (clientLat == null || clientLng == null) return false;
+
+    // Calculer distance (Haversine simplifié)
+    const R = 6371000.0; // Rayon terre en mètres
+    final dLat = (clientLat - provLat) * pi / 180;
+    final dLng = (clientLng - provLng) * pi / 180;
+    final lat1Rad = provLat * pi / 180;
+    final lat2Rad = clientLat * pi / 180;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1Rad) * cos(lat2Rad) * sin(dLng / 2) * sin(dLng / 2);
+    final distance = 2 * R * asin(sqrt(a));
+
+    // Vérifier si < 500m
+    if (distance > 500) return false;
+
+    // Vérifier fraîcheur de la localisation (si disponible)
+    final lastLocationUpdate = client['lastLocationUpdate'] ?? client['updatedAt'];
+    if (lastLocationUpdate != null) {
+      try {
+        final updateTime = DateTime.parse(lastLocationUpdate.toString());
+        final age = now.difference(updateTime);
+        // Localisation doit être < 30 minutes
+        if (age.inMinutes > 30) return false;
+      } catch (_) {
+        // Si parsing échoue, on garde le client
+      }
+    }
+
+    return true;
+  }).toList();
 });
 
 /// Provider pour récupérer les frais de retard en attente
