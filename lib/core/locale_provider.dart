@@ -597,6 +597,14 @@ class AppLocalizations {
       'inProgressDescription': 'Votre animal est actuellement en garderie',
       'completedDescription': 'Garde terminée avec succès',
       'cancelledDescription': 'Cette réservation a été annulée',
+      // Home screen daycare banner
+      'petAtDaycare': 'est à la garderie',
+      'sinceHours': 'depuis',
+      'readyToPickup': 'Prêt à récupérer',
+      'youAreXmFromDaycare': 'Vous êtes à %s de la garderie',
+      'distanceKm': 'Distance: %s km',
+      'confirmAnimalPickup': 'Confirmer le retrait de l\'animal',
+      'enableLocationForAutoConfirm': 'Activez la localisation pour une confirmation automatique',
       // ===== PRO DAYCARE =====
       'welcome': 'Bienvenue',
       'myDaycare': 'Ma Garderie',
@@ -1152,6 +1160,14 @@ class AppLocalizations {
       'inProgressDescription': 'Your pet is currently at the daycare',
       'completedDescription': 'Care completed successfully',
       'cancelledDescription': 'This booking has been cancelled',
+      // Home screen daycare banner
+      'petAtDaycare': 'is at daycare',
+      'sinceHours': 'since',
+      'readyToPickup': 'Ready to pick up',
+      'youAreXmFromDaycare': 'You are %s from the daycare',
+      'distanceKm': 'Distance: %s km',
+      'confirmAnimalPickup': 'Confirm animal pickup',
+      'enableLocationForAutoConfirm': 'Enable location for automatic confirmation',
       // ===== PRO DAYCARE =====
       'welcome': 'Welcome',
       'myDaycare': 'My Daycare',
@@ -1707,6 +1723,14 @@ class AppLocalizations {
       'inProgressDescription': 'حيوانك حالياً في الحضانة',
       'completedDescription': 'تمت الرعاية بنجاح',
       'cancelledDescription': 'تم إلغاء هذا الحجز',
+      // Home screen daycare banner
+      'petAtDaycare': 'في الحضانة',
+      'sinceHours': 'منذ',
+      'readyToPickup': 'جاهز للاستلام',
+      'youAreXmFromDaycare': 'أنت على بعد %s من الحضانة',
+      'distanceKm': 'المسافة: %s كم',
+      'confirmAnimalPickup': 'تأكيد استلام الحيوان',
+      'enableLocationForAutoConfirm': 'فعّل الموقع للتأكيد التلقائي',
       // ===== PRO DAYCARE =====
       'welcome': 'مرحباً',
       'myDaycare': 'حضانتي',
@@ -2262,6 +2286,14 @@ class AppLocalizations {
   String get inProgressDescription => _get('inProgressDescription');
   String get completedDescription => _get('completedDescription');
   String get cancelledDescription => _get('cancelledDescription');
+  // Home screen daycare banner
+  String get petAtDaycare => _get('petAtDaycare');
+  String get sinceHours => _get('sinceHours');
+  String get readyToPickup => _get('readyToPickup');
+  String youAreXmFromDaycare(String distance) => _get('youAreXmFromDaycare').replaceAll('%s', distance);
+  String distanceKm(String km) => _get('distanceKm').replaceAll('%s', km);
+  String get confirmAnimalPickup => _get('confirmAnimalPickup');
+  String get enableLocationForAutoConfirm => _get('enableLocationForAutoConfirm');
   // ===== PRO DAYCARE GETTERS =====
   String get welcome => _get('welcome');
   String get myDaycare => _get('myDaycare');
