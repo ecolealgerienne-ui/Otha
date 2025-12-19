@@ -165,7 +165,7 @@ const _syncThrottleDuration = Duration(minutes: 5);
 /// Sync la position avec le backend pour les bookings actifs
 /// Appelé automatiquement quand la position change
 Future<void> syncLocationToBackend({
-  required Api api,
+  required ApiClient api,
   required double lat,
   required double lng,
   String? daycareBookingId,
