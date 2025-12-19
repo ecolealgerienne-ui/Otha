@@ -71,6 +71,14 @@ export class UsersController {
     return this.users.getUserAdoptPosts(userId);
   }
 
+  // Admin: reset user trust status (fix accidental penalties)
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @Post(':id/reset-trust')
+  async resetUserTrustStatus(@Param('id') userId: string) {
+    return this.users.resetUserTrustStatus(userId);
+  }
+
   // Admin: update user info
   @Roles('ADMIN')
   @UseGuards(RolesGuard)
