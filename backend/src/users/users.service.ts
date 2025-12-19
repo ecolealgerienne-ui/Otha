@@ -17,7 +17,9 @@ const userSelect = {
   photoUrl: true,
   createdAt: true,
   updatedAt: true,
-  trustStatus: true, // ✅ TRUST SYSTEM: Pour afficher le badge "Vérifié"
+  trustStatus: true,
+  noShowCount: true,
+  restrictedUntil: true,
 } satisfies Prisma.UserSelect;
 
 @Injectable()
