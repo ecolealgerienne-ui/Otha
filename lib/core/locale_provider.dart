@@ -675,6 +675,28 @@ class AppLocalizations {
       'available247': 'Disponible 24h/24',
       'customHours': 'Horaires personnalisés',
       'daysOfWeek': 'Jours de la semaine',
+      // Additional Daycare Pro translations
+      'confirmedAt': 'Confirmé le',
+      'qrCodeConfirmation': 'Confirmation par QR code',
+      'clientConfirmsDropOff': 'Le client confirme avoir déposé {petName}',
+      'clientConfirmsPickup': 'Le client confirme avoir récupéré {petName}',
+      'visibleToClients': 'Visible par les clients',
+      'notVisible': 'Non visible',
+      'daycareSettings': 'Paramètres de la garderie',
+      'editPhoto': 'Modifier la photo',
+      'photoUrl': 'URL de la photo',
+      'approved': 'Approuvé',
+      'pendingApproval': 'En attente d\'approbation',
+      'providerId': 'ID du prestataire',
+      'bookingsSummary': 'Résumé des réservations',
+      'daycareInfo': 'Informations de la garderie',
+      'googleMapsLink': 'Lien Google Maps',
+      'publicVisibility': 'Visibilité publique',
+      'preview': 'Aperçu',
+      'description': 'Description',
+      'clientNote': 'Note du client',
+      'bookingRejected': 'Réservation refusée',
+      'bookingUpdated': 'Réservation mise à jour',
     },
     'en': {
       'appName': 'Vegece',
@@ -1208,6 +1230,28 @@ class AppLocalizations {
       'available247': 'Available 24/7',
       'customHours': 'Custom hours',
       'daysOfWeek': 'Days of the week',
+      // Additional Daycare Pro translations
+      'confirmedAt': 'Confirmed at',
+      'qrCodeConfirmation': 'QR code confirmation',
+      'clientConfirmsDropOff': 'Client confirms dropping off {petName}',
+      'clientConfirmsPickup': 'Client confirms picking up {petName}',
+      'visibleToClients': 'Visible to clients',
+      'notVisible': 'Not visible',
+      'daycareSettings': 'Daycare settings',
+      'editPhoto': 'Edit photo',
+      'photoUrl': 'Photo URL',
+      'approved': 'Approved',
+      'pendingApproval': 'Pending approval',
+      'providerId': 'Provider ID',
+      'bookingsSummary': 'Bookings summary',
+      'daycareInfo': 'Daycare info',
+      'googleMapsLink': 'Google Maps link',
+      'publicVisibility': 'Public visibility',
+      'preview': 'Preview',
+      'description': 'Description',
+      'clientNote': 'Client note',
+      'bookingRejected': 'Booking rejected',
+      'bookingUpdated': 'Booking updated',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1741,6 +1785,28 @@ class AppLocalizations {
       'available247': 'متوفر 24/7',
       'customHours': 'ساعات مخصصة',
       'daysOfWeek': 'أيام الأسبوع',
+      // Additional Daycare Pro translations
+      'confirmedAt': 'تم التأكيد في',
+      'qrCodeConfirmation': 'تأكيد عبر رمز QR',
+      'clientConfirmsDropOff': 'يؤكد العميل إيداع {petName}',
+      'clientConfirmsPickup': 'يؤكد العميل استلام {petName}',
+      'visibleToClients': 'مرئي للعملاء',
+      'notVisible': 'غير مرئي',
+      'daycareSettings': 'إعدادات الحضانة',
+      'editPhoto': 'تعديل الصورة',
+      'photoUrl': 'رابط الصورة',
+      'approved': 'موافق عليه',
+      'pendingApproval': 'في انتظار الموافقة',
+      'providerId': 'معرف المزود',
+      'bookingsSummary': 'ملخص الحجوزات',
+      'daycareInfo': 'معلومات الحضانة',
+      'googleMapsLink': 'رابط خرائط جوجل',
+      'publicVisibility': 'الظهور العام',
+      'preview': 'معاينة',
+      'description': 'الوصف',
+      'clientNote': 'ملاحظة العميل',
+      'bookingRejected': 'تم رفض الحجز',
+      'bookingUpdated': 'تم تحديث الحجز',
     },
   };
 
@@ -2207,7 +2273,6 @@ class AppLocalizations {
   String get lateFeesX => _get('lateFeesX');
   String get nearbyClientsX => _get('nearbyClientsX');
   String get tapToValidate => _get('tapToValidate');
-  String get today => _get('today');
   String get managePage => _get('managePage');
   String get myBookings => _get('myBookings');
   String get calendar => _get('calendar');
@@ -2233,7 +2298,6 @@ class AppLocalizations {
   String get dropOffConfirmed => _get('dropOffConfirmed');
   String get pickupConfirmed => _get('pickupConfirmed');
   String get client => _get('client');
-  String get animal => _get('animal');
   String get reject => _get('reject');
   String get accept => _get('accept');
   String get markCompleted => _get('markCompleted');
@@ -2254,9 +2318,7 @@ class AppLocalizations {
   String get newBookingsWillAppear => _get('newBookingsWillAppear');
   String get loadingBookings => _get('loadingBookings');
   String get confirmed => _get('confirmed');
-  String get profile => _get('profile');
   String get providerInfo => _get('providerInfo');
-  String get address => _get('address');
   String get bio => _get('bio');
   String get pageSettings => _get('pageSettings');
   String get capacity => _get('capacity');
@@ -2266,6 +2328,29 @@ class AppLocalizations {
   String get available247 => _get('available247');
   String get customHours => _get('customHours');
   String get daysOfWeek => _get('daysOfWeek');
+
+  // Additional Daycare Pro translations
+  String get confirmedAt => _get('confirmedAt');
+  String get qrCodeConfirmation => _get('qrCodeConfirmation');
+  String clientConfirmsDropOff(String petName) => _get('clientConfirmsDropOff').replaceAll('{petName}', petName);
+  String clientConfirmsPickup(String petName) => _get('clientConfirmsPickup').replaceAll('{petName}', petName);
+  String get visibleToClients => _get('visibleToClients');
+  String get notVisible => _get('notVisible');
+  String get daycareSettings => _get('daycareSettings');
+  String get editPhoto => _get('editPhoto');
+  String get photoUrl => _get('photoUrl');
+  String get approved => _get('approved');
+  String get pendingApproval => _get('pendingApproval');
+  String get providerId => _get('providerId');
+  String get bookingsSummary => _get('bookingsSummary');
+  String get daycareInfo => _get('daycareInfo');
+  String get googleMapsLink => _get('googleMapsLink');
+  String get publicVisibility => _get('publicVisibility');
+  String get preview => _get('preview');
+  String get description => _get('description');
+  String get clientNote => _get('clientNote');
+  String get bookingRejected => _get('bookingRejected');
+  String get bookingUpdated => _get('bookingUpdated');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
