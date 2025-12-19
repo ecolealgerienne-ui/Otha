@@ -292,7 +292,7 @@ export class AdminFlagsService {
    */
   async analyzeAllPros(): Promise<{ analyzed: number; flagged: number; flags: string[] }> {
     const providers = await this.prisma.providerProfile.findMany({
-      where: { status: 'APPROVED' },
+      where: { isApproved: true },
       include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
 
