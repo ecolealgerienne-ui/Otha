@@ -1733,9 +1733,10 @@ export class BookingsService {
       }
     }
 
-    // Vérifier si NEW user a déjà un RDV actif (véto OU garderie)
+    // Vérifier si NEW user a déjà un RDV VETO actif
+    // Note: Les systèmes vet/daycare/petshop sont indépendants - un RDV garderie ne bloque PAS le véto
     if (user.trustStatus === 'NEW') {
-      // ✅ CROSS-SERVICE: Vérifier bookings véto actifs
+      // Vérifier uniquement les bookings véto actifs (pas les garderies!)
       const activeVetBooking = await this.prisma.booking.findFirst({
         where: {
           userId,
@@ -1743,18 +1744,10 @@ export class BookingsService {
         },
       });
 
-      // ✅ CROSS-SERVICE: Vérifier bookings garderie actifs
-      const activeDaycareBooking = await this.prisma.daycareBooking.findFirst({
-        where: {
-          userId,
-          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PENDING_DROP_VALIDATION', 'PENDING_PICKUP_VALIDATION'] },
-        },
-      });
-
-      if (activeVetBooking || activeDaycareBooking) {
+      if (activeVetBooking) {
         return {
           canBook: false,
-          reason: 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant de pouvoir en réserver un autre.',
+          reason: 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous vétérinaire en cours.',
           trustStatus: user.trustStatus,
           isFirstBooking: false,
         };
