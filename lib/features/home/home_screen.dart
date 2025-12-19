@@ -3159,6 +3159,28 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
           }
         }
 
+        // ✅ Vérifier si l'utilisateur est en retard (endDate dépassé)
+        final endIso = (m['endDate'] ?? '').toString();
+        DateTime? endAt;
+        try {
+          endAt = DateTime.parse(endIso);
+        } catch (_) {}
+
+        bool isLate = false;
+        String lateText = '';
+        if (endAt != null) {
+          final now = DateTime.now().toUtc();
+          if (now.isAfter(endAt)) {
+            isLate = true;
+            final lateDiff = now.difference(endAt);
+            if (lateDiff.inHours > 0) {
+              lateText = l10n.lateByHours(lateDiff.inHours.toString());
+            } else if (lateDiff.inMinutes > 0) {
+              lateText = l10n.lateByMinutes(lateDiff.inMinutes.toString());
+            }
+          }
+        }
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
@@ -3213,6 +3235,48 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                     ],
                   ),
                 ),
+
+                // ⚠️ Avertissement de retard si l'heure de départ est dépassée
+                if (isLate && lateText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFFEF4444).withOpacity(0.15) : const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lateText,
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFEF4444) : const Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                l10n.lateFeesWillApply,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : const Color(0xFF991B1B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // ✅ Bouton "Confirmer le retrait" - toujours disponible pour IN_PROGRESS
                 if (_isNearby) ...[
