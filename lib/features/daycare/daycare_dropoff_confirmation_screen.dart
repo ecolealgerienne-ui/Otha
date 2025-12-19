@@ -422,12 +422,15 @@ class _DaycareDropOffConfirmationScreenState
                         children: [
                           const Icon(Icons.calendar_today, size: 16, color: _green),
                           const SizedBox(width: 8),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
+                          Flexible(
+                            child: Text(
+                              dateStr,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

@@ -474,12 +474,15 @@ class _DaycarePickupConfirmationScreenState
                             color: hasLateFee ? _coral : _green,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            l10n.plannedFor(dateStr),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: hasLateFee ? _coral : _green,
+                          Flexible(
+                            child: Text(
+                              l10n.plannedFor(dateStr),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: hasLateFee ? _coral : _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
