@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { AdminFlagsService } from './admin-flags.service';
+import { AdminFlagsService, FlagWithUser } from './admin-flags.service';
 
 @Injectable()
 class AdminOnlyGuard implements CanActivate {
@@ -39,7 +39,7 @@ export class AdminFlagsController {
     @Query('type') type?: string,
     @Query('userId') userId?: string,
     @Query('limit') limit?: string,
-  ) {
+  ): Promise<FlagWithUser[]> {
     return this.service.list({
       resolved: resolved === 'true' ? true : resolved === 'false' ? false : undefined,
       type,
