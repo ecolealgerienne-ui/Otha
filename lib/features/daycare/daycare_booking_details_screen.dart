@@ -58,8 +58,9 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
     final provider = _m['provider'] as Map<String, dynamic>?;
     final providerUser = provider?['user'] as Map<String, dynamic>?;
 
-    final startDate = DateTime.parse(_m['startDate']).toLocal();
-    final endDate = DateTime.parse(_m['endDate']).toLocal();
+    // Les dates sont stockées en heure locale naïve (sans timezone), ne pas appeler toLocal()
+    final startDate = DateTime.parse(_m['startDate']);
+    final endDate = DateTime.parse(_m['endDate']);
     final totalDa = _m['totalDa'] ?? ((_m['priceDa'] ?? 0) + (_m['commissionDa'] ?? 100));
 
     final dateFormat = DateFormat('EEEE d MMMM yyyy', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR');

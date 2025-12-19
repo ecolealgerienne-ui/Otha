@@ -16,6 +16,7 @@ import 'dart:ui' as ui;
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../../core/location_provider.dart';
 // 👇 pour le bouton "Modifier" (pending)
 import '../bookings/booking_confirmation_popup.dart';
 import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
@@ -294,36 +295,13 @@ final topVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 });
 
 /// -------------------- GPS (preview Home) --------------------
-final homeUserPositionStreamProvider = StreamProvider<Position?>((ref) async* {
-  try {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) {
-      yield null;
-      return;
-    }
-
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      yield null;
-      return;
-    }
-
-    // valeur initiale rapide si dispo
-    try {
-      final first = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
-      yield first;
-    } catch (_) {}
-
-    // stream continu
-    yield* Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 25),
-    );
-  } catch (_) {
-    yield null;
-  }
+/// Alias vers le provider centralisé - retourne Position? pour compatibilité
+final homeUserPositionStreamProvider = Provider<Position?>((ref) {
+  final state = ref.watch(locationStreamProvider);
+  return state.maybeWhen(
+    data: (s) => s.position,
+    orElse: () => null,
+  );
 });
 
 /// -------------------- Prochain RDV confirmé (client) --------------------
@@ -796,7 +774,7 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(nextConfirmedDaycareBookingProvider);
     ref.invalidate(nextPendingDaycareBookingProvider);
     ref.invalidate(activeOrdersProvider);
-    ref.invalidate(homeUserPositionStreamProvider);
+    ref.invalidate(locationStreamProvider);
     ref.invalidate(avatarUrlProvider);
     ref.invalidate(notificationsProvider);
     ref.invalidate(unreadNotificationsCountProvider);
@@ -1461,6 +1439,17 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
 
       _lastPosition = position;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: position.latitude,
+          lng: position.longitude,
+          vetBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(
         position.latitude, position.longitude,
         provLat, provLng,
@@ -1477,9 +1466,10 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
           _locationServiceDisabled = false;
         });
 
-        // TODO: Intégrer Firebase pour envoyer une notification push quand
-        // l'utilisateur entre dans la zone de proximité (wasNearby = false, isNowNearby = true)
-        // Pour l'instant, le bandeau se met à jour automatiquement
+        // Notification push intégrée via le backend sync
+        if (!wasNearby && isNowNearby) {
+          debugPrint('[GPS] Client est maintenant à proximité du vétérinaire');
+        }
       }
     } catch (e) {
       // Ignorer les erreurs de géolocalisation
@@ -1493,10 +1483,7 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).maybeWhen(
-      data: (p) => p,
-      orElse: () => null,
-    );
+    final userPos = ref.watch(homeUserPositionStreamProvider);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -2353,6 +2340,17 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
 
       _lastPosition = pos;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: pos.latitude,
+          lng: pos.longitude,
+          daycareBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
       final isNearby = distance < 500; // Moins de 500m
 
@@ -2406,7 +2404,7 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedDaycareBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
+    final userPos = ref.watch(homeUserPositionStreamProvider);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -3052,6 +3050,17 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
 
       _lastPosition = pos;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: pos.latitude,
+          lng: pos.longitude,
+          daycareBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
       final isNearby = distance < 500; // Moins de 500m
 
@@ -3105,7 +3114,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(inProgressDaycareBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
+    final userPos = ref.watch(homeUserPositionStreamProvider);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -4196,9 +4205,7 @@ class _MapPreview extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
     final isDark = themeMode == AppThemeMode.dark;
 
-    final pos = ref
-        .watch(homeUserPositionStreamProvider)
-        .maybeWhen(data: (p) => p, orElse: () => null);
+    final pos = ref.watch(homeUserPositionStreamProvider);
 
     // Fallback éventuel: position du profil si enregistrée
     final me = ref.watch(sessionProvider).user ?? {};
