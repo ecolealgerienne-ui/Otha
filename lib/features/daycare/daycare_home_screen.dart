@@ -7,28 +7,39 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import '../../core/session_controller.dart';
 
 /// ========================= THEME DAYCARE (bleu cyan) =========================
 class _DaycareColors {
   static const ink = Color(0xFF1F2328);
+  static const inkDark = Color(0xFFFFFFFF);
   static const primary = Color(0xFF00ACC1); // Cyan
   static const primarySoft = Color(0xFFE0F7FA);
+  static const primarySoftDark = Color(0xFF1A3A3D);
   static const coral = Color(0xFFF36C6C);
+  static const bgLight = Color(0xFFF7F8FA);
+  static const bgDark = Color(0xFF121212);
+  static const cardLight = Color(0xFFFFFFFF);
+  static const cardDark = Color(0xFF1E1E1E);
+  static const amber = Color(0xFFFFA000);
+  static const green = Color(0xFF22C55E);
+  static const blue = Color(0xFF3B82F6);
 }
 
-ThemeData _daycareTheme(BuildContext context) {
+ThemeData _daycareTheme(BuildContext context, bool isDark) {
   final base = Theme.of(context);
   return base.copyWith(
     colorScheme: base.colorScheme.copyWith(
       primary: _DaycareColors.primary,
       secondary: _DaycareColors.primary,
       onPrimary: Colors.white,
-      surface: Colors.white,
+      surface: isDark ? _DaycareColors.cardDark : _DaycareColors.cardLight,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: _DaycareColors.ink,
+    scaffoldBackgroundColor: isDark ? _DaycareColors.bgDark : _DaycareColors.bgLight,
+    appBarTheme: AppBarTheme(
+      backgroundColor: isDark ? _DaycareColors.bgDark : Colors.white,
+      foregroundColor: isDark ? _DaycareColors.inkDark : _DaycareColors.ink,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
     ),
@@ -49,7 +60,7 @@ ThemeData _daycareTheme(BuildContext context) {
       ),
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: _DaycareColors.primary),
-    dividerColor: _DaycareColors.primarySoft,
+    dividerColor: isDark ? Colors.white12 : _DaycareColors.primarySoft,
   );
 }
 
@@ -712,7 +723,11 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bgSoft = Color(0xFFF7F8FA);
+    // Dark mode & i18n
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+    final bgColor = isDark ? _DaycareColors.bgDark : _DaycareColors.bgLight;
 
     final state = ref.watch(sessionProvider);
     final user = state.user ?? {};
@@ -726,9 +741,9 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
       data: (p) {
         final dn = (p?['displayName'] ?? '').toString().trim();
         if (dn.isNotEmpty) return dn;
-        return fallbackUserName.isNotEmpty ? fallbackUserName : 'Ma Garderie';
+        return fallbackUserName.isNotEmpty ? fallbackUserName : l10n.myDaycare;
       },
-      orElse: () => (fallbackUserName.isNotEmpty ? fallbackUserName : 'Ma Garderie'),
+      orElse: () => (fallbackUserName.isNotEmpty ? fallbackUserName : l10n.myDaycare),
     );
 
     final pendingAsync = ref.watch(pendingDaycareBookingsProvider);
@@ -736,9 +751,9 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
     final ledgerAsync = ref.watch(daycareLedgerProvider);
 
     return Theme(
-      data: _daycareTheme(context),
+      data: _daycareTheme(context, isDark),
       child: Scaffold(
-        backgroundColor: bgSoft,
+        backgroundColor: bgColor,
         body: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -756,6 +771,8 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                 SliverToBoxAdapter(
                   child: _Header(
                     daycareName: daycareName,
+                    welcomeText: l10n.welcome,
+                    isDark: isDark,
                     onAvatarTap: () => context.push('/daycare/settings'),
                   ),
                 ),
@@ -772,6 +789,8 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                         if (pending.isEmpty) return const SizedBox.shrink();
                         return _PendingBookingsBanner(
                           bookings: pending,
+                          isDark: isDark,
+                          label: '${pending.length} ${l10n.pendingBookingsX}',
                           onTap: () => context.push('/daycare/bookings'),
                         );
                       },
@@ -796,7 +815,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
+                                color: isDark ? const Color(0xFF1A2A3A) : const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFF3B82F6)),
                               ),
@@ -809,7 +828,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          '${clients.length} client${clients.length > 1 ? 's' : ''} à proximité',
+                                          '${clients.length} ${l10n.nearbyClientsX}',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFF3B82F6),
@@ -820,7 +839,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Appuyez sur un client pour valider',
+                                    l10n.tapToValidate,
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey[600],
@@ -1094,8 +1113,15 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 
 class _Header extends StatelessWidget {
   final String daycareName;
+  final String welcomeText;
+  final bool isDark;
   final VoidCallback? onAvatarTap;
-  const _Header({required this.daycareName, this.onAvatarTap});
+  const _Header({
+    required this.daycareName,
+    required this.welcomeText,
+    required this.isDark,
+    this.onAvatarTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1103,14 +1129,20 @@ class _Header extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_DaycareColors.primary, Color(0xFF0097A7)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF00838F), const Color(0xFF006064)]
+              : [_DaycareColors.primary, const Color(0xFF0097A7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 16, offset: Offset(0, 8)),
+        boxShadow: [
+          BoxShadow(
+            color: _DaycareColors.primary.withOpacity(isDark ? 0.3 : 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Row(
@@ -1136,7 +1168,7 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Bienvenue', style: TextStyle(color: Colors.white70)),
+                Text(welcomeText, style: const TextStyle(color: Colors.white70)),
                 Text(
                   daycareName,
                   maxLines: 1,
@@ -1157,20 +1189,22 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
+class _SectionCard extends ConsumerWidget {
   final Widget child;
   const _SectionCard({required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _DaycareColors.cardDark : _DaycareColors.cardLight,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
-        ],
+        border: isDark ? Border.all(color: Colors.white10) : null,
+        boxShadow: isDark
+            ? null
+            : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
       ),
       child: child,
     );
@@ -1201,12 +1235,19 @@ class _LoadingCard extends StatelessWidget {
 
 class _PendingBookingsBanner extends StatelessWidget {
   final List<Map<String, dynamic>> bookings;
+  final bool isDark;
+  final String label;
   final VoidCallback onTap;
-  const _PendingBookingsBanner({required this.bookings, required this.onTap});
+  const _PendingBookingsBanner({
+    required this.bookings,
+    required this.isDark,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final count = bookings.length;
+    final l10n = AppLocalizations.of(context);
 
     return InkWell(
       onTap: onTap,
@@ -1214,7 +1255,7 @@ class _PendingBookingsBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
+          color: isDark ? const Color(0xFF2E2A1A) : Colors.orange.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.orange.withOpacity(0.3)),
         ),
@@ -1235,18 +1276,25 @@ class _PendingBookingsBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$count réservation${count > 1 ? 's' : ''} en attente',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : null,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text('Appuyez pour traiter', style: TextStyle(fontSize: 12)),
+                  Text(
+                    l10n.tapToValidate,
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : null),
+                  ),
                 ],
               ),
             ),
             FilledButton.icon(
               onPressed: onTap,
               icon: const Icon(Icons.chevron_right),
-              label: const Text('Voir'),
+              label: Text(l10n.viewAll),
               style: FilledButton.styleFrom(backgroundColor: Colors.orange),
             ),
           ],
@@ -1256,15 +1304,18 @@ class _PendingBookingsBanner extends StatelessWidget {
   }
 }
 
-class _ActionGrid extends StatelessWidget {
+class _ActionGrid extends ConsumerWidget {
   const _ActionGrid();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+
     final items = [
-      _Action('Gérer la page', Icons.edit_location, '/daycare/page', const Color(0xFF3A86FF)),
-      _Action('Mes réservations', Icons.calendar_today, '/daycare/bookings', const Color(0xFFFF6D00)),
-      _Action('Calendrier', Icons.date_range, '/daycare/calendar', const Color(0xFF00ACC1)),
+      _Action(l10n.managePage, Icons.edit_location, '/daycare/page', const Color(0xFF3A86FF)),
+      _Action(l10n.myBookings, Icons.calendar_today, '/daycare/bookings', const Color(0xFFFF6D00)),
+      _Action(l10n.calendar, Icons.date_range, '/daycare/calendar', const Color(0xFF00ACC1)),
     ];
 
     return Padding(
@@ -1279,7 +1330,7 @@ class _ActionGrid extends StatelessWidget {
           mainAxisSpacing: 14,
         ),
         itemCount: items.length,
-        itemBuilder: (_, i) => _ActionCard(item: items[i]),
+        itemBuilder: (_, i) => _ActionCard(item: items[i], isDark: isDark),
       ),
     );
   }
@@ -1295,7 +1346,8 @@ class _Action {
 
 class _ActionCard extends StatefulWidget {
   final _Action item;
-  const _ActionCard({required this.item});
+  final bool isDark;
+  const _ActionCard({required this.item, required this.isDark});
 
   @override
   State<_ActionCard> createState() => _ActionCardState();
@@ -1320,6 +1372,7 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
   @override
   Widget build(BuildContext context) {
     final it = widget.item;
+    final isDark = widget.isDark;
     return ScaleTransition(
       scale: _scale,
       child: InkWell(
@@ -1327,9 +1380,9 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
         borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            color: it.color.withOpacity(.08),
+            color: isDark ? it.color.withOpacity(.15) : it.color.withOpacity(.08),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: it.color.withOpacity(.16)),
+            border: Border.all(color: it.color.withOpacity(isDark ? .3 : .16)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -1337,7 +1390,7 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  backgroundColor: it.color.withOpacity(.15),
+                  backgroundColor: it.color.withOpacity(isDark ? .25 : .15),
                   child: Icon(it.icon, color: it.color),
                 ),
                 const Spacer(),
@@ -1345,7 +1398,11 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
                   it.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : null,
+                  ),
                 ),
               ],
             ),
