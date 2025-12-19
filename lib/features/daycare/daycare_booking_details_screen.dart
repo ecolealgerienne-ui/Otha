@@ -197,7 +197,7 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
             ),
           ),
         ),
-        bottomNavigationBar: _buildBottomBar(isDark, l10n, cardColor, textPrimary, phone),
+        bottomNavigationBar: _buildBottomBar(isDark, l10n, cardColor, textPrimary, phone, provider),
       ),
     );
   }
@@ -344,7 +344,7 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
     );
   }
 
-  Widget _buildBottomBar(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary, String? phone) {
+  Widget _buildBottomBar(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary, String? phone, Map<String, dynamic>? provider) {
     return SafeArea(
       top: false,
       child: Container(
@@ -377,7 +377,7 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
             // Action buttons
             Row(
               children: [
-                // Cancel button
+                // Cancel button (only when PENDING or CONFIRMED)
                 if (_canCancel)
                   Expanded(
                     child: OutlinedButton(
@@ -407,8 +407,40 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
                     ),
                   ),
 
-                // Call button
-                if (phone != null && phone.isNotEmpty) ...[
+                // Itinerary button (only when CONFIRMED)
+                if (_isConfirmed) ...[
+                  if (_canCancel) const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _busy ? null : () => _openMaps(provider),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _coral,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.directions_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.directions,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Call button (when not confirmed but has phone)
+                if (!_isConfirmed && phone != null && phone.isNotEmpty) ...[
                   if (_canCancel) const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton(
@@ -439,8 +471,8 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
                   ),
                 ],
 
-                // If no phone and can't cancel, show back to home button
-                if (phone == null && !_canCancel)
+                // If no actions available, show back to home button
+                if (!_canCancel && !_isConfirmed && (phone == null || phone.isEmpty))
                   Expanded(
                     child: FilledButton(
                       onPressed: () => context.go('/home'),
@@ -474,6 +506,49 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
         ),
       ),
     );
+  }
+
+  Future<void> _openMaps(Map<String, dynamic>? provider) async {
+    if (provider == null) return;
+
+    try {
+      // Try mapsUrl first
+      final specialties = provider['specialties'];
+      String? mapsUrl;
+      if (specialties is Map) {
+        mapsUrl = (specialties['mapsUrl'] ?? specialties['maps_url'] ?? '').toString().trim();
+      }
+      mapsUrl ??= (provider['mapsUrl'] ?? provider['maps_url'] ?? '').toString().trim();
+
+      if (mapsUrl.isNotEmpty && mapsUrl.startsWith('http')) {
+        final uri = Uri.parse(mapsUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Try lat/lng
+      final lat = provider['lat'];
+      final lng = provider['lng'];
+      if (lat is num && lng is num) {
+        final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Fallback to address search
+      final name = provider['displayName'] ?? '';
+      final addr = provider['address'] ?? '';
+      final q = Uri.encodeComponent([name, addr].where((e) => e.toString().trim().isNotEmpty).join(' '));
+      if (q.isNotEmpty) {
+        final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$q');
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible d\'ouvrir Google Maps: $e')),
+      );
+    }
   }
 
   _StatusInfo _getStatusInfo(String status, AppLocalizations l10n) {

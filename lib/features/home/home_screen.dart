@@ -2580,30 +2580,64 @@ class _NextPendingDaycareBookingBanner extends ConsumerStatefulWidget {
 }
 
 class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDaycareBookingBanner> {
-  String _petName(Map<String, dynamic> m) {
+  static const _coral = Color(0xFFF36C6C);
+  static const _amber = Color(0xFFFFA000);
+  static const _darkCard = Color(0xFF1E1E1E);
+
+  String _petName(Map<String, dynamic> m, AppLocalizations l10n) {
     final pet = m['pet'];
     if (pet is Map) {
       final name = (pet['name'] ?? '').toString().trim();
       if (name.isNotEmpty) return name;
     }
-    return 'Votre animal';
+    return l10n.yourPet;
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
     final id = (m['id'] ?? '').toString();
     if (id.isEmpty) return;
 
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Annuler la réservation ?'),
-        content: const Text('Cette action est irréversible. Confirmez-vous l\'annulation ?'),
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l10n.cancelBookingTitle,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontFamily: 'SFPRO',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          l10n.cancelBookingMessage,
+          style: TextStyle(
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+            fontFamily: 'SFPRO',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              l10n.no,
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontFamily: 'SFPRO',
+              ),
+            ),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF36C6C)),
-            child: const Text('Oui, annuler'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _coral,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(l10n.yesCancel, style: const TextStyle(fontFamily: 'SFPRO')),
           ),
         ],
       ),
@@ -2613,19 +2647,39 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
     try {
       await ref.read(apiProvider).cancelDaycareBooking(id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Réservation annulée.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.bookingCancelledSuccess),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
       }
       ref.invalidate(nextConfirmedDaycareBookingProvider);
       ref.invalidate(nextPendingDaycareBookingProvider);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
     final async = ref.watch(nextPendingDaycareBookingProvider);
+
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -2636,16 +2690,15 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
         final iso = (m['startDate'] ?? '').toString();
         DateTime? dtUtc;
         try {
-          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
           dtUtc = DateTime.parse(iso);
         } catch (_) {}
         final when = dtUtc != null
-            ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
+            ? DateFormat('EEE d MMM • HH:mm', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR')
                 .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 
-        final petName = _petName(m);
+        final petName = _petName(m, l10n);
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -2653,9 +2706,15 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2674,7 +2733,7 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFA000), // orange
+                          color: _amber,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.hourglass_empty, color: Colors.white),
@@ -2682,13 +2741,17 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Garderie en attente: $when — $petName',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          '${l10n.pendingDaycare}: $when — $petName',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
+                            fontFamily: 'SFPRO',
+                          ),
                           maxLines: 2,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: textPrimary),
                     ],
                   ),
                 ),
@@ -2699,11 +2762,11 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                   OutlinedButton(
                     onPressed: () => _cancel(context, ref, m),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFF36C6C),
-                      side: const BorderSide(color: Color(0xFFF36C6C)),
+                      foregroundColor: _coral,
+                      side: const BorderSide(color: _coral),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Annuler'),
+                    child: Text(l10n.cancel, style: const TextStyle(fontFamily: 'SFPRO')),
                   ),
               ],
             ),
