@@ -314,4 +314,30 @@ export class DaycareController {
   async getPendingLateFees(@Req() req: any) {
     return this.daycareService.getPendingLateFees(req.user.sub);
   }
+
+  // ============================================
+  // ADMIN: FIX DISPUTED BOOKINGS
+  // ============================================
+
+  /**
+   * GET /api/v1/daycare/admin/disputed-bookings
+   * Admin: Obtenir tous les bookings disputés
+   */
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/disputed-bookings')
+  async getDisputedBookings() {
+    return this.daycareService.getDisputedBookings();
+  }
+
+  /**
+   * POST /api/v1/daycare/admin/cancel-disputed/:id
+   * Admin: Annuler un booking disputé
+   */
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/cancel-disputed/:id')
+  async adminCancelDisputedBooking(@Param('id') id: string) {
+    return this.daycareService.adminCancelDisputedBooking(id);
+  }
 }

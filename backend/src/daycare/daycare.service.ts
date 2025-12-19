@@ -1555,4 +1555,72 @@ export class DaycareService {
       orderBy: { clientPickupConfirmedAt: 'desc' },
     });
   }
+
+  // ============================================
+  // ADMIN: FIX DISPUTED BOOKINGS
+  // ============================================
+
+  /**
+   * Admin: Annuler un booking disputé (fix accidental penalties)
+   * Utilisé pour corriger les situations où le système a créé un litige par erreur
+   */
+  async adminCancelDisputedBooking(bookingId: string) {
+    const booking = await this.prisma.daycareBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true } },
+        pet: { select: { name: true } },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking non trouvé');
+    }
+
+    if (booking.status !== 'DISPUTED') {
+      throw new BadRequestException('Ce booking n\'est pas en litige');
+    }
+
+    // Annuler le booking
+    await this.prisma.daycareBooking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'CANCELLED',
+        disputeNote: (booking.disputeNote || '') + ' [ADMIN CANCELLED: Fixed accidental dispute]',
+      },
+    });
+
+    // Supprimer les admin flags associés
+    await this.prisma.adminFlag.deleteMany({
+      where: {
+        userId: booking.userId,
+        type: 'DAYCARE_DISPUTE',
+        note: { contains: bookingId },
+      },
+    });
+
+    return {
+      ok: true,
+      message: `Booking disputé annulé pour ${booking.user.firstName} ${booking.user.lastName} (${booking.pet?.name})`,
+    };
+  }
+
+  /**
+   * Admin: Obtenir tous les bookings disputés
+   */
+  async getDisputedBookings() {
+    return this.prisma.daycareBooking.findMany({
+      where: { status: 'DISPUTED' },
+      include: {
+        pet: true,
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, trustStatus: true } },
+        provider: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
 }

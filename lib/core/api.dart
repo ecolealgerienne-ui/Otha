@@ -2872,6 +2872,28 @@ Future<Map<String, dynamic>> adminUpdateUser(String userId, {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// Admin: reset user trust status (fix accidental penalties)
+Future<Map<String, dynamic>> adminResetUserTrustStatus(String userId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/users/$userId/reset-trust'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// Admin: get disputed daycare bookings
+Future<List<Map<String, dynamic>>> adminGetDisputedDaycareBookings() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/daycare/admin/disputed-bookings'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// Admin: cancel disputed daycare booking
+Future<Map<String, dynamic>> adminCancelDisputedDaycareBooking(String bookingId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/daycare/admin/cancel-disputed/$bookingId'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ========================== FIN ADMIN (Users) ==========================
 
 

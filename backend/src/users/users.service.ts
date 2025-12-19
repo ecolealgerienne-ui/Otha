@@ -293,6 +293,29 @@ export class UsersService {
     }));
   }
 
+  // Admin: reset user trust status (fix accidental penalties)
+  async resetUserTrustStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, trustStatus: true, noShowCount: true, restrictedUntil: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        trustStatus: 'NEW',
+        noShowCount: Math.max(0, (user.noShowCount || 0) - 1), // Décrémenter le no-show count
+        restrictedUntil: null,
+      },
+    });
+
+    return { ok: true, message: 'Trust status reset to NEW' };
+  }
+
   // Admin: update user info
   async adminUpdateUser(userId: string, dto: any) {
     const data: Prisma.UserUpdateInput = {};

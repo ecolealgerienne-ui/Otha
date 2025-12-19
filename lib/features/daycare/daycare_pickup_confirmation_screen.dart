@@ -261,13 +261,9 @@ class _DaycarePickupConfirmationScreenState
 
     try {
       final api = ref.read(apiProvider);
-      await api.clientConfirmDaycarePickupWithLateFee(
-        widget.bookingId,
-        method: 'OTP',
-        lat: widget.lat,
-        lng: widget.lng,
-      );
-
+      // ⚠️ Ne PAS appeler clientConfirmDaycarePickupWithLateFee ici !
+      // L'OTP sera validé par le pro, et c'est ça qui déclenchera la confirmation.
+      // On récupère juste le code OTP à afficher au client.
       final result = await api.getDaycarePickupOtp(widget.bookingId);
 
       if (!mounted) return;
@@ -474,12 +470,15 @@ class _DaycarePickupConfirmationScreenState
                             color: hasLateFee ? _coral : _green,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            l10n.plannedFor(dateStr),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: hasLateFee ? _coral : _green,
+                          Flexible(
+                            child: Text(
+                              l10n.plannedFor(dateStr),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: hasLateFee ? _coral : _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

@@ -231,13 +231,9 @@ class _DaycareDropOffConfirmationScreenState
 
     try {
       final api = ref.read(apiProvider);
-      await api.clientConfirmDaycareDropOff(
-        widget.bookingId,
-        method: 'OTP',
-        lat: widget.lat,
-        lng: widget.lng,
-      );
-
+      // ⚠️ Ne PAS appeler clientConfirmDaycareDropOff ici !
+      // L'OTP sera validé par le pro, et c'est ça qui déclenchera la confirmation.
+      // On récupère juste le code OTP à afficher au client.
       final result = await api.getDaycareDropOtp(widget.bookingId);
 
       if (!mounted) return;
@@ -422,12 +418,15 @@ class _DaycareDropOffConfirmationScreenState
                         children: [
                           const Icon(Icons.calendar_today, size: 16, color: _green),
                           const SizedBox(width: 8),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
+                          Flexible(
+                            child: Text(
+                              dateStr,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
