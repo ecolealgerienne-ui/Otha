@@ -1733,14 +1733,18 @@ export class BookingsService {
       }
     }
 
-    // Vérifier si NEW user a déjà un RDV VETO actif
+    // Vérifier si NEW user a déjà un RDV VETO actif ET FUTUR
     // Note: Les systèmes vet/daycare/petshop sont indépendants - un RDV garderie ne bloque PAS le véto
+    // Note: Les RDV passés (date < aujourd'hui) ne bloquent pas - ce sont des "fantômes" à nettoyer
+    const now = new Date();
+
     if (user.trustStatus === 'NEW') {
-      // Vérifier uniquement les bookings véto actifs (pas les garderies!)
+      // Vérifier uniquement les bookings véto actifs ET futurs (pas les garderies, pas les RDV passés!)
       const activeVetBooking = await this.prisma.booking.findFirst({
         where: {
           userId,
           status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+          scheduledAt: { gte: now }, // Seulement les RDV futurs
         },
       });
 
@@ -1760,11 +1764,12 @@ export class BookingsService {
       };
     }
 
-    // VERIFIED → vérifier qu'il n'a pas déjà un RDV véto actif
+    // VERIFIED → vérifier qu'il n'a pas déjà un RDV véto actif ET FUTUR
     const activeVetBooking = await this.prisma.booking.findFirst({
       where: {
         userId,
         status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+        scheduledAt: { gte: now }, // Seulement les RDV futurs
       },
       select: { id: true, scheduledAt: true, provider: { select: { displayName: true } } },
     });
