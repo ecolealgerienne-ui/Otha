@@ -2,6 +2,30 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminFlag } from '@prisma/client';
 
+// Types de flags pour les UTILISATEURS (clients)
+export type UserFlagType =
+  | 'NO_SHOW'                    // Client n'est pas venu
+  | 'DAYCARE_DISPUTE'            // Litige garderie
+  | 'MULTIPLE_NO_SHOWS'          // 3+ no-shows consécutifs
+  | 'SUSPICIOUS_BOOKING_PATTERN' // Beaucoup d'annulations
+  | 'LATE_CANCELLATION'          // Annulations tardives répétées
+  | 'FRAUD'                      // Fraude détectée
+  | 'ABUSE'                      // Abus du système
+  | 'SUSPICIOUS_BEHAVIOR'        // Comportement suspect
+  | 'OTHER';                     // Autre
+
+// Types de flags pour les PROFESSIONNELS
+export type ProFlagType =
+  | 'PRO_HIGH_CANCELLATION'      // Pro annule > 15% des RDV
+  | 'PRO_LOW_VERIFICATION'       // Pro vérifie < 50% des RDV (pas OTP/QR)
+  | 'PRO_GHOST_COMPLETIONS'      // RDV complétés sans aucune vérification
+  | 'PRO_UNRESPONSIVE'           // Pro ne répond pas aux demandes (RDV expirés)
+  | 'PRO_LATE_CONFIRMATIONS'     // Pro met > 24h à confirmer
+  | 'PRO_LOW_COMPLETION'         // Taux de complétion < 50%
+  | 'PRO_SUSPICIOUS';            // Comportement suspect général
+
+export type FlagType = UserFlagType | ProFlagType;
+
 export interface FlagUser {
   id: string;
   email: string;
@@ -9,11 +33,27 @@ export interface FlagUser {
   lastName: string | null;
   phone: string | null;
   trustStatus: string | null;
+  role?: string;
 }
 
 export interface FlagWithUser extends AdminFlag {
   user: FlagUser | null;
+  providerInfo?: {
+    displayName: string;
+    type: string;
+  } | null;
 }
+
+// Seuils de détection
+const THRESHOLDS = {
+  PRO_CANCELLATION_RATE: 15,      // % max d'annulations par le pro
+  PRO_VERIFICATION_RATE: 50,      // % min de vérification OTP/QR
+  PRO_COMPLETION_RATE: 50,        // % min de complétion
+  PRO_GHOST_COMPLETIONS: 3,       // Nombre max de RDV sans vérification
+  USER_LATE_CANCELLATIONS: 3,     // Nombre d'annulations tardives avant flag
+  USER_CANCELLATION_RATE: 40,     // % max d'annulations par l'utilisateur
+  MIN_BOOKINGS_FOR_ANALYSIS: 5,   // Minimum de RDV pour analyser les stats
+};
 
 @Injectable()
 export class AdminFlagsService {
@@ -155,7 +195,7 @@ export class AdminFlagsService {
    */
   async createAutoFlag(
     userId: string,
-    type: 'FRAUD' | 'DAYCARE_DISPUTE' | 'NO_SHOW' | 'SUSPICIOUS_BEHAVIOR' | 'ABUSE' | 'OTHER',
+    type: FlagType,
     note: string,
     bookingId?: string,
   ) {
@@ -240,5 +280,307 @@ export class AdminFlagsService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ============================================
+  // AUTO-FLAGS INTELLIGENTS
+  // ============================================
+
+  /**
+   * Analyse tous les pros et crée des flags pour ceux qui ont des comportements suspects
+   * Peut être appelé manuellement ou par un cron job
+   */
+  async analyzeAllPros(): Promise<{ analyzed: number; flagged: number; flags: string[] }> {
+    const providers = await this.prisma.providerProfile.findMany({
+      where: { status: 'APPROVED' },
+      include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+    });
+
+    let flagged = 0;
+    const flagMessages: string[] = [];
+
+    for (const provider of providers) {
+      const result = await this.analyzeProBehavior(provider.userId);
+      if (result.flagsCreated > 0) {
+        flagged++;
+        flagMessages.push(...result.messages);
+      }
+    }
+
+    return { analyzed: providers.length, flagged, flags: flagMessages };
+  }
+
+  /**
+   * Analyse le comportement d'un pro spécifique et crée des flags si nécessaire
+   */
+  async analyzeProBehavior(proUserId: string): Promise<{ flagsCreated: number; messages: string[] }> {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { userId: proUserId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+
+    if (!provider) return { flagsCreated: 0, messages: [] };
+
+    const proName = `${provider.user.firstName || ''} ${provider.user.lastName || ''}`.trim() || provider.displayName || 'Pro';
+    const messages: string[] = [];
+    let flagsCreated = 0;
+
+    // Récupérer les stats des 30 derniers jours
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const where = { providerId: provider.id, createdAt: { gte: thirtyDaysAgo } };
+
+    const [total, completed, cancelled, cancelledByPro, expired, otpVerified, qrVerified, noConfirmation] = await Promise.all([
+      this.prisma.booking.count({ where }),
+      this.prisma.booking.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.booking.count({ where: { ...where, status: 'CANCELLED' } }),
+      this.prisma.booking.count({ where: { ...where, status: 'CANCELLED', clientConfirmedAt: { not: null }, proConfirmedAt: null } }),
+      this.prisma.booking.count({ where: { ...where, status: 'EXPIRED' } }),
+      this.prisma.booking.count({ where: { ...where, status: 'COMPLETED', confirmationMethod: 'OTP' } }),
+      this.prisma.booking.count({ where: { ...where, status: 'COMPLETED', confirmationMethod: 'QR_SCAN' } }),
+      this.prisma.booking.count({ where: { ...where, status: 'COMPLETED', confirmationMethod: null } }),
+    ]);
+
+    // Pas assez de données pour analyser
+    if (total < THRESHOLDS.MIN_BOOKINGS_FOR_ANALYSIS) {
+      return { flagsCreated: 0, messages: [] };
+    }
+
+    // 1. Taux d'annulation par le pro trop élevé
+    const proCancellationRate = Math.round((cancelledByPro / total) * 100);
+    if (proCancellationRate > THRESHOLDS.PRO_CANCELLATION_RATE) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_HIGH_CANCELLATION',
+        `${proName} annule ${proCancellationRate}% des RDV (${cancelledByPro}/${total}) - Seuil: ${THRESHOLDS.PRO_CANCELLATION_RATE}%`,
+      );
+      messages.push(`${proName}: Taux d'annulation élevé (${proCancellationRate}%)`);
+      flagsCreated++;
+    }
+
+    // 2. Taux de vérification trop bas
+    const verificationRate = completed > 0 ? Math.round(((otpVerified + qrVerified) / completed) * 100) : 100;
+    if (completed >= 3 && verificationRate < THRESHOLDS.PRO_VERIFICATION_RATE) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_LOW_VERIFICATION',
+        `${proName} ne vérifie que ${verificationRate}% des RDV (OTP/QR). ${noConfirmation} RDV sans vérification`,
+      );
+      messages.push(`${proName}: Faible taux de vérification (${verificationRate}%)`);
+      flagsCreated++;
+    }
+
+    // 3. RDV complétés sans aucune vérification (fantômes)
+    if (noConfirmation > THRESHOLDS.PRO_GHOST_COMPLETIONS) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_GHOST_COMPLETIONS',
+        `${proName} a ${noConfirmation} RDV complétés sans vérification (OTP/QR) - Potentiellement fictifs`,
+      );
+      messages.push(`${proName}: ${noConfirmation} RDV fantômes`);
+      flagsCreated++;
+    }
+
+    // 4. Pro ne répond pas (beaucoup de RDV expirés)
+    const expiredRate = Math.round((expired / total) * 100);
+    if (expired >= 3 && expiredRate > 20) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_UNRESPONSIVE',
+        `${proName} laisse expirer ${expiredRate}% des RDV (${expired}/${total}) - Ne répond pas aux demandes`,
+      );
+      messages.push(`${proName}: ${expired} RDV expirés (${expiredRate}%)`);
+      flagsCreated++;
+    }
+
+    // 5. Taux de complétion trop bas
+    const completionRate = Math.round((completed / total) * 100);
+    if (completionRate < THRESHOLDS.PRO_COMPLETION_RATE) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_LOW_COMPLETION',
+        `${proName} n'a que ${completionRate}% de RDV complétés (${completed}/${total}) - Seuil: ${THRESHOLDS.PRO_COMPLETION_RATE}%`,
+      );
+      messages.push(`${proName}: Faible complétion (${completionRate}%)`);
+      flagsCreated++;
+    }
+
+    return { flagsCreated, messages };
+  }
+
+  /**
+   * Analyse tous les utilisateurs et crée des flags pour comportements suspects
+   */
+  async analyzeAllUsers(): Promise<{ analyzed: number; flagged: number; flags: string[] }> {
+    // Récupérer les utilisateurs avec des bookings récents
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const usersWithBookings = await this.prisma.user.findMany({
+      where: {
+        role: 'USER',
+        OR: [
+          { bookings: { some: { createdAt: { gte: thirtyDaysAgo } } } },
+          { daycareBookings: { some: { createdAt: { gte: thirtyDaysAgo } } } },
+        ],
+      },
+      select: { id: true, firstName: true, lastName: true, noShowCount: true },
+    });
+
+    let flagged = 0;
+    const flagMessages: string[] = [];
+
+    for (const user of usersWithBookings) {
+      const result = await this.analyzeUserBehavior(user.id);
+      if (result.flagsCreated > 0) {
+        flagged++;
+        flagMessages.push(...result.messages);
+      }
+    }
+
+    return { analyzed: usersWithBookings.length, flagged, flags: flagMessages };
+  }
+
+  /**
+   * Analyse le comportement d'un utilisateur spécifique
+   */
+  async analyzeUserBehavior(userId: string): Promise<{ flagsCreated: number; messages: string[] }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, noShowCount: true, email: true },
+    });
+
+    if (!user) return { flagsCreated: 0, messages: [] };
+
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Utilisateur';
+    const messages: string[] = [];
+    let flagsCreated = 0;
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Stats véto
+    const [totalVet, cancelledVet, lateCancelledVet] = await Promise.all([
+      this.prisma.booking.count({ where: { userId, createdAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.booking.count({ where: { userId, status: 'CANCELLED', createdAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.booking.count({
+        where: {
+          userId,
+          status: 'CANCELLED',
+          createdAt: { gte: thirtyDaysAgo },
+          // Annulation tardive = moins de 12h avant le RDV
+          clientConfirmedAt: { not: null },
+        },
+      }),
+    ]);
+
+    // Stats garderie
+    const [totalDaycare, cancelledDaycare, disputedDaycare] = await Promise.all([
+      this.prisma.daycareBooking.count({ where: { userId, createdAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.daycareBooking.count({ where: { userId, status: 'CANCELLED', createdAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.daycareBooking.count({ where: { userId, status: 'DISPUTED', createdAt: { gte: thirtyDaysAgo } } }),
+    ]);
+
+    const total = totalVet + totalDaycare;
+    const cancelled = cancelledVet + cancelledDaycare;
+
+    if (total < 3) return { flagsCreated: 0, messages: [] };
+
+    // 1. Multiple no-shows (basé sur noShowCount du user)
+    if ((user.noShowCount || 0) >= 3) {
+      await this.createAutoFlag(
+        userId,
+        'MULTIPLE_NO_SHOWS',
+        `${userName} a ${user.noShowCount} no-shows consécutifs - Comportement récidiviste`,
+      );
+      messages.push(`${userName}: ${user.noShowCount} no-shows`);
+      flagsCreated++;
+    }
+
+    // 2. Taux d'annulation trop élevé
+    const cancellationRate = Math.round((cancelled / total) * 100);
+    if (total >= 5 && cancellationRate > THRESHOLDS.USER_CANCELLATION_RATE) {
+      await this.createAutoFlag(
+        userId,
+        'SUSPICIOUS_BOOKING_PATTERN',
+        `${userName} annule ${cancellationRate}% de ses réservations (${cancelled}/${total}) - Pattern suspect`,
+      );
+      messages.push(`${userName}: Taux d'annulation élevé (${cancellationRate}%)`);
+      flagsCreated++;
+    }
+
+    // 3. Annulations tardives répétées
+    if (lateCancelledVet >= THRESHOLDS.USER_LATE_CANCELLATIONS) {
+      await this.createAutoFlag(
+        userId,
+        'LATE_CANCELLATION',
+        `${userName} a ${lateCancelledVet} annulations tardives (après confirmation) - Pénalise les pros`,
+      );
+      messages.push(`${userName}: ${lateCancelledVet} annulations tardives`);
+      flagsCreated++;
+    }
+
+    // 4. Plusieurs litiges garderie
+    if (disputedDaycare >= 2) {
+      await this.createAutoFlag(
+        userId,
+        'DAYCARE_DISPUTE',
+        `${userName} a ${disputedDaycare} litiges garderie ce mois - Comportement problématique`,
+      );
+      messages.push(`${userName}: ${disputedDaycare} litiges garderie`);
+      flagsCreated++;
+    }
+
+    return { flagsCreated, messages };
+  }
+
+  /**
+   * Endpoint pour lancer l'analyse complète (pros + users)
+   */
+  async runFullAnalysis(): Promise<{
+    pros: { analyzed: number; flagged: number; flags: string[] };
+    users: { analyzed: number; flagged: number; flags: string[] };
+    totalNewFlags: number;
+  }> {
+    const [prosResult, usersResult] = await Promise.all([
+      this.analyzeAllPros(),
+      this.analyzeAllUsers(),
+    ]);
+
+    return {
+      pros: prosResult,
+      users: usersResult,
+      totalNewFlags: prosResult.flagged + usersResult.flagged,
+    };
+  }
+
+  /**
+   * Récupère les flags groupés par type avec statistiques
+   */
+  async getDetailedStats() {
+    const [basic, proFlags, userFlags, recentFlags] = await Promise.all([
+      this.getStats(),
+      // Flags pro actifs
+      this.prisma.adminFlag.count({
+        where: { type: { startsWith: 'PRO_' }, resolved: false },
+      }),
+      // Flags utilisateur actifs
+      this.prisma.adminFlag.count({
+        where: { type: { not: { startsWith: 'PRO_' } }, resolved: false },
+      }),
+      // Flags des 7 derniers jours
+      this.prisma.adminFlag.count({
+        where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      }),
+    ]);
+
+    return {
+      ...basic,
+      proFlags,
+      userFlags,
+      recentFlags,
+      thresholds: THRESHOLDS,
+    };
   }
 }

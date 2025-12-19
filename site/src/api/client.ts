@@ -911,6 +911,30 @@ class ApiClient {
     return data?.data || data || [];
   }
 
+  async adminGetDetailedFlagStats(): Promise<any> {
+    const { data } = await this._client.get('/admin/flags/stats/detailed');
+    return data?.data || data;
+  }
+
+  async adminRunFlagAnalysis(): Promise<{
+    pros: { analyzed: number; flagged: number; flags: string[] };
+    users: { analyzed: number; flagged: number; flags: string[] };
+    totalNewFlags: number;
+  }> {
+    const { data } = await this._client.post('/admin/flags/analyze');
+    return data?.data || data;
+  }
+
+  async adminAnalyzePro(userId: string): Promise<{ flagsCreated: number; messages: string[] }> {
+    const { data } = await this._client.post(`/admin/flags/analyze/pro/${userId}`);
+    return data?.data || data;
+  }
+
+  async adminAnalyzeUser(userId: string): Promise<{ flagsCreated: number; messages: string[] }> {
+    const { data } = await this._client.post(`/admin/flags/analyze/user/${userId}`);
+    return data?.data || data;
+  }
+
   // ==================== ADMIN: DISPUTED BOOKINGS ====================
   async adminGetDisputedBookings(): Promise<any[]> {
     const { data } = await this._client.get('/daycare/admin/disputed-bookings');

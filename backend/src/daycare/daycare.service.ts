@@ -912,11 +912,13 @@ export class DaycareService {
       return updatedBooking;
     } else {
       // ❌ REFUSER = CLIENT MENT (NO-SHOW)
+      const proName = `${provider.user.firstName || ''} ${provider.user.lastName || ''}`.trim() || provider.displayName || 'Pro';
+
       await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           status: 'DISPUTED',
-          disputeNote: 'Pro claims client did not arrive for drop-off',
+          disputeNote: `Le pro ${proName} affirme que le client n'est pas venu pour le dépôt`,
         },
       });
 
@@ -924,7 +926,8 @@ export class DaycareService {
         data: {
           userId: booking.userId,
           type: 'DAYCARE_DISPUTE',
-          note: 'Pro claims client did not arrive for daycare drop-off (DISPUTED)',
+          bookingId: booking.id,
+          note: `Litige garderie : ${proName} affirme que le client n'est pas venu pour le dépôt de l'animal`,
         },
       });
 
@@ -946,6 +949,7 @@ export class DaycareService {
   ) {
     const provider = await this.prisma.providerProfile.findUnique({
       where: { userId },
+      include: { user: { select: { firstName: true, lastName: true } } },
     });
 
     if (!provider) throw new ForbiddenException('Vous n\'êtes pas un professionnel');
@@ -979,11 +983,13 @@ export class DaycareService {
 
       return updatedBooking;
     } else {
+      const proName = `${provider.user.firstName || ''} ${provider.user.lastName || ''}`.trim() || provider.displayName || 'Pro';
+
       await this.prisma.daycareBooking.update({
         where: { id: bookingId },
         data: {
           status: 'DISPUTED',
-          disputeNote: 'Pro claims client did not arrive for pickup',
+          disputeNote: `Le pro ${proName} affirme que le client n'est pas venu pour le retrait`,
         },
       });
 
@@ -991,7 +997,8 @@ export class DaycareService {
         data: {
           userId: booking.userId,
           type: 'DAYCARE_DISPUTE',
-          note: 'Pro claims client did not arrive for daycare pickup (DISPUTED)',
+          bookingId: booking.id,
+          note: `Litige garderie : ${proName} affirme que le client n'est pas venu pour le retrait de l'animal`,
         },
       });
 

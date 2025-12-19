@@ -48,13 +48,55 @@ export class AdminFlagsController {
     });
   }
 
-  // GET /admin/flags/stats - Get stats
+  // GET /admin/flags/stats - Get basic stats
   @Get('stats')
   async getStats() {
     return this.service.getStats();
   }
 
-  // GET /admin/flags/:id - Get single flag
+  // GET /admin/flags/stats/detailed - Get detailed stats with thresholds
+  @Get('stats/detailed')
+  async getDetailedStats() {
+    return this.service.getDetailedStats();
+  }
+
+  // POST /admin/flags/analyze - Run full analysis (pros + users)
+  @Post('analyze')
+  async runAnalysis() {
+    return this.service.runFullAnalysis();
+  }
+
+  // POST /admin/flags/analyze/pros - Analyze only pros
+  @Post('analyze/pros')
+  async analyzePros() {
+    return this.service.analyzeAllPros();
+  }
+
+  // POST /admin/flags/analyze/users - Analyze only users
+  @Post('analyze/users')
+  async analyzeUsers() {
+    return this.service.analyzeAllUsers();
+  }
+
+  // POST /admin/flags/analyze/pro/:userId - Analyze specific pro
+  @Post('analyze/pro/:userId')
+  async analyzeProBehavior(@Param('userId') userId: string) {
+    return this.service.analyzeProBehavior(userId);
+  }
+
+  // POST /admin/flags/analyze/user/:userId - Analyze specific user
+  @Post('analyze/user/:userId')
+  async analyzeUserBehavior(@Param('userId') userId: string) {
+    return this.service.analyzeUserBehavior(userId);
+  }
+
+  // GET /admin/flags/user/:userId - Get all flags for a user
+  @Get('user/:userId')
+  async getByUser(@Param('userId') userId: string) {
+    return this.service.getByUser(userId);
+  }
+
+  // GET /admin/flags/:id - Get single flag (MUST be after all other routes with fixed paths)
   @Get(':id')
   async getById(@Param('id') id: string) {
     return this.service.getById(id);
@@ -84,11 +126,5 @@ export class AdminFlagsController {
   @Delete(':id')
   async delete(@Param('id') id: string) {
     return this.service.delete(id);
-  }
-
-  // GET /admin/flags/user/:userId - Get all flags for a user
-  @Get('user/:userId')
-  async getByUser(@Param('userId') userId: string) {
-    return this.service.getByUser(userId);
   }
 }
