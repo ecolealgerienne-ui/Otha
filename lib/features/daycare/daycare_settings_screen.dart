@@ -668,12 +668,12 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _languageOption(String label, String localeCode, String currentLocale, bool isDark) {
-    final isSelected = currentLocale == localeCode;
+  Widget _languageOption(String label, String localeCode, Locale currentLocale, bool isDark) {
+    final isSelected = currentLocale.languageCode == localeCode;
     return Expanded(
       child: InkWell(
         onTap: () {
-          ref.read(localeProvider.notifier).setLocale(localeCode);
+          ref.read(localeProvider.notifier).setLocale(AppLanguage.fromCode(localeCode));
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
