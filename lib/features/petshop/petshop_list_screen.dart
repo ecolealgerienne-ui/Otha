@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/location_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -18,48 +19,8 @@ const _ink = Color(0xFF222222);
 final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
 
-  // ---------- 1) Centre utilisateur: DEVICE d'abord, puis PROFIL, sinon fallback ----------
-  Future<({double lat, double lng})> getCenter() async {
-    try {
-      if (await Geolocator.isLocationServiceEnabled()) {
-        var perm = await Geolocator.checkPermission();
-        if (perm == LocationPermission.denied) {
-          perm = await Geolocator.requestPermission();
-        }
-        if (perm != LocationPermission.denied &&
-            perm != LocationPermission.deniedForever) {
-          final last = await Geolocator.getLastKnownPosition().timeout(
-            const Duration(milliseconds: 300),
-            onTimeout: () => null,
-          );
-          if (last != null) {
-            return (lat: last.latitude, lng: last.longitude);
-          }
-          try {
-            final pos = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.medium,
-            ).timeout(const Duration(seconds: 2));
-            return (lat: pos.latitude, lng: pos.longitude);
-          } on TimeoutException {
-            // Fallback
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
-
-    // b) Profil utilisateur (fallback)
-    final me = ref.read(sessionProvider).user ?? {};
-    final pLat = (me['lat'] as num?)?.toDouble();
-    final pLng = (me['lng'] as num?)?.toDouble();
-    if (pLat != null && pLng != null && pLat != 0 && pLng != 0) {
-      return (lat: pLat, lng: pLng);
-    }
-
-    // c) Fallback absolu (Alger)
-    return (lat: 36.75, lng: 3.06);
-  }
-
-  final center = await getCenter();
+  // Utilise le provider GPS centralisé
+  final center = ref.watch(currentCoordsProvider);
 
   // Récupérer tous les providers et filtrer pour petshop
   final raw = await api.nearby(

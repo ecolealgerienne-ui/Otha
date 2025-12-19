@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 import '../../core/session_controller.dart';
+import '../../core/location_provider.dart';
 
 // Design constants - même thème que vet_details_screen
 const _coral = Color(0xFFF36C6C);
@@ -25,47 +26,8 @@ const kDaycareCommissionDa = 100;
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
 
-  Future<({double lat, double lng})> getCenter() async {
-    try {
-      if (await Geolocator.isLocationServiceEnabled()) {
-        var perm = await Geolocator.checkPermission();
-        if (perm == LocationPermission.denied) {
-          perm = await Geolocator.requestPermission();
-        }
-        if (perm != LocationPermission.denied &&
-            perm != LocationPermission.deniedForever) {
-          final last = await Geolocator.getLastKnownPosition().timeout(
-            const Duration(milliseconds: 300),
-            onTimeout: () => null,
-          );
-          if (last != null) {
-            return (lat: last.latitude, lng: last.longitude);
-          }
-          try {
-            final pos = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.medium,
-            ).timeout(const Duration(seconds: 2));
-            return (lat: pos.latitude, lng: pos.longitude);
-          } on TimeoutException {
-            // continue
-          } catch (_) {
-            // continue
-          }
-        }
-      }
-    } catch (_) {/* ignore */}
-
-    final me = ref.read(sessionProvider).user ?? {};
-    final pLat = (me['lat'] as num?)?.toDouble();
-    final pLng = (me['lng'] as num?)?.toDouble();
-    if (pLat != null && pLng != null && pLat != 0 && pLng != 0) {
-      return (lat: pLat, lng: pLng);
-    }
-
-    return (lat: 36.75, lng: 3.06);
-  }
-
-  final center = await getCenter();
+  // Utilise le provider GPS centralisé
+  final center = ref.watch(currentCoordsProvider);
 
   final raw = await api.nearby(
     lat: center.lat,
