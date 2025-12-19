@@ -77,6 +77,13 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
+                      label: 'En garde',
+                      selected: _filterStatus == 'IN_PROGRESS',
+                      onTap: () => setState(() => _filterStatus = 'IN_PROGRESS'),
+                      color: Colors.purple,
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
                       label: 'Terminées',
                       selected: _filterStatus == 'COMPLETED',
                       onTap: () => setState(() => _filterStatus = 'COMPLETED'),
@@ -247,6 +254,10 @@ class _EmptyState extends StatelessWidget {
       case 'CONFIRMED':
         message = 'Aucune réservation confirmée';
         icon = Icons.thumb_up_outlined;
+        break;
+      case 'IN_PROGRESS':
+        message = 'Aucun animal en garde';
+        icon = Icons.pets_outlined;
         break;
       case 'COMPLETED':
         message = 'Aucune réservation terminée';
@@ -685,12 +696,18 @@ class _BookingCard extends ConsumerWidget {
         return _StatusInfo('En attente', Colors.orange, Icons.hourglass_empty);
       case 'CONFIRMED':
         return _StatusInfo('Confirmée', Colors.blue, Icons.thumb_up);
+      case 'PENDING_DROP_VALIDATION':
+        return _StatusInfo('Dépôt à valider', Colors.teal, Icons.login);
       case 'IN_PROGRESS':
         return _StatusInfo('En cours', Colors.purple, Icons.pets);
+      case 'PENDING_PICKUP_VALIDATION':
+        return _StatusInfo('Retrait à valider', Colors.indigo, Icons.logout);
       case 'COMPLETED':
         return _StatusInfo('Terminée', Colors.green, Icons.check_circle);
       case 'CANCELLED':
         return _StatusInfo('Annulée', Colors.red, Icons.cancel);
+      case 'DISPUTED':
+        return _StatusInfo('Litige', Colors.deepOrange, Icons.warning);
       default:
         return _StatusInfo(status, Colors.grey, Icons.help_outline);
     }

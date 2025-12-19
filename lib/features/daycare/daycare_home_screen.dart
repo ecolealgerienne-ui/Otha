@@ -489,12 +489,225 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
     }
   }
 
+  /// Afficher la dialog pour gérer les frais de retard
+  Future<void> _showLateFeesDialog(
+    BuildContext context,
+    WidgetRef ref,
+    List<Map<String, dynamic>> lateFees,
+  ) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Titre
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.timer, color: Color(0xFFFFA000)),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Frais de retard (${lateFees.length})',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            // Liste des frais
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: lateFees.length,
+                itemBuilder: (_, i) {
+                  final fee = lateFees[i];
+                  final bookingId = (fee['id'] ?? '').toString();
+                  final user = fee['user'] as Map<String, dynamic>?;
+                  final pet = fee['pet'] as Map<String, dynamic>?;
+                  final clientName = user != null
+                      ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
+                      : 'Client';
+                  final petName = pet?['name'] ?? 'Animal';
+                  final lateFeeDa = (fee['lateFeeDa'] as num?)?.toInt() ?? 0;
+                  final lateFeeHours = (fee['lateFeeHours'] as num?)?.toDouble() ?? 0;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBF0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFFA000).withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFFFFA000).withOpacity(0.2),
+                              child: const Icon(Icons.pets, color: Color(0xFFFFA000), size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    clientName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  Text(
+                                    petName,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '$lateFeeDa DA',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                    color: Color(0xFFFFA000),
+                                  ),
+                                ),
+                                Text(
+                                  '${lateFeeHours.toStringAsFixed(1)}h de retard',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _handleLateFee(ctx, ref, bookingId, false),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey[700],
+                                  side: BorderSide(color: Colors.grey[400]!),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Annuler'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => _handleLateFee(ctx, ref, bookingId, true),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFA000),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Accepter'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Accepter ou refuser les frais de retard
+  Future<void> _handleLateFee(BuildContext ctx, WidgetRef ref, String bookingId, bool accept) async {
+    try {
+      final api = ref.read(apiProvider);
+      await api.handleDaycareLateFee(bookingId, accept: accept);
+
+      if (ctx.mounted) {
+        Navigator.pop(ctx); // Fermer la bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(accept
+                ? 'Frais de retard acceptés'
+                : 'Frais de retard annulés'),
+            backgroundColor: accept ? const Color(0xFF22C55E) : Colors.grey,
+          ),
+        );
+      }
+      _refreshData();
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _refreshData() {
     ref.invalidate(myDaycareProfileProvider);
     ref.invalidate(myDaycareBookingsProvider);
     ref.invalidate(pendingDaycareBookingsProvider);
     ref.invalidate(nearbyDaycareClientsProvider);
     ref.invalidate(pendingDaycareValidationsProvider);
+    ref.invalidate(pendingLateFeesProvider);
   }
 
   @override
@@ -534,6 +747,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               ref.invalidate(pendingDaycareBookingsProvider);
               ref.invalidate(nearbyDaycareClientsProvider);
               ref.invalidate(pendingDaycareValidationsProvider);
+              ref.invalidate(pendingLateFeesProvider);
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -763,6 +977,55 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                       ),
                                     ),
                                     const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF22C55E)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                // ✅ Banner ambre : Frais de retard en attente
+                SliverToBoxAdapter(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final lateFeesAsync = ref.watch(pendingLateFeesProvider);
+                      return lateFeesAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (lateFees) {
+                          if (lateFees.isEmpty) return const SizedBox.shrink();
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GestureDetector(
+                              onTap: () => _showLateFeesDialog(context, ref, lateFees),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFFA000)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.timer, color: Color(0xFFFFA000)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        '${lateFees.length} frais de retard en attente',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFFFFA000),
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFFFA000)),
                                   ],
                                 ),
                               ),
