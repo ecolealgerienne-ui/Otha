@@ -180,8 +180,8 @@ Future<void> syncLocationToBackend({
   try {
     // Sync daycare booking si actif
     if (daycareBookingId != null && daycareBookingId.isNotEmpty) {
-      await api.clientNearbyDaycare(
-        bookingId: daycareBookingId,
+      await api.notifyDaycareClientNearby(
+        daycareBookingId,
         lat: lat,
         lng: lng,
       );
@@ -189,7 +189,7 @@ Future<void> syncLocationToBackend({
 
     // Sync vet booking si actif
     if (vetBookingId != null && vetBookingId.isNotEmpty) {
-      await api.checkProximity(
+      await api.checkBookingProximity(
         bookingId: vetBookingId,
         lat: lat,
         lng: lng,
