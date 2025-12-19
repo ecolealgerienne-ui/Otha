@@ -1,5 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminFlag } from '@prisma/client';
+
+export interface FlagUser {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  trustStatus: string | null;
+}
+
+export interface FlagWithUser extends AdminFlag {
+  user: FlagUser | null;
+}
 
 @Injectable()
 export class AdminFlagsService {
@@ -10,8 +24,12 @@ export class AdminFlagsService {
     type?: string;
     userId?: string;
     limit?: number;
-  }) {
-    const where: any = {};
+  }): Promise<FlagWithUser[]> {
+    const where: {
+      resolved?: boolean;
+      type?: string;
+      userId?: string;
+    } = {};
 
     if (query.resolved !== undefined) {
       where.resolved = query.resolved;
@@ -30,7 +48,7 @@ export class AdminFlagsService {
     });
 
     // Get user info for each flag
-    const userIds = [...new Set(flags.map((f) => f.userId))];
+    const userIds = [...new Set(flags.map((f: AdminFlag) => f.userId))];
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
       select: {
@@ -43,9 +61,9 @@ export class AdminFlagsService {
       },
     });
 
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map(users.map((u: FlagUser) => [u.id, u]));
 
-    return flags.map((flag) => ({
+    return flags.map((flag: AdminFlag) => ({
       ...flag,
       user: userMap.get(flag.userId) || null,
     }));
@@ -67,7 +85,10 @@ export class AdminFlagsService {
       total,
       active,
       resolved,
-      byType: byType.map((t) => ({ type: t.type, count: t._count.type })),
+      byType: byType.map((t: { type: string; _count: { type: number } }) => ({
+        type: t.type,
+        count: t._count.type,
+      })),
     };
   }
 
@@ -124,6 +145,46 @@ export class AdminFlagsService {
         type: dto.type,
         bookingId: dto.bookingId,
         note: dto.note,
+      },
+    });
+  }
+
+  /**
+   * Crée automatiquement un flag pour un événement suspect
+   * Appelé par d'autres services (daycare, bookings, etc.)
+   */
+  async createAutoFlag(
+    userId: string,
+    type: 'FRAUD' | 'DAYCARE_DISPUTE' | 'NO_SHOW' | 'SUSPICIOUS_BEHAVIOR' | 'ABUSE' | 'OTHER',
+    note: string,
+    bookingId?: string,
+  ) {
+    // Vérifier si un flag similaire existe déjà (non résolu)
+    const existingFlag = await this.prisma.adminFlag.findFirst({
+      where: {
+        userId,
+        type,
+        bookingId: bookingId || undefined,
+        resolved: false,
+      },
+    });
+
+    if (existingFlag) {
+      // Mettre à jour la note existante
+      return this.prisma.adminFlag.update({
+        where: { id: existingFlag.id },
+        data: {
+          note: existingFlag.note ? `${existingFlag.note} | ${note}` : note,
+        },
+      });
+    }
+
+    return this.prisma.adminFlag.create({
+      data: {
+        userId,
+        type,
+        bookingId,
+        note,
       },
     });
   }
