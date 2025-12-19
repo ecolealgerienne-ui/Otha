@@ -3115,6 +3115,15 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
   Widget build(BuildContext context) {
     final async = ref.watch(inProgressDaycareBookingProvider);
     final userPos = ref.watch(homeUserPositionStreamProvider);
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    // Couleurs selon le thème
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtitleColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -3144,9 +3153,31 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
         if (dropAt != null) {
           final diff = DateTime.now().toUtc().difference(dropAt);
           if (diff.inHours > 0) {
-            sinceText = ' (depuis ${diff.inHours}h)';
+            sinceText = ' (${l10n.sinceHours} ${diff.inHours}h)';
           } else if (diff.inMinutes > 0) {
-            sinceText = ' (depuis ${diff.inMinutes}min)';
+            sinceText = ' (${l10n.sinceHours} ${diff.inMinutes}min)';
+          }
+        }
+
+        // ✅ Vérifier si l'utilisateur est en retard (endDate dépassé)
+        final endIso = (m['endDate'] ?? '').toString();
+        DateTime? endAt;
+        try {
+          endAt = DateTime.parse(endIso);
+        } catch (_) {}
+
+        bool isLate = false;
+        String lateText = '';
+        if (endAt != null) {
+          final now = DateTime.now().toUtc();
+          if (now.isAfter(endAt)) {
+            isLate = true;
+            final lateDiff = now.difference(endAt);
+            if (lateDiff.inHours > 0) {
+              lateText = l10n.lateByHours(lateDiff.inHours.toString());
+            } else if (lateDiff.inMinutes > 0) {
+              lateText = l10n.lateByMinutes(lateDiff.inMinutes.toString());
+            }
           }
         }
 
@@ -3156,9 +3187,10 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              boxShadow: isDark ? null : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              border: isDark ? Border.all(color: Colors.white.withOpacity(0.1)) : null,
             ),
             child: Column(
               children: [
@@ -3186,23 +3218,65 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '$petName est à la garderie$sinceText',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              '$petName ${l10n.petAtDaycare}$sinceText',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: textColor),
                               maxLines: 2,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              'Prêt à récupérer',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            Text(
+                              l10n.readyToPickup,
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: iconColor),
                     ],
                   ),
                 ),
+
+                // ⚠️ Avertissement de retard si l'heure de départ est dépassée
+                if (isLate && lateText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFFEF4444).withOpacity(0.15) : const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lateText,
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFEF4444) : const Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                l10n.lateFeesWillApply,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : const Color(0xFF991B1B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // ✅ Bouton "Confirmer le retrait" - toujours disponible pour IN_PROGRESS
                 if (_isNearby) ...[
@@ -3211,7 +3285,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
+                      color: isDark ? const Color(0xFF22C55E).withOpacity(0.15) : const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFF22C55E)),
                     ),
@@ -3223,7 +3297,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Vous êtes à ${_distanceMeters?.toInt() ?? '?'}m de la garderie',
+                                l10n.youAreXmFromDaycare('${_distanceMeters?.toInt() ?? '?'}m'),
                                 style: const TextStyle(
                                   color: Color(0xFF22C55E),
                                   fontWeight: FontWeight.w600,
@@ -3239,7 +3313,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           child: FilledButton.icon(
                             onPressed: () => _goToPickupConfirmation(context, m),
                             icon: const Icon(Icons.check_circle, size: 18),
-                            label: const Text('Confirmer le retrait de l\'animal'),
+                            label: Text(l10n.confirmAnimalPickup),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF22C55E),
                               foregroundColor: Colors.white,
@@ -3255,11 +3329,11 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade600),
+                      Icon(Icons.directions_walk, size: 16, color: iconColor),
                       const SizedBox(width: 6),
                       Text(
-                        'Distance: ${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        l10n.distanceKm((_distanceMeters! / 1000).toStringAsFixed(1)),
+                        style: TextStyle(fontSize: 12, color: subtitleColor),
                       ),
                     ],
                   ),
@@ -3269,7 +3343,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                     child: FilledButton.icon(
                       onPressed: () => _goToPickupConfirmation(context, m),
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Confirmer le retrait de l\'animal'),
+                      label: Text(l10n.confirmAnimalPickup),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF22C55E),
                         foregroundColor: Colors.white,
@@ -3283,20 +3357,20 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        Icon(Icons.info_outline, color: iconColor, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Activez la localisation pour une confirmation automatique',
+                            l10n.enableLocationForAutoConfirm,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: subtitleColor,
                             ),
                           ),
                         ),
@@ -3309,7 +3383,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                     child: FilledButton.icon(
                       onPressed: () => _goToPickupConfirmation(context, m),
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Confirmer le retrait de l\'animal'),
+                      label: Text(l10n.confirmAnimalPickup),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF22C55E),
                         foregroundColor: Colors.white,

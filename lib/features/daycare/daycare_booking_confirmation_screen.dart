@@ -263,6 +263,36 @@ class DaycareBookingConfirmationScreen extends ConsumerWidget {
                   ),
                 ),
 
+                const SizedBox(height: 12),
+
+                // ⚠️ Disclaimer sur les frais de retard
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.amber.withOpacity(0.1) : const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.schedule_rounded, color: Colors.amber.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          l10n.lateFeeDisclaimer,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 40),
 
                 // Primary button - See my booking
