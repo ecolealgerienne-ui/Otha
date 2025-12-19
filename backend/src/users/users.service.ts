@@ -307,16 +307,17 @@ export class UsersService {
     }
 
     // Remettre à VERIFIED (pas NEW) car c'était un accident
-    await this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: {
         trustStatus: 'VERIFIED',
         noShowCount: Math.max(0, (user.noShowCount || 0) - 1), // Décrémenter le no-show count
         restrictedUntil: null,
       },
+      select: userSelect,
     });
 
-    return { ok: true, message: 'Trust status reset to VERIFIED' };
+    return { ok: true, message: 'Trust status reset to VERIFIED', user: updatedUser };
   }
 
   // Admin: update user info

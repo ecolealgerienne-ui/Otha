@@ -132,11 +132,12 @@ export function AdminUsers() {
 
     setResetTrustLoading(true);
     try {
-      await api.adminResetUserTrustStatus(selectedUser.id);
-      // Update local state
-      setSelectedUser({ ...selectedUser, trustStatus: 'VERIFIED', restrictedUntil: null });
-      // Refresh users list
-      fetchUsers();
+      const result = await api.adminResetUserTrustStatus(selectedUser.id);
+      // Update with user returned from backend (source of truth)
+      const updatedUser = result.user || { ...selectedUser, trustStatus: 'VERIFIED', restrictedUntil: null, noShowCount: Math.max(0, (selectedUser.noShowCount || 0) - 1) };
+      setSelectedUser(updatedUser);
+      // Also update the user in the list to keep them in sync
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
       alert('✅ Statut de confiance réinitialisé à VERIFIED');
     } catch (error) {
       console.error('Error resetting trust status:', error);
