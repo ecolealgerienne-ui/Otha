@@ -1591,24 +1591,43 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                   },
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF22C55E).withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                      // Icon with gradient + medical badge to distinguish vet
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF22C55E).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                            child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                          ),
+                          // Medical badge to distinguish vet
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                              ),
+                              child: const Icon(Icons.medical_services, color: Color(0xFF22C55E), size: 12),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -2119,24 +2138,43 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                   },
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFFFA000), Color(0xFFE65100)],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFFA000).withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                      // Icon with gradient + medical badge to distinguish vet
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFA000), Color(0xFFE65100)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFA000).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                            child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                          ),
+                          // Medical badge to distinguish vet
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFFFA000), width: 1.5),
+                              ),
+                              child: const Icon(Icons.medical_services, color: Color(0xFFFFA000), size: 12),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -2404,17 +2442,38 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
             dtUtc.difference(now).inHours <= 2 &&
             dtUtc.difference(now).inHours >= -2;
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+        final l10n = AppLocalizations.of(context);
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1A2E1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFE8F5E9), const Color(0xFFF1F8F1)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22C55E).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 InkWell(
                   borderRadius: BorderRadius.circular(12),
@@ -2427,24 +2486,91 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + paw badge to distinguish daycare
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF22C55E).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                          ),
+                          // Paw badge to distinguish daycare
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                              ),
+                              child: const Icon(Icons.pets, color: Color(0xFF22C55E), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.confirmedDaycare,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF22C55E),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              petName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E),
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.home, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Garderie: $when — $petName',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -2704,15 +2830,24 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF2E2A1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFFFF8E1), const Color(0xFFFFFBF0)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _amber.withOpacity(0.3),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
+                  color: _amber.withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -2730,28 +2865,95 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + paw badge
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFA000), Color(0xFFE65100)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _amber.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                          ),
+                          // Paw badge to distinguish daycare
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _amber, width: 1.5),
+                              ),
+                              child: const Icon(Icons.pets, color: Color(0xFFFFA000), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  l10n.pendingDaycare,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFFFA000),
+                                    fontFamily: 'SFPRO',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              petName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _amber,
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.hourglass_empty, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '${l10n.pendingDaycare}: $when — $petName',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: textPrimary,
-                            fontFamily: 'SFPRO',
-                          ),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_ios, size: 16, color: textPrimary),
                     ],
                   ),
                 ),
