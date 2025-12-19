@@ -228,22 +228,26 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
     Map<String, dynamic> booking,
     bool isForPickup,
   ) async {
+    final themeMode = ref.read(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     final bookingId = booking['id']?.toString() ?? '';
     final user = booking['user'] as Map<String, dynamic>?;
     final pet = booking['pet'] as Map<String, dynamic>?;
     final clientName = user != null
         ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-        : 'Client';
-    final petName = pet?['name'] ?? 'Animal';
+        : l10n.client;
+    final petName = pet?['name'] ?? l10n.animal;
 
     final result = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: isDark ? _DaycareColors.cardDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
         child: SafeArea(
@@ -257,7 +261,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -271,8 +275,8 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isForPickup
-                          ? const Color(0xFFFFF3E0)
-                          : const Color(0xFFE3F2FD),
+                          ? (isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFF3E0))
+                          : (isDark ? const Color(0xFF1A2A3A) : const Color(0xFFE3F2FD)),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -288,17 +292,18 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isForPickup ? 'Valider le retrait' : 'Valider le dépôt',
-                          style: const TextStyle(
+                          isForPickup ? l10n.validatePickup : l10n.validateDropOff,
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : null,
                           ),
                         ),
                         Text(
                           '$clientName - $petName',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: isDark ? Colors.white70 : Colors.grey[600],
                           ),
                         ),
                       ],
@@ -311,9 +316,10 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               // Bouton Scanner QR
               _ValidationOptionButton(
                 icon: Icons.qr_code_scanner,
-                label: 'Scanner QR code',
-                subtitle: 'Scannez le QR code de l\'animal',
+                label: l10n.scanQrCode,
+                subtitle: l10n.scanQrSubtitle,
                 color: const Color(0xFF00ACC1),
+                isDark: isDark,
                 onTap: () => Navigator.pop(ctx, 'qr'),
               ),
               const SizedBox(height: 12),
@@ -321,9 +327,10 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               // Bouton OTP
               _ValidationOptionButton(
                 icon: Icons.pin,
-                label: 'Vérifier code OTP',
-                subtitle: 'Entrez le code à 6 chiffres du client',
+                label: l10n.verifyOtp,
+                subtitle: l10n.verifyOtpSubtitle,
                 color: const Color(0xFF9C27B0),
+                isDark: isDark,
                 onTap: () => Navigator.pop(ctx, 'otp'),
               ),
               const SizedBox(height: 12),
@@ -331,11 +338,12 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               // Bouton Manuel
               _ValidationOptionButton(
                 icon: isForPickup ? Icons.check_circle : Icons.pets,
-                label: isForPickup ? 'Confirmer le retrait' : 'Confirmer le dépôt',
-                subtitle: 'Validation manuelle sans vérification',
+                label: l10n.confirmManually,
+                subtitle: l10n.confirmManuallySubtitle,
                 color: isForPickup
                     ? const Color(0xFF2196F3)
                     : const Color(0xFF4CAF50),
+                isDark: isDark,
                 onTap: () => Navigator.pop(ctx, 'manual'),
               ),
               const SizedBox(height: 16),
@@ -352,7 +360,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
       context.push('/scan-pet');
     } else if (result == 'otp') {
       // Afficher la dialog OTP
-      await _showOtpInputDialog(bookingId, isForPickup);
+      await _showOtpInputDialog(bookingId, isForPickup, isDark);
     } else if (result == 'manual') {
       // Confirmer manuellement
       await _confirmManually(bookingId, isForPickup);
@@ -360,33 +368,38 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
   }
 
   /// Dialog pour saisir le code OTP
-  Future<void> _showOtpInputDialog(String bookingId, bool isForPickup) async {
+  Future<void> _showOtpInputDialog(String bookingId, bool isForPickup, bool isDark) async {
+    final l10n = AppLocalizations.of(context);
     final otpController = TextEditingController();
 
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _DaycareColors.cardDark : null,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: isDark ? const Color(0xFF1A2E1A) : const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.pin, color: Color(0xFF22C55E)),
             ),
             const SizedBox(width: 12),
-            Text(isForPickup ? 'Code retrait' : 'Code dépôt'),
+            Text(
+              isForPickup ? l10n.pickupCode : l10n.dropOffCode,
+              style: TextStyle(color: isDark ? Colors.white : null),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Entrez le code à 6 chiffres fourni par le client',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              l10n.verifyOtpSubtitle,
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -394,16 +407,18 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 8,
+                color: isDark ? Colors.white : null,
               ),
               decoration: InputDecoration(
                 hintText: '000000',
+                hintStyle: TextStyle(color: isDark ? Colors.white38 : null),
                 counterText: '',
                 filled: true,
-                fillColor: const Color(0xFFF5F5F5),
+                fillColor: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF5F5F5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -419,14 +434,14 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF22C55E),
             ),
-            child: const Text('Valider'),
+            child: Text(l10n.verify),
           ),
         ],
       ),
@@ -505,7 +520,9 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
     BuildContext context,
     WidgetRef ref,
     List<Map<String, dynamic>> lateFees,
+    bool isDark,
   ) async {
+    final l10n = AppLocalizations.of(context);
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -514,9 +531,9 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: isDark ? _DaycareColors.cardDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -528,7 +545,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: isDark ? Colors.grey[700] : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -541,23 +558,24 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
+                      color: isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFF3E0),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.timer, color: Color(0xFFFFA000)),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Frais de retard (${lateFees.length})',
-                    style: const TextStyle(
+                    '${l10n.lateFees} (${lateFees.length})',
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : null,
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(),
+            Divider(color: isDark ? Colors.white12 : null),
             // Liste des frais
             Flexible(
               child: ListView.builder(
@@ -571,8 +589,8 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                   final pet = fee['pet'] as Map<String, dynamic>?;
                   final clientName = user != null
                       ? '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim()
-                      : 'Client';
-                  final petName = pet?['name'] ?? 'Animal';
+                      : l10n.client;
+                  final petName = pet?['name'] ?? l10n.animal;
                   final lateFeeDa = (fee['lateFeeDa'] as num?)?.toInt() ?? 0;
                   final lateFeeHours = (fee['lateFeeHours'] as num?)?.toDouble() ?? 0;
 
@@ -580,7 +598,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBF0),
+                      color: isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFFBF0),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFFFA000).withOpacity(0.3)),
                     ),
@@ -601,15 +619,16 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                 children: [
                                   Text(
                                     clientName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 15,
+                                      color: isDark ? Colors.white : null,
                                     ),
                                   ),
                                   Text(
                                     petName,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: isDark ? Colors.white70 : Colors.grey[600],
                                       fontSize: 13,
                                     ),
                                   ),
@@ -628,10 +647,10 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${lateFeeHours.toStringAsFixed(1)}h de retard',
+                                  '${lateFeeHours.toStringAsFixed(1)}${l10n.hoursLate}',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.grey[600],
+                                    color: isDark ? Colors.white60 : Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -645,13 +664,13 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                               child: OutlinedButton(
                                 onPressed: () => _handleLateFee(ctx, ref, bookingId, false),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.grey[700],
-                                  side: BorderSide(color: Colors.grey[400]!),
+                                  foregroundColor: isDark ? Colors.white70 : Colors.grey[700],
+                                  side: BorderSide(color: isDark ? Colors.white38 : Colors.grey[400]!),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                                child: const Text('Annuler'),
+                                child: Text(l10n.reject),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -664,7 +683,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                                child: const Text('Accepter'),
+                                child: Text(l10n.accept),
                               ),
                             ),
                           ],
@@ -964,11 +983,11 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
 
                           String message;
                           if (dropCount > 0 && pickupCount > 0) {
-                            message = '$dropCount dépôt${dropCount > 1 ? 's' : ''} et $pickupCount retrait${pickupCount > 1 ? 's' : ''} à valider';
+                            message = '$dropCount ${l10n.dropOff}${dropCount > 1 ? 's' : ''} + $pickupCount ${l10n.pickup}${pickupCount > 1 ? 's' : ''}';
                           } else if (dropCount > 0) {
-                            message = '$dropCount dépôt${dropCount > 1 ? 's' : ''} d\'animal à valider';
+                            message = '$dropCount ${l10n.dropOffToValidate}';
                           } else {
-                            message = '$pickupCount retrait${pickupCount > 1 ? 's' : ''} d\'animal à valider';
+                            message = '$pickupCount ${l10n.pickupToValidate}';
                           }
 
                           return Padding(
@@ -978,7 +997,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9),
+                                  color: isDark ? const Color(0xFF1A2E1A) : const Color(0xFFE8F5E9),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: const Color(0xFF22C55E)),
                                 ),
@@ -1023,11 +1042,11 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: GestureDetector(
-                              onTap: () => _showLateFeesDialog(context, ref, lateFees),
+                              onTap: () => _showLateFeesDialog(context, ref, lateFees, isDark),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF8E1),
+                                  color: isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFF8E1),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: const Color(0xFFFFA000)),
                                 ),
@@ -1037,7 +1056,7 @@ class _DaycareHomeScreenState extends ConsumerState<DaycareHomeScreen> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        '${lateFees.length} frais de retard en attente',
+                                        '${lateFees.length} ${l10n.lateFeesX}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFFFFA000),
@@ -1413,12 +1432,14 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
   }
 }
 
-class _QuickStats extends StatelessWidget {
+class _QuickStats extends ConsumerWidget {
   final AsyncValue<List<Map<String, dynamic>>> bookingsAsync;
   const _QuickStats({required this.bookingsAsync});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final bookings = bookingsAsync.value ?? [];
 
     final activeBookings = bookings.where((b) {
@@ -1435,9 +1456,13 @@ class _QuickStats extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Aperçu rapide',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          Text(
+            l10n.quickAccess,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : null,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1445,18 +1470,20 @@ class _QuickStats extends StatelessWidget {
               Expanded(
                 child: _StatPill(
                   icon: Icons.calendar_today,
-                  label: 'Réservations actives',
+                  label: l10n.confirmedBookings,
                   value: '$activeBookings',
                   color: Colors.blue,
+                  isDark: isDark,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
                   icon: Icons.check_circle,
-                  label: 'Terminées',
+                  label: l10n.completedBookings,
                   value: '$completedBookings',
                   color: Colors.green,
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -1467,18 +1494,20 @@ class _QuickStats extends StatelessWidget {
               Expanded(
                 child: _StatPill(
                   icon: Icons.pets,
-                  label: 'Total réservations',
+                  label: l10n.allBookings,
                   value: '${bookings.length}',
                   color: Colors.purple,
+                  isDark: isDark,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatPill(
                   icon: Icons.schedule,
-                  label: 'En attente',
+                  label: l10n.pendingBookings,
                   value: '${bookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').length}',
                   color: Colors.orange,
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -1494,11 +1523,13 @@ class _StatPill extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isDark;
   const _StatPill({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    required this.isDark,
   });
 
   @override
@@ -1506,9 +1537,9 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withOpacity(isDark ? 0.3 : 0.2)),
       ),
       child: Row(
         children: [
@@ -1530,7 +1561,7 @@ class _StatPill extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.black.withOpacity(0.6),
+                    color: isDark ? Colors.white60 : Colors.black.withOpacity(0.6),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1544,25 +1575,31 @@ class _StatPill extends StatelessWidget {
   }
 }
 
-class _RecentBookings extends StatelessWidget {
+class _RecentBookings extends ConsumerWidget {
   final List<Map<String, dynamic>> bookings;
   const _RecentBookings({required this.bookings});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     if (bookings.isEmpty) {
       return _SectionCard(
         child: Column(
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey),
+            Icon(Icons.calendar_today_outlined, size: 48, color: isDark ? Colors.grey[600] : Colors.grey),
             const SizedBox(height: 12),
-            const Text('Aucune réservation'),
+            Text(
+              l10n.noBookings,
+              style: TextStyle(color: isDark ? Colors.white : null),
+            ),
             const SizedBox(height: 8),
             Text(
-              'Les réservations de vos clients apparaîtront ici',
-              style: TextStyle(color: Colors.black.withOpacity(0.6)),
+              l10n.newBookingsWillAppear,
+              style: TextStyle(color: isDark ? Colors.white60 : Colors.black.withOpacity(0.6)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1588,14 +1625,18 @@ class _RecentBookings extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text(
-                'Réservations récentes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              Text(
+                l10n.recentBookings,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : null,
+                ),
               ),
               const Spacer(),
               TextButton(
                 onPressed: () => context.push('/daycare/bookings'),
-                child: const Text('Voir tout'),
+                child: Text(l10n.viewAll),
               ),
             ],
           ),
@@ -1606,7 +1647,7 @@ class _RecentBookings extends StatelessWidget {
             final startDate = booking['startDate'];
             final endDate = booking['endDate'];
             final user = booking['user'] as Map<String, dynamic>?;
-            final userName = (user?['firstName'] ?? 'Client').toString();
+            final userName = (user?['firstName'] ?? l10n.client).toString();
 
             DateTime? start, end;
             if (startDate != null) start = DateTime.tryParse(startDate.toString());
@@ -1616,12 +1657,12 @@ class _RecentBookings extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  _buildStatusIcon(status),
+                  _buildStatusIcon(status, isDark),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -1629,14 +1670,17 @@ class _RecentBookings extends StatelessWidget {
                       children: [
                         Text(
                           userName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : null,
+                          ),
                         ),
                         if (start != null && end != null)
                           Text(
                             '${DateFormat('dd/MM').format(start.toLocal())} - ${DateFormat('dd/MM').format(end.toLocal())}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black.withOpacity(0.5),
+                              color: isDark ? Colors.white54 : Colors.black.withOpacity(0.5),
                             ),
                           ),
                       ],
@@ -1647,9 +1691,12 @@ class _RecentBookings extends StatelessWidget {
                     children: [
                       Text(
                         _da(totalDa),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : null,
+                        ),
                       ),
-                      _buildStatusChip(status),
+                      _buildStatusChip(status, l10n, isDark),
                     ],
                   ),
                 ],
@@ -1661,7 +1708,7 @@ class _RecentBookings extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIcon(String status) {
+  Widget _buildStatusIcon(String status, bool isDark) {
     IconData icon;
     Color color;
 
@@ -1694,36 +1741,36 @@ class _RecentBookings extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color, size: 20),
     );
   }
 
-  Widget _buildStatusChip(String status) {
+  Widget _buildStatusChip(String status, AppLocalizations l10n, bool isDark) {
     String label;
     Color color;
 
     switch (status) {
       case 'PENDING':
-        label = 'En attente';
+        label = l10n.pendingBookings;
         color = Colors.orange;
         break;
       case 'CONFIRMED':
-        label = 'Confirmée';
+        label = l10n.confirmedBookings;
         color = Colors.blue;
         break;
       case 'IN_PROGRESS':
-        label = 'En cours';
+        label = l10n.inProgressBookings;
         color = Colors.purple;
         break;
       case 'COMPLETED':
-        label = 'Terminée';
+        label = l10n.completedBookings;
         color = Colors.green;
         break;
       case 'CANCELLED':
-        label = 'Annulée';
+        label = l10n.cancelledBookings;
         color = Colors.red;
         break;
       default:
@@ -1735,7 +1782,7 @@ class _RecentBookings extends StatelessWidget {
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -1750,7 +1797,7 @@ class _RecentBookings extends StatelessWidget {
   }
 }
 
-class _CommissionCard extends StatelessWidget {
+class _CommissionCard extends ConsumerWidget {
   final _DaycareLedger? ledger;
   const _CommissionCard({required this.ledger});
   const _CommissionCard.loading() : ledger = null;
@@ -1758,7 +1805,10 @@ class _CommissionCard extends StatelessWidget {
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     if (ledger == null) {
       return const _SectionCard(
         child: SizedBox(
@@ -1791,7 +1841,7 @@ class _CommissionCard extends StatelessWidget {
                 height: 44,
                 width: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0E5),
+                  color: isDark ? const Color(0xFF2E2A1A) : const Color(0xFFFFF0E5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.payments_outlined, color: Color(0xFFFB8C00)),
@@ -1801,18 +1851,22 @@ class _CommissionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Commission du mois',
+                    Text(
+                      '${l10n.commissionLabel} - ${l10n.thisMonth}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : null,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       monthLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.black.withOpacity(.65)),
+                      style: TextStyle(color: isDark ? Colors.white60 : Colors.black.withOpacity(.65)),
                     ),
                   ],
                 ),
@@ -1824,12 +1878,16 @@ class _CommissionCard extends StatelessWidget {
           // Montant à payer
           Text(
             _da(l.netDue),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : null,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            '${l.bookingsCount} réservation${l.bookingsCount > 1 ? 's' : ''} terminée${l.bookingsCount > 1 ? 's' : ''}',
-            style: TextStyle(color: Colors.black.withOpacity(.6)),
+            '${l.bookingsCount} ${l10n.completedBookings.toLowerCase()}',
+            style: TextStyle(color: isDark ? Colors.white60 : Colors.black.withOpacity(.6)),
           ),
           const SizedBox(height: 12),
 
@@ -1838,8 +1896,8 @@ class _CommissionCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _miniPill(Icons.monetization_on, 'Revenus', _da(l.totalRevenue)),
-              _miniPill(Icons.receipt, 'Commission', _da(l.commissionDue)),
+              _miniPill(Icons.monetization_on, l10n.revenue, _da(l.totalRevenue), isDark),
+              _miniPill(Icons.receipt, l10n.commissionLabel, _da(l.commissionDue), isDark),
             ],
           ),
         ],
@@ -1847,15 +1905,15 @@ class _CommissionCard extends StatelessWidget {
     );
   }
 
-  Widget _miniPill(IconData icon, String label, String value) {
+  Widget _miniPill(IconData icon, String label, String value, bool isDark) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 140),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: _DaycareColors.primarySoft,
+          color: isDark ? _DaycareColors.primarySoftDark : _DaycareColors.primarySoft,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _DaycareColors.primary.withOpacity(.2)),
+          border: Border.all(color: _DaycareColors.primary.withOpacity(isDark ? .3 : .2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1868,12 +1926,16 @@ class _CommissionCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(.6)),
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black.withOpacity(.6)),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     value,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : null,
+                    ),
                   ),
                 ],
               ),
@@ -1891,6 +1953,7 @@ class _ValidationOptionButton extends StatelessWidget {
   final String label;
   final String subtitle;
   final Color color;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _ValidationOptionButton({
@@ -1898,6 +1961,7 @@ class _ValidationOptionButton extends StatelessWidget {
     required this.label,
     required this.subtitle,
     required this.color,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -1909,16 +1973,16 @@ class _ValidationOptionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withOpacity(isDark ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withOpacity(isDark ? 0.4 : 0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withOpacity(isDark ? 0.25 : 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 24),
@@ -1941,7 +2005,7 @@ class _ValidationOptionButton extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: isDark ? Colors.white60 : Colors.grey[600],
                     ),
                   ),
                 ],
