@@ -15,6 +15,9 @@ import {
   Plus,
   Filter,
   RotateCcw,
+  Zap,
+  UserX,
+  Briefcase,
 } from 'lucide-react';
 import api from '../api/client';
 import { format } from 'date-fns';
@@ -35,6 +38,7 @@ interface AdminFlag {
     lastName?: string;
     phone?: string;
     trustStatus?: string;
+    role?: string;
   };
 }
 
@@ -43,19 +47,43 @@ interface FlagStats {
   active: number;
   resolved: number;
   byType: { type: string; count: number }[];
+  proFlags?: number;
+  userFlags?: number;
+  recentFlags?: number;
 }
 
-const FLAG_TYPES = [
-  { value: 'FRAUD', label: 'Fraude', color: 'bg-red-500' },
-  { value: 'DAYCARE_DISPUTE', label: 'Litige Garderie', color: 'bg-orange-500' },
-  { value: 'NO_SHOW', label: 'No-show', color: 'bg-yellow-500' },
-  { value: 'SUSPICIOUS_BEHAVIOR', label: 'Comportement suspect', color: 'bg-purple-500' },
-  { value: 'ABUSE', label: 'Abus', color: 'bg-pink-500' },
-  { value: 'OTHER', label: 'Autre', color: 'bg-gray-500' },
+// Types de flags UTILISATEURS
+const USER_FLAG_TYPES = [
+  { value: 'NO_SHOW', label: 'No-show', color: 'bg-yellow-500', icon: UserX },
+  { value: 'DAYCARE_DISPUTE', label: 'Litige Garderie', color: 'bg-orange-500', icon: AlertTriangle },
+  { value: 'MULTIPLE_NO_SHOWS', label: 'No-shows multiples', color: 'bg-red-500', icon: UserX },
+  { value: 'SUSPICIOUS_BOOKING_PATTERN', label: 'Pattern suspect', color: 'bg-purple-500', icon: AlertTriangle },
+  { value: 'LATE_CANCELLATION', label: 'Annulations tardives', color: 'bg-amber-500', icon: Clock },
+  { value: 'FRAUD', label: 'Fraude', color: 'bg-red-600', icon: AlertTriangle },
+  { value: 'ABUSE', label: 'Abus', color: 'bg-pink-500', icon: AlertTriangle },
+  { value: 'SUSPICIOUS_BEHAVIOR', label: 'Comportement suspect', color: 'bg-purple-500', icon: AlertTriangle },
+  { value: 'OTHER', label: 'Autre', color: 'bg-gray-500', icon: Flag },
 ];
 
+// Types de flags PROFESSIONNELS
+const PRO_FLAG_TYPES = [
+  { value: 'PRO_HIGH_CANCELLATION', label: 'Annulations pro elevees', color: 'bg-red-500', icon: Briefcase },
+  { value: 'PRO_LOW_VERIFICATION', label: 'Faible verification', color: 'bg-orange-500', icon: Briefcase },
+  { value: 'PRO_GHOST_COMPLETIONS', label: 'RDV fantomes', color: 'bg-red-600', icon: Briefcase },
+  { value: 'PRO_UNRESPONSIVE', label: 'Pro non-reactif', color: 'bg-yellow-500', icon: Briefcase },
+  { value: 'PRO_LATE_CONFIRMATIONS', label: 'Confirmations tardives', color: 'bg-amber-500', icon: Briefcase },
+  { value: 'PRO_LOW_COMPLETION', label: 'Faible completion', color: 'bg-orange-600', icon: Briefcase },
+  { value: 'PRO_SUSPICIOUS', label: 'Pro suspect', color: 'bg-purple-500', icon: Briefcase },
+];
+
+const ALL_FLAG_TYPES = [...USER_FLAG_TYPES, ...PRO_FLAG_TYPES];
+
 function getTypeInfo(type: string) {
-  return FLAG_TYPES.find((t) => t.value === type) || { value: type, label: type, color: 'bg-gray-500' };
+  return ALL_FLAG_TYPES.find((t) => t.value === type) || { value: type, label: type, color: 'bg-gray-500', icon: Flag };
+}
+
+function isProFlag(type: string) {
+  return type.startsWith('PRO_');
 }
 
 export function AdminFlags() {
@@ -79,6 +107,14 @@ export function AdminFlags() {
     bookingId: '',
     note: '',
   });
+
+  // Analysis state
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    pros: { analyzed: number; flagged: number; flags: string[] };
+    users: { analyzed: number; flagged: number; flags: string[] };
+    totalNewFlags: number;
+  } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -170,6 +206,23 @@ export function AdminFlags() {
     }
   };
 
+  const handleRunAnalysis = async () => {
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    try {
+      const result = await api.adminRunFlagAnalysis();
+      setAnalysisResult(result);
+      if (result.totalNewFlags > 0) {
+        fetchData(); // Refresh flags list if new ones were created
+      }
+    } catch (error) {
+      console.error('Error running analysis:', error);
+      alert('Erreur lors de l\'analyse');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const getUserDisplayName = (flag: AdminFlag) => {
     if (!flag.user) return flag.userId.slice(0, 8) + '...';
     const { firstName, lastName, email } = flag.user;
@@ -188,6 +241,19 @@ export function AdminFlags() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={handleRunAnalysis}
+              disabled={analyzing}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 transition-colors font-medium disabled:opacity-50"
+              title="Analyser les comportements suspects"
+            >
+              {analyzing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              ) : (
+                <Zap size={18} />
+              )}
+              Analyser
+            </button>
+            <button
               onClick={fetchData}
               className="p-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 transition-colors"
               title="Rafraichir"
@@ -203,6 +269,40 @@ export function AdminFlags() {
             </button>
           </div>
         </div>
+
+        {/* Analysis Result Banner */}
+        {analysisResult && (
+          <div className="mt-4 p-4 rounded-lg bg-purple-500/20 border border-purple-500/30">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium text-purple-300">Analyse terminee</p>
+                <p className="text-sm text-zinc-400 mt-1">
+                  {analysisResult.totalNewFlags} nouveau(x) flag(s) cree(s)
+                </p>
+                <div className="mt-2 text-xs text-zinc-500 space-y-1">
+                  <p>Pros analyses: {analysisResult.pros.analyzed} - {analysisResult.pros.flagged} flagges</p>
+                  <p>Users analyses: {analysisResult.users.analyzed} - {analysisResult.users.flagged} flagges</p>
+                </div>
+                {analysisResult.totalNewFlags > 0 && (
+                  <div className="mt-2 text-xs text-purple-400 space-y-0.5">
+                    {[...analysisResult.pros.flags, ...analysisResult.users.flags].slice(0, 5).map((msg, i) => (
+                      <p key={i}>• {msg}</p>
+                    ))}
+                    {[...analysisResult.pros.flags, ...analysisResult.users.flags].length > 5 && (
+                      <p>...et {[...analysisResult.pros.flags, ...analysisResult.users.flags].length - 5} autres</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setAnalysisResult(null)}
+                className="p-1 rounded hover:bg-zinc-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6">
@@ -278,9 +378,16 @@ export function AdminFlags() {
             className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <option value="">Tous les types</option>
-            {FLAG_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
+            <optgroup label="Utilisateurs">
+              {USER_FLAG_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Professionnels">
+              {PRO_FLAG_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
 
@@ -511,9 +618,16 @@ export function AdminFlags() {
                   onChange={(e) => setNewFlag({ ...newFlag, type: e.target.value })}
                   className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
-                  {FLAG_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
+                  <optgroup label="Utilisateurs">
+                    {USER_FLAG_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Professionnels">
+                    {PRO_FLAG_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <div>
