@@ -54,6 +54,13 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
     final messageController = TextEditingController();
     String selectedCategory = 'GENERAL';
     bool isSending = false;
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final inputFillColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100;
 
     showModalBottomSheet(
       context: context,
@@ -62,19 +69,19 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final categories = [
-            {'value': 'GENERAL', 'label': 'Question générale', 'icon': Icons.help_outline, 'color': Colors.blue},
-            {'value': 'APPEAL', 'label': 'Contestation', 'icon': Icons.gavel, 'color': Colors.red},
-            {'value': 'BUG', 'label': 'Signaler un bug', 'icon': Icons.bug_report, 'color': Colors.orange},
-            {'value': 'FEATURE', 'label': 'Suggestion', 'icon': Icons.lightbulb, 'color': Colors.purple},
-            {'value': 'BILLING', 'label': 'Facturation', 'icon': Icons.receipt_long, 'color': Colors.green},
-            {'value': 'OTHER', 'label': 'Autre', 'icon': Icons.more_horiz, 'color': Colors.grey},
+            {'value': 'GENERAL', 'label': l10n.supportCategoryGeneral, 'icon': Icons.help_outline, 'color': Colors.blue},
+            {'value': 'APPEAL', 'label': l10n.supportCategoryAppeal, 'icon': Icons.gavel, 'color': Colors.red},
+            {'value': 'BUG', 'label': l10n.supportCategoryBug, 'icon': Icons.bug_report, 'color': Colors.orange},
+            {'value': 'FEATURE', 'label': l10n.supportCategoryFeature, 'icon': Icons.lightbulb, 'color': Colors.purple},
+            {'value': 'BILLING', 'label': l10n.supportCategoryBilling, 'icon': Icons.receipt_long, 'color': Colors.green},
+            {'value': 'OTHER', 'label': l10n.supportCategoryOther, 'icon': Icons.more_horiz, 'color': Colors.grey},
           ];
 
           return Container(
             height: MediaQuery.of(ctx).size.height * 0.9,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               children: [
@@ -84,7 +91,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -109,20 +116,20 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Nouveau ticket',
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                            Text(
+                              l10n.supportNewTicket,
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textColor),
                             ),
                             Text(
-                              'Notre équipe vous répondra sous 24h',
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                              l10n.supportTeamResponds24h,
+                              style: TextStyle(fontSize: 13, color: subtitleColor),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(ctx),
-                        icon: Icon(Icons.close, color: Colors.grey.shade600),
+                        icon: Icon(Icons.close, color: subtitleColor),
                       ),
                     ],
                   ),
@@ -138,9 +145,9 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Category selection
-                        const Text(
-                          'Type de demande',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        Text(
+                          l10n.supportRequestType,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor),
                         ),
                         const SizedBox(height: 12),
                         Wrap(
@@ -155,7 +162,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? color.withOpacity(0.15) : Colors.grey.shade100,
+                                  color: isSelected ? color.withOpacity(0.15) : inputFillColor,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected ? color : Colors.transparent,
@@ -168,7 +175,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                     Icon(
                                       cat['icon'] as IconData,
                                       size: 18,
-                                      color: isSelected ? color : Colors.grey.shade600,
+                                      color: isSelected ? color : subtitleColor,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -176,7 +183,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                        color: isSelected ? color : Colors.grey.shade700,
+                                        color: isSelected ? color : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                                       ),
                                     ),
                                   ],
@@ -189,19 +196,20 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                         const SizedBox(height: 28),
 
                         // Subject field
-                        const Text(
-                          'Sujet',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        Text(
+                          l10n.supportSubject,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: subjectController,
                           textCapitalization: TextCapitalization.sentences,
+                          style: TextStyle(color: textColor),
                           decoration: InputDecoration(
-                            hintText: 'Résumez votre demande en une phrase',
-                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            hintText: l10n.supportSubjectHint,
+                            hintStyle: TextStyle(color: subtitleColor.withOpacity(0.7)),
                             filled: true,
-                            fillColor: Colors.grey.shade100,
+                            fillColor: inputFillColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide.none,
@@ -217,20 +225,21 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                         const SizedBox(height: 24),
 
                         // Message field
-                        const Text(
-                          'Décrivez votre problème',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        Text(
+                          l10n.supportDescribeProblem,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textColor),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: messageController,
                           maxLines: 6,
                           textCapitalization: TextCapitalization.sentences,
+                          style: TextStyle(color: textColor),
                           decoration: InputDecoration(
-                            hintText: 'Donnez-nous le maximum de détails pour que nous puissions vous aider au mieux...',
-                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            hintText: l10n.supportDescribeHint,
+                            hintStyle: TextStyle(color: subtitleColor.withOpacity(0.7)),
                             filled: true,
-                            fillColor: Colors.grey.shade100,
+                            fillColor: inputFillColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide.none,
@@ -249,18 +258,18 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: isDark ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.blue.shade100),
+                            border: Border.all(color: isDark ? Colors.blue.shade700 : Colors.blue.shade100),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 22),
+                              Icon(Icons.info_outline, color: isDark ? Colors.blue.shade300 : Colors.blue.shade700, size: 22),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Vous recevrez une notification dès que notre équipe aura répondu.',
-                                  style: TextStyle(fontSize: 13, color: Colors.blue.shade800, height: 1.4),
+                                  l10n.supportNotificationInfo,
+                                  style: TextStyle(fontSize: 13, color: isDark ? Colors.blue.shade200 : Colors.blue.shade800, height: 1.4),
                                 ),
                               ),
                             ],
@@ -280,8 +289,8 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                     bottom: MediaQuery.of(ctx).padding.bottom + 16,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
+                    color: cardColor,
+                    boxShadow: isDark ? null : [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
@@ -298,8 +307,8 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                           : () async {
                               if (subjectController.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Veuillez entrer un sujet'),
+                                  SnackBar(
+                                    content: Text(l10n.supportEnterSubject),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
@@ -307,8 +316,8 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                               }
                               if (messageController.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Veuillez décrire votre problème'),
+                                  SnackBar(
+                                    content: Text(l10n.supportEnterDescription),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
@@ -340,14 +349,14 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.send, size: 20),
-                                SizedBox(width: 10),
+                                const Icon(Icons.send, size: 20),
+                                const SizedBox(width: 10),
                                 Text(
-                                  'Envoyer le ticket',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                  l10n.supportSendTicket,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                                 ),
                               ],
                             ),

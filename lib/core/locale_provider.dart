@@ -776,6 +776,17 @@ class AppLocalizations {
       'supportNoMessages': 'Aucun message',
       'supportContestDecision': 'Contester cette décision',
       'supportContactSupport': 'Contacter le support',
+      // ===== SUSPENSION / BAN / RESTRICTION =====
+      'accountBanned': 'Compte banni',
+      'accountSuspended': 'Compte suspendu',
+      'accountRestricted': 'Compte restreint',
+      'stillRemaining': 'Encore',
+      'reason': 'Raison',
+      'understood': 'J\'ai compris',
+      'contestDecision': 'Contester cette décision',
+      'bannedMessage': 'Votre compte a été banni suite à une violation de nos conditions d\'utilisation.',
+      'suspendedMessage': 'Vous ne pouvez pas accéder aux services pendant cette période.',
+      'restrictedMessage': 'Vous ne pouvez pas réserver de nouveaux rendez-vous pendant cette période.',
     },
     'en': {
       'appName': 'Vegece',
@@ -1410,6 +1421,17 @@ class AppLocalizations {
       'supportNoMessages': 'No messages',
       'supportContestDecision': 'Contest this decision',
       'supportContactSupport': 'Contact support',
+      // ===== SUSPENSION / BAN / RESTRICTION =====
+      'accountBanned': 'Account banned',
+      'accountSuspended': 'Account suspended',
+      'accountRestricted': 'Account restricted',
+      'stillRemaining': 'Remaining',
+      'reason': 'Reason',
+      'understood': 'I understand',
+      'contestDecision': 'Contest this decision',
+      'bannedMessage': 'Your account has been banned for violating our terms of use.',
+      'suspendedMessage': 'You cannot access services during this period.',
+      'restrictedMessage': 'You cannot book new appointments during this period.',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -2044,6 +2066,17 @@ class AppLocalizations {
       'supportNoMessages': 'لا توجد رسائل',
       'supportContestDecision': 'الاعتراض على هذا القرار',
       'supportContactSupport': 'اتصل بالدعم',
+      // ===== SUSPENSION / BAN / RESTRICTION =====
+      'accountBanned': 'حساب محظور',
+      'accountSuspended': 'حساب معلق',
+      'accountRestricted': 'حساب مقيد',
+      'stillRemaining': 'المتبقي',
+      'reason': 'السبب',
+      'understood': 'فهمت',
+      'contestDecision': 'الاعتراض على هذا القرار',
+      'bannedMessage': 'تم حظر حسابك بسبب انتهاك شروط الاستخدام.',
+      'suspendedMessage': 'لا يمكنك الوصول إلى الخدمات خلال هذه الفترة.',
+      'restrictedMessage': 'لا يمكنك حجز مواعيد جديدة خلال هذه الفترة.',
     },
   };
 
@@ -2207,6 +2240,17 @@ class AppLocalizations {
   String get supportNoMessages => _get('supportNoMessages');
   String get supportContestDecision => _get('supportContestDecision');
   String get supportContactSupport => _get('supportContactSupport');
+  // Suspension / Ban / Restriction
+  String get accountBanned => _get('accountBanned');
+  String get accountSuspended => _get('accountSuspended');
+  String get accountRestricted => _get('accountRestricted');
+  String get stillRemaining => _get('stillRemaining');
+  String get reasonLabel => _get('reason');
+  String get understood => _get('understood');
+  String get contestDecision => _get('contestDecision');
+  String get bannedMessage => _get('bannedMessage');
+  String get suspendedMessage => _get('suspendedMessage');
+  String get restrictedMessage => _get('restrictedMessage');
   String get needHelp => _get('needHelp');
   String get comingSoon => _get('comingSoon');
   String get myProfile => _get('myProfile');
