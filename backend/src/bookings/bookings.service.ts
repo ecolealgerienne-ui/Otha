@@ -1693,6 +1693,7 @@ export class BookingsService {
     isFirstBooking?: boolean;
     trustStatus?: TrustStatus;
     restrictedUntil?: Date | null;
+    suspendedUntil?: Date | null;
   }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -1700,6 +1701,8 @@ export class BookingsService {
         trustStatus: true,
         restrictedUntil: true,
         noShowCount: true,
+        isBanned: true,
+        suspendedUntil: true,
       },
     });
 
@@ -1707,7 +1710,37 @@ export class BookingsService {
       return { canBook: false, reason: 'Utilisateur non trouvé' };
     }
 
-    // Vérifier si la restriction est expirée
+    // Vérifier si l'utilisateur est banni (sanction admin permanente)
+    if (user.isBanned) {
+      return {
+        canBook: false,
+        reason: 'Votre compte a été banni. Veuillez contacter le support.',
+        trustStatus: user.trustStatus,
+      };
+    }
+
+    // Vérifier si l'utilisateur est suspendu (sanction admin temporaire)
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      const remainingDays = Math.ceil(
+        (user.suspendedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      return {
+        canBook: false,
+        reason: `Votre compte est suspendu pour encore ${remainingDays} jour(s).`,
+        trustStatus: user.trustStatus,
+        suspendedUntil: user.suspendedUntil,
+      };
+    }
+
+    // Lever automatiquement la suspension expirée
+    if (user.suspendedUntil && user.suspendedUntil <= new Date()) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { suspendedUntil: null },
+      });
+    }
+
+    // Vérifier si la restriction est expirée (trust system automatique)
     if (user.trustStatus === 'RESTRICTED') {
       if (user.restrictedUntil && user.restrictedUntil <= new Date()) {
         // Restriction expirée → remettre en NEW pour un nouveau test
