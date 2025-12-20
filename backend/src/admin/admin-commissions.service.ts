@@ -7,12 +7,15 @@ export interface CommissionData {
   daycareDailyCommissionDa: number;
 }
 
+export type ProviderKind = 'vet' | 'daycare' | 'petshop';
+
 export interface ProviderCommission {
   providerId: string;
   userId: string;
   displayName: string;
   email: string;
   isApproved: boolean;
+  kind: ProviderKind;
   vetCommissionDa: number;
   daycareHourlyCommissionDa: number;
   daycareDailyCommissionDa: number;
@@ -60,16 +63,21 @@ export class AdminCommissionsService {
       orderBy: { displayName: 'asc' },
     });
 
-    return providers.map((p) => ({
-      providerId: p.id,
-      userId: p.userId,
-      displayName: p.displayName,
-      email: p.user.email,
-      isApproved: p.isApproved,
-      vetCommissionDa: p.vetCommissionDa,
-      daycareHourlyCommissionDa: p.daycareHourlyCommissionDa,
-      daycareDailyCommissionDa: p.daycareDailyCommissionDa,
-    }));
+    return providers.map((p) => {
+      const specialties = p.specialties as any;
+      const kind: ProviderKind = specialties?.kind || 'vet';
+      return {
+        providerId: p.id,
+        userId: p.userId,
+        displayName: p.displayName,
+        email: p.user.email,
+        isApproved: p.isApproved,
+        kind,
+        vetCommissionDa: p.vetCommissionDa,
+        daycareHourlyCommissionDa: p.daycareHourlyCommissionDa,
+        daycareDailyCommissionDa: p.daycareDailyCommissionDa,
+      };
+    });
   }
 
   /**
@@ -94,12 +102,16 @@ export class AdminCommissionsService {
       throw new NotFoundException(`Provider ${providerId} not found`);
     }
 
+    const specialties = provider.specialties as any;
+    const kind: ProviderKind = specialties?.kind || 'vet';
+
     return {
       providerId: provider.id,
       userId: provider.userId,
       displayName: provider.displayName,
       email: provider.user.email,
       isApproved: provider.isApproved,
+      kind,
       vetCommissionDa: provider.vetCommissionDa,
       daycareHourlyCommissionDa: provider.daycareHourlyCommissionDa,
       daycareDailyCommissionDa: provider.daycareDailyCommissionDa,
@@ -149,12 +161,16 @@ export class AdminCommissionsService {
       },
     });
 
+    const specialties = updated.specialties as any;
+    const kind: ProviderKind = specialties?.kind || 'vet';
+
     return {
       providerId: updated.id,
       userId: updated.userId,
       displayName: updated.displayName,
       email: updated.user.email,
       isApproved: updated.isApproved,
+      kind,
       vetCommissionDa: updated.vetCommissionDa,
       daycareHourlyCommissionDa: updated.daycareHourlyCommissionDa,
       daycareDailyCommissionDa: updated.daycareDailyCommissionDa,

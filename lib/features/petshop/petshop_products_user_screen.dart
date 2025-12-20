@@ -11,8 +11,8 @@ const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
 
-/// Commission ajoutee au prix de chaque produit (en DA)
-const int kCommissionDa = 100;
+/// Commission par défaut pour petshop (statique pour l'instant - sera personnalisable plus tard)
+const int kDefaultPetshopCommissionDa = 100;
 
 /// Provider pour les details d'une animalerie
 final _petshopProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
@@ -762,7 +762,7 @@ class _ProductCard extends ConsumerWidget {
     final productId = (product['id'] ?? '').toString();
     final basePrice = _asInt(product['priceDa'] ?? product['price'] ?? 0);
     // Le prix affiché inclut la commission
-    final price = basePrice + kCommissionDa;
+    final price = basePrice + kDefaultPetshopCommissionDa;
     final stock = _asInt(product['stock'] ?? 0);
     final imageUrls = product['imageUrls'] as List?;
     final imageUrl =

@@ -159,8 +159,8 @@ final pendingLateFeesProvider = FutureProvider.autoDispose<List<Map<String, dyna
   }
 });
 
-// Commission for daycare: 100 DA per reservation
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le booking)
+const kDefaultDaycareCommissionDa = 100;
 
 /// Ledger pour la garderie
 class _DaycareLedger {
@@ -190,6 +190,7 @@ final daycareLedgerProvider = FutureProvider.autoDispose<_DaycareLedger>((ref) a
 
     int bookingsThisMonth = 0;
     int revenueThisMonth = 0;
+    int commissionThisMonth = 0;
 
     for (final booking in bookings) {
       // Only count completed/delivered bookings
@@ -207,11 +208,13 @@ final daycareLedgerProvider = FutureProvider.autoDispose<_DaycareLedger>((ref) a
       if (bookingYm == ymNow) {
         bookingsThisMonth++;
         revenueThisMonth += _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
+        // Utilise la commission du booking si disponible, sinon le défaut
+        commissionThisMonth += _asInt(booking['commissionDa'] ?? kDefaultDaycareCommissionDa);
       }
     }
 
-    // Commission is per booking (fixed 100 DA)
-    final commissionDue = bookingsThisMonth * kDaycareCommissionDa;
+    // Commission totale pour ce mois
+    final commissionDue = commissionThisMonth;
 
     return _DaycareLedger(
       ym: ymNow,

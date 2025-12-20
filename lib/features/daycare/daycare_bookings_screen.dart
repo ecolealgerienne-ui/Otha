@@ -15,8 +15,8 @@ const _bgDark = Color(0xFF121212);
 const _cardLight = Color(0xFFFFFFFF);
 const _cardDark = Color(0xFF1E1E1E);
 
-// Commission for daycare: 100 DA per reservation
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le booking)
+const kDefaultDaycareCommissionDa = 100;
 
 final daycareBookingsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -353,7 +353,7 @@ class _BookingCard extends ConsumerWidget {
     final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
     final totalDa = _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
     final priceDa = _asInt(booking['priceDa'] ?? 0);
-    final commissionDa = _asInt(booking['commissionDa'] ?? kDaycareCommissionDa);
+    final commissionDa = _asInt(booking['commissionDa'] ?? kDefaultDaycareCommissionDa);
     final startDate = booking['startDate'];
     final endDate = booking['endDate'];
     final pet = booking['pet'] as Map<String, dynamic>?;

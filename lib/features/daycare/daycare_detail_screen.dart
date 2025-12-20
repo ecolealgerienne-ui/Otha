@@ -12,8 +12,9 @@ const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
-// Commission cachée ajoutée au prix affiché
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le profil du provider)
+const kDefaultDaycareHourlyCommissionDa = 10;
+const kDefaultDaycareDailyCommissionDa = 100;
 
 class DaycareDetailScreen extends ConsumerStatefulWidget {
   final String providerId;
@@ -54,6 +55,11 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
     final animalTypes = daycare['animalTypes'] as List<dynamic>? ?? [];
     final hourlyRate = daycare['hourlyRate'];
     final dailyRate = daycare['dailyRate'];
+
+    // Commissions personnalisées du provider
+    final hourlyCommission = (daycare['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa) as int;
+    final dailyCommission = (daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa) as int;
+
     final is24_7 = daycare['is24_7'] == true;
     final openingTime = daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = daycare['closingTime']?.toString() ?? '20:00';
@@ -343,7 +349,7 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
                           if (hourlyRate != null)
                             _buildPricingRow(
                               l10n.hourlyRate,
-                              '${(hourlyRate as int) + kDaycareCommissionDa} DA${l10n.perHour}',
+                              '${(hourlyRate as int) + hourlyCommission} DA${l10n.perHour}',
                               textPrimary,
                             ),
                           if (hourlyRate != null && dailyRate != null)
@@ -351,7 +357,7 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
                           if (dailyRate != null)
                             _buildPricingRow(
                               l10n.dailyRate,
-                              '${(dailyRate as int) + kDaycareCommissionDa} DA${l10n.perDay}',
+                              '${(dailyRate as int) + dailyCommission} DA${l10n.perDay}',
                               textPrimary,
                             ),
                         ],
@@ -448,8 +454,8 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
                       Text(l10n.fromPrice, style: TextStyle(fontSize: 12, color: textSecondary)),
                       Text(
                         hourlyRate != null
-                            ? '${(hourlyRate as int) + kDaycareCommissionDa} DA${l10n.perHour}'
-                            : '${(dailyRate as int) + kDaycareCommissionDa} DA${l10n.perDay}',
+                            ? '${(hourlyRate as int) + hourlyCommission} DA${l10n.perHour}'
+                            : '${(dailyRate as int) + dailyCommission} DA${l10n.perDay}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,

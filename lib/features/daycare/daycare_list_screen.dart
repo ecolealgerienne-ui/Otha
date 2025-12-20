@@ -19,8 +19,9 @@ const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
-// Commission cachée ajoutée au prix affiché
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le profil du provider)
+const kDefaultDaycareHourlyCommissionDa = 10;
+const kDefaultDaycareDailyCommissionDa = 100;
 
 /// Provider qui charge la liste des garderies
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -95,6 +96,10 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       dKm = _haversineKm(lat, lng);
     }
 
+    // Commissions personnalisées (du profil provider)
+    final hourlyCommission = m['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa;
+    final dailyCommission = m['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa;
+
     return <String, dynamic>{
       'id': id,
       'displayName': name,
@@ -106,6 +111,8 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       'animalTypes': types,
       'hourlyRate': hourlyRate,
       'dailyRate': dailyRate,
+      'daycareHourlyCommissionDa': hourlyCommission,
+      'daycareDailyCommissionDa': dailyCommission,
       'is24_7': is24_7,
       'openingTime': openingTime,
       'closingTime': closingTime,
@@ -374,12 +381,16 @@ class _DaycareCardState extends State<_DaycareCard> {
     final openingTime = widget.daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
 
+    // Commissions personnalisées du provider
+    final hourlyCommission = widget.daycare['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa;
+    final dailyCommission = widget.daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa;
+
     String? priceText;
     if (hourlyRate != null) {
-      final priceWithCommission = (hourlyRate as int) + kDaycareCommissionDa;
+      final priceWithCommission = (hourlyRate as int) + (hourlyCommission as int);
       priceText = '$priceWithCommission DA${widget.l10n.perHour}';
     } else if (dailyRate != null) {
-      final priceWithCommission = (dailyRate as int) + kDaycareCommissionDa;
+      final priceWithCommission = (dailyRate as int) + (dailyCommission as int);
       priceText = '$priceWithCommission DA${widget.l10n.perDay}';
     }
 
