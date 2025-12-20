@@ -377,6 +377,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                 textCapitalization: TextCapitalization.sentences,
                                 maxLines: 4,
                                 minLines: 1,
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black),
                                 decoration: InputDecoration(
                                   hintText: l10n.supportYourMessage,
                                   hintStyle: TextStyle(color: subtitleColor),
