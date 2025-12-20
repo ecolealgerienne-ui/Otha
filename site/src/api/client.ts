@@ -592,14 +592,82 @@ class ApiClient {
   }
 
   // ==================== ADMIN: USERS ====================
-  async adminListUsers(q?: string, limit = 20, offset = 0, role?: string): Promise<User[]> {
+  async adminListUsers(q?: string, limit = 20, offset = 0, role?: string, isBanned?: boolean, trustStatus?: string): Promise<User[]> {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (q) params.append('q', q);
     if (role) params.append('role', role);
-    const { data } = await this._client.get(`/users/list?${params}`);
+    if (isBanned !== undefined) params.append('isBanned', String(isBanned));
+    if (trustStatus) params.append('trustStatus', trustStatus);
+    const { data } = await this._client.get(`/admin/users?${params}`);
     // Handle wrapped response { data: [...] } or direct array
     const result = data?.data || data;
     return Array.isArray(result) ? result : [];
+  }
+
+  // Get full user profile with all data (admin)
+  async adminGetUserFullProfile(userId: string): Promise<any> {
+    const { data } = await this._client.get(`/admin/users/${userId}/full`);
+    return data?.data || data;
+  }
+
+  // Update user info (admin)
+  async adminUpdateUser(userId: string, updates: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    city?: string;
+  }): Promise<User> {
+    const { data } = await this._client.patch<User>(`/admin/users/${userId}`, updates);
+    return data;
+  }
+
+  // Warn user (admin)
+  async adminWarnUser(userId: string, reason: string, metadata?: any): Promise<{ ok: boolean; message: string; sanction: any }> {
+    const { data } = await this._client.post(`/admin/users/${userId}/warn`, { reason, metadata });
+    return data;
+  }
+
+  // Suspend user (admin)
+  async adminSuspendUser(userId: string, reason: string, durationDays: number, metadata?: any): Promise<{ ok: boolean; message: string; user: User; sanction: any }> {
+    const { data } = await this._client.post(`/admin/users/${userId}/suspend`, { reason, durationDays, metadata });
+    return data;
+  }
+
+  // Ban user (admin)
+  async adminBanUser(userId: string, reason: string, metadata?: any): Promise<{ ok: boolean; message: string; user: User; sanction: any }> {
+    const { data } = await this._client.post(`/admin/users/${userId}/ban`, { reason, metadata });
+    return data;
+  }
+
+  // Unban user (admin)
+  async adminUnbanUser(userId: string, reason?: string): Promise<{ ok: boolean; message: string; user: User; sanction: any }> {
+    const { data } = await this._client.post(`/admin/users/${userId}/unban`, { reason });
+    return data;
+  }
+
+  // Lift suspension (admin)
+  async adminLiftSuspension(userId: string, reason?: string): Promise<{ ok: boolean; message: string; user: User; sanction: any }> {
+    const { data } = await this._client.post(`/admin/users/${userId}/lift-suspension`, { reason });
+    return data;
+  }
+
+  // Get user sanctions history (admin)
+  async adminGetUserSanctions(userId: string): Promise<any[]> {
+    const { data } = await this._client.get(`/admin/users/${userId}/sanctions`);
+    return data?.data || data || [];
+  }
+
+  // Get user petshop orders (admin)
+  async adminGetUserOrders(userId: string): Promise<any[]> {
+    const { data } = await this._client.get(`/admin/users/${userId}/orders`);
+    return data?.data || data || [];
+  }
+
+  // Get user daycare bookings (admin)
+  async adminGetUserDaycareBookings(userId: string): Promise<any[]> {
+    const { data } = await this._client.get(`/admin/users/${userId}/daycare`);
+    return data?.data || data || [];
   }
 
   // ==================== ADMIN: PROVIDERS ====================

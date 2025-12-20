@@ -117,9 +117,18 @@ model User {
   verifiedAt         DateTime?                    // Date de vérification
   lastModifiedBooking String?                     // ID du dernier booking modifié (limite 1 modif pour NEW)
 
+  // Système de sanctions admin
+  isBanned      Boolean   @default(false)  // Compte banni définitivement
+  bannedAt      DateTime?                  // Date du bannissement
+  bannedReason  String?                    // Raison du ban
+  bannedBy      String?                    // Admin ID qui a banni
+  suspendedUntil DateTime?                 // Suspension temporaire (null = pas suspendu)
+  sanctions     UserSanction[]             // Historique des sanctions
+
   @@index([email])
   @@index([city])
   @@index([lat, lng])
+  @@index([isBanned])
 }
 
 model ProviderProfile {
@@ -934,4 +943,37 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+// =========================
+// Système de sanctions admin
+// =========================
+
+enum SanctionType {
+  WARNING      // Avertissement simple
+  SUSPENSION   // Suspension temporaire
+  BAN          // Bannissement définitif
+  UNBAN        // Levée de ban (pour historique)
+  LIFT         // Levée de suspension
+}
+
+model UserSanction {
+  id          String       @id @default(cuid())
+  userId      String
+  type        SanctionType
+  reason      String       // Raison de la sanction
+  duration    Int?         // Durée en jours (null = permanent pour BAN, ou N/A pour WARNING)
+  expiresAt   DateTime?    // Date d'expiration (pour SUSPENSION)
+  issuedBy    String       // Admin ID qui a émis la sanction
+  issuedAt    DateTime     @default(now())
+  liftedAt    DateTime?    // Date de levée (si levée manuellement)
+  liftedBy    String?      // Admin ID qui a levé la sanction
+  metadata    Json?        // Données supplémentaires (booking concerné, etc.)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([issuedAt])
+  @@index([issuedBy])
 }
