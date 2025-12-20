@@ -1070,6 +1070,52 @@ class ApiClient {
     const { data } = await this._client.get('/admin/support/unread');
     return data?.data || data;
   }
+
+  // ==================== ADMIN COMMISSIONS ====================
+  async adminGetCommissions(q?: string, isApproved?: boolean): Promise<{
+    providerId: string;
+    userId: string;
+    displayName: string;
+    email: string;
+    isApproved: boolean;
+    vetCommissionDa: number;
+    daycareHourlyCommissionDa: number;
+    daycareDailyCommissionDa: number;
+  }[]> {
+    const params = new URLSearchParams();
+    if (q) params.append('q', q);
+    if (isApproved !== undefined) params.append('isApproved', String(isApproved));
+    const { data } = await this._client.get(`/admin/commissions?${params}`);
+    return data?.data || data || [];
+  }
+
+  async adminGetProviderCommission(providerId: string): Promise<{
+    providerId: string;
+    userId: string;
+    displayName: string;
+    email: string;
+    isApproved: boolean;
+    vetCommissionDa: number;
+    daycareHourlyCommissionDa: number;
+    daycareDailyCommissionDa: number;
+  }> {
+    const { data } = await this._client.get(`/admin/commissions/${providerId}`);
+    return data?.data || data;
+  }
+
+  async adminUpdateCommission(providerId: string, commission: {
+    vetCommissionDa?: number;
+    daycareHourlyCommissionDa?: number;
+    daycareDailyCommissionDa?: number;
+  }): Promise<any> {
+    const { data } = await this._client.patch(`/admin/commissions/${providerId}`, commission);
+    return data?.data || data;
+  }
+
+  async adminResetCommission(providerId: string): Promise<any> {
+    const { data } = await this._client.post(`/admin/commissions/${providerId}/reset`);
+    return data?.data || data;
+  }
 }
 
 // Export singleton instance

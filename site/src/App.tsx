@@ -27,6 +27,7 @@ import {
   AdminUsers,
   AdminAdoptions,
   AdminEarnings,
+  AdminCommissions,
   AdminFlags,
   AdminSupport,
 } from './admin';
@@ -110,6 +111,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminEarnings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/commissions"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminCommissions />
               </ProtectedRoute>
             }
           />

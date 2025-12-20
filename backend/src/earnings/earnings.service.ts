@@ -24,6 +24,18 @@ function canonYm(raw: string) {
 export class EarningsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Récupère la commission vétérinaire personnalisée du provider
+   * Retourne la valeur par défaut si non trouvé
+   */
+  private async getProviderVetCommission(providerId: string): Promise<number> {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { vetCommissionDa: true },
+    });
+    return provider?.vetCommissionDa ?? COMMISSION_DA;
+  }
+
   private async countsFor(providerId: string, ym: string): Promise<Counts> {
     const { from, to } = monthStartEndUtc(ym);
     const rows = await this.prisma.booking.groupBy({
@@ -45,12 +57,15 @@ export class EarningsService {
     return Math.min(rec.amountDa, dueDa);
   }
 
-  // Ligne normalisée d’un mois
+  // Ligne normalisée d'un mois
   async monthRow(providerId: string, ymRaw: string) {
     const ym = canonYm(ymRaw);
     const counts = await this.countsFor(providerId, ym);
     const completed = counts.COMPLETED;
-    const dueDa = completed * COMMISSION_DA;
+
+    // Utiliser la commission personnalisée du provider
+    const commissionDa = await this.getProviderVetCommission(providerId);
+    const dueDa = completed * commissionDa;
 
     // 1) overlay admin (collecte figée)
     let collectedDa = await this.collectedOverlay(providerId, ym, dueDa);
