@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF2968F);
 const _coralLight = Color(0xFFFFE8E8);
@@ -118,18 +119,18 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
     }
   }
 
-  String _getStatusLabel(String status) {
+  String _getStatusLabel(String status, AppLocalizations l10n) {
     switch (status) {
       case 'OPEN':
-        return 'Nouveau';
+        return l10n.supportStatusOpen;
       case 'IN_PROGRESS':
-        return 'En cours';
+        return l10n.supportStatusInProgress;
       case 'WAITING_USER':
-        return 'En attente de votre réponse';
+        return l10n.supportStatusWaitingUser;
       case 'RESOLVED':
-        return 'Résolu';
+        return l10n.supportStatusResolved;
       case 'CLOSED':
-        return 'Fermé';
+        return l10n.supportStatusClosed;
       default:
         return status;
     }
@@ -154,25 +155,33 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     final status = _ticket?['status']?.toString() ?? 'OPEN';
     final isClosed = status == 'CLOSED' || status == 'RESOLVED';
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => context.pop(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _ticket?['subject']?.toString() ?? 'Support',
-              style: const TextStyle(
-                color: Colors.black87,
+              _ticket?['subject']?.toString() ?? l10n.supportTitle,
+              style: TextStyle(
+                color: textColor,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -192,7 +201,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  _getStatusLabel(status),
+                  _getStatusLabel(status, l10n),
                   style: TextStyle(
                     fontSize: 12,
                     color: _getStatusColor(status),
@@ -214,9 +223,9 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                     children: [
                       Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
                       const SizedBox(height: 16),
-                      Text('Erreur de chargement', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(l10n.error, style: TextStyle(color: subtitleColor)),
                       const SizedBox(height: 8),
-                      TextButton(onPressed: _loadMessages, child: const Text('Réessayer')),
+                      TextButton(onPressed: _loadMessages, child: Text(l10n.retry)),
                     ],
                   ),
                 )
@@ -227,8 +236,8 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                       child: _messages.isEmpty
                           ? Center(
                               child: Text(
-                                'Aucun message',
-                                style: TextStyle(color: Colors.grey.shade500),
+                                l10n.supportNoMessages,
+                                style: TextStyle(color: subtitleColor),
                               ),
                             )
                           : ListView.builder(
@@ -279,14 +288,14 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                             vertical: 12,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: isFromAdmin ? Colors.white : _coral,
+                                            color: isFromAdmin ? cardColor : _coral,
                                             borderRadius: BorderRadius.only(
                                               topLeft: const Radius.circular(18),
                                               topRight: const Radius.circular(18),
                                               bottomLeft: Radius.circular(isFromAdmin ? 4 : 18),
                                               bottomRight: Radius.circular(isFromAdmin ? 18 : 4),
                                             ),
-                                            boxShadow: [
+                                            boxShadow: isDark ? null : [
                                               BoxShadow(
                                                 color: Colors.black.withOpacity(0.05),
                                                 blurRadius: 8,
@@ -312,7 +321,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                               Text(
                                                 content,
                                                 style: TextStyle(
-                                                  color: isFromAdmin ? Colors.black87 : Colors.white,
+                                                  color: isFromAdmin ? textColor : Colors.white,
                                                   fontSize: 15,
                                                   height: 1.4,
                                                 ),
@@ -322,7 +331,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                                 timeStr,
                                                 style: TextStyle(
                                                   color: isFromAdmin
-                                                      ? Colors.grey.shade500
+                                                      ? subtitleColor
                                                       : Colors.white.withOpacity(0.7),
                                                   fontSize: 11,
                                                 ),
@@ -348,8 +357,8 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                           bottom: MediaQuery.of(context).padding.bottom + 12,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
+                          color: cardColor,
+                          boxShadow: isDark ? null : [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.05),
                               blurRadius: 10,
@@ -366,9 +375,10 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                 maxLines: 4,
                                 minLines: 1,
                                 decoration: InputDecoration(
-                                  hintText: 'Votre message...',
+                                  hintText: l10n.supportYourMessage,
+                                  hintStyle: TextStyle(color: subtitleColor),
                                   filled: true,
-                                  fillColor: Colors.grey.shade100,
+                                  fillColor: isDark ? theme.cardColor.withOpacity(0.5) : Colors.grey.shade100,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(24),
                                     borderSide: BorderSide.none,
@@ -415,7 +425,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                           top: 16,
                           bottom: MediaQuery.of(context).padding.bottom + 16,
                         ),
-                        color: Colors.grey.shade200,
+                        color: isDark ? theme.cardColor : Colors.grey.shade200,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -427,10 +437,10 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                             const SizedBox(width: 8),
                             Text(
                               status == 'RESOLVED'
-                                  ? 'Ce ticket a été résolu'
-                                  : 'Ce ticket est fermé',
+                                  ? l10n.supportTicketResolved
+                                  : l10n.supportTicketClosed,
                               style: TextStyle(
-                                color: Colors.grey.shade700,
+                                color: subtitleColor,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

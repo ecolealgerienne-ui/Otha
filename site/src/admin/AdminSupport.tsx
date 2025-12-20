@@ -25,6 +25,7 @@ import {
 import api from '../api/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 
 interface SupportTicket {
   id: string;
@@ -304,6 +305,7 @@ export function AdminSupport() {
   }, [selectedTicket?.messages]);
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -314,7 +316,7 @@ export function AdminSupport() {
         <button
           onClick={loadAll}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-coral-500 text-white rounded-lg hover:bg-coral-600 transition disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-rose-400 text-white rounded-lg hover:bg-rose-500 transition disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
@@ -384,7 +386,7 @@ export function AdminSupport() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 focus:border-transparent"
           >
             <option value="">Tous les statuts</option>
             {STATUSES.map((s) => (
@@ -397,7 +399,7 @@ export function AdminSupport() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 focus:border-transparent"
           >
             <option value="">Toutes les catégories</option>
             {CATEGORIES.map((c) => (
@@ -410,7 +412,7 @@ export function AdminSupport() {
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 focus:border-transparent"
           >
             <option value="">Toutes les priorités</option>
             {PRIORITIES.map((p) => (
@@ -555,7 +557,7 @@ export function AdminSupport() {
               <select
                 value={selectedTicket.status}
                 onChange={(e) => updateStatus(e.target.value)}
-                className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-coral-500"
+                className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-400"
               >
                 {STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -568,7 +570,7 @@ export function AdminSupport() {
               <select
                 value={selectedTicket.priority}
                 onChange={(e) => updatePriority(e.target.value)}
-                className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-coral-500"
+                className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-400"
               >
                 {PRIORITIES.map((p) => (
                   <option key={p.value} value={p.value}>
@@ -596,7 +598,7 @@ export function AdminSupport() {
               {/* Assign button */}
               <button
                 onClick={assignToSelf}
-                className="px-3 py-1 text-sm bg-coral-500 text-white rounded-lg hover:bg-coral-600 transition"
+                className="px-3 py-1 text-sm bg-rose-400 text-white rounded-lg hover:bg-rose-500 transition"
               >
                 Me l'assigner
               </button>
@@ -609,13 +611,13 @@ export function AdminSupport() {
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                       msg.isFromAdmin
-                        ? 'bg-coral-500 text-white rounded-br-md'
+                        ? 'bg-rose-400 text-white rounded-br-md'
                         : 'bg-gray-100 text-gray-900 rounded-bl-md'
                     }`}
                   >
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     <div
-                      className={`text-xs mt-1 ${msg.isFromAdmin ? 'text-coral-100' : 'text-gray-400'}`}
+                      className={`text-xs mt-1 ${msg.isFromAdmin ? 'text-rose-100' : 'text-gray-400'}`}
                     >
                       {format(new Date(msg.createdAt), 'dd MMM HH:mm', { locale: fr })}
                       {msg.isFromAdmin && msg.readAt && ' ✓✓'}
@@ -636,13 +638,13 @@ export function AdminSupport() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Votre réponse..."
-                    className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+                    className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:ring-2 focus:ring-rose-400 focus:border-transparent"
                     disabled={sending}
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || sending}
-                    className="p-3 bg-coral-500 text-white rounded-full hover:bg-coral-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-3 bg-rose-400 text-white rounded-full hover:bg-rose-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-5 h-5" />
                   </button>
@@ -661,5 +663,6 @@ export function AdminSupport() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   );
 }

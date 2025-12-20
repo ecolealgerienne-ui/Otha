@@ -1064,53 +1064,86 @@ class HomeScreen extends ConsumerWidget {
           context: context,
           barrierDismissible: true,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             icon: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.orange.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.pause_circle_filled, color: Colors.orange.shade600, size: 36),
+              child: Icon(Icons.pause_circle_filled, color: Colors.orange.shade600, size: 40),
             ),
             title: const Text(
               'Compte suspendu',
               textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.orange),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: Colors.orange),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  reason ?? 'Votre compte a été temporairement suspendu.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, height: 1.4),
-                ),
-                const SizedBox(height: 16),
+                // Timer
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade100, Colors.orange.shade50],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.orange.shade200),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined, color: Colors.orange.shade600, size: 20),
-                      const SizedBox(width: 8),
+                      Icon(Icons.timer_outlined, color: Colors.orange.shade700, size: 22),
+                      const SizedBox(width: 10),
                       Text(
-                        timerText,
+                        'Encore $timerText',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.orange.shade700,
+                          color: Colors.orange.shade800,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+                // Raison de la suspension
+                if (reason != null && reason.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 16, color: Colors.grey.shade600),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Raison',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          reason,
+                          style: const TextStyle(fontSize: 14, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text(
                   'Vous ne pouvez pas accéder aux services pendant cette période.',
                   textAlign: TextAlign.center,
@@ -1118,6 +1151,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            actionsAlignment: MainAxisAlignment.center,
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             actions: [
               Column(
                 children: [
@@ -1127,23 +1162,28 @@ class HomeScreen extends ConsumerWidget {
                       onPressed: () => Navigator.pop(ctx),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.orange.shade600,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('J\'ai compris'),
+                      child: const Text('J\'ai compris', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Contactez support@vegece.com pour plus d\'informations.')),
-                      );
-                    },
-                    child: Text(
-                      'Contacter le support',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.push('/support');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange.shade700,
+                        side: BorderSide(color: Colors.orange.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.support_agent, size: 20),
+                      label: const Text('Contester cette décision', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
