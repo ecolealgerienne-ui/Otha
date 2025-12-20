@@ -744,6 +744,38 @@ class AppLocalizations {
       'clientNote': 'Note du client',
       'bookingRejected': 'Réservation refusée',
       'bookingUpdated': 'Réservation mise à jour',
+      // ===== SUPPORT =====
+      'supportTitle': 'Support',
+      'supportNoTickets': 'Aucun ticket',
+      'supportNoTicketsDesc': 'Vous n\'avez pas encore contacté le support',
+      'supportNewTicket': 'Nouveau ticket',
+      'supportTeamResponds24h': 'Notre équipe vous répondra sous 24h',
+      'supportRequestType': 'Type de demande',
+      'supportSubject': 'Sujet',
+      'supportSubjectHint': 'Résumez votre demande en une phrase',
+      'supportDescribeProblem': 'Décrivez votre problème',
+      'supportDescribeHint': 'Donnez-nous le maximum de détails pour que nous puissions vous aider au mieux...',
+      'supportSendTicket': 'Envoyer le ticket',
+      'supportNotificationInfo': 'Vous recevrez une notification dès que notre équipe aura répondu.',
+      'supportEnterSubject': 'Veuillez entrer un sujet',
+      'supportEnterDescription': 'Veuillez décrire votre problème',
+      'supportCategoryGeneral': 'Question générale',
+      'supportCategoryAppeal': 'Contestation',
+      'supportCategoryBug': 'Signaler un bug',
+      'supportCategoryFeature': 'Suggestion',
+      'supportCategoryBilling': 'Facturation',
+      'supportCategoryOther': 'Autre',
+      'supportStatusOpen': 'Nouveau',
+      'supportStatusInProgress': 'En cours',
+      'supportStatusWaitingUser': 'Réponse reçue',
+      'supportStatusResolved': 'Résolu',
+      'supportStatusClosed': 'Fermé',
+      'supportYourMessage': 'Votre message...',
+      'supportTicketResolved': 'Ce ticket a été résolu',
+      'supportTicketClosed': 'Ce ticket est fermé',
+      'supportNoMessages': 'Aucun message',
+      'supportContestDecision': 'Contester cette décision',
+      'supportContactSupport': 'Contacter le support',
     },
     'en': {
       'appName': 'Vegece',
@@ -1346,6 +1378,38 @@ class AppLocalizations {
       'clientNote': 'Client note',
       'bookingRejected': 'Booking rejected',
       'bookingUpdated': 'Booking updated',
+      // ===== SUPPORT =====
+      'supportTitle': 'Support',
+      'supportNoTickets': 'No tickets',
+      'supportNoTicketsDesc': 'You haven\'t contacted support yet',
+      'supportNewTicket': 'New ticket',
+      'supportTeamResponds24h': 'Our team will respond within 24h',
+      'supportRequestType': 'Request type',
+      'supportSubject': 'Subject',
+      'supportSubjectHint': 'Summarize your request in one sentence',
+      'supportDescribeProblem': 'Describe your problem',
+      'supportDescribeHint': 'Give us as much detail as possible so we can help you better...',
+      'supportSendTicket': 'Send ticket',
+      'supportNotificationInfo': 'You will receive a notification as soon as our team responds.',
+      'supportEnterSubject': 'Please enter a subject',
+      'supportEnterDescription': 'Please describe your problem',
+      'supportCategoryGeneral': 'General question',
+      'supportCategoryAppeal': 'Appeal',
+      'supportCategoryBug': 'Report a bug',
+      'supportCategoryFeature': 'Suggestion',
+      'supportCategoryBilling': 'Billing',
+      'supportCategoryOther': 'Other',
+      'supportStatusOpen': 'New',
+      'supportStatusInProgress': 'In progress',
+      'supportStatusWaitingUser': 'Response received',
+      'supportStatusResolved': 'Resolved',
+      'supportStatusClosed': 'Closed',
+      'supportYourMessage': 'Your message...',
+      'supportTicketResolved': 'This ticket has been resolved',
+      'supportTicketClosed': 'This ticket is closed',
+      'supportNoMessages': 'No messages',
+      'supportContestDecision': 'Contest this decision',
+      'supportContactSupport': 'Contact support',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -1948,6 +2012,38 @@ class AppLocalizations {
       'clientNote': 'ملاحظة العميل',
       'bookingRejected': 'تم رفض الحجز',
       'bookingUpdated': 'تم تحديث الحجز',
+      // ===== SUPPORT =====
+      'supportTitle': 'الدعم',
+      'supportNoTickets': 'لا توجد تذاكر',
+      'supportNoTicketsDesc': 'لم تتواصل مع الدعم بعد',
+      'supportNewTicket': 'تذكرة جديدة',
+      'supportTeamResponds24h': 'سيرد فريقنا خلال 24 ساعة',
+      'supportRequestType': 'نوع الطلب',
+      'supportSubject': 'الموضوع',
+      'supportSubjectHint': 'لخص طلبك في جملة واحدة',
+      'supportDescribeProblem': 'صف مشكلتك',
+      'supportDescribeHint': 'أعطنا أكبر قدر ممكن من التفاصيل حتى نتمكن من مساعدتك بشكل أفضل...',
+      'supportSendTicket': 'إرسال التذكرة',
+      'supportNotificationInfo': 'ستتلقى إشعارًا بمجرد رد فريقنا.',
+      'supportEnterSubject': 'يرجى إدخال الموضوع',
+      'supportEnterDescription': 'يرجى وصف مشكلتك',
+      'supportCategoryGeneral': 'سؤال عام',
+      'supportCategoryAppeal': 'اعتراض',
+      'supportCategoryBug': 'الإبلاغ عن خطأ',
+      'supportCategoryFeature': 'اقتراح',
+      'supportCategoryBilling': 'الفواتير',
+      'supportCategoryOther': 'أخرى',
+      'supportStatusOpen': 'جديد',
+      'supportStatusInProgress': 'قيد التنفيذ',
+      'supportStatusWaitingUser': 'تم استلام الرد',
+      'supportStatusResolved': 'تم الحل',
+      'supportStatusClosed': 'مغلق',
+      'supportYourMessage': 'رسالتك...',
+      'supportTicketResolved': 'تم حل هذه التذكرة',
+      'supportTicketClosed': 'هذه التذكرة مغلقة',
+      'supportNoMessages': 'لا توجد رسائل',
+      'supportContestDecision': 'الاعتراض على هذا القرار',
+      'supportContactSupport': 'اتصل بالدعم',
     },
   };
 
@@ -2079,6 +2175,38 @@ class AppLocalizations {
   String get manageMyPets => _get('manageMyPets');
   String get viewAllAppointments => _get('viewAllAppointments');
   String get support => _get('support');
+  // Support translations
+  String get supportTitle => _get('supportTitle');
+  String get supportNoTickets => _get('supportNoTickets');
+  String get supportNoTicketsDesc => _get('supportNoTicketsDesc');
+  String get supportNewTicket => _get('supportNewTicket');
+  String get supportTeamResponds24h => _get('supportTeamResponds24h');
+  String get supportRequestType => _get('supportRequestType');
+  String get supportSubject => _get('supportSubject');
+  String get supportSubjectHint => _get('supportSubjectHint');
+  String get supportDescribeProblem => _get('supportDescribeProblem');
+  String get supportDescribeHint => _get('supportDescribeHint');
+  String get supportSendTicket => _get('supportSendTicket');
+  String get supportNotificationInfo => _get('supportNotificationInfo');
+  String get supportEnterSubject => _get('supportEnterSubject');
+  String get supportEnterDescription => _get('supportEnterDescription');
+  String get supportCategoryGeneral => _get('supportCategoryGeneral');
+  String get supportCategoryAppeal => _get('supportCategoryAppeal');
+  String get supportCategoryBug => _get('supportCategoryBug');
+  String get supportCategoryFeature => _get('supportCategoryFeature');
+  String get supportCategoryBilling => _get('supportCategoryBilling');
+  String get supportCategoryOther => _get('supportCategoryOther');
+  String get supportStatusOpen => _get('supportStatusOpen');
+  String get supportStatusInProgress => _get('supportStatusInProgress');
+  String get supportStatusWaitingUser => _get('supportStatusWaitingUser');
+  String get supportStatusResolved => _get('supportStatusResolved');
+  String get supportStatusClosed => _get('supportStatusClosed');
+  String get supportYourMessage => _get('supportYourMessage');
+  String get supportTicketResolved => _get('supportTicketResolved');
+  String get supportTicketClosed => _get('supportTicketClosed');
+  String get supportNoMessages => _get('supportNoMessages');
+  String get supportContestDecision => _get('supportContestDecision');
+  String get supportContactSupport => _get('supportContactSupport');
   String get needHelp => _get('needHelp');
   String get comingSoon => _get('comingSoon');
   String get myProfile => _get('myProfile');

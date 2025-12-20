@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF2968F);
 
@@ -52,106 +53,311 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
     final subjectController = TextEditingController();
     final messageController = TextEditingController();
     String selectedCategory = 'GENERAL';
+    bool isSending = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _coral.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.support_agent, color: _coral),
-              ),
-              const SizedBox(width: 12),
-              const Text('Nouveau ticket', style: TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
-          content: SingleChildScrollView(
+        builder: (ctx, setSheetState) {
+          final categories = [
+            {'value': 'GENERAL', 'label': 'Question générale', 'icon': Icons.help_outline, 'color': Colors.blue},
+            {'value': 'APPEAL', 'label': 'Contestation', 'icon': Icons.gavel, 'color': Colors.red},
+            {'value': 'BUG', 'label': 'Signaler un bug', 'icon': Icons.bug_report, 'color': Colors.orange},
+            {'value': 'FEATURE', 'label': 'Suggestion', 'icon': Icons.lightbulb, 'color': Colors.purple},
+            {'value': 'BILLING', 'label': 'Facturation', 'icon': Icons.receipt_long, 'color': Colors.green},
+            {'value': 'OTHER', 'label': 'Autre', 'icon': Icons.more_horiz, 'color': Colors.grey},
+          ];
+
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.9,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Catégorie', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
+                // Handle bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedCategory,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(value: 'GENERAL', child: Text('Question générale')),
-                        DropdownMenuItem(value: 'APPEAL', child: Text('Contestation')),
-                        DropdownMenuItem(value: 'BUG', child: Text('Signaler un bug')),
-                        DropdownMenuItem(value: 'FEATURE', child: Text('Suggestion')),
-                        DropdownMenuItem(value: 'BILLING', child: Text('Facturation')),
-                        DropdownMenuItem(value: 'OTHER', child: Text('Autre')),
+                ),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [_coral, _coral.withOpacity(0.8)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.support_agent, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Nouveau ticket',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                            ),
+                            Text(
+                              'Notre équipe vous répondra sous 24h',
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: Icon(Icons.close, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Category selection
+                        const Text(
+                          'Type de demande',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: categories.map((cat) {
+                            final isSelected = selectedCategory == cat['value'];
+                            final color = cat['color'] as Color;
+                            return GestureDetector(
+                              onTap: () => setSheetState(() => selectedCategory = cat['value'] as String),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? color.withOpacity(0.15) : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected ? color : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      cat['icon'] as IconData,
+                                      size: 18,
+                                      color: isSelected ? color : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      cat['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                        color: isSelected ? color : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // Subject field
+                        const Text(
+                          'Sujet',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: subjectController,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: 'Résumez votre demande en une phrase',
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: _coral, width: 2),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Message field
+                        const Text(
+                          'Décrivez votre problème',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: messageController,
+                          maxLines: 6,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: 'Donnez-nous le maximum de détails pour que nous puissions vous aider au mieux...',
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: _coral, width: 2),
+                            ),
+                            contentPadding: const EdgeInsets.all(18),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Info box
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Vous recevrez une notification dès que notre équipe aura répondu.',
+                                  style: TextStyle(fontSize: 13, color: Colors.blue.shade800, height: 1.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
-                      onChanged: (v) => setDialogState(() => selectedCategory = v ?? 'GENERAL'),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text('Sujet', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: subjectController,
-                  decoration: InputDecoration(
-                    hintText: 'Résumez votre demande',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+
+                // Submit button
+                Container(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 16,
+                    bottom: MediaQuery.of(ctx).padding.bottom + 16,
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Message', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: messageController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: 'Décrivez votre problème en détail...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: isSending
+                          ? null
+                          : () async {
+                              if (subjectController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Veuillez entrer un sujet'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+                              if (messageController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Veuillez décrire votre problème'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setSheetState(() => isSending = true);
+                              Navigator.pop(ctx);
+                              await _createTicket(
+                                subjectController.text.trim(),
+                                messageController.text.trim(),
+                                selectedCategory,
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _coral,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: isSending
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.send, size: 20),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Envoyer le ticket',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (subjectController.text.trim().isEmpty || messageController.text.trim().isEmpty) {
-                  return;
-                }
-                Navigator.pop(ctx);
-                await _createTicket(
-                  subjectController.text.trim(),
-                  messageController.text.trim(),
-                  selectedCategory,
-                );
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: _coral,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Envoyer'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -196,18 +402,18 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
     }
   }
 
-  String _getStatusLabel(String status) {
+  String _getStatusLabel(String status, AppLocalizations l10n) {
     switch (status) {
       case 'OPEN':
-        return 'Nouveau';
+        return l10n.supportStatusOpen;
       case 'IN_PROGRESS':
-        return 'En cours';
+        return l10n.supportStatusInProgress;
       case 'WAITING_USER':
-        return 'Réponse reçue';
+        return l10n.supportStatusWaitingUser;
       case 'RESOLVED':
-        return 'Résolu';
+        return l10n.supportStatusResolved;
       case 'CLOSED':
-        return 'Fermé';
+        return l10n.supportStatusClosed;
       default:
         return status;
     }
@@ -230,18 +436,26 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade50;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'Support',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
+        title: Text(
+          l10n.supportTitle,
+          style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
         ),
         centerTitle: true,
       ),
@@ -254,9 +468,9 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                     children: [
                       Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
                       const SizedBox(height: 16),
-                      Text('Erreur de chargement', style: TextStyle(color: Colors.grey.shade600)),
+                      Text(l10n.error, style: TextStyle(color: subtitleColor)),
                       const SizedBox(height: 8),
-                      TextButton(onPressed: _loadTickets, child: const Text('Réessayer')),
+                      TextButton(onPressed: _loadTickets, child: Text(l10n.retry)),
                     ],
                   ),
                 )
@@ -265,20 +479,20 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.support_agent, size: 64, color: Colors.grey.shade300),
+                          Icon(Icons.support_agent, size: 64, color: subtitleColor.withOpacity(0.5)),
                           const SizedBox(height: 16),
                           Text(
-                            'Aucun ticket',
+                            l10n.supportNoTickets,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade600,
+                              color: subtitleColor,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Vous n\'avez pas encore contacté le support',
-                            style: TextStyle(color: Colors.grey.shade500),
+                            l10n.supportNoTicketsDesc,
+                            style: TextStyle(color: subtitleColor.withOpacity(0.8)),
                           ),
                         ],
                       ),
@@ -302,12 +516,12 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 border: hasUnread
                                     ? Border.all(color: _coral, width: 2)
                                     : null,
-                                boxShadow: [
+                                boxShadow: isDark ? null : [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.05),
                                     blurRadius: 10,
@@ -339,9 +553,10 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                             Expanded(
                                               child: Text(
                                                 ticket['subject']?.toString() ?? 'Sans titre',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 15,
+                                                  color: textColor,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -354,9 +569,9 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                                   color: _coral,
                                                   borderRadius: BorderRadius.circular(10),
                                                 ),
-                                                child: const Text(
-                                                  'Nouveau',
-                                                  style: TextStyle(
+                                                child: Text(
+                                                  l10n.supportStatusOpen,
+                                                  style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
@@ -370,7 +585,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                           Text(
                                             lastMessage['content']?.toString() ?? '',
                                             style: TextStyle(
-                                              color: Colors.grey.shade600,
+                                              color: subtitleColor,
                                               fontSize: 13,
                                             ),
                                             maxLines: 1,
@@ -384,7 +599,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
-                                            _getStatusLabel(status),
+                                            _getStatusLabel(status, l10n),
                                             style: TextStyle(
                                               color: _getStatusColor(status),
                                               fontSize: 11,
@@ -395,7 +610,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.chevron_right, color: Colors.grey),
+                                  Icon(Icons.chevron_right, color: subtitleColor),
                                 ],
                               ),
                             ),
@@ -407,7 +622,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
         onPressed: _showNewTicketDialog,
         backgroundColor: _coral,
         icon: const Icon(Icons.add),
-        label: const Text('Nouveau ticket'),
+        label: Text(l10n.supportNewTicket),
       ),
     );
   }
