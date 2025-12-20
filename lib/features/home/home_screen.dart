@@ -1059,11 +1059,15 @@ class HomeScreen extends ConsumerWidget {
       if (isSuspended && suspendedUntil != null) {
         final remaining = suspendedUntil.difference(DateTime.now());
         final timerText = _formatRemainingTime(remaining);
+        final l10n = AppLocalizations.of(context);
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
 
         await showDialog(
           context: context,
           barrierDismissible: true,
           builder: (ctx) => AlertDialog(
+            backgroundColor: isDark ? theme.cardColor : null,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             icon: Container(
               padding: const EdgeInsets.all(14),
@@ -1073,17 +1077,18 @@ class HomeScreen extends ConsumerWidget {
               ),
               child: Icon(Icons.pause_circle_filled, color: Colors.orange.shade600, size: 40),
             ),
-            title: const Text(
-              'Compte suspendu',
+            title: Text(
+              l10n.accountSuspended,
               textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: Colors.orange),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: Colors.orange),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Timer
+                // Timer - fixed overflow with Flexible
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.orange.shade100, Colors.orange.shade50],
@@ -1092,16 +1097,19 @@ class HomeScreen extends ConsumerWidget {
                     border: Border.all(color: Colors.orange.shade200),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.timer_outlined, color: Colors.orange.shade700, size: 22),
                       const SizedBox(width: 10),
-                      Text(
-                        'Encore $timerText',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.orange.shade800,
+                      Flexible(
+                        child: Text(
+                          '${l10n.stillRemaining} $timerText',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange.shade800,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -1114,7 +1122,7 @@ class HomeScreen extends ConsumerWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -1122,14 +1130,14 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.info_outline, size: 16, color: Colors.grey.shade600),
+                            Icon(Icons.info_outline, size: 16, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                             const SizedBox(width: 6),
                             Text(
-                              'Raison',
+                              l10n.reasonLabel,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -1137,7 +1145,7 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(height: 8),
                         Text(
                           reason,
-                          style: const TextStyle(fontSize: 14, height: 1.4),
+                          style: TextStyle(fontSize: 14, height: 1.4, color: isDark ? Colors.white : Colors.black87),
                         ),
                       ],
                     ),
@@ -1145,9 +1153,9 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                 ],
                 Text(
-                  'Vous ne pouvez pas accéder aux services pendant cette période.',
+                  l10n.suspendedMessage,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4),
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : Colors.grey[600], height: 1.4),
                 ),
               ],
             ),
@@ -1165,7 +1173,7 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('J\'ai compris', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      child: Text(l10n.understood, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1183,7 +1191,7 @@ class HomeScreen extends ConsumerWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: const Icon(Icons.support_agent, size: 20),
-                      label: const Text('Contester cette décision', style: TextStyle(fontWeight: FontWeight.w600)),
+                      label: Text(l10n.contestDecision, style: const TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
