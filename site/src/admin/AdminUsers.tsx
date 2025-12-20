@@ -7,7 +7,6 @@ import {
   MapPin,
   Heart,
   PawPrint,
-  MessageSquare,
   RefreshCw,
   Copy,
   Shield,
@@ -93,7 +92,6 @@ export function AdminUsers() {
   const [activeTab, setActiveTab] = useState<TabType>('bookings');
 
   // UI States
-  const [copied, setCopied] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Modals
@@ -223,11 +221,9 @@ export function AdminUsers() {
     }
   };
 
-  async function copyToClipboard(text: string, type: string) {
+  async function copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
     } catch { /* ignore */ }
   }
 
@@ -499,7 +495,7 @@ export function AdminUsers() {
                           <Mail size={16} className="text-gray-400" />
                           <span>{user.email}</span>
                         </div>
-                        <button onClick={() => copyToClipboard(user.email, 'email')} className="text-gray-400 hover:text-gray-600">
+                        <button onClick={() => copyToClipboard(user.email)} className="text-gray-400 hover:text-gray-600">
                           <Copy size={14} />
                         </button>
                       </div>
@@ -509,7 +505,7 @@ export function AdminUsers() {
                             <Phone size={16} className="text-gray-400" />
                             <span>{user.phone}</span>
                           </div>
-                          <button onClick={() => copyToClipboard(user.phone!, 'phone')} className="text-gray-400 hover:text-gray-600">
+                          <button onClick={() => copyToClipboard(user.phone!)} className="text-gray-400 hover:text-gray-600">
                             <Copy size={14} />
                           </button>
                         </div>
