@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Service } from '../types';
+import type { Service, ProviderProfile } from '../types';
 
-// Commission fixe (doit matcher pro_services_screen dans Flutter)
-const COMMISSION_DA = 100;
+// Commission par défaut (sera remplacée par la valeur du provider)
+const DEFAULT_COMMISSION_DA = 100;
 
 interface ServiceFormData {
   title: string;
@@ -22,6 +22,7 @@ export function ProServices() {
   const [showModal, setShowModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [commissionDa, setCommissionDa] = useState(DEFAULT_COMMISSION_DA);
 
   const {
     register,
@@ -32,7 +33,19 @@ export function ProServices() {
 
   useEffect(() => {
     fetchServices();
+    fetchProviderCommission();
   }, []);
+
+  async function fetchProviderCommission() {
+    try {
+      const provider = await api.myProvider();
+      if (provider?.vetCommissionDa) {
+        setCommissionDa(provider.vetCommissionDa);
+      }
+    } catch (error) {
+      console.error('Error fetching provider commission:', error);
+    }
+  }
 
   async function fetchServices() {
     setLoading(true);
@@ -60,7 +73,7 @@ export function ProServices() {
   const openEditModal = (service: Service) => {
     setEditingService(service);
     // Extract base price (total - commission)
-    const basePrice = Math.max(0, service.price - COMMISSION_DA);
+    const basePrice = Math.max(0, service.price - commissionDa);
     reset({
       title: service.title,
       description: service.description || '',
@@ -74,7 +87,7 @@ export function ProServices() {
     setActionLoading(true);
     try {
       // Send total price (base + commission) to backend
-      const priceToSend = data.basePrice + COMMISSION_DA;
+      const priceToSend = data.basePrice + commissionDa;
       const payload = {
         title: data.title,
         description: data.description,
@@ -173,7 +186,7 @@ export function ProServices() {
                   <div className="text-right">
                     <div className="flex items-center font-semibold text-primary-600">
                       <DollarSign size={14} className="mr-1" />
-                      {service.price - COMMISSION_DA} + {COMMISSION_DA} = {service.price} DA
+                      {service.price - commissionDa} + {commissionDa} = {service.price} DA
                     </div>
                     <p className="text-xs text-gray-400">Service + Commission</p>
                   </div>
@@ -249,9 +262,9 @@ export function ProServices() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                 <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-medium">Commission fixe: {COMMISSION_DA} DA</p>
+                  <p className="font-medium">Commission: {commissionDa} DA</p>
                   <p className="text-blue-600">
-                    Le client paiera: Prix de base + {COMMISSION_DA} DA
+                    Le client paiera: Prix de base + {commissionDa} DA
                   </p>
                 </div>
               </div>

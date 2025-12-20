@@ -23,8 +23,8 @@ import type { Booking } from '../types';
 import { format, startOfMonth, subMonths, addHours, setHours, setMinutes, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// Commission fixe par RDV (doit matcher le backend et Flutter)
-const COMMISSION_DA = 100;
+// Commission par défaut (sera remplacée par la valeur du provider si disponible)
+const DEFAULT_COMMISSION_DA = 100;
 
 // Polling interval for notifications (30 seconds)
 const NOTIFICATION_POLL_INTERVAL = 30000;
@@ -450,7 +450,8 @@ export function ProDashboard() {
 
         let due = asInt((raw as { dueDa?: number }).dueDa);
         if (due === 0 && 'completed' in (raw as object)) {
-          due = asInt((raw as { completed?: number }).completed) * COMMISSION_DA;
+          const commissionDa = provider?.vetCommissionDa ?? DEFAULT_COMMISSION_DA;
+          due = asInt((raw as { completed?: number }).completed) * commissionDa;
         }
 
         let coll = asInt(
