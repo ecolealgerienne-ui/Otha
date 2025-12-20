@@ -3,8 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 
-// Commission fixe (DA) ajoutée au prix saisi par le pro (affiché côté client)
-const int kCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le profil)
+const int kDefaultCommissionDa = 100;
+
+/// Provider pour récupérer le profil du provider (et sa commission)
+final _myProviderProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final api = ref.read(apiProvider);
+  return api.myProvider();
+});
 
 int? _asInt(dynamic v) {
   if (v == null) return null;
@@ -117,6 +123,13 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
     super.build(context);
     final count = _filtered.length;
 
+    // Récupérer la commission personnalisée du provider
+    final providerAsync = ref.watch(_myProviderProvider);
+    final commissionDa = providerAsync.maybeWhen(
+      data: (p) => _asInt(p?['vetCommissionDa']) ?? kDefaultCommissionDa,
+      orElse: () => kDefaultCommissionDa,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
@@ -128,7 +141,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
           final created = await showModalBottomSheet<Map<String, dynamic>>(
             context: context,
             isScrollControlled: true,
-            builder: (_) => const _EditServiceSheet(),
+            builder: (_) => _EditServiceSheet(commissionDa: commissionDa),
           );
           if (created != null) _upsertLocal(created);
         },
@@ -196,7 +209,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                             final priceServer =
                                 _asInt(s['price'] ?? s['priceCents']);
                             int? basePrice =
-                                priceServer != null ? priceServer - kCommissionDa : null;
+                                priceServer != null ? priceServer - commissionDa : null;
                             if (basePrice != null && basePrice < 0) basePrice = 0;
 
                             final desc =
@@ -211,14 +224,14 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                               durationMin: durationMin,
                               basePriceDa: basePrice,
                               totalPriceDa: priceServer,
-                              commissionDa: kCommissionDa,
+                              commissionDa: commissionDa,
                               isHome: isHome,
                               onTap: () async {
                                 final updated = await showModalBottomSheet<
                                     Map<String, dynamic>>(
                                   context: context,
                                   isScrollControlled: true,
-                                  builder: (_) => _EditServiceSheet(existing: s),
+                                  builder: (_) => _EditServiceSheet(existing: s, commissionDa: commissionDa),
                                 );
                                 if (updated != null) _upsertLocal(updated);
                               },
@@ -228,7 +241,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                                       await showModalBottomSheet<Map<String, dynamic>>(
                                     context: context,
                                     isScrollControlled: true,
-                                    builder: (_) => _EditServiceSheet(existing: s),
+                                    builder: (_) => _EditServiceSheet(existing: s, commissionDa: commissionDa),
                                   );
                                   if (updated != null) _upsertLocal(updated);
                                 } else if (v == 'delete') {
@@ -533,8 +546,9 @@ class _ServiceCard extends StatelessWidget {
 /// =====================
 
 class _EditServiceSheet extends ConsumerStatefulWidget {
-  const _EditServiceSheet({this.existing});
+  const _EditServiceSheet({this.existing, required this.commissionDa});
   final Map<String, dynamic>? existing;
+  final int commissionDa;
 
   @override
   ConsumerState<_EditServiceSheet> createState() => _EditServiceSheetState();
@@ -569,7 +583,7 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
 
       final pServer = _asInt(e['price'] ?? e['priceCents']); // total (incl. commission)
       if (pServer != null) {
-        final base = pServer - kCommissionDa;
+        final base = pServer - widget.commissionDa;
         _price.text = (base > 0 ? base : 0).toString();
       }
 
@@ -633,7 +647,7 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                 decoration: InputDecoration(
                   labelText: 'Tarif (DA, hors commission) *',
                   hintText: 'ex: 2000',
-                  helperText: '+$kCommissionDa DA de commission seront ajoutés automatiquement',
+                  helperText: '+${widget.commissionDa} DA de commission seront ajoutés automatiquement',
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -687,7 +701,7 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                             return;
                           }
 
-                          final priceToSend = basePrice + kCommissionDa;
+                          final priceToSend = basePrice + widget.commissionDa;
 
                           final titleForApi = _atHome && !titleRaw.toLowerCase().contains('domicile')
                               ? '$titleRaw (à domicile)'

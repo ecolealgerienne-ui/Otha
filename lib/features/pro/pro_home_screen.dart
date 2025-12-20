@@ -8,8 +8,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
 
-/// Commission fixe (doit matcher pro_services_screen)
-const int kCommissionDa = 100;
+/// Commission par défaut (fallback si non définie dans le profil)
+const int kDefaultCommissionDa = 100;
 
 /// ========================= THEME PRO (saumon) =========================
 class _ProColors {
@@ -172,6 +172,10 @@ final pendingValidationsCountProvider = FutureProvider.autoDispose<int>((ref) as
 final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
   final api = ref.read(apiProvider);
 
+  // Récupérer la commission personnalisée du provider
+  final providerProfile = await api.myProvider();
+  final vetCommission = _asInt(providerProfile?['vetCommissionDa'] ?? kDefaultCommissionDa);
+
   final nowUtc = DateTime.now().toUtc();
   final ymNow = '${nowUtc.year}-${nowUtc.month.toString().padLeft(2, '0')}';
   final curStart = DateTime.utc(nowUtc.year, nowUtc.month, 1);
@@ -188,7 +192,7 @@ final proLedgerProvider = FutureProvider.autoDispose<_ProLedger>((ref) async {
 
     int due = _asInt(m['dueDa']);
     if (due == 0 && m.containsKey('completed')) {
-      due = _asInt(m['completed']) * kCommissionDa;
+      due = _asInt(m['completed']) * vetCommission;
     }
 
     int coll = _asInt(
@@ -387,6 +391,12 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
       },
       orElse: () =>
           (fallbackUserName.isNotEmpty ? fallbackUserName : 'Docteur'),
+    );
+
+    // Récupérer la commission personnalisée du provider
+    final vetCommissionDa = provAsync.maybeWhen(
+      data: (p) => _asInt(p?['vetCommissionDa'] ?? kDefaultCommissionDa),
+      orElse: () => kDefaultCommissionDa,
     );
 
     final nextAsync = ref.watch(nextAppointmentProvider);
@@ -608,6 +618,7 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                           ym: 'Tout le temps',
                           rows: rows,
                           showTotals: false,
+                          commissionDa: vetCommissionDa,
                         ),
                       ),
                     ),
@@ -635,6 +646,7 @@ class _ProHomeScreenState extends ConsumerState<ProHomeScreen> {
                           ym: _scope,
                           rows: rows,
                           showTotals: true,
+                          commissionDa: vetCommissionDa,
                         ),
                       ),
                     ),
@@ -1136,15 +1148,17 @@ class _CommissionDueCard extends StatelessWidget {
   }
 }
 
-/// “Générées avec ses rendez-vous”
+/// "Générées avec ses rendez-vous"
 class _GeneratedWithBookings extends StatelessWidget {
   final String ym; // 'YYYY-MM' ou 'Tout le temps'
   final List<Map<String, dynamic>> rows;
   final bool showTotals; // false quand 'Tout le temps'
+  final int commissionDa; // Commission par RDV (personnalisée par provider)
   const _GeneratedWithBookings({
     required this.ym,
     required this.rows,
     required this.showTotals,
+    required this.commissionDa,
   });
 
   String _da(num v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
@@ -1153,7 +1167,7 @@ class _GeneratedWithBookings extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalClient =
         rows.fold<int>(0, (sum, e) => sum + _asInt(e['totalPriceDa'] ?? 0));
-    final totalCommission = rows.length * kCommissionDa;
+    final totalCommission = rows.length * commissionDa;
 
     return _SectionCard(
       child: Column(

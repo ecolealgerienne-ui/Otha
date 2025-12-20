@@ -1078,6 +1078,7 @@ class ApiClient {
     displayName: string;
     email: string;
     isApproved: boolean;
+    kind: 'vet' | 'daycare' | 'petshop';
     vetCommissionDa: number;
     daycareHourlyCommissionDa: number;
     daycareDailyCommissionDa: number;
@@ -1095,6 +1096,7 @@ class ApiClient {
     displayName: string;
     email: string;
     isApproved: boolean;
+    kind: 'vet' | 'daycare' | 'petshop';
     vetCommissionDa: number;
     daycareHourlyCommissionDa: number;
     daycareDailyCommissionDa: number;

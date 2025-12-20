@@ -17,8 +17,9 @@ const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
-// Commission
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le profil du provider)
+const kDefaultDaycareHourlyCommissionDa = 10;
+const kDefaultDaycareDailyCommissionDa = 100;
 
 /// Provider pour charger les animaux de l'utilisateur
 final _userPetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -82,6 +83,10 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     final hourlyRate = daycare['hourlyRate'] as int?;
     final dailyRate = daycare['dailyRate'] as int?;
     final availableDays = daycare['availableDays'] as List<dynamic>? ?? List.filled(7, true);
+
+    // Commissions personnalisées du provider
+    final hourlyCommission = (daycare['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa) as int;
+    final dailyCommission = (daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa) as int;
 
     final bgColor = isDark ? _darkBg : const Color(0xFFF8F9FA);
     final cardColor = isDark ? _darkCard : Colors.white;
@@ -180,8 +185,8 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
                                   if (hourlyRate != null || dailyRate != null)
                                     Text(
                                       hourlyRate != null
-                                          ? '${hourlyRate + kDaycareCommissionDa} DA${l10n.perHour}'
-                                          : '${dailyRate! + kDaycareCommissionDa} DA${l10n.perDay}',
+                                          ? '${hourlyRate + hourlyCommission} DA${l10n.perHour}'
+                                          : '${dailyRate! + dailyCommission} DA${l10n.perDay}',
                                       style: TextStyle(fontSize: 13, color: _coral),
                                     ),
                                 ],
@@ -304,7 +309,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
                       const SizedBox(height: 24),
 
                       // Total
-                      _buildTotalCard(hourlyRate, dailyRate, cardColor, borderColor, textPrimary, textSecondary, l10n),
+                      _buildTotalCard(hourlyRate, dailyRate, hourlyCommission, dailyCommission, cardColor, borderColor, textPrimary, textSecondary, l10n),
                     ],
                   ),
                 ),
@@ -530,13 +535,15 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
   Widget _buildTotalCard(
     int? hourlyRate,
     int? dailyRate,
+    int hourlyCommission,
+    int dailyCommission,
     Color cardColor,
     Color borderColor,
     Color textPrimary,
     Color textSecondary,
     AppLocalizations l10n,
   ) {
-    final total = _calculateTotal(hourlyRate, dailyRate);
+    final total = _calculateTotal(hourlyRate, dailyRate, hourlyCommission, dailyCommission);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -581,7 +588,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     return '$days ${days > 1 ? l10n.days : l10n.day}';
   }
 
-  int? _calculateTotal(int? hourlyRate, int? dailyRate) {
+  int? _calculateTotal(int? hourlyRate, int? dailyRate, int hourlyCommission, int dailyCommission) {
     if (_selectedPetId == null) return null;
 
     if (_bookingType == 'hourly' && hourlyRate != null && _startDate != null) {
@@ -592,11 +599,13 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       if (durationMinutes <= 0) return null;
 
       final hours = (durationMinutes / 60).ceil();
-      return (hourlyRate * hours) + kDaycareCommissionDa;
+      // Commission par heure * nombre d'heures
+      return (hourlyRate * hours) + (hourlyCommission * hours);
     } else if (_bookingType == 'daily' && dailyRate != null && _startDate != null && _endDate != null) {
       final days = _endDate!.difference(_startDate!).inDays + 1;
       if (days <= 0) return null;
-      return (dailyRate * days) + kDaycareCommissionDa;
+      // Commission par jour * nombre de jours
+      return (dailyRate * days) + (dailyCommission * days);
     }
 
     return null;
@@ -786,6 +795,10 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       final hourlyRate = daycare['hourlyRate'] as int?;
       final dailyRate = daycare['dailyRate'] as int?;
 
+      // Commissions personnalisées du provider
+      final hourlyCommission = (daycare['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa) as int;
+      final dailyCommission = (daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa) as int;
+
       // Get pet info
       final petsAsync = ref.read(_userPetsProvider);
       final pets = petsAsync.value ?? [];
@@ -818,17 +831,22 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
 
       // Calculate price
       int basePrice;
+      int commissionTotal;
       if (_bookingType == 'hourly' && hourlyRate != null) {
         final durationInHours = endDateTime.difference(startDateTime).inMinutes / 60;
-        basePrice = (durationInHours.ceil() * hourlyRate);
+        final hours = durationInHours.ceil();
+        basePrice = hours * hourlyRate;
+        commissionTotal = hours * hourlyCommission;
       } else if (_bookingType == 'daily' && dailyRate != null) {
         final durationInDays = endDateTime.difference(startDateTime).inDays + 1;
-        basePrice = (durationInDays * dailyRate);
+        basePrice = durationInDays * dailyRate;
+        commissionTotal = durationInDays * dailyCommission;
       } else {
         basePrice = _bookingType == 'hourly' ? 1000 : 5000;
+        commissionTotal = _bookingType == 'hourly' ? hourlyCommission : dailyCommission;
       }
 
-      final totalDa = basePrice + kDaycareCommissionDa;
+      final totalDa = basePrice + commissionTotal;
 
       final booking = await api.createDaycareBooking(
         petId: _selectedPetId!,

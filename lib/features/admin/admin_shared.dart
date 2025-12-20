@@ -8,8 +8,8 @@ class AdminColors {
   static const ink = Colors.black87;
 }
 
-/// Garder sync avec pro_home_screen.dart
-const int kCommissionDa = 100; // DA par RDV COMPLETED
+/// Commission par défaut (fallback si non définie dans le profil du provider)
+const int kDefaultCommissionDa = 100; // DA par RDV COMPLETED
 
 // ===== Format =====
 String formatDa(int value) {
