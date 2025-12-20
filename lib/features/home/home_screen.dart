@@ -919,6 +919,54 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
+  /// Rafraîchit silencieusement le statut de restriction (sans afficher de popup)
+  /// Appelé lors du pull-to-refresh pour mettre à jour le statut si l'admin a levé la suspension
+  Future<void> _refreshRestrictionStatus(WidgetRef ref) async {
+    try {
+      final api = ref.read(apiProvider);
+      final trustInfo = await api.checkUserCanBook();
+
+      final trustStatus = (trustInfo['trustStatus'] ?? '').toString().toUpperCase();
+      final isBanned = trustInfo['isBanned'] == true || trustInfo['reason']?.toString().contains('banni') == true;
+      final reason = trustInfo['reason']?.toString();
+
+      // Parser restrictedUntil
+      DateTime? restrictedUntil;
+      final restrictedUntilRaw = trustInfo['restrictedUntil'];
+      if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
+        restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
+      } else if (restrictedUntilRaw is DateTime) {
+        restrictedUntil = restrictedUntilRaw;
+      }
+
+      // Parser suspendedUntil
+      DateTime? suspendedUntil;
+      final suspendedUntilRaw = trustInfo['suspendedUntil'];
+      if (suspendedUntilRaw is String && suspendedUntilRaw.isNotEmpty) {
+        suspendedUntil = DateTime.tryParse(suspendedUntilRaw);
+      } else if (suspendedUntilRaw is DateTime) {
+        suspendedUntil = suspendedUntilRaw;
+      }
+
+      final isSuspended = suspendedUntil != null && suspendedUntil.isAfter(DateTime.now());
+      final isRestricted = trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now());
+
+      debugPrint('[TRUST REFRESH] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
+
+      // Mettre à jour le provider de restriction
+      ref.read(accountRestrictionProvider.notifier).update(AccountRestrictionState(
+        isBanned: isBanned,
+        isSuspended: isSuspended,
+        isRestricted: isRestricted,
+        reason: reason,
+        suspendedUntil: suspendedUntil,
+        restrictedUntil: restrictedUntil,
+      ));
+    } catch (e) {
+      debugPrint('[TRUST REFRESH] Error: $e');
+    }
+  }
+
   /// Verifie si l'utilisateur est restreint/suspendu/banni et affiche un popup avec le timer
   Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
     // Eviter le spam si deja montre cette session (refresh, etc.)
@@ -1333,6 +1381,8 @@ class HomeScreen extends ConsumerWidget {
     await Future.delayed(const Duration(milliseconds: 120));
     // Recharger les notifications après invalidation
     _loadNotifications(ref);
+    // Rafraîchir le statut de suspension/restriction silencieusement
+    _refreshRestrictionStatus(ref);
   }
 
   @override
