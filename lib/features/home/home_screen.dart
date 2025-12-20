@@ -73,10 +73,37 @@ class AccountRestrictionState {
   });
 
   bool get canAccessServices => !isBanned && !isSuspended && !isRestricted;
+
+  AccountRestrictionState copyWith({
+    bool? isBanned,
+    bool? isSuspended,
+    bool? isRestricted,
+    String? reason,
+    DateTime? suspendedUntil,
+    DateTime? restrictedUntil,
+  }) {
+    return AccountRestrictionState(
+      isBanned: isBanned ?? this.isBanned,
+      isSuspended: isSuspended ?? this.isSuspended,
+      isRestricted: isRestricted ?? this.isRestricted,
+      reason: reason ?? this.reason,
+      suspendedUntil: suspendedUntil ?? this.suspendedUntil,
+      restrictedUntil: restrictedUntil ?? this.restrictedUntil,
+    );
+  }
 }
 
-final accountRestrictionProvider = StateProvider<AccountRestrictionState>((ref) {
-  return const AccountRestrictionState();
+class AccountRestrictionNotifier extends Notifier<AccountRestrictionState> {
+  @override
+  AccountRestrictionState build() => const AccountRestrictionState();
+
+  void update(AccountRestrictionState newState) {
+    state = newState;
+  }
+}
+
+final accountRestrictionProvider = NotifierProvider<AccountRestrictionNotifier, AccountRestrictionState>(() {
+  return AccountRestrictionNotifier();
 });
 
 /// Affiche un dialog si l'utilisateur essaie d'accéder à une section bloquée
@@ -930,14 +957,14 @@ class HomeScreen extends ConsumerWidget {
       debugPrint('[TRUST] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
 
       // Mettre à jour le provider de restriction
-      ref.read(accountRestrictionProvider.notifier).state = AccountRestrictionState(
+      ref.read(accountRestrictionProvider.notifier).update(AccountRestrictionState(
         isBanned: isBanned,
         isSuspended: isSuspended,
         isRestricted: isRestricted,
         reason: reason,
         suspendedUntil: suspendedUntil,
         restrictedUntil: restrictedUntil,
-      );
+      ));
 
       if (!context.mounted) return;
 
