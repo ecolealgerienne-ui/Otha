@@ -58,6 +58,10 @@ export interface ProviderProfile {
   user?: User;
   createdAt: string;
   updatedAt: string;
+  // Commissions personnalisées
+  vetCommissionDa?: number;
+  daycareHourlyCommissionDa?: number;
+  daycareDailyCommissionDa?: number;
 }
 
 // Service Types

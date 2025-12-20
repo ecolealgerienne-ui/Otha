@@ -21,8 +21,8 @@ import type { MonthlyEarnings, Booking } from '../types';
 import { format, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// Commission fixe par RDV (doit matcher le backend et Flutter)
-const COMMISSION_DA = 100;
+// Commission par défaut (sera remplacée par la valeur du provider)
+const DEFAULT_COMMISSION_DA = 100;
 
 // Format DA
 function formatDa(v: number): string {
@@ -51,10 +51,23 @@ export function ProEarnings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [commissionDa, setCommissionDa] = useState(DEFAULT_COMMISSION_DA);
 
   useEffect(() => {
+    fetchProviderCommission();
     fetchData();
   }, []);
+
+  async function fetchProviderCommission() {
+    try {
+      const provider = await api.myProvider();
+      if (provider?.vetCommissionDa) {
+        setCommissionDa(provider.vetCommissionDa);
+      }
+    } catch (error) {
+      console.error('Error fetching provider commission:', error);
+    }
+  }
 
   async function fetchData() {
     setLoading(true);
@@ -80,7 +93,7 @@ export function ProEarnings() {
       // Build ledger from history
       const hist = Array.isArray(historyResult) ? historyResult : [];
       const entries: LedgerEntry[] = hist.map((h: MonthlyEarnings) => {
-        const due = h.totalCommission || (h.bookingCount * COMMISSION_DA);
+        const due = h.totalCommission || (h.bookingCount * commissionDa);
         const collected = h.collected ? due : 0;
         return {
           month: h.month,
@@ -106,9 +119,9 @@ export function ProEarnings() {
         for (const [month, data] of Object.entries(byMonth)) {
           entries.push({
             month,
-            due: data.completed * COMMISSION_DA,
+            due: data.completed * commissionDa,
             collected: 0,
-            net: data.completed * COMMISSION_DA,
+            net: data.completed * commissionDa,
             bookingCount: data.count,
           });
         }
@@ -268,7 +281,7 @@ export function ProEarnings() {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">{formatDa(b.service?.price || 0)}</p>
-                      <p className="text-xs text-orange-600">-{formatDa(COMMISSION_DA)}</p>
+                      <p className="text-xs text-orange-600">-{formatDa(commissionDa)}</p>
                     </div>
                   </div>
                 ))}
@@ -282,7 +295,7 @@ export function ProEarnings() {
             <div>
               <p className="font-medium text-orange-900">Commission Vegece</p>
               <p className="text-sm text-orange-700 mt-1">
-                Une commission de {formatDa(COMMISSION_DA)} est prélevée par consultation terminée.
+                Une commission de {formatDa(commissionDa)} est prélevée par consultation terminée.
                 Payable en fin de mois.
               </p>
             </div>
@@ -442,7 +455,7 @@ export function ProEarnings() {
           <div>
             <p className="font-medium text-gray-900">À propos des commissions</p>
             <p className="text-sm text-gray-600 mt-1">
-              Une commission de {formatDa(COMMISSION_DA)} est prélevée pour chaque consultation terminée.
+              Une commission de {formatDa(commissionDa)} est prélevée pour chaque consultation terminée.
               Les paiements sont dus en fin de mois.
             </p>
           </div>

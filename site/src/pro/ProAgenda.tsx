@@ -28,8 +28,8 @@ import {
 import { fr } from 'date-fns/locale';
 import { Html5Qrcode } from 'html5-qrcode';
 
-// Commission fixe (doit matcher pro_services_screen dans Flutter)
-const COMMISSION_DA = 100;
+// Commission par défaut (sera remplacée par la valeur du provider)
+const DEFAULT_COMMISSION_DA = 100;
 
 /**
  * UTC naïf : traite l'heure UTC comme heure locale (pas de conversion)
@@ -54,6 +54,7 @@ export function ProAgenda() {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [commissionDa, setCommissionDa] = useState(DEFAULT_COMMISSION_DA);
 
   // OTP Dialog
   const [showOtpDialog, setShowOtpDialog] = useState(false);
@@ -71,8 +72,23 @@ export function ProAgenda() {
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   useEffect(() => {
+    fetchProviderCommission();
+  }, []);
+
+  useEffect(() => {
     fetchBookings();
   }, [currentDate]);
+
+  async function fetchProviderCommission() {
+    try {
+      const provider = await api.myProvider();
+      if (provider?.vetCommissionDa) {
+        setCommissionDa(provider.vetCommissionDa);
+      }
+    } catch (error) {
+      console.error('Error fetching provider commission:', error);
+    }
+  }
 
   // Cleanup QR scanner on unmount
   useEffect(() => {
@@ -517,10 +533,10 @@ export function ProAgenda() {
                     <div>
                       <p className="text-sm text-gray-500">À payer</p>
                       <p className="font-medium">
-                        {selectedBooking.service.price} + {COMMISSION_DA} = {selectedBooking.service.price + COMMISSION_DA} DA
+                        {selectedBooking.service.price} + {commissionDa} = {selectedBooking.service.price + commissionDa} DA
                       </p>
                       <p className="text-xs text-gray-400">
-                        (Service: {selectedBooking.service.price} DA + Commission: {COMMISSION_DA} DA)
+                        (Service: {selectedBooking.service.price} DA + Commission: {commissionDa} DA)
                       </p>
                     </div>
                   </div>
