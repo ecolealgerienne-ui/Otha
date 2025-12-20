@@ -16,6 +16,7 @@ import {
   Stethoscope,
   Flag,
   MessageSquare,
+  Percent,
 } from 'lucide-react';
 import { useAuthStore, useIsAdmin, useIsPro } from '../../store/authStore';
 
@@ -43,6 +44,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: <Users size={20} />, label: 'Utilisateurs', path: '/admin/users' },
     { icon: <Heart size={20} />, label: 'Adoptions', path: '/admin/adoptions' },
     { icon: <DollarSign size={20} />, label: 'Gains', path: '/admin/earnings' },
+    { icon: <Percent size={20} />, label: 'Commissions', path: '/admin/commissions' },
     { icon: <Flag size={20} />, label: 'Flags', path: '/admin/flags' },
     { icon: <MessageSquare size={20} />, label: 'Support', path: '/admin/support' },
   ];

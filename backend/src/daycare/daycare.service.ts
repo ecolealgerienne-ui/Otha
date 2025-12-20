@@ -274,8 +274,23 @@ export class DaycareService {
       throw new BadRequestException('La date de début ne peut pas être dans le passé');
     }
 
+    // Calculer la commission basée sur la durée et les taux du provider
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
+    const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+
+    // Commission personnalisée: par jour si >= 24h, sinon par heure
+    let commissionDa: number;
+    if (durationDays >= 1 && durationHours >= 24) {
+      // Tarification journalière
+      commissionDa = durationDays * provider.daycareDailyCommissionDa;
+    } else {
+      // Tarification horaire
+      commissionDa = durationHours * provider.daycareHourlyCommissionDa;
+    }
+
     // Calculer le total (prix + commission)
-    const totalDa = dto.priceDa + 100; // Commission fixe de 100 DA
+    const totalDa = dto.priceDa + commissionDa;
 
     // Créer la réservation
     const booking = await this.prisma.daycareBooking.create({
@@ -286,7 +301,7 @@ export class DaycareService {
         startDate: start,
         endDate: end,
         priceDa: dto.priceDa,
-        commissionDa: 100,
+        commissionDa,
         totalDa,
         notes: dto.notes,
       },

@@ -153,6 +153,11 @@ model ProviderProfile {
   rejectedAt      DateTime?
   rejectionReason String?
 
+  // Commissions personnalisées (modifiables par admin)
+  vetCommissionDa          Int @default(100)  // Commission par RDV confirmé (vétérinaire)
+  daycareHourlyCommissionDa Int @default(10)  // Commission par heure (garderie)
+  daycareDailyCommissionDa  Int @default(100) // Commission par jour (garderie)
+
   // Documents vétérinaires (carte AVN)
   avnCardFront    String?   // URL de la carte AVN recto
   avnCardBack     String?   // URL de la carte AVN verso
