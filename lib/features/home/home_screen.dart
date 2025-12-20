@@ -53,6 +53,236 @@ bool _bookingConfirmationCheckDone = false;
 // Tracker si on a déjà montré la popup de restriction CETTE session (pour éviter spam au refresh)
 bool _trustRestrictionShownThisSession = false;
 
+// ==================== ÉTAT DE RESTRICTION GLOBALE ====================
+// Provider pour stocker l'état de suspension/ban de l'utilisateur
+class AccountRestrictionState {
+  final bool isBanned;
+  final bool isSuspended;
+  final bool isRestricted;
+  final String? reason;
+  final DateTime? suspendedUntil;
+  final DateTime? restrictedUntil;
+
+  const AccountRestrictionState({
+    this.isBanned = false,
+    this.isSuspended = false,
+    this.isRestricted = false,
+    this.reason,
+    this.suspendedUntil,
+    this.restrictedUntil,
+  });
+
+  bool get canAccessServices => !isBanned && !isSuspended && !isRestricted;
+}
+
+final accountRestrictionProvider = StateProvider<AccountRestrictionState>((ref) {
+  return const AccountRestrictionState();
+});
+
+/// Affiche un dialog si l'utilisateur essaie d'accéder à une section bloquée
+/// Retourne true si l'accès est bloqué, false sinon
+bool showRestrictionBlockedDialog(BuildContext context, WidgetRef ref, String sectionName) {
+  final restriction = ref.read(accountRestrictionProvider);
+
+  if (restriction.canAccessServices) {
+    return false; // Pas de blocage
+  }
+
+  String title;
+  String message;
+  Color color;
+  IconData icon;
+
+  if (restriction.isBanned) {
+    title = 'Compte banni';
+    message = 'Votre compte est banni. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.red;
+    icon = Icons.block;
+  } else if (restriction.isSuspended) {
+    final remaining = restriction.suspendedUntil?.difference(DateTime.now());
+    final days = remaining?.inDays ?? 0;
+    final hours = (remaining?.inHours ?? 0) % 24;
+    String timerText = days > 0 ? '$days jour${days > 1 ? 's' : ''}' : '$hours heure${hours > 1 ? 's' : ''}';
+
+    title = 'Compte suspendu';
+    message = 'Votre compte est suspendu pour encore $timerText. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.orange;
+    icon = Icons.pause_circle_filled;
+  } else {
+    final remaining = restriction.restrictedUntil?.difference(DateTime.now());
+    final days = remaining?.inDays ?? 0;
+    final hours = (remaining?.inHours ?? 0) % 24;
+    String timerText = days > 0 ? '$days jour${days > 1 ? 's' : ''}' : '$hours heure${hours > 1 ? 's' : ''}';
+
+    title = 'Compte restreint';
+    message = 'Votre compte est restreint pour encore $timerText. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.red;
+    icon = Icons.warning_amber_rounded;
+  }
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      icon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 32),
+      ),
+      title: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: color),
+      ),
+      content: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 14, height: 1.4),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(
+              backgroundColor: color,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('J\'ai compris'),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return true; // Accès bloqué
+}
+
+/// Banner persistent affichant l'état de restriction du compte
+class _AccountRestrictionBanner extends ConsumerWidget {
+  const _AccountRestrictionBanner();
+
+  String _formatRemainingTime(DateTime until) {
+    final remaining = until.difference(DateTime.now());
+    final days = remaining.inDays;
+    final hours = remaining.inHours % 24;
+    final minutes = remaining.inMinutes % 60;
+
+    if (days > 0) {
+      return '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+    } else if (hours > 0) {
+      return '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+    } else {
+      return '$minutes minute${minutes > 1 ? 's' : ''}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restriction = ref.watch(accountRestrictionProvider);
+
+    // Ne rien afficher si le compte n'est pas restreint
+    if (restriction.canAccessServices) {
+      return const SizedBox.shrink();
+    }
+
+    String title;
+    String message;
+    Color bgColor;
+    Color borderColor;
+    Color iconColor;
+    IconData icon;
+
+    if (restriction.isBanned) {
+      title = '⛔ Compte banni';
+      message = restriction.reason ?? 'Votre compte a été banni. Vous ne pouvez plus utiliser les services.';
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFFCA5A5);
+      iconColor = const Color(0xFFDC2626);
+      icon = Icons.block;
+    } else if (restriction.isSuspended && restriction.suspendedUntil != null) {
+      final timeRemaining = _formatRemainingTime(restriction.suspendedUntil!);
+      title = '⏸️ Compte suspendu';
+      message = 'Suspension: encore $timeRemaining.\n${restriction.reason ?? 'Votre compte est temporairement suspendu.'}';
+      bgColor = const Color(0xFFFEF3C7);
+      borderColor = const Color(0xFFFCD34D);
+      iconColor = const Color(0xFFD97706);
+      icon = Icons.pause_circle_filled;
+    } else {
+      final timeRemaining = restriction.restrictedUntil != null
+          ? _formatRemainingTime(restriction.restrictedUntil!)
+          : 'indéterminée';
+      title = '⚠️ Compte restreint';
+      message = 'Restriction: encore $timeRemaining.\n${restriction.reason ?? 'Votre compte est restreint suite à des absences non justifiées.'}';
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFFCA5A5);
+      iconColor = const Color(0xFFDC2626);
+      icon = Icons.warning_amber_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: borderColor.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: iconColor.withOpacity(0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Reset tous les flags de session (appelé au logout)
 void resetHomeSessionFlags() {
   _adoptionCheckDone = false;
@@ -630,7 +860,7 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  /// Verifie si l'utilisateur est restreint et affiche un popup avec le timer
+  /// Verifie si l'utilisateur est restreint/suspendu/banni et affiche un popup avec le timer
   Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
     // Eviter le spam si deja montre cette session (refresh, etc.)
     if (_trustRestrictionShownThisSession) return;
@@ -641,33 +871,234 @@ class HomeScreen extends ConsumerWidget {
       final trustInfo = await api.checkUserCanBook();
 
       final trustStatus = (trustInfo['trustStatus'] ?? '').toString().toUpperCase();
-      final restrictedUntilRaw = trustInfo['restrictedUntil'];
+      final isBanned = trustInfo['isBanned'] == true || trustInfo['reason']?.toString().contains('banni') == true;
+      final reason = trustInfo['reason']?.toString();
 
-      // Parser restrictedUntil (peut etre String ISO ou deja un DateTime serialise)
+      // Parser restrictedUntil
       DateTime? restrictedUntil;
+      final restrictedUntilRaw = trustInfo['restrictedUntil'];
       if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
         restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
       } else if (restrictedUntilRaw is DateTime) {
         restrictedUntil = restrictedUntilRaw;
       }
 
-      debugPrint('[TRUST] Status: $trustStatus, RestrictedUntil: $restrictedUntil');
+      // Parser suspendedUntil
+      DateTime? suspendedUntil;
+      final suspendedUntilRaw = trustInfo['suspendedUntil'];
+      if (suspendedUntilRaw is String && suspendedUntilRaw.isNotEmpty) {
+        suspendedUntil = DateTime.tryParse(suspendedUntilRaw);
+      } else if (suspendedUntilRaw is DateTime) {
+        suspendedUntil = suspendedUntilRaw;
+      }
 
-      if (trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now()) && context.mounted) {
-        // Calculer le temps restant
+      final isSuspended = suspendedUntil != null && suspendedUntil.isAfter(DateTime.now());
+      final isRestricted = trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now());
+
+      debugPrint('[TRUST] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
+
+      // Mettre à jour le provider de restriction
+      ref.read(accountRestrictionProvider.notifier).state = AccountRestrictionState(
+        isBanned: isBanned,
+        isSuspended: isSuspended,
+        isRestricted: isRestricted,
+        reason: reason,
+        suspendedUntil: suspendedUntil,
+        restrictedUntil: restrictedUntil,
+      );
+
+      if (!context.mounted) return;
+
+      // 1. Compte BANNI (permanent)
+      if (isBanned) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.block, color: Colors.red.shade700, size: 36),
+            ),
+            title: const Text(
+              'Compte banni',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.red),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  reason ?? 'Votre compte a été banni suite à une violation de nos conditions d\'utilisation.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.red.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Vous ne pouvez plus accéder aux services.',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('J\'ai compris'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Contactez support@vegece.com pour plus d\'informations.')),
+                      );
+                    },
+                    child: Text(
+                      'Contacter le support',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 2. Compte SUSPENDU (temporaire - sanction admin)
+      if (isSuspended && suspendedUntil != null) {
+        final remaining = suspendedUntil.difference(DateTime.now());
+        final timerText = _formatRemainingTime(remaining);
+
+        await showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.pause_circle_filled, color: Colors.orange.shade600, size: 36),
+            ),
+            title: const Text(
+              'Compte suspendu',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.orange),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  reason ?? 'Votre compte a été temporairement suspendu.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_outlined, color: Colors.orange.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        timerText,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Vous ne pouvez pas accéder aux services pendant cette période.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('J\'ai compris'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Contactez support@vegece.com pour plus d\'informations.')),
+                      );
+                    },
+                    child: Text(
+                      'Contacter le support',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 3. Compte RESTREINT (no-show automatique)
+      if (isRestricted && restrictedUntil != null) {
         final remaining = restrictedUntil.difference(DateTime.now());
-        final days = remaining.inDays;
-        final hours = remaining.inHours % 24;
-        final minutes = remaining.inMinutes % 60;
-
-        String timerText;
-        if (days > 0) {
-          timerText = '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
-        } else if (hours > 0) {
-          timerText = '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
-        } else {
-          timerText = '$minutes minute${minutes > 1 ? 's' : ''}';
-        }
+        final timerText = _formatRemainingTime(remaining);
 
         await showDialog(
             context: context,
@@ -691,7 +1122,7 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Vous n\'etes pas venu a votre dernier rendez-vous.',
+                    'Vous n\'êtes pas venu à votre dernier rendez-vous.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, height: 1.4),
                   ),
@@ -745,9 +1176,8 @@ class HomeScreen extends ConsumerWidget {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        // TODO: Naviguer vers la page de contact support
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Le support sera bientot disponible.')),
+                          const SnackBar(content: Text('Le support sera bientôt disponible.')),
                         );
                       },
                       child: Text(
@@ -763,6 +1193,21 @@ class HomeScreen extends ConsumerWidget {
       }
     } catch (e) {
       debugPrint('[TRUST] Error checking trust status: $e');
+    }
+  }
+
+  /// Formate le temps restant en texte lisible
+  String _formatRemainingTime(Duration remaining) {
+    final days = remaining.inDays;
+    final hours = remaining.inHours % 24;
+    final minutes = remaining.inMinutes % 60;
+
+    if (days > 0) {
+      return '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+    } else if (hours > 0) {
+      return '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+    } else {
+      return '$minutes minute${minutes > 1 ? 's' : ''}';
     }
   }
 
@@ -850,6 +1295,11 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                  // ▼ Banner de restriction (suspendu/banni/restreint)
+                  SliverToBoxAdapter(
+                    child: _AccountRestrictionBanner(),
+                  ),
 
                   // ▼ Mes Compagnons carousel (only for non-pro users)
                   if (!isPro)
@@ -1179,13 +1629,13 @@ class _SearchBar extends StatelessWidget {
 }
 
 /// -------------------- Catégories (oscillation) [désactivé] --------------------
-class _OscillatingCategories extends StatefulWidget {
+class _OscillatingCategories extends ConsumerStatefulWidget {
   const _OscillatingCategories();
   @override
-  State<_OscillatingCategories> createState() => _OscillatingCategoriesState();
+  ConsumerState<_OscillatingCategories> createState() => _OscillatingCategoriesState();
 }
 
-class _OscillatingCategoriesState extends State<_OscillatingCategories> {
+class _OscillatingCategoriesState extends ConsumerState<_OscillatingCategories> {
   late final ScrollController _ctl;
   Timer? _tick;
   bool _paused = false;
@@ -1267,7 +1717,11 @@ class _OscillatingCategoriesState extends State<_OscillatingCategories> {
                 onTapDown: (_) => _pauseFor(const Duration(seconds: 3)),
                 onTap: () {
                   _pauseFor(const Duration(seconds: 3));
-                  if (route != null) context.push(route);
+                  if (route != null) {
+                    // Vérifier si l'utilisateur peut accéder à cette section
+                    if (showRestrictionBlockedDialog(context, ref, label)) return;
+                    context.push(route);
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -3618,7 +4072,11 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                     return Transform.scale(
                       scale: scale,
                       child: GestureDetector(
-                        onTap: () => context.push(route),
+                        onTap: () {
+                          // Vérifier si l'utilisateur peut accéder à cette section
+                          if (showRestrictionBlockedDialog(context, ref, label)) return;
+                          context.push(route);
+                        },
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
@@ -4407,7 +4865,11 @@ class _MapPreview extends ConsumerWidget {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
-                    onTap: () => context.push('/maps/nearby'),
+                    onTap: () {
+                      // Vérifier si l'utilisateur peut accéder à cette section
+                      if (showRestrictionBlockedDialog(context, ref, l10n.nearbyProfessionals)) return;
+                      context.push('/maps/nearby');
+                    },
                   ),
                 ),
 
@@ -4419,7 +4881,11 @@ class _MapPreview extends ConsumerWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () => context.push('/maps/nearby'),
+                      onTap: () {
+                        // Vérifier si l'utilisateur peut accéder à cette section
+                        if (showRestrictionBlockedDialog(context, ref, l10n.nearbyProfessionals)) return;
+                        context.push('/maps/nearby');
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
@@ -4592,7 +5058,7 @@ class _AdoptBoostSection extends StatelessWidget {
   }
 }
 
-class _AdoptBoostCard extends StatefulWidget {
+class _AdoptBoostCard extends ConsumerStatefulWidget {
   final bool isDark;
   final String title;
   final String subtitle;
@@ -4612,10 +5078,10 @@ class _AdoptBoostCard extends StatefulWidget {
   });
 
   @override
-  State<_AdoptBoostCard> createState() => _AdoptBoostCardState();
+  ConsumerState<_AdoptBoostCard> createState() => _AdoptBoostCardState();
 }
 
-class _AdoptBoostCardState extends State<_AdoptBoostCard> with SingleTickerProviderStateMixin {
+class _AdoptBoostCardState extends ConsumerState<_AdoptBoostCard> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
@@ -4643,6 +5109,8 @@ class _AdoptBoostCardState extends State<_AdoptBoostCard> with SingleTickerProvi
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
         _controller.reverse();
+        // Vérifier si l'utilisateur peut accéder à cette section
+        if (showRestrictionBlockedDialog(context, ref, widget.title)) return;
         context.push(widget.route);
       },
       onTapCancel: () => _controller.reverse(),
@@ -4779,7 +5247,11 @@ class _VethubRow extends ConsumerWidget {
           final (img, title, route) = cards[i];
           return InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => context.push(route),
+            onTap: () {
+              // Vérifier si l'utilisateur peut accéder à cette section
+              if (showRestrictionBlockedDialog(context, ref, title)) return;
+              context.push(route);
+            },
             child: Ink(
               width: 240,
               decoration: BoxDecoration(
