@@ -65,7 +65,8 @@ export class AdminCommissionsService {
 
     return providers.map((p) => {
       const specialties = p.specialties as any;
-      const kind: ProviderKind = specialties?.kind || 'vet';
+      const rawKind = (specialties?.kind ?? '').toString().toLowerCase();
+      const kind: ProviderKind = (['vet', 'daycare', 'petshop'].includes(rawKind) ? rawKind : 'vet') as ProviderKind;
       return {
         providerId: p.id,
         userId: p.userId,
@@ -103,7 +104,8 @@ export class AdminCommissionsService {
     }
 
     const specialties = provider.specialties as any;
-    const kind: ProviderKind = specialties?.kind || 'vet';
+    const rawKind = (specialties?.kind ?? '').toString().toLowerCase();
+    const kind: ProviderKind = (['vet', 'daycare', 'petshop'].includes(rawKind) ? rawKind : 'vet') as ProviderKind;
 
     return {
       providerId: provider.id,
@@ -162,7 +164,8 @@ export class AdminCommissionsService {
     });
 
     const specialties = updated.specialties as any;
-    const kind: ProviderKind = specialties?.kind || 'vet';
+    const rawKind = (specialties?.kind ?? '').toString().toLowerCase();
+    const kind: ProviderKind = (['vet', 'daycare', 'petshop'].includes(rawKind) ? rawKind : 'vet') as ProviderKind;
 
     return {
       providerId: updated.id,
