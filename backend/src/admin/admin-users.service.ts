@@ -226,7 +226,7 @@ export class AdminUsersService {
 
       // Annonces adoption
       this.prisma.adoptPost.findMany({
-        where: { ownerId: userId },
+        where: { createdById: userId },
         select: {
           id: true,
           animalName: true,
