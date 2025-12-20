@@ -125,6 +125,11 @@ model User {
   suspendedUntil DateTime?                 // Suspension temporaire (null = pas suspendu)
   sanctions     UserSanction[]             // Historique des sanctions
 
+  // Système de support/tickets
+  supportTickets        SupportTicket[]   @relation("TicketUser")
+  supportTicketsAssigned SupportTicket[]  @relation("TicketAssignee")
+  supportMessages       SupportMessage[]
+
   @@index([email])
   @@index([city])
   @@index([lat, lng])
@@ -972,8 +977,100 @@ model UserSanction {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Tickets de contestation liés à cette sanction
+  appealTickets SupportTicket[]
+
   @@index([userId])
   @@index([userId, type])
   @@index([issuedAt])
   @@index([issuedBy])
+}
+
+
+// =========================
+// Système de support/tickets
+// =========================
+
+enum TicketCategory {
+  GENERAL      // Question générale
+  APPEAL       // Contestation de sanction
+  BUG          // Signalement de bug
+  FEATURE      // Suggestion de fonctionnalité
+  BILLING      // Question facturation
+  OTHER        // Autre
+}
+
+enum TicketStatus {
+  OPEN         // Nouveau ticket
+  IN_PROGRESS  // En cours de traitement
+  WAITING_USER // En attente de réponse utilisateur
+  RESOLVED     // Résolu
+  CLOSED       // Fermé
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Utilisateur qui a ouvert le ticket
+  userId String
+  user   User   @relation("TicketUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sujet et catégorie
+  subject  String
+  category TicketCategory @default(GENERAL)
+  status   TicketStatus   @default(OPEN)
+  priority TicketPriority @default(NORMAL)
+
+  // Sanction concernée (si contestation)
+  relatedSanctionId String?
+  relatedSanction   UserSanction? @relation(fields: [relatedSanctionId], references: [id], onDelete: SetNull)
+
+  // Admin assigné (optionnel)
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  // Fermeture
+  closedAt DateTime?
+  closedBy String?    // Admin ID qui a fermé
+
+  // Messages
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([createdAt])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  // Auteur du message
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Contenu
+  content     String  @db.Text
+  isFromAdmin Boolean @default(false) // True si envoyé par un admin
+
+  // Lu par le destinataire
+  readAt DateTime?
+
+  @@index([ticketId, createdAt])
+  @@index([senderId])
 }

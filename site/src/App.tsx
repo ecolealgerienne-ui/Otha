@@ -28,6 +28,7 @@ import {
   AdminAdoptions,
   AdminEarnings,
   AdminFlags,
+  AdminSupport,
 } from './admin';
 
 // Pro pages
@@ -117,6 +118,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminFlags />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/support"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminSupport />
               </ProtectedRoute>
             }
           />

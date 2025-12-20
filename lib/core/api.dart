@@ -3584,4 +3584,60 @@ final hay = [
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return Map<String, dynamic>.from(data as Map);
   }
+
+  // ==================== SUPPORT TICKETS ====================
+
+  /// Créer un nouveau ticket de support
+  Future<Map<String, dynamic>> createSupportTicket({
+    required String subject,
+    required String message,
+    String? category,
+    String? relatedSanctionId,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/support/tickets',
+      data: {
+        'subject': subject,
+        'message': message,
+        if (category != null) 'category': category,
+        if (relatedSanctionId != null) 'relatedSanctionId': relatedSanctionId,
+      },
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Récupérer mes tickets de support
+  Future<List<Map<String, dynamic>>> getSupportTickets() async {
+    final res = await _authRetry(() async => await _dio.get('/support/tickets'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  /// Récupérer un ticket avec ses messages
+  Future<Map<String, dynamic>> getSupportTicketMessages(String ticketId) async {
+    final res = await _authRetry(() async => await _dio.get('/support/tickets/$ticketId'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Envoyer un message dans un ticket
+  Future<Map<String, dynamic>> sendSupportMessage(String ticketId, String content) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/support/tickets/$ticketId/messages',
+      data: {'content': content},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Compter les tickets non lus
+  Future<int> getSupportUnreadCount() async {
+    final res = await _authRetry(() async => await _dio.get('/support/unread'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return (data['count'] as int?) ?? 0;
+  }
 }

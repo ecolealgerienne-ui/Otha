@@ -29,6 +29,7 @@ import { PetshopModule } from './petshop/petshop.module';
 import { DaycareModule } from './daycare/daycare.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
+import { SupportModule } from './support/support.module';
 
 
 
@@ -91,6 +92,7 @@ import { AdminModule } from './admin/admin.module';
     DaycareModule,
     NotificationsModule,
     AdminModule,
+    SupportModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: TransformInterceptor }],
 })

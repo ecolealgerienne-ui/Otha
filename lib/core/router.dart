@@ -37,6 +37,10 @@ import '../features/adopt/adopt_chats_screen.dart';
 import '../features/adopt/adopt_create_screen.dart';
 import '../features/adopt/adopt_conversation_screen.dart';
 
+// Support
+import '../features/support/support_tickets_screen.dart';
+import '../features/support/support_conversation_screen.dart';
+
 // Pro
 import '../features/pro/pro_shell.dart';
 import '../features/pro/pro_home_screen.dart';
@@ -713,6 +717,18 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/adopt/chat/:conversationId',
         builder: (ctx, st) => AdoptConversationScreen(
           conversationId: st.pathParameters['conversationId']!,
+        ),
+      ),
+
+      // -------- Support --------
+      GoRoute(
+        path: '/support',
+        builder: (ctx, st) => const SupportTicketsScreen(),
+      ),
+      GoRoute(
+        path: '/support/:ticketId',
+        builder: (ctx, st) => SupportConversationScreen(
+          ticketId: st.pathParameters['ticketId']!,
         ),
       ),
 

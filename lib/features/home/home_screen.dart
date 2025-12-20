@@ -273,6 +273,38 @@ class _AccountRestrictionBanner extends ConsumerWidget {
                       color: iconColor.withOpacity(0.85),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  // Bouton Contester / Ouvrir un ticket
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.push('/support'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: iconColor, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.support_agent, size: 16, color: iconColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                restriction.isBanned || restriction.isSuspended ? 'Contester' : 'Contacter le support',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: iconColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
