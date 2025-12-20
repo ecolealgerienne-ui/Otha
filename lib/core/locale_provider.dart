@@ -2296,7 +2296,6 @@ class AppLocalizations {
   String get confirmBooking => _get('confirmBooking');
   String get oneStepAtTime => _get('oneStepAtTime');
   String get trustRestrictionMessage => _get('trustRestrictionMessage');
-  String get understood => _get('understood');
   // Booking thanks
   String get thankYou => _get('thankYou');
   String get bookingConfirmedTitle => _get('bookingConfirmedTitle');
