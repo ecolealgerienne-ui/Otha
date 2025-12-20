@@ -73,10 +73,37 @@ class AccountRestrictionState {
   });
 
   bool get canAccessServices => !isBanned && !isSuspended && !isRestricted;
+
+  AccountRestrictionState copyWith({
+    bool? isBanned,
+    bool? isSuspended,
+    bool? isRestricted,
+    String? reason,
+    DateTime? suspendedUntil,
+    DateTime? restrictedUntil,
+  }) {
+    return AccountRestrictionState(
+      isBanned: isBanned ?? this.isBanned,
+      isSuspended: isSuspended ?? this.isSuspended,
+      isRestricted: isRestricted ?? this.isRestricted,
+      reason: reason ?? this.reason,
+      suspendedUntil: suspendedUntil ?? this.suspendedUntil,
+      restrictedUntil: restrictedUntil ?? this.restrictedUntil,
+    );
+  }
 }
 
-final accountRestrictionProvider = StateProvider<AccountRestrictionState>((ref) {
-  return const AccountRestrictionState();
+class AccountRestrictionNotifier extends Notifier<AccountRestrictionState> {
+  @override
+  AccountRestrictionState build() => const AccountRestrictionState();
+
+  void update(AccountRestrictionState newState) {
+    state = newState;
+  }
+}
+
+final accountRestrictionProvider = NotifierProvider<AccountRestrictionNotifier, AccountRestrictionState>(() {
+  return AccountRestrictionNotifier();
 });
 
 /// Affiche un dialog si l'utilisateur essaie d'accéder à une section bloquée
@@ -272,6 +299,38 @@ class _AccountRestrictionBanner extends ConsumerWidget {
                       height: 1.4,
                       color: iconColor.withOpacity(0.85),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Bouton Contester / Ouvrir un ticket
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.push('/support'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: iconColor, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.support_agent, size: 16, color: iconColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                restriction.isBanned || restriction.isSuspended ? 'Contester' : 'Contacter le support',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: iconColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -898,14 +957,14 @@ class HomeScreen extends ConsumerWidget {
       debugPrint('[TRUST] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
 
       // Mettre à jour le provider de restriction
-      ref.read(accountRestrictionProvider.notifier).state = AccountRestrictionState(
+      ref.read(accountRestrictionProvider.notifier).update(AccountRestrictionState(
         isBanned: isBanned,
         isSuspended: isSuspended,
         isRestricted: isRestricted,
         reason: reason,
         suspendedUntil: suspendedUntil,
         restrictedUntil: restrictedUntil,
-      );
+      ));
 
       if (!context.mounted) return;
 

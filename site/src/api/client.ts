@@ -1013,6 +1013,63 @@ class ApiClient {
     const { data } = await this._client.post(`/daycare/admin/cancel-disputed/${bookingId}`);
     return data?.data || data;
   }
+
+  // ==================== ADMIN: SUPPORT TICKETS ====================
+
+  async adminGetSupportTickets(filters?: {
+    status?: string;
+    category?: string;
+    priority?: string;
+    userId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ tickets: any[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.priority) params.append('priority', filters.priority);
+    if (filters?.userId) params.append('userId', filters.userId);
+    if (filters?.limit) params.append('limit', String(filters.limit));
+    if (filters?.offset) params.append('offset', String(filters.offset));
+
+    const { data } = await this._client.get(`/admin/support/tickets?${params.toString()}`);
+    return data?.data || data;
+  }
+
+  async adminGetSupportTicket(ticketId: string): Promise<any> {
+    const { data } = await this._client.get(`/admin/support/tickets/${ticketId}`);
+    return data?.data || data;
+  }
+
+  async adminSendSupportMessage(ticketId: string, content: string): Promise<any> {
+    const { data } = await this._client.post(`/admin/support/tickets/${ticketId}/messages`, { content });
+    return data?.data || data;
+  }
+
+  async adminAssignTicket(ticketId: string, adminId?: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/support/tickets/${ticketId}/assign`, { adminId });
+    return data?.data || data;
+  }
+
+  async adminUpdateTicketStatus(ticketId: string, status: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/support/tickets/${ticketId}/status`, { status });
+    return data?.data || data;
+  }
+
+  async adminUpdateTicketPriority(ticketId: string, priority: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/support/tickets/${ticketId}/priority`, { priority });
+    return data?.data || data;
+  }
+
+  async adminGetSupportStats(): Promise<any> {
+    const { data } = await this._client.get('/admin/support/stats');
+    return data?.data || data;
+  }
+
+  async adminGetSupportUnreadCount(): Promise<{ count: number }> {
+    const { data } = await this._client.get('/admin/support/unread');
+    return data?.data || data;
+  }
 }
 
 // Export singleton instance

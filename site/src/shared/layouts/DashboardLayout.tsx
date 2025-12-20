@@ -15,6 +15,7 @@ import {
   Clock,
   Stethoscope,
   Flag,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuthStore, useIsAdmin, useIsPro } from '../../store/authStore';
 
@@ -43,6 +44,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: <Heart size={20} />, label: 'Adoptions', path: '/admin/adoptions' },
     { icon: <DollarSign size={20} />, label: 'Gains', path: '/admin/earnings' },
     { icon: <Flag size={20} />, label: 'Flags', path: '/admin/flags' },
+    { icon: <MessageSquare size={20} />, label: 'Support', path: '/admin/support' },
   ];
 
   const proNavItems: NavItem[] = [

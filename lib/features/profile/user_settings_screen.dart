@@ -445,10 +445,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   icon: Icons.support_agent,
                   title: tr.support,
                   subtitle: tr.needHelp,
-                  onTap: () {
-                    _showSnackBar(tr.comingSoon, Colors.grey);
-                  },
-                  disabled: true,
+                  onTap: () => context.push('/support'),
                   isDark: isDark,
                 ),
 
