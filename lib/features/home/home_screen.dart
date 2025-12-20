@@ -1060,14 +1060,14 @@ class HomeScreen extends ConsumerWidget {
         final remaining = suspendedUntil.difference(DateTime.now());
         final timerText = _formatRemainingTime(remaining);
         final l10n = AppLocalizations.of(context);
-        final theme = Theme.of(context);
-        final isDark = theme.brightness == Brightness.dark;
+        final themeMode = ref.read(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
 
         await showDialog(
           context: context,
           barrierDismissible: true,
           builder: (ctx) => AlertDialog(
-            backgroundColor: isDark ? theme.cardColor : null,
+            backgroundColor: isDark ? const Color(0xFF1A1A1A) : null,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             icon: Container(
               padding: const EdgeInsets.all(14),
@@ -1122,7 +1122,7 @@ class HomeScreen extends ConsumerWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100,
+                      color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
