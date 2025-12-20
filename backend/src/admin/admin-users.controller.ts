@@ -8,12 +8,24 @@ import {
   Body,
   Req,
   UseGuards,
+  Injectable,
+  CanActivate,
+  ExecutionContext,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AdminUsersService } from './admin-users.service';
-import { AdminOnlyGuard } from '../auth/admin-only.guard';
 
-@Controller('admin/users')
-@UseGuards(AdminOnlyGuard)
+@Injectable()
+class AdminOnlyGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    const role = req?.user?.role;
+    return role === 'ADMIN' || role === 'admin';
+  }
+}
+
+@UseGuards(AuthGuard('jwt'), AdminOnlyGuard)
+@Controller({ path: 'admin/users', version: '1' })
 export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
