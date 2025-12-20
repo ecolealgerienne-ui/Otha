@@ -381,7 +381,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                                   hintText: l10n.supportYourMessage,
                                   hintStyle: TextStyle(color: subtitleColor),
                                   filled: true,
-                                  fillColor: isDark ? theme.cardColor.withOpacity(0.5) : Colors.grey.shade100,
+                                  fillColor: isDark ? _darkCard.withOpacity(0.5) : Colors.grey.shade100,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(24),
                                     borderSide: BorderSide.none,
@@ -428,7 +428,7 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
                           top: 16,
                           bottom: MediaQuery.of(context).padding.bottom + 16,
                         ),
-                        color: isDark ? theme.cardColor : Colors.grey.shade200,
+                        color: isDark ? _darkCard : Colors.grey.shade200,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
