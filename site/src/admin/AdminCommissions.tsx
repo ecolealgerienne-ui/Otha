@@ -243,7 +243,12 @@ export function AdminCommissions() {
                   filteredProviders.map((provider) => {
                     const isEditing = editingId === provider.providerId;
                     const isCustom = isCustomCommission(provider);
-                    const kindInfo = kindLabels[provider.kind];
+                    const kindInfo = kindLabels[provider.kind] || {
+                      label: 'Inconnu',
+                      color: 'text-gray-700',
+                      bgColor: 'bg-gray-100',
+                      icon: Stethoscope
+                    };
                     const IconComponent = kindInfo.icon;
 
                     return (
