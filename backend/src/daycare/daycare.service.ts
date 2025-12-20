@@ -127,15 +127,52 @@ export class DaycareService {
     reason?: string;
     isFirstBooking?: boolean;
     trustStatus?: TrustStatus;
+    suspendedUntil?: Date | null;
   }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { trustStatus: true, restrictedUntil: true, noShowCount: true },
+      select: {
+        trustStatus: true,
+        restrictedUntil: true,
+        noShowCount: true,
+        isBanned: true,
+        suspendedUntil: true,
+      },
     });
 
     if (!user) return { canBook: false, reason: 'Utilisateur non trouvé' };
 
-    // Vérifier restriction expirée
+    // Vérifier si l'utilisateur est banni (sanction admin permanente)
+    if (user.isBanned) {
+      return {
+        canBook: false,
+        reason: 'Votre compte a été banni. Veuillez contacter le support.',
+        trustStatus: user.trustStatus,
+      };
+    }
+
+    // Vérifier si l'utilisateur est suspendu (sanction admin temporaire)
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      const remainingDays = Math.ceil(
+        (user.suspendedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      return {
+        canBook: false,
+        reason: `Votre compte est suspendu pour encore ${remainingDays} jour(s).`,
+        trustStatus: user.trustStatus,
+        suspendedUntil: user.suspendedUntil,
+      };
+    }
+
+    // Lever automatiquement la suspension expirée
+    if (user.suspendedUntil && user.suspendedUntil <= new Date()) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { suspendedUntil: null },
+      });
+    }
+
+    // Vérifier restriction expirée (trust system automatique)
     if (user.trustStatus === 'RESTRICTED') {
       if (user.restrictedUntil && user.restrictedUntil <= new Date()) {
         await this.prisma.user.update({
