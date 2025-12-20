@@ -7,6 +7,9 @@ import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF2968F);
 const _coralLight = Color(0xFFFFE8E8);
+const _darkBg = Color(0xFF0A0A0A);
+const _darkCard = Color(0xFF1A1A1A);
+const _darkBorder = Color(0xFF2A2A2A);
 
 class SupportConversationScreen extends ConsumerStatefulWidget {
   final String ticketId;
@@ -155,11 +158,11 @@ class _SupportConversationScreenState extends ConsumerState<SupportConversationS
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
     final l10n = AppLocalizations.of(context);
-    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100;
-    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final bgColor = isDark ? _darkBg : Colors.grey.shade100;
+    final cardColor = isDark ? _darkCard : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 

@@ -5,6 +5,9 @@ import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 
 const _coral = Color(0xFFF2968F);
+const _darkBg = Color(0xFF0A0A0A);
+const _darkCard = Color(0xFF1A1A1A);
+const _darkBorder = Color(0xFF2A2A2A);
 
 class SupportTicketsScreen extends ConsumerStatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -55,12 +58,12 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
     String selectedCategory = 'GENERAL';
     bool isSending = false;
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final themeMode = ref.read(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final cardColor = isDark ? _darkCard : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final inputFillColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade100;
+    final inputFillColor = isDark ? _darkBorder : Colors.grey.shade100;
 
     showModalBottomSheet(
       context: context,
@@ -445,11 +448,11 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
     final l10n = AppLocalizations.of(context);
-    final bgColor = isDark ? theme.scaffoldBackgroundColor : Colors.grey.shade50;
-    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final bgColor = isDark ? _darkBg : Colors.grey.shade50;
+    final cardColor = isDark ? _darkCard : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
