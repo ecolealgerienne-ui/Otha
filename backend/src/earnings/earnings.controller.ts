@@ -56,6 +56,15 @@ export class EarningsController {
     return this.earnings.subtractFromCollection(dto.providerId, dto.month, dto.amount, dto.note);
   }
 
+  // Stats globales tous providers confondus
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/global-stats')
+  async adminGlobalStats(@Query('months') months = '12') {
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.globalStats(m);
+  }
+
   // ---------- PRO (ME) ----------
   @UseGuards(JwtAuthGuard)
   @Get('me/history-monthly')

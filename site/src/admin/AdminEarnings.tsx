@@ -4,7 +4,7 @@ import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { ProviderProfile, MonthlyEarnings } from '../types';
-import { format, subMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 interface CollectionModalData {
@@ -21,10 +21,12 @@ export function AdminEarnings() {
   const [earnings, setEarnings] = useState<MonthlyEarnings[]>([]);
   const [loading, setLoading] = useState(true);
   const [earningsLoading, setEarningsLoading] = useState(false);
-  const [stats, setStats] = useState<{
+  const [globalStats, setGlobalStats] = useState<{
+    totalProviders: number;
     totalBookings: number;
-    totalAmount: number;
-    totalCommission: number;
+    totalCommissionGenerated: number;
+    totalCollected: number;
+    totalRemaining: number;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -41,7 +43,7 @@ export function AdminEarnings() {
 
   useEffect(() => {
     fetchProviders();
-    fetchStats();
+    fetchGlobalStats();
   }, []);
 
   async function fetchProviders() {
@@ -59,14 +61,12 @@ export function AdminEarnings() {
     }
   }
 
-  async function fetchStats() {
+  async function fetchGlobalStats() {
     try {
-      const from = format(subMonths(new Date(), 1), 'yyyy-MM-dd');
-      const to = format(new Date(), 'yyyy-MM-dd');
-      const data = await api.adminTraceabilityStats(from, to);
-      setStats(data);
+      const data = await api.adminGlobalStats(12);
+      setGlobalStats(data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching global stats:', error);
     }
   }
 
@@ -134,6 +134,7 @@ export function AdminEarnings() {
         await api.adminSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
       }
       fetchProviderEarnings(selectedProvider.id);
+      fetchGlobalStats(); // Rafraîchir les totaux globaux
       setShowCollectionModal(false);
     } catch (error) {
       console.error('Error with collection:', error);
@@ -148,6 +149,7 @@ export function AdminEarnings() {
     try {
       await api.adminCollectMonth(selectedProvider.id, month);
       fetchProviderEarnings(selectedProvider.id);
+      fetchGlobalStats(); // Rafraîchir les totaux globaux
     } catch (error) {
       console.error('Error collecting:', error);
     }
@@ -158,6 +160,7 @@ export function AdminEarnings() {
     try {
       await api.adminUncollectMonth(selectedProvider.id, month);
       fetchProviderEarnings(selectedProvider.id);
+      fetchGlobalStats(); // Rafraîchir les totaux globaux
     } catch (error) {
       console.error('Error uncollecting:', error);
     }
@@ -182,25 +185,34 @@ export function AdminEarnings() {
           <p className="text-gray-600 mt-1">Gérez les revenus des professionnels</p>
         </div>
 
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="flex items-center space-x-4">
-              <div className="p-3 rounded-lg bg-green-100">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Revenus ce mois</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</p>
-              </div>
-            </Card>
+        {/* Stats globales */}
+        {globalStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="flex items-center space-x-4">
               <div className="p-3 rounded-lg bg-blue-100">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Commissions</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalCommission)}</p>
+                <p className="text-sm text-gray-500">Commission générée</p>
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(globalStats.totalCommissionGenerated)}</p>
+              </div>
+            </Card>
+            <Card className="flex items-center space-x-4">
+              <div className="p-3 rounded-lg bg-green-100">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total collecté</p>
+                <p className="text-xl font-bold text-green-700">{formatCurrency(globalStats.totalCollected)}</p>
+              </div>
+            </Card>
+            <Card className="flex items-center space-x-4">
+              <div className="p-3 rounded-lg bg-orange-100">
+                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Reste à collecter</p>
+                <p className="text-xl font-bold text-orange-700">{formatCurrency(globalStats.totalRemaining)}</p>
               </div>
             </Card>
             <Card className="flex items-center space-x-4">
@@ -208,8 +220,8 @@ export function AdminEarnings() {
                 <Calendar className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Réservations</p>
-                <p className="text-xl font-bold text-gray-900">{stats.totalBookings}</p>
+                <p className="text-sm text-gray-500">Total réservations</p>
+                <p className="text-xl font-bold text-gray-900">{globalStats.totalBookings}</p>
               </div>
             </Card>
           </div>

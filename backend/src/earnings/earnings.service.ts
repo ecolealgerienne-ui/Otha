@@ -191,4 +191,56 @@ export class EarningsService {
     });
     return this.monthRow(providerId, ym);
   }
+
+  // Stats globales pour tous les providers (commission totale, collectée, restante)
+  async globalStats(months = 12) {
+    // Récupérer tous les providers approuvés
+    const providers = await this.prisma.providerProfile.findMany({
+      where: { isApproved: true },
+      select: { id: true, vetCommissionDa: true },
+    });
+
+    // Générer la liste des mois à analyser
+    const now = new Date();
+    const curYm = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    const y = +curYm.slice(0, 4);
+    const m = +curYm.slice(5, 7);
+
+    const yms: string[] = [];
+    for (let i = 0; i < Math.max(1, months); i++) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      yms.push(`${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`);
+    }
+
+    let totalCommissionGenerated = 0;
+    let totalCollected = 0;
+    let totalBookings = 0;
+
+    // Pour chaque provider, calculer les totaux
+    for (const provider of providers) {
+      const commissionDa = provider.vetCommissionDa ?? COMMISSION_DA;
+
+      for (const ym of yms) {
+        const counts = await this.countsFor(provider.id, ym);
+        const completed = counts.COMPLETED;
+        const dueDa = completed * commissionDa;
+
+        totalBookings += completed;
+        totalCommissionGenerated += dueDa;
+
+        // Récupérer le montant collecté
+        const collectedDa = await this.collectedOverlay(provider.id, ym, dueDa);
+        totalCollected += collectedDa;
+      }
+    }
+
+    return {
+      totalProviders: providers.length,
+      totalBookings,
+      totalCommissionGenerated,
+      totalCollected,
+      totalRemaining: totalCommissionGenerated - totalCollected,
+      months,
+    };
+  }
 }
