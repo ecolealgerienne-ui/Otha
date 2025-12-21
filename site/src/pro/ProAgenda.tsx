@@ -28,9 +28,6 @@ import {
 import { fr } from 'date-fns/locale';
 import { Html5Qrcode } from 'html5-qrcode';
 
-// Commission par défaut (sera remplacée par la valeur du provider)
-const DEFAULT_COMMISSION_DA = 100;
-
 /**
  * UTC naïf : traite l'heure UTC comme heure locale (pas de conversion)
  * Exemple: "2024-01-01T17:00:00.000Z" → affiche 17:00 (pas 18:00 en GMT+1)
@@ -54,7 +51,6 @@ export function ProAgenda() {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [commissionDa, setCommissionDa] = useState(DEFAULT_COMMISSION_DA);
 
   // OTP Dialog
   const [showOtpDialog, setShowOtpDialog] = useState(false);
@@ -72,24 +68,8 @@ export function ProAgenda() {
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   useEffect(() => {
-    fetchProviderCommission();
-  }, []);
-
-  useEffect(() => {
     fetchBookings();
   }, [currentDate]);
-
-  async function fetchProviderCommission() {
-    try {
-      const provider = await api.myProvider();
-      // Vérification robuste: accepte 0 comme valeur valide
-      if (provider && typeof provider.vetCommissionDa === 'number') {
-        setCommissionDa(provider.vetCommissionDa);
-      }
-    } catch (error) {
-      console.error('Error fetching provider commission:', error);
-    }
-  }
 
   // Cleanup QR scanner on unmount
   useEffect(() => {
@@ -525,20 +505,15 @@ export function ProAgenda() {
                   </div>
                 )}
 
-                {/* Price with commission */}
+                {/* Price */}
                 {selectedBooking.service?.price != null && (
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-emerald-100 rounded-lg">
                       <DollarSign size={20} className="text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">À payer</p>
-                      <p className="font-medium">
-                        {selectedBooking.service.price} + {commissionDa} = {selectedBooking.service.price + commissionDa} DA
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        (Service: {selectedBooking.service.price} DA + Commission: {commissionDa} DA)
-                      </p>
+                      <p className="text-sm text-gray-500">Prix</p>
+                      <p className="font-medium">{selectedBooking.service.price} DA</p>
                     </div>
                   </div>
                 )}
