@@ -846,6 +846,19 @@ class ApiClient {
     await this._client.post('/earnings/admin/subtract-collection', { providerId, month, amount, note });
   }
 
+  async adminGlobalStats(months = 12): Promise<{
+    totalProviders: number;
+    totalBookings: number;
+    totalCommissionGenerated: number;
+    totalCollected: number;
+    totalRemaining: number;
+    months: number;
+  }> {
+    const { data } = await this._client.get(`/earnings/admin/global-stats?months=${months}`);
+    const result = data?.data || data;
+    return result || { totalProviders: 0, totalBookings: 0, totalCommissionGenerated: 0, totalCollected: 0, totalRemaining: 0, months };
+  }
+
   async adminTraceabilityStats(from: string, to: string): Promise<{
     totalBookings: number;
     totalAmount: number;
