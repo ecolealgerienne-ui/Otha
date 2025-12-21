@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
-import type { Service, ProviderProfile } from '../types';
+import type { Service } from '../types';
 
 // Commission par défaut (sera remplacée par la valeur du provider)
 const DEFAULT_COMMISSION_DA = 100;

@@ -149,6 +149,10 @@ export class ProvidersService {
         specialties: true,
         bio: true,
         avatarUrl: true,
+        // Commission fields
+        vetCommissionDa: true,
+        daycareHourlyCommissionDa: true,
+        daycareDailyCommissionDa: true,
         // Inclure les services actifs
         services: {
           where: { archivedAt: null },
@@ -239,6 +243,10 @@ export class ProvidersService {
           avatarUrl: p.avatarUrl,
           services,
           availability,
+          // Commission fields
+          vetCommissionDa: (p as any).vetCommissionDa,
+          daycareHourlyCommissionDa: (p as any).daycareHourlyCommissionDa,
+          daycareDailyCommissionDa: (p as any).daycareDailyCommissionDa,
           ...(distance_km !== undefined ? { distance_km } : {}),
         };
       })

@@ -199,7 +199,7 @@ export function AdminCommissions() {
               <span className="text-sm text-gray-600">Approuvés uniquement</span>
             </label>
             {filterKind !== 'all' && (
-              <Button variant="outline" size="sm" onClick={() => setFilterKind('all')}>
+              <Button variant="secondary" size="sm" onClick={() => setFilterKind('all')}>
                 Voir tous
               </Button>
             )}
@@ -384,7 +384,7 @@ export function AdminCommissions() {
                                     </Button>
                                     <Button
                                       size="sm"
-                                      variant="outline"
+                                      variant="secondary"
                                       onClick={handleCancel}
                                       disabled={saving}
                                     >
@@ -395,7 +395,7 @@ export function AdminCommissions() {
                                   <>
                                     <Button
                                       size="sm"
-                                      variant="outline"
+                                      variant="secondary"
                                       onClick={() => handleEdit(provider)}
                                     >
                                       Modifier

@@ -4,8 +4,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  User,
-  Calendar,
   FileText,
   X,
   Check,
@@ -13,7 +11,6 @@ import {
   RefreshCw,
   ChevronRight,
   Plus,
-  Filter,
   RotateCcw,
   Zap,
   UserX,
@@ -80,10 +77,6 @@ const ALL_FLAG_TYPES = [...USER_FLAG_TYPES, ...PRO_FLAG_TYPES];
 
 function getTypeInfo(type: string) {
   return ALL_FLAG_TYPES.find((t) => t.value === type) || { value: type, label: type, color: 'bg-gray-500', icon: Flag };
-}
-
-function isProFlag(type: string) {
-  return type.startsWith('PRO_');
 }
 
 export function AdminFlags() {

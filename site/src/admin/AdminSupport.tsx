@@ -5,7 +5,6 @@ import {
   CheckCircle,
   Clock,
   User,
-  Calendar,
   X,
   Send,
   RefreshCw,
@@ -165,7 +164,7 @@ export function AdminSupport() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Polling for new messages
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadTickets = useCallback(async () => {
     try {
