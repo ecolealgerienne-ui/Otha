@@ -13,6 +13,7 @@ export function AdminAdoptions() {
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<AdoptPost | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPosts(activeTab);
@@ -20,14 +21,21 @@ export function AdminAdoptions() {
 
   async function fetchPosts(status: AdoptPostStatus) {
     setLoading(true);
+    setError(null);
     try {
       // Adoptions use UPPERCASE status like Flutter app
-      const data = await api.adminAdoptList(status, 100);
+      console.log('[AdminAdoptions] Fetching posts with status:', status);
+      const response = await api.adminAdoptList(status, 100);
+      console.log('[AdminAdoptions] API response:', response);
+
       // Handle different response formats and ensure array
-      const allPosts = data?.data || data;
+      const allPosts = response?.data || [];
+      console.log('[AdminAdoptions] Extracted posts:', allPosts);
       setPosts(Array.isArray(allPosts) ? allPosts : []);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('[AdminAdoptions] Error fetching posts:', err);
+      setError(errorMessage);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -143,6 +151,15 @@ export function AdminAdoptions() {
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
               </div>
+            ) : error ? (
+              <Card className="text-center py-12">
+                <XCircle size={48} className="text-red-400 mx-auto mb-4" />
+                <p className="text-red-600 font-medium mb-2">Erreur de chargement</p>
+                <p className="text-gray-500 text-sm mb-4">{error}</p>
+                <Button onClick={() => fetchPosts(activeTab)} size="sm">
+                  Réessayer
+                </Button>
+              </Card>
             ) : posts.length === 0 ? (
               <Card className="text-center py-12">
                 <Heart size={48} className="text-gray-300 mx-auto mb-4" />

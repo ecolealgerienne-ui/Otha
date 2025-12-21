@@ -776,33 +776,37 @@ class ApiClient {
     status: AdoptPostStatus = 'PENDING',
     limit = 20,
     cursor?: string
-  ): Promise<{ data: AdoptPost[]; nextCursor?: string }> {
+  ): Promise<{ data: AdoptPost[]; nextCursor?: string; counts?: Record<string, number> }> {
     const params = new URLSearchParams({ status, limit: String(limit) });
     if (cursor) params.append('cursor', cursor);
-    const { data } = await this._client.get<{ data: AdoptPost[]; nextCursor?: string }>(
+    const { data } = await this._client.get<{ data: AdoptPost[]; nextCursor?: string; counts?: Record<string, number> }>(
       `/admin/adopt/posts?${params}`
     );
-    return data;
+    // Unwrap nested data if backend wraps response
+    const result = data?.data !== undefined ? data : { data: data as unknown as AdoptPost[], nextCursor: undefined, counts: undefined };
+    return result;
   }
 
   async adminAdoptApprove(postId: string): Promise<AdoptPost> {
     const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/approve`);
-    return data;
+    return (data as any)?.data || data;
   }
 
   async adminAdoptReject(postId: string, reasons?: string[], note?: string): Promise<AdoptPost> {
     const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/reject`, { reasons, note });
-    return data;
+    return (data as any)?.data || data;
   }
 
   async adminAdoptArchive(postId: string): Promise<AdoptPost> {
     const { data } = await this._client.patch<AdoptPost>(`/admin/adopt/posts/${postId}/archive`);
-    return data;
+    return (data as any)?.data || data;
   }
 
-  async adminAdoptApproveAll(): Promise<{ count: number }> {
-    const { data } = await this._client.patch<{ count: number }>('/admin/adopt/posts/approve-all');
-    return data;
+  async adminAdoptApproveAll(): Promise<{ count: number; approved?: number }> {
+    const { data } = await this._client.patch<{ count: number; approved?: number }>('/admin/adopt/posts/approve-all');
+    const result = (data as any)?.data || data;
+    // Backend returns { approved: number }, normalize to { count: number }
+    return { count: result.approved ?? result.count ?? 0, approved: result.approved };
   }
 
   async adminAdoptGetConversations(limit = 20): Promise<AdoptConversation[]> {
