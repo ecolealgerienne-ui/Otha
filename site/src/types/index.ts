@@ -253,19 +253,41 @@ export type AdoptPostStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
 export interface AdoptPost {
   id: string;
-  userId: string;
+  userId?: string;
+  createdById?: string;
   name?: string;
-  animalName?: string; // Backend may return this instead of name
+  animalName?: string; // Backend returns this
   title?: string; // Backend may return this
   species: string;
   sex?: string;
   age?: string;
+  ageMonths?: number;
+  size?: string;
+  color?: string;
   description?: string;
   location?: string;
-  city?: string; // Backend may return this instead of location
+  city?: string; // Backend returns this instead of location
+  address?: string;
+  mapsUrl?: string;
+  lat?: number;
+  lng?: number;
   status: AdoptPostStatus;
   images?: AdoptImage[];
   user?: User;
+  createdBy?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  };
+  adoptedAt?: string;
+  adoptedById?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  archivedAt?: string;
+  moderationNote?: string;
   createdAt: string;
   updatedAt: string;
 }

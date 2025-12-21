@@ -170,7 +170,7 @@ export function AdminAdoptions() {
                       {post.images && post.images[0] ? (
                         <img
                           src={post.images[0].url}
-                          alt={post.name}
+                          alt={post.name || post.animalName || post.title}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -183,13 +183,13 @@ export function AdminAdoptions() {
                     {/* Content */}
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900">{post.name}</h3>
+                        <h3 className="font-semibold text-gray-900">{post.name || post.animalName || post.title}</h3>
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                           {post.species}
                         </span>
                       </div>
-                      {post.location && (
-                        <p className="text-sm text-gray-500">{post.location}</p>
+                      {(post.location || post.city) && (
+                        <p className="text-sm text-gray-500">{post.location || post.city}</p>
                       )}
 
                       {activeTab === 'PENDING' && (
@@ -237,7 +237,7 @@ export function AdminAdoptions() {
                   <div className="mb-4">
                     <img
                       src={selectedPost.images[0].url}
-                      alt={selectedPost.name}
+                      alt={selectedPost.name || selectedPost.animalName || selectedPost.title}
                       className="w-full h-48 object-cover rounded-lg"
                     />
                     {selectedPost.images.length > 1 && (
@@ -258,7 +258,7 @@ export function AdminAdoptions() {
                 <div className="space-y-3 text-sm">
                   <div>
                     <p className="text-gray-500">Nom</p>
-                    <p className="font-medium">{selectedPost.name}</p>
+                    <p className="font-medium">{selectedPost.name || selectedPost.animalName || selectedPost.title}</p>
                   </div>
 
                   <div>
@@ -280,10 +280,10 @@ export function AdminAdoptions() {
                     </div>
                   )}
 
-                  {selectedPost.location && (
+                  {(selectedPost.location || selectedPost.city) && (
                     <div>
                       <p className="text-gray-500">Localisation</p>
-                      <p className="font-medium">{selectedPost.location}</p>
+                      <p className="font-medium">{selectedPost.location || selectedPost.city}</p>
                     </div>
                   )}
 

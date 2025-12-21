@@ -51,10 +51,14 @@ const THRESHOLDS = {
   PRO_VERIFICATION_RATE: 50,      // % min de vérification OTP/QR
   PRO_COMPLETION_RATE: 50,        // % min de complétion
   PRO_GHOST_COMPLETIONS: 3,       // Nombre max de RDV sans vérification
+  PRO_LATE_PAYMENT_MONTHS: 1,     // Nombre de mois impayés avant flag
   USER_LATE_CANCELLATIONS: 3,     // Nombre d'annulations tardives avant flag
   USER_CANCELLATION_RATE: 40,     // % max d'annulations par l'utilisateur
   MIN_BOOKINGS_FOR_ANALYSIS: 5,   // Minimum de RDV pour analyser les stats
 };
+
+// Commission par défaut (même valeur que dans config/commission.ts)
+const DEFAULT_COMMISSION_DA = 100;
 
 @Injectable()
 export class AdminFlagsService {
@@ -418,7 +422,75 @@ export class AdminFlagsService {
       flagsCreated++;
     }
 
+    // 6. Retard de paiement des commissions
+    const unpaidMonths = await this.checkUnpaidMonths(provider.id, provider.vetCommissionDa ?? DEFAULT_COMMISSION_DA);
+    if (unpaidMonths.count > THRESHOLDS.PRO_LATE_PAYMENT_MONTHS) {
+      await this.createAutoFlag(
+        proUserId,
+        'PRO_LATE_PAYMENT',
+        `${proName} a ${unpaidMonths.count} mois impayé(s) - Total dû: ${unpaidMonths.totalDue} DA, Collecté: ${unpaidMonths.totalCollected} DA`,
+      );
+      messages.push(`${proName}: ${unpaidMonths.count} mois de retard de paiement`);
+      flagsCreated++;
+    }
+
     return { flagsCreated, messages };
+  }
+
+  /**
+   * Vérifie les mois impayés pour un provider
+   */
+  private async checkUnpaidMonths(providerId: string, commissionDa: number): Promise<{
+    count: number;
+    totalDue: number;
+    totalCollected: number;
+  }> {
+    // Générer les 12 derniers mois
+    const now = new Date();
+    const months: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      months.push(`${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`);
+    }
+
+    let unpaidCount = 0;
+    let totalDue = 0;
+    let totalCollected = 0;
+
+    for (const month of months) {
+      const [year, monthNum] = month.split('-').map(Number);
+      const from = new Date(Date.UTC(year, monthNum - 1, 1));
+      const to = new Date(Date.UTC(monthNum === 12 ? year + 1 : year, monthNum === 12 ? 1 : monthNum, 1));
+
+      // Compter les bookings complétés ce mois
+      const completedCount = await this.prisma.booking.count({
+        where: {
+          providerId,
+          status: 'COMPLETED',
+          scheduledAt: { gte: from, lt: to },
+        },
+      });
+
+      const dueDa = completedCount * commissionDa;
+      if (dueDa === 0) continue; // Pas de commission due ce mois
+
+      totalDue += dueDa;
+
+      // Vérifier le montant collecté
+      const collection = await this.prisma.adminCollection.findUnique({
+        where: { providerId_month: { providerId, month } },
+      });
+
+      const collectedDa = collection ? Math.min(collection.amountDa, dueDa) : 0;
+      totalCollected += collectedDa;
+
+      // Si pas entièrement payé, c'est un mois impayé
+      if (collectedDa < dueDa) {
+        unpaidCount++;
+      }
+    }
+
+    return { count: unpaidCount, totalDue, totalCollected };
   }
 
   /**
