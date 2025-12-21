@@ -13,12 +13,12 @@ const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
 final _providerDetailsProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+    FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, id) async {
   return ref.read(apiProvider).providerDetails(id);
 });
 
 final _servicesProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, providerId) async {
+    FutureProvider.family.autoDispose<List<Map<String, dynamic>>, String>((ref, providerId) async {
   final list = await ref.read(apiProvider).listServices(providerId);
   return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
@@ -109,7 +109,8 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
   String _selTitle = '';
   String _selDesc  = '';
   int    _selDurationMin = 30;
-  int?   _selPriceDa;
+  int?   _selBasePriceDa;
+  int    _vetCommissionDa = 100;
 
   bool _booking = false;
 
@@ -120,9 +121,13 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     _selDesc  = (svc['description'] ?? '').toString();
     _selDurationMin = int.tryParse('${svc['durationMin'] ?? ''}') ?? 30;
     final p = svc['price'];
-    if (p is num) _selPriceDa = p.toInt();
-    else if (p is String) _selPriceDa = int.tryParse(p);
+    // Le prix stocké EST le prix de base
+    if (p is num) _selBasePriceDa = p.toInt();
+    else if (p is String) _selBasePriceDa = int.tryParse(p);
   }
+
+  // Calcul du prix total (base + commission) pour l'affichage client
+  int? get _selTotalPriceDa => _selBasePriceDa != null ? _selBasePriceDa! + _vetCommissionDa : null;
 
   /// Popup pour les erreurs de trust (nouveau client)
   void _showTrustRestrictionDialog(BuildContext context) {
@@ -314,7 +319,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
               'title': _selTitle,
               'description': _selDesc,
               'durationMin': _selDurationMin,
-              'price': _selPriceDa,
+              'price': _selTotalPriceDa, // Total = base + commission
             },
         };
         context.go('/booking/thanks', extra: bookingData);
@@ -366,6 +371,14 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
           // Le provider peut avoir avatarUrl ou photoUrl selon l'API
           final photoUrl = (p['avatarUrl'] ?? p['photoUrl'] ?? '').toString();
           final address  = (p['address'] ?? '').toString();
+          // Commission du provider (pour calculer le total client)
+          final vetCommissionDa = (p['vetCommissionDa'] as num?)?.toInt() ?? 100;
+          // Mettre à jour la commission d'état pour le calcul du prix total
+          if (_vetCommissionDa != vetCommissionDa) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _vetCommissionDa = vetCommissionDa);
+            });
+          }
 
           return CustomScrollView(
             slivers: [
@@ -537,7 +550,9 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                 final desc  = (svc['description'] ?? '').toString();
                                 final dur   = int.tryParse('${svc['durationMin'] ?? ''}') ?? 30;
                                 final price = svc['price'];
-                                final priceDa = price is num ? price.toInt() : (int.tryParse('$price') ?? 0);
+                                // Le prix stocké EST le prix de base, on calcule le total pour le client
+                                final basePriceDa = price is num ? price.toInt() : (int.tryParse('$price') ?? 0);
+                                final totalPriceDa = basePriceDa + vetCommissionDa;
                                 final isSel = id == _selectedServiceId;
 
                                 return GestureDetector(
@@ -609,9 +624,9 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                             ],
                                           ),
                                         ),
-                                        // Prix
+                                        // Prix (total = base + commission)
                                         Text(
-                                          '${_fmtDa(priceDa)} DA',
+                                          '${_fmtDa(totalPriceDa)} DA',
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w800,
@@ -666,8 +681,8 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
           ),
           child: Row(
             children: [
-              // Prix total
-              if (_selPriceDa != null)
+              // Prix total (base + commission)
+              if (_selTotalPriceDa != null)
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -675,7 +690,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                     children: [
                       Text(l10n.total, style: TextStyle(fontSize: 12, color: textSecondary)),
                       Text(
-                        '${_fmtDa(_selPriceDa!)} DA',
+                        '${_fmtDa(_selTotalPriceDa!)} DA',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
