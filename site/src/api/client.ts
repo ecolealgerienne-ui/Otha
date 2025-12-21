@@ -782,9 +782,14 @@ class ApiClient {
     const { data } = await this._client.get<{ data: AdoptPost[]; nextCursor?: string; counts?: Record<string, number> }>(
       `/admin/adopt/posts?${params}`
     );
-    // Unwrap nested data if backend wraps response
-    const result = data?.data !== undefined ? data : { data: data as unknown as AdoptPost[], nextCursor: undefined, counts: undefined };
-    return result;
+    // Unwrap nested data: response is { success, data: { data: [...], nextCursor, counts } }
+    const inner = (data as any)?.data ?? data;
+    // Extract the actual posts array from inner.data
+    if (inner?.data && Array.isArray(inner.data)) {
+      return { data: inner.data, nextCursor: inner.nextCursor, counts: inner.counts };
+    }
+    // Fallback if structure is different
+    return { data: Array.isArray(inner) ? inner : [], nextCursor: undefined, counts: undefined };
   }
 
   async adminAdoptApprove(postId: string): Promise<AdoptPost> {
