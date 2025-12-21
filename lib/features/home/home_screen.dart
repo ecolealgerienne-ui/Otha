@@ -16,8 +16,8 @@ import 'dart:ui' as ui;
 import '../../core/session_controller.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../../core/location_provider.dart';
 // 👇 pour le bouton "Modifier" (pending)
-import '../bookings/booking_flow_screen.dart';
 import '../bookings/booking_confirmation_popup.dart';
 import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
 import '../adopt/adoption_pet_creation_dialog.dart';
@@ -52,6 +52,295 @@ bool _bookingConfirmationCheckDone = false;
 
 // Tracker si on a déjà montré la popup de restriction CETTE session (pour éviter spam au refresh)
 bool _trustRestrictionShownThisSession = false;
+
+// ==================== ÉTAT DE RESTRICTION GLOBALE ====================
+// Provider pour stocker l'état de suspension/ban de l'utilisateur
+class AccountRestrictionState {
+  final bool isBanned;
+  final bool isSuspended;
+  final bool isRestricted;
+  final String? reason;
+  final DateTime? suspendedUntil;
+  final DateTime? restrictedUntil;
+
+  const AccountRestrictionState({
+    this.isBanned = false,
+    this.isSuspended = false,
+    this.isRestricted = false,
+    this.reason,
+    this.suspendedUntil,
+    this.restrictedUntil,
+  });
+
+  bool get canAccessServices => !isBanned && !isSuspended && !isRestricted;
+
+  AccountRestrictionState copyWith({
+    bool? isBanned,
+    bool? isSuspended,
+    bool? isRestricted,
+    String? reason,
+    DateTime? suspendedUntil,
+    DateTime? restrictedUntil,
+  }) {
+    return AccountRestrictionState(
+      isBanned: isBanned ?? this.isBanned,
+      isSuspended: isSuspended ?? this.isSuspended,
+      isRestricted: isRestricted ?? this.isRestricted,
+      reason: reason ?? this.reason,
+      suspendedUntil: suspendedUntil ?? this.suspendedUntil,
+      restrictedUntil: restrictedUntil ?? this.restrictedUntil,
+    );
+  }
+}
+
+class AccountRestrictionNotifier extends Notifier<AccountRestrictionState> {
+  @override
+  AccountRestrictionState build() => const AccountRestrictionState();
+
+  void update(AccountRestrictionState newState) {
+    state = newState;
+  }
+}
+
+final accountRestrictionProvider = NotifierProvider<AccountRestrictionNotifier, AccountRestrictionState>(() {
+  return AccountRestrictionNotifier();
+});
+
+/// Affiche un dialog si l'utilisateur essaie d'accéder à une section bloquée
+/// Retourne true si l'accès est bloqué, false sinon
+bool showRestrictionBlockedDialog(BuildContext context, WidgetRef ref, String sectionName) {
+  final restriction = ref.read(accountRestrictionProvider);
+
+  if (restriction.canAccessServices) {
+    return false; // Pas de blocage
+  }
+
+  String title;
+  String message;
+  Color color;
+  IconData icon;
+
+  if (restriction.isBanned) {
+    title = 'Compte banni';
+    message = 'Votre compte est banni. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.red;
+    icon = Icons.block;
+  } else if (restriction.isSuspended) {
+    final remaining = restriction.suspendedUntil?.difference(DateTime.now());
+    final days = remaining?.inDays ?? 0;
+    final hours = (remaining?.inHours ?? 0) % 24;
+    String timerText = days > 0 ? '$days jour${days > 1 ? 's' : ''}' : '$hours heure${hours > 1 ? 's' : ''}';
+
+    title = 'Compte suspendu';
+    message = 'Votre compte est suspendu pour encore $timerText. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.orange;
+    icon = Icons.pause_circle_filled;
+  } else {
+    final remaining = restriction.restrictedUntil?.difference(DateTime.now());
+    final days = remaining?.inDays ?? 0;
+    final hours = (remaining?.inHours ?? 0) % 24;
+    String timerText = days > 0 ? '$days jour${days > 1 ? 's' : ''}' : '$hours heure${hours > 1 ? 's' : ''}';
+
+    title = 'Compte restreint';
+    message = 'Votre compte est restreint pour encore $timerText. Vous ne pouvez pas accéder à "$sectionName".';
+    color = Colors.red;
+    icon = Icons.warning_amber_rounded;
+  }
+
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      icon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 32),
+      ),
+      title: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: color),
+      ),
+      content: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 14, height: 1.4),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(
+              backgroundColor: color,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('J\'ai compris'),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return true; // Accès bloqué
+}
+
+/// Banner persistent affichant l'état de restriction du compte
+class _AccountRestrictionBanner extends ConsumerWidget {
+  const _AccountRestrictionBanner();
+
+  String _formatRemainingTime(DateTime until) {
+    final remaining = until.difference(DateTime.now());
+    final days = remaining.inDays;
+    final hours = remaining.inHours % 24;
+    final minutes = remaining.inMinutes % 60;
+
+    if (days > 0) {
+      return '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+    } else if (hours > 0) {
+      return '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+    } else {
+      return '$minutes minute${minutes > 1 ? 's' : ''}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restriction = ref.watch(accountRestrictionProvider);
+
+    // Ne rien afficher si le compte n'est pas restreint
+    if (restriction.canAccessServices) {
+      return const SizedBox.shrink();
+    }
+
+    String title;
+    String message;
+    Color bgColor;
+    Color borderColor;
+    Color iconColor;
+    IconData icon;
+
+    if (restriction.isBanned) {
+      title = '⛔ Compte banni';
+      message = restriction.reason ?? 'Votre compte a été banni. Vous ne pouvez plus utiliser les services.';
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFFCA5A5);
+      iconColor = const Color(0xFFDC2626);
+      icon = Icons.block;
+    } else if (restriction.isSuspended && restriction.suspendedUntil != null) {
+      final timeRemaining = _formatRemainingTime(restriction.suspendedUntil!);
+      title = '⏸️ Compte suspendu';
+      message = 'Suspension: encore $timeRemaining.\n${restriction.reason ?? 'Votre compte est temporairement suspendu.'}';
+      bgColor = const Color(0xFFFEF3C7);
+      borderColor = const Color(0xFFFCD34D);
+      iconColor = const Color(0xFFD97706);
+      icon = Icons.pause_circle_filled;
+    } else {
+      final timeRemaining = restriction.restrictedUntil != null
+          ? _formatRemainingTime(restriction.restrictedUntil!)
+          : 'indéterminée';
+      title = '⚠️ Compte restreint';
+      message = 'Restriction: encore $timeRemaining.\n${restriction.reason ?? 'Votre compte est restreint suite à des absences non justifiées.'}';
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFFCA5A5);
+      iconColor = const Color(0xFFDC2626);
+      icon = Icons.warning_amber_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: borderColor.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: iconColor.withOpacity(0.85),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Bouton Contester / Ouvrir un ticket
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.push('/support'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: iconColor, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.support_agent, size: 16, color: iconColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                restriction.isBanned || restriction.isSuspended ? 'Contester' : 'Contacter le support',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: iconColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Reset tous les flags de session (appelé au logout)
 void resetHomeSessionFlags() {
@@ -100,6 +389,17 @@ final isHostProvider = FutureProvider<bool>((ref) async {
   if (email.isEmpty) return false;
   final s = const FlutterSecureStorage();
   return (await s.read(key: 'is_host:$email')) == 'true';
+});
+
+/// Provider for user's pets (for home carousel)
+final myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final api = ref.read(apiProvider);
+    final pets = await api.myPets();
+    return pets.map((p) => Map<String, dynamic>.from(p as Map)).toList();
+  } catch (e) {
+    return [];
+  }
 });
 
 final avatarUrlProvider = FutureProvider<String?>((ref) async {
@@ -284,36 +584,13 @@ final topVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 });
 
 /// -------------------- GPS (preview Home) --------------------
-final homeUserPositionStreamProvider = StreamProvider<Position?>((ref) async* {
-  try {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) {
-      yield null;
-      return;
-    }
-
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      yield null;
-      return;
-    }
-
-    // valeur initiale rapide si dispo
-    try {
-      final first = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
-      yield first;
-    } catch (_) {}
-
-    // stream continu
-    yield* Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 25),
-    );
-  } catch (_) {
-    yield null;
-  }
+/// Alias vers le provider centralisé - retourne Position? pour compatibilité
+final homeUserPositionStreamProvider = Provider<Position?>((ref) {
+  final state = ref.watch(locationStreamProvider);
+  return state.maybeWhen(
+    data: (s) => s.position,
+    orElse: () => null,
+  );
 });
 
 /// -------------------- Prochain RDV confirmé (client) --------------------
@@ -642,7 +919,55 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  /// Verifie si l'utilisateur est restreint et affiche un popup avec le timer
+  /// Rafraîchit silencieusement le statut de restriction (sans afficher de popup)
+  /// Appelé lors du pull-to-refresh pour mettre à jour le statut si l'admin a levé la suspension
+  Future<void> _refreshRestrictionStatus(WidgetRef ref) async {
+    try {
+      final api = ref.read(apiProvider);
+      final trustInfo = await api.checkUserCanBook();
+
+      final trustStatus = (trustInfo['trustStatus'] ?? '').toString().toUpperCase();
+      final isBanned = trustInfo['isBanned'] == true || trustInfo['reason']?.toString().contains('banni') == true;
+      final reason = trustInfo['reason']?.toString();
+
+      // Parser restrictedUntil
+      DateTime? restrictedUntil;
+      final restrictedUntilRaw = trustInfo['restrictedUntil'];
+      if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
+        restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
+      } else if (restrictedUntilRaw is DateTime) {
+        restrictedUntil = restrictedUntilRaw;
+      }
+
+      // Parser suspendedUntil
+      DateTime? suspendedUntil;
+      final suspendedUntilRaw = trustInfo['suspendedUntil'];
+      if (suspendedUntilRaw is String && suspendedUntilRaw.isNotEmpty) {
+        suspendedUntil = DateTime.tryParse(suspendedUntilRaw);
+      } else if (suspendedUntilRaw is DateTime) {
+        suspendedUntil = suspendedUntilRaw;
+      }
+
+      final isSuspended = suspendedUntil != null && suspendedUntil.isAfter(DateTime.now());
+      final isRestricted = trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now());
+
+      debugPrint('[TRUST REFRESH] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
+
+      // Mettre à jour le provider de restriction
+      ref.read(accountRestrictionProvider.notifier).update(AccountRestrictionState(
+        isBanned: isBanned,
+        isSuspended: isSuspended,
+        isRestricted: isRestricted,
+        reason: reason,
+        suspendedUntil: suspendedUntil,
+        restrictedUntil: restrictedUntil,
+      ));
+    } catch (e) {
+      debugPrint('[TRUST REFRESH] Error: $e');
+    }
+  }
+
+  /// Verifie si l'utilisateur est restreint/suspendu/banni et affiche un popup avec le timer
   Future<void> _checkTrustRestriction(BuildContext context, WidgetRef ref) async {
     // Eviter le spam si deja montre cette session (refresh, etc.)
     if (_trustRestrictionShownThisSession) return;
@@ -653,33 +978,282 @@ class HomeScreen extends ConsumerWidget {
       final trustInfo = await api.checkUserCanBook();
 
       final trustStatus = (trustInfo['trustStatus'] ?? '').toString().toUpperCase();
-      final restrictedUntilRaw = trustInfo['restrictedUntil'];
+      final isBanned = trustInfo['isBanned'] == true || trustInfo['reason']?.toString().contains('banni') == true;
+      final reason = trustInfo['reason']?.toString();
 
-      // Parser restrictedUntil (peut etre String ISO ou deja un DateTime serialise)
+      // Parser restrictedUntil
       DateTime? restrictedUntil;
+      final restrictedUntilRaw = trustInfo['restrictedUntil'];
       if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
         restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
       } else if (restrictedUntilRaw is DateTime) {
         restrictedUntil = restrictedUntilRaw;
       }
 
-      debugPrint('[TRUST] Status: $trustStatus, RestrictedUntil: $restrictedUntil');
+      // Parser suspendedUntil
+      DateTime? suspendedUntil;
+      final suspendedUntilRaw = trustInfo['suspendedUntil'];
+      if (suspendedUntilRaw is String && suspendedUntilRaw.isNotEmpty) {
+        suspendedUntil = DateTime.tryParse(suspendedUntilRaw);
+      } else if (suspendedUntilRaw is DateTime) {
+        suspendedUntil = suspendedUntilRaw;
+      }
 
-      if (trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now()) && context.mounted) {
-        // Calculer le temps restant
+      final isSuspended = suspendedUntil != null && suspendedUntil.isAfter(DateTime.now());
+      final isRestricted = trustStatus == 'RESTRICTED' && restrictedUntil != null && restrictedUntil.isAfter(DateTime.now());
+
+      debugPrint('[TRUST] Status: $trustStatus, Banned: $isBanned, Suspended: $isSuspended, Restricted: $isRestricted');
+
+      // Mettre à jour le provider de restriction
+      ref.read(accountRestrictionProvider.notifier).update(AccountRestrictionState(
+        isBanned: isBanned,
+        isSuspended: isSuspended,
+        isRestricted: isRestricted,
+        reason: reason,
+        suspendedUntil: suspendedUntil,
+        restrictedUntil: restrictedUntil,
+      ));
+
+      if (!context.mounted) return;
+
+      // 1. Compte BANNI (permanent)
+      if (isBanned) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.block, color: Colors.red.shade700, size: 36),
+            ),
+            title: const Text(
+              'Compte banni',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.red),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  reason ?? 'Votre compte a été banni suite à une violation de nos conditions d\'utilisation.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.red.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Vous ne pouvez plus accéder aux services.',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('J\'ai compris'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Contactez support@vegece.com pour plus d\'informations.')),
+                      );
+                    },
+                    child: Text(
+                      'Contacter le support',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 2. Compte SUSPENDU (temporaire - sanction admin)
+      if (isSuspended && suspendedUntil != null) {
+        final remaining = suspendedUntil.difference(DateTime.now());
+        final timerText = _formatRemainingTime(remaining);
+        final l10n = AppLocalizations.of(context);
+        final themeMode = ref.read(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1A1A1A) : null,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.pause_circle_filled, color: Colors.orange.shade600, size: 40),
+            ),
+            title: Text(
+              l10n.accountSuspended,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: Colors.orange),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Timer - fixed overflow with Flexible
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade100, Colors.orange.shade50],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.timer_outlined, color: Colors.orange.shade700, size: 22),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          '${l10n.stillRemaining} $timerText',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange.shade800,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Raison de la suspension
+                if (reason != null && reason.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 16, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            const SizedBox(width: 6),
+                            Text(
+                              l10n.reasonLabel,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          reason,
+                          style: TextStyle(fontSize: 14, height: 1.4, color: isDark ? Colors.white : Colors.black87),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  l10n.suspendedMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade400 : Colors.grey[600], height: 1.4),
+                ),
+              ],
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            actions: [
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(l10n.understood, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.push('/support');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange.shade700,
+                        side: BorderSide(color: Colors.orange.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.support_agent, size: 20),
+                      label: Text(l10n.contestDecision, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 3. Compte RESTREINT (no-show automatique)
+      if (isRestricted && restrictedUntil != null) {
         final remaining = restrictedUntil.difference(DateTime.now());
-        final days = remaining.inDays;
-        final hours = remaining.inHours % 24;
-        final minutes = remaining.inMinutes % 60;
-
-        String timerText;
-        if (days > 0) {
-          timerText = '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
-        } else if (hours > 0) {
-          timerText = '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
-        } else {
-          timerText = '$minutes minute${minutes > 1 ? 's' : ''}';
-        }
+        final timerText = _formatRemainingTime(remaining);
 
         await showDialog(
             context: context,
@@ -703,7 +1277,7 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Vous n\'etes pas venu a votre dernier rendez-vous.',
+                    'Vous n\'êtes pas venu à votre dernier rendez-vous.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, height: 1.4),
                   ),
@@ -757,9 +1331,8 @@ class HomeScreen extends ConsumerWidget {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        // TODO: Naviguer vers la page de contact support
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Le support sera bientot disponible.')),
+                          const SnackBar(content: Text('Le support sera bientôt disponible.')),
                         );
                       },
                       child: Text(
@@ -778,6 +1351,21 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
+  /// Formate le temps restant en texte lisible
+  String _formatRemainingTime(Duration remaining) {
+    final days = remaining.inDays;
+    final hours = remaining.inHours % 24;
+    final minutes = remaining.inMinutes % 60;
+
+    if (days > 0) {
+      return '$days jour${days > 1 ? 's' : ''} et $hours heure${hours > 1 ? 's' : ''}';
+    } else if (hours > 0) {
+      return '$hours heure${hours > 1 ? 's' : ''} et $minutes minute${minutes > 1 ? 's' : ''}';
+    } else {
+      return '$minutes minute${minutes > 1 ? 's' : ''}';
+    }
+  }
+
   Future<void> _refreshAll(WidgetRef ref) async {
     // Invalide les providers pour forcer un vrai refresh
     ref.invalidate(topVetsProvider);
@@ -786,13 +1374,15 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(nextConfirmedDaycareBookingProvider);
     ref.invalidate(nextPendingDaycareBookingProvider);
     ref.invalidate(activeOrdersProvider);
-    ref.invalidate(homeUserPositionStreamProvider);
+    ref.invalidate(locationStreamProvider);
     ref.invalidate(avatarUrlProvider);
     ref.invalidate(notificationsProvider);
     ref.invalidate(unreadNotificationsCountProvider);
     await Future.delayed(const Duration(milliseconds: 120));
     // Recharger les notifications après invalidation
     _loadNotifications(ref);
+    // Rafraîchir le statut de suspension/restriction silencieusement
+    _refreshRestrictionStatus(ref);
   }
 
   @override
@@ -847,45 +1437,81 @@ class HomeScreen extends ConsumerWidget {
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                 slivers: [
                   const SliverToBoxAdapter(child: _HomeBootstrap()),
-                  SliverToBoxAdapter(child: _Header(
-                    isPro: isPro,
-                    name: greetingName,
-                    avatarUrl: avatarUrl,
-                    trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
-                    isDark: isDark,
-                  )),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                  // ▼ Banners de RDV/réservations (chacun gère son propre espacement)
-                  const SliverToBoxAdapter(child: _NextConfirmedBanner()),
-                  const SliverToBoxAdapter(child: _NextPendingBanner()),
+                  // ▼ Header avec animation d'entrée
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 0),
+                      child: _Header(
+                        isPro: isPro,
+                        name: greetingName,
+                        avatarUrl: avatarUrl,
+                        trustStatus: (user['trustStatus'] as String?) ?? 'NEW',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                  // ▼ Banner de restriction (suspendu/banni/restreint)
+                  SliverToBoxAdapter(
+                    child: _AccountRestrictionBanner(),
+                  ),
+
+                  // ▼ Mes Compagnons carousel (only for non-pro users)
+                  if (!isPro)
+                    SliverToBoxAdapter(
+                      child: _FadeSlideIn(
+                        delay: const Duration(milliseconds: 100),
+                        child: const _MyPetsCarousel(),
+                      ),
+                    ),
+                  if (!isPro) const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                  // ▼ Banners de RDV/réservations (avec animations staggered)
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 180),
+                      child: const _NextConfirmedBanner(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 220),
+                      child: const _NextPendingBanner(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: _NextConfirmedDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _NextPendingDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _InProgressDaycareBookingBanner()),
                   const SliverToBoxAdapter(child: _ActiveOrdersBanner()),
 
-                  const SliverToBoxAdapter(child: _ExploreGrid()),
+                  // ▼ Services carousel avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 280),
+                      child: const _ExploreGrid(),
+                    ),
+                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  // ▼ Preview carte (tap => /maps/nearby)
-                  const SliverToBoxAdapter(child: _MapPreview()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  // ▼ Preview carte avec animation
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 350),
+                      child: const _MapPreview(),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-                  // ▼ Mes animaux (carnet de santé)
-                  const SliverToBoxAdapter(child: _MyPetsButton()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                  // ▼ Top spécialistes (caché temporairement)
-                  // const SliverToBoxAdapter(child: _SectionTitle('Top spécialistes')),
-                  // const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  // const SliverToBoxAdapter(child: _TopSpecialistsList()),
-                  // const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ▼ Vethub en bas
-                  SliverToBoxAdapter(child: _SectionTitle('Vethub', isDark: isDark)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  const SliverToBoxAdapter(child: _VethubRow()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  // ▼ Section Adoption & Carrière stylée
+                  SliverToBoxAdapter(
+                    child: _FadeSlideIn(
+                      delay: const Duration(milliseconds: 420),
+                      child: _AdoptBoostSection(isDark: isDark),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
                 ],
               ),
             ),
@@ -894,6 +1520,79 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// -------------------- Staggered Animation Wrapper --------------------
+class _FadeSlideIn extends StatefulWidget {
+  const _FadeSlideIn({
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 400),
+    this.offset = const Offset(0, 20),
+  });
+
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final Offset offset;
+
+  @override
+  State<_FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    );
+
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    _slide = Tween<Offset>(
+      begin: widget.offset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Start animation after delay
+    Future.delayed(widget.delay, () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => Opacity(
+        opacity: _opacity.value,
+        child: Transform.translate(
+          offset: _slide.value,
+          child: child,
+        ),
+      ),
+      child: widget.child,
     );
   }
 }
@@ -919,87 +1618,103 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
     final textColor = isDark ? Colors.white : Colors.black87;
-    final subtitleColor = isDark ? Colors.white.withOpacity(0.6) : Colors.black.withOpacity(0.55);
+    final subtitleColor = isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.45);
     final avatarBg = isDark ? const Color(0xFF2A1A1C) : const Color(0xFFFFEEF0);
     final subtitle = isPro ? null : l10n.howIsYourCompanion;
     final display = isPro ? 'Dr. $name' : name;
 
     final hasAvatar = _isHttp(avatarUrl);
 
+    // Greeting based on time of day
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Bonjour' : (hour < 18 ? 'Bon après-midi' : 'Bonsoir');
+
+    // Design épuré sans fond de card
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(24),
+          // Avatar simple avec ring coral subtil
+          GestureDetector(
             onTap: () => context.push('/settings'),
-            child: CircleAvatar(
-              radius: 22,
-              backgroundColor: avatarBg,
-              backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
-              child: !hasAvatar
-                  ? Text(_initials(display),
-                      style: const TextStyle(color: coral, fontWeight: FontWeight.w800))
-                  : null,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: coral, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: avatarBg,
+                backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+                child: !hasAvatar
+                    ? Text(_initials(display),
+                        style: const TextStyle(color: coral, fontWeight: FontWeight.w700, fontSize: 14))
+                    : null,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(fontSize: 18, color: textColor, fontFamily: 'SFPRO'),
-                          children: [
-                            TextSpan(text: '${l10n.welcomeToVegece.split('\n').first.replaceAll('sur Vegece', '').trim()}, '),
-                            TextSpan(text: display, style: const TextStyle(fontWeight: FontWeight.w800, color: coral)),
-                          ],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                // Greeting + name sur une ligne
+                RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontFamily: 'SFPRO',
+                      color: textColor,
                     ),
-                    // ✅ TRUST SYSTEM: Badge "Vérifié" en rose
-                    if (trustStatus == 'VERIFIED') ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark ? coral.withOpacity(0.2) : const Color(0xFFFFE4EC),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: coral.withOpacity(0.3)),
+                    children: [
+                      TextSpan(
+                        text: '$greeting, ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w400,
+                          color: subtitleColor,
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified, size: 12, color: coral),
-                            SizedBox(width: 4),
-                            Text(
-                              'Vérifié',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: coral,
-                              ),
-                            ),
-                          ],
-                        ),
+                      ),
+                      TextSpan(
+                        text: display,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
-                  ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle, style: TextStyle(fontSize: 12.5, color: subtitleColor, fontFamily: 'SFPRO')),
+                    child: Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: subtitleColor,
+                        fontFamily: 'SFPRO',
+                      ),
+                    ),
                   ),
               ],
             ),
           ),
+          // Badge vérifié (plus discret)
+          if (trustStatus == 'VERIFIED') ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: coral.withOpacity(isDark ? 0.2 : 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified, size: 16, color: coral),
+            ),
+          ],
+          // Notification button minimal
           Consumer(
             builder: (_, ref, __) {
               final unreadCount = ref.watch(unreadNotificationsCountProvider).maybeWhen(
@@ -1007,40 +1722,37 @@ class _Header extends StatelessWidget {
                 orElse: () => 0,
               );
 
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    onPressed: () => _showNotifDialog(context),
-                    icon: Icon(Icons.notifications_none, color: isDark ? Colors.white : Colors.black87),
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: coral,
-                          shape: BoxShape.circle,
+              return GestureDetector(
+                onTap: () => _showNotifDialog(context),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.notifications_outlined,
+                          color: isDark ? Colors.white70 : Colors.black54,
+                          size: 24,
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Center(
-                          child: Text(
-                            unreadCount > 99 ? '99+' : unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: coral,
+                              shape: BoxShape.circle,
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               );
             },
           ),
@@ -1074,13 +1786,13 @@ class _SearchBar extends StatelessWidget {
 }
 
 /// -------------------- Catégories (oscillation) [désactivé] --------------------
-class _OscillatingCategories extends StatefulWidget {
+class _OscillatingCategories extends ConsumerStatefulWidget {
   const _OscillatingCategories();
   @override
-  State<_OscillatingCategories> createState() => _OscillatingCategoriesState();
+  ConsumerState<_OscillatingCategories> createState() => _OscillatingCategoriesState();
 }
 
-class _OscillatingCategoriesState extends State<_OscillatingCategories> {
+class _OscillatingCategoriesState extends ConsumerState<_OscillatingCategories> {
   late final ScrollController _ctl;
   Timer? _tick;
   bool _paused = false;
@@ -1162,7 +1874,11 @@ class _OscillatingCategoriesState extends State<_OscillatingCategories> {
                 onTapDown: (_) => _pauseFor(const Duration(seconds: 3)),
                 onTap: () {
                   _pauseFor(const Duration(seconds: 3));
-                  if (route != null) context.push(route);
+                  if (route != null) {
+                    // Vérifier si l'utilisateur peut accéder à cette section
+                    if (showRestrictionBlockedDialog(context, ref, label)) return;
+                    context.push(route);
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1334,6 +2050,17 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
 
       _lastPosition = position;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: position.latitude,
+          lng: position.longitude,
+          vetBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(
         position.latitude, position.longitude,
         provLat, provLng,
@@ -1350,9 +2077,10 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
           _locationServiceDisabled = false;
         });
 
-        // TODO: Intégrer Firebase pour envoyer une notification push quand
-        // l'utilisateur entre dans la zone de proximité (wasNearby = false, isNowNearby = true)
-        // Pour l'instant, le bandeau se met à jour automatiquement
+        // Notification push intégrée via le backend sync
+        if (!wasNearby && isNowNearby) {
+          debugPrint('[GPS] Client est maintenant à proximité du vétérinaire');
+        }
       }
     } catch (e) {
       // Ignorer les erreurs de géolocalisation
@@ -1366,10 +2094,7 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).maybeWhen(
-      data: (p) => p,
-      orElse: () => null,
-    );
+    final userPos = ref.watch(homeUserPositionStreamProvider);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -1420,15 +2145,34 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
             now.isAfter(dtUtc.subtract(const Duration(minutes: 15))) &&
             now.isBefore(dtUtc.add(const Duration(minutes: 30)));
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1A2E1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFE8F5E9), const Color(0xFFF1F8F1)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22C55E).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1445,24 +2189,91 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + medical badge to distinguish vet
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF22C55E).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                          ),
+                          // Medical badge to distinguish vet
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                              ),
+                              child: const Icon(Icons.medical_services, color: Color(0xFF22C55E), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Rendez-vous confirmé',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF22C55E),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$when',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              service,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E), // ✅ vert
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.event_available, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Prochain rendez-vous: $when — $service',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -1711,8 +2522,32 @@ class _NextConfirmedBannerState extends ConsumerState<_NextConfirmedBanner> {
                       ),
                     ),
                   ),
-                ] else if (isTimeClose && _distanceMeters == null && !_checkingProximity) ...[
-                  // En attente de vérification ou première charge (hors heure exacte)
+                ] else if (isTimeClose && _distanceMeters == null) ...[
+                  // Pas de géolocalisation disponible - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Activez la localisation pour une confirmation automatique',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: () => context.push('/booking/${m['id']}/confirm', extra: m),
@@ -1819,23 +2654,17 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
 
   Future<void> _modify(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
     final pid = _providerId(m);
-    final sid = _serviceId(m);
-    if (pid == null || sid == null) {
+    if (pid == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Modification impossible (pro/service manquants).')),
+          const SnackBar(content: Text('Modification impossible (pro manquant).')),
         );
       }
       return;
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BookingFlowScreen(providerId: pid, serviceId: sid)),
-    );
-    if (!context.mounted) return;
-
-    ref.invalidate(nextConfirmedBookingProvider);
-    ref.invalidate(nextPendingBookingProvider);
+    // Naviguer vers la page du vétérinaire pour reprendre un nouveau RDV
+    GoRouter.of(context).push('/explore/vets/$pid');
   }
 
   @override
@@ -1862,15 +2691,35 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
 
         final service = _serviceName(m);
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+        final l10n = AppLocalizations.of(context);
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF2E2A1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFFFF8E1), const Color(0xFFFFFBF0)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFFFA000).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFA000).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1887,24 +2736,91 @@ class _NextPendingBannerState extends ConsumerState<_NextPendingBanner> {
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + medical badge to distinguish vet
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFA000), Color(0xFFE65100)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFFA000).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                          ),
+                          // Medical badge to distinguish vet
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFFFA000), width: 1.5),
+                              ),
+                              child: const Icon(Icons.medical_services, color: Color(0xFFFFA000), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.pendingConfirmation,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFFFA000),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              service,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFA000), // ✅ orange/jaune
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.hourglass_empty, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'En attente de confirmation: $when — $service',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -2035,6 +2951,17 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
 
       _lastPosition = pos;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: pos.latitude,
+          lng: pos.longitude,
+          daycareBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
       final isNearby = distance < 500; // Moins de 500m
 
@@ -2088,7 +3015,7 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(nextConfirmedDaycareBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
+    final userPos = ref.watch(homeUserPositionStreamProvider);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -2124,17 +3051,38 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
             dtUtc.difference(now).inHours <= 2 &&
             dtUtc.difference(now).inHours >= -2;
 
+        // Theme support
+        final themeMode = ref.watch(themeProvider);
+        final isDark = themeMode == AppThemeMode.dark;
+        final l10n = AppLocalizations.of(context);
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1A2E1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFE8F5E9), const Color(0xFFF1F8F1)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22C55E).withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 InkWell(
                   borderRadius: BorderRadius.circular(12),
@@ -2147,30 +3095,98 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + paw badge to distinguish daycare
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF22C55E).withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.event_available, color: Colors.white, size: 22),
+                          ),
+                          // Paw badge to distinguish daycare
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                              ),
+                              child: const Icon(Icons.pets, color: Color(0xFF22C55E), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.confirmedDaycare,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF22C55E),
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              petName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E),
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.home, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Garderie: $when — $petName',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
 
-                // ✅ Bouton "Confirmer le dépôt" si à proximité et c'est le jour
+                // ✅ Bouton "Confirmer le dépôt" si c'est le jour du dépôt
                 if (_isNearby && isTimeClose) ...[
+                  // Avec géoloc et à proximité
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -2214,6 +3230,73 @@ class _NextConfirmedDaycareBookingBannerState extends ConsumerState<_NextConfirm
                       ],
                     ),
                   ),
+                ] else if (isTimeClose && !_isNearby && _distanceMeters != null) ...[
+                  // Géoloc OK mais pas encore à proximité
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Distance: ${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToDropOffConfirmation(context, m),
+                      icon: const Icon(Icons.pets, size: 18),
+                      label: const Text('Confirmer le dépôt de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ] else if (isTimeClose && _distanceMeters == null) ...[
+                  // Pas de géoloc - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Activez la localisation pour une confirmation automatique',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToDropOffConfirmation(context, m),
+                      icon: const Icon(Icons.pets, size: 18),
+                      label: const Text('Confirmer le dépôt de l\'animal'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -2232,30 +3315,64 @@ class _NextPendingDaycareBookingBanner extends ConsumerStatefulWidget {
 }
 
 class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDaycareBookingBanner> {
-  String _petName(Map<String, dynamic> m) {
+  static const _coral = Color(0xFFF36C6C);
+  static const _amber = Color(0xFFFFA000);
+  static const _darkCard = Color(0xFF1E1E1E);
+
+  String _petName(Map<String, dynamic> m, AppLocalizations l10n) {
     final pet = m['pet'];
     if (pet is Map) {
       final name = (pet['name'] ?? '').toString().trim();
       if (name.isNotEmpty) return name;
     }
-    return 'Votre animal';
+    return l10n.yourPet;
   }
 
   Future<void> _cancel(BuildContext context, WidgetRef ref, Map<String, dynamic> m) async {
     final id = (m['id'] ?? '').toString();
     if (id.isEmpty) return;
 
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Annuler la réservation ?'),
-        content: const Text('Cette action est irréversible. Confirmez-vous l\'annulation ?'),
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l10n.cancelBookingTitle,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontFamily: 'SFPRO',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          l10n.cancelBookingMessage,
+          style: TextStyle(
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+            fontFamily: 'SFPRO',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              l10n.no,
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontFamily: 'SFPRO',
+              ),
+            ),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF36C6C)),
-            child: const Text('Oui, annuler'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _coral,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(l10n.yesCancel, style: const TextStyle(fontFamily: 'SFPRO')),
           ),
         ],
       ),
@@ -2265,19 +3382,39 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
     try {
       await ref.read(apiProvider).cancelDaycareBooking(id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Réservation annulée.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.bookingCancelledSuccess),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
       }
       ref.invalidate(nextConfirmedDaycareBookingProvider);
       ref.invalidate(nextPendingDaycareBookingProvider);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.error}: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
     final async = ref.watch(nextPendingDaycareBookingProvider);
+
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -2288,26 +3425,40 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
         final iso = (m['startDate'] ?? '').toString();
         DateTime? dtUtc;
         try {
-          // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
           dtUtc = DateTime.parse(iso);
         } catch (_) {}
         final when = dtUtc != null
-            ? DateFormat('EEE d MMM • HH:mm', 'fr_FR')
+            ? DateFormat('EEE d MMM • HH:mm', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR')
                 .format(dtUtc)
                 .replaceFirstMapped(RegExp(r'^\w'), (x) => x.group(0)!.toUpperCase())
             : '—';
 
-        final petName = _petName(m);
+        final petName = _petName(m, l10n);
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF2E2A1A), const Color(0xFF1A1A1A)]
+                    : [const Color(0xFFFFF8E1), const Color(0xFFFFFBF0)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _amber.withOpacity(0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _amber.withOpacity(isDark ? 0.15 : 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2323,24 +3474,95 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                   },
                   child: Row(
                     children: [
+                      // Icon with gradient + paw badge
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFA000), Color(0xFFE65100)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _amber.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.hourglass_empty, color: Colors.white, size: 22),
+                          ),
+                          // Paw badge to distinguish daycare
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _amber, width: 1.5),
+                              ),
+                              child: const Icon(Icons.pets, color: Color(0xFFFFA000), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  l10n.pendingDaycare,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFFFA000),
+                                    fontFamily: 'SFPRO',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              when,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                            Text(
+                              petName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                fontFamily: 'SFPRO',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFA000), // orange
+                          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.hourglass_empty, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Garderie en attente: $when — $petName',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                          maxLines: 2,
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),
@@ -2351,11 +3573,11 @@ class _NextPendingDaycareBookingBannerState extends ConsumerState<_NextPendingDa
                   OutlinedButton(
                     onPressed: () => _cancel(context, ref, m),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFF36C6C),
-                      side: const BorderSide(color: Color(0xFFF36C6C)),
+                      foregroundColor: _coral,
+                      side: const BorderSide(color: _coral),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Annuler'),
+                    child: Text(l10n.cancel, style: const TextStyle(fontFamily: 'SFPRO')),
                   ),
               ],
             ),
@@ -2439,6 +3661,17 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
 
       _lastPosition = pos;
 
+      // Sync avec le backend (throttled automatiquement)
+      final bookingId = (booking['id'] ?? '').toString();
+      if (bookingId.isNotEmpty) {
+        syncLocationToBackend(
+          api: ref.read(apiProvider),
+          lat: pos.latitude,
+          lng: pos.longitude,
+          daycareBookingId: bookingId,
+        );
+      }
+
       final distance = Geolocator.distanceBetween(pos.latitude, pos.longitude, provLat, provLng);
       final isNearby = distance < 500; // Moins de 500m
 
@@ -2492,7 +3725,16 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(inProgressDaycareBookingProvider);
-    final userPos = ref.watch(homeUserPositionStreamProvider).whenOrNull(data: (p) => p);
+    final userPos = ref.watch(homeUserPositionStreamProvider);
+    final l10n = AppLocalizations.of(context);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+
+    // Couleurs selon le thème
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtitleColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -2522,9 +3764,31 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
         if (dropAt != null) {
           final diff = DateTime.now().toUtc().difference(dropAt);
           if (diff.inHours > 0) {
-            sinceText = ' (depuis ${diff.inHours}h)';
+            sinceText = ' (${l10n.sinceHours} ${diff.inHours}h)';
           } else if (diff.inMinutes > 0) {
-            sinceText = ' (depuis ${diff.inMinutes}min)';
+            sinceText = ' (${l10n.sinceHours} ${diff.inMinutes}min)';
+          }
+        }
+
+        // ✅ Vérifier si l'utilisateur est en retard (endDate dépassé)
+        final endIso = (m['endDate'] ?? '').toString();
+        DateTime? endAt;
+        try {
+          endAt = DateTime.parse(endIso);
+        } catch (_) {}
+
+        bool isLate = false;
+        String lateText = '';
+        if (endAt != null) {
+          final now = DateTime.now().toUtc();
+          if (now.isAfter(endAt)) {
+            isLate = true;
+            final lateDiff = now.difference(endAt);
+            if (lateDiff.inHours > 0) {
+              lateText = l10n.lateByHours(lateDiff.inHours.toString());
+            } else if (lateDiff.inMinutes > 0) {
+              lateText = l10n.lateByMinutes(lateDiff.inMinutes.toString());
+            }
           }
         }
 
@@ -2534,9 +3798,10 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              boxShadow: isDark ? null : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+              border: isDark ? Border.all(color: Colors.white.withOpacity(0.1)) : null,
             ),
             child: Column(
               children: [
@@ -2564,31 +3829,74 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '$petName est à la garderie$sinceText',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              '$petName ${l10n.petAtDaycare}$sinceText',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: textColor),
                               maxLines: 2,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              'Prêt à récupérer',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            Text(
+                              l10n.readyToPickup,
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: iconColor),
                     ],
                   ),
                 ),
 
-                // ✅ Bouton "Confirmer le retrait" si à proximité
-                if (_isNearby) ...[
+                // ⚠️ Avertissement de retard si l'heure de départ est dépassée
+                if (isLate && lateText.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
+                      color: isDark ? const Color(0xFFEF4444).withOpacity(0.15) : const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lateText,
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFEF4444) : const Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                l10n.lateFeesWillApply,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : const Color(0xFF991B1B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ✅ Bouton "Confirmer le retrait" - toujours disponible pour IN_PROGRESS
+                if (_isNearby) ...[
+                  // À proximité - bouton vert
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF22C55E).withOpacity(0.15) : const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFF22C55E)),
                     ),
@@ -2600,7 +3908,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Vous êtes à ${_distanceMeters?.toInt() ?? '?'}m de la garderie',
+                                l10n.youAreXmFromDaycare('${_distanceMeters?.toInt() ?? '?'}m'),
                                 style: const TextStyle(
                                   color: Color(0xFF22C55E),
                                   fontWeight: FontWeight.w600,
@@ -2616,7 +3924,7 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           child: FilledButton.icon(
                             onPressed: () => _goToPickupConfirmation(context, m),
                             icon: const Icon(Icons.check_circle, size: 18),
-                            label: const Text('Confirmer le retrait de l\'animal'),
+                            label: Text(l10n.confirmAnimalPickup),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF22C55E),
                               foregroundColor: Colors.white,
@@ -2625,6 +3933,73 @@ class _InProgressDaycareBookingBannerState extends ConsumerState<_InProgressDayc
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ] else if (!_isNearby && _distanceMeters != null) ...[
+                  // Géoloc OK mais pas encore à proximité
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.directions_walk, size: 16, color: iconColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        l10n.distanceKm((_distanceMeters! / 1000).toStringAsFixed(1)),
+                        style: TextStyle(fontSize: 12, color: subtitleColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToPickupConfirmation(context, m),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: Text(l10n.confirmAnimalPickup),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // Pas de géoloc - afficher le bouton quand même
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: iconColor, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.enableLocationForAutoConfirm,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: subtitleColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _goToPickupConfirmation(context, m),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: Text(l10n.confirmAnimalPickup),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
                 ],
@@ -2770,7 +4145,7 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.85);
+    _pageController = PageController(viewportFraction: 0.92);
     _startAutoSlide();
   }
 
@@ -2824,24 +4199,9 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Titre section
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            l10n.services,
-            style: TextStyle(
-              fontFamily: 'SFPRO',
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Carousel
+        // Carousel (sans titre, plus grand, moins arrondi)
         SizedBox(
-          height: 180,
+          height: 140,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollStartNotification) {
@@ -2869,12 +4229,16 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                     return Transform.scale(
                       scale: scale,
                       child: GestureDetector(
-                        onTap: () => context.push(route),
+                        onTap: () {
+                          // Vérifier si l'utilisateur peut accéder à cette section
+                          if (showRestrictionBlockedDialog(context, ref, label)) return;
+                          context.push(route);
+                        },
                         child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
                             color: bgCard,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: borderColor),
                             boxShadow: [
                               BoxShadow(
@@ -2899,7 +4263,7 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                               // Gradient overlay
                               Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(14),
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
@@ -2911,61 +4275,86 @@ class _ExploreGridState extends ConsumerState<_ExploreGrid> {
                                 ),
                               ),
 
-                              // Content
+                              // Content - texte à gauche, logo à droite, explorer en bas
                               Padding(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: pink.withOpacity(0.9),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: pinkGlow.withOpacity(0.5),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(icon, color: Colors.white, size: 22),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      label,
-                                      style: const TextStyle(
-                                        fontFamily: 'SFPRO',
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        shadows: [
-                                          Shadow(
-                                            blurRadius: 8,
-                                            color: Color(0x80000000),
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
+                                    // Ligne du haut: Titre à gauche, icône à droite
                                     Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // Titre à gauche
                                         Text(
-                                          'Explorer',
-                                          style: TextStyle(
+                                          label,
+                                          style: const TextStyle(
                                             fontFamily: 'SFPRO',
-                                            fontSize: 13,
-                                            color: Colors.white.withOpacity(0.9),
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            shadows: [
+                                              Shadow(
+                                                blurRadius: 8,
+                                                color: Color(0x80000000),
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.arrow_forward_rounded,
-                                          size: 14,
-                                          color: Colors.white.withOpacity(0.9),
+                                        const Spacer(),
+                                        // Icône à droite
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: pink.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: pinkGlow.withOpacity(0.5),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(icon, color: Colors.white, size: 22),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    // Explorer en bas à droite
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                l10n.explore,
+                                                style: TextStyle(
+                                                  fontFamily: 'SFPRO',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white.withOpacity(0.95),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.arrow_forward_rounded,
+                                                size: 12,
+                                                color: Colors.white.withOpacity(0.95),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -3093,6 +4482,408 @@ class _MyPetsButton extends ConsumerWidget {
   }
 }
 
+/// -------------------- Mes Compagnons Carousel (épuré) --------------------
+class _MyPetsCarousel extends ConsumerWidget {
+  const _MyPetsCarousel({super.key});
+
+  void _showAddPetDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEEF0),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.pets, color: Color(0xFFF2968F), size: 40),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Ajoutez votre compagnon',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                fontFamily: 'SFPRO',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Créez le profil de votre animal pour accéder à son carnet de santé et gérer ses rendez-vous.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontFamily: 'SFPRO',
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await context.push('/pets/add');
+                  // Refresh au retour
+                  ref.invalidate(myPetsProvider);
+                  PaintingBinding.instance.imageCache.clear();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFF2968F),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Ajouter mon animal',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Plus tard',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final petsAsync = ref.watch(myPetsProvider);
+
+    const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
+
+    return petsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (pets) {
+        // Si pas d'animaux, afficher une card d'invitation
+        if (pets.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: GestureDetector(
+              onTap: () => _showAddPetDialog(context, ref),
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: isDark
+                        ? [const Color(0xFF2A1A1C), const Color(0xFF1A1A1A)]
+                        : [const Color(0xFFFFF5F5), const Color(0xFFFFEEF0)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: coral.withOpacity(0.2),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: coral.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.add, color: coral, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ajoutez votre premier compagnon',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'SFPRO',
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Créer son carnet de santé',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'SFPRO',
+                              color: isDark ? Colors.white60 : Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [coral, coralDark],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.pets, color: Colors.white, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Carousel horizontal avec PageView pour les animaux
+        return SizedBox(
+          height: 90,
+          child: PageView.builder(
+            controller: PageController(viewportFraction: 0.92),
+            itemCount: pets.length,
+            itemBuilder: (context, index) {
+              final pet = pets[index];
+              final name = (pet['name'] ?? 'Mon animal').toString();
+              final species = (pet['species'] ?? '').toString();
+              final photoUrl = (pet['photoUrl'] ?? pet['photo_url'] ?? '').toString();
+              final hasPhoto = photoUrl.startsWith('http');
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: () async {
+                    await context.push('/pets');
+                    // Refresh les données au retour + vider le cache image
+                    ref.invalidate(myPetsProvider);
+                    PaintingBinding.instance.imageCache.clear();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Photo ou placeholder
+                          if (hasPhoto)
+                            Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFFFEEF0),
+                                child: const Center(
+                                  child: Icon(Icons.pets, color: coral, size: 40),
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: isDark
+                                      ? [const Color(0xFF2A1A1C), const Color(0xFF1A1010)]
+                                      : [const Color(0xFFFFEEF0), const Color(0xFFFFD6DA)],
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.pets,
+                                  color: coral.withOpacity(0.5),
+                                  size: 50,
+                                ),
+                              ),
+                            ),
+
+                          // Gradient sombre de gauche à droite
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.7),
+                                ],
+                                stops: const [0.0, 0.8],
+                              ),
+                            ),
+                          ),
+
+                          // Label "Mes animaux" en haut - RTL aware
+                          PositionedDirectional(
+                            top: 10,
+                            start: 10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(0xFFF36C6C).withOpacity(0.5),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.pets,
+                                    color: Color(0xFFF36C6C),
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    AppLocalizations.of(context).myAnimals,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'SFPRO',
+                                      color: Color(0xFFF36C6C),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Contenu: nom + bouton patte
+                          Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                const Spacer(),
+                                // Infos à droite
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'SFPRO',
+                                        color: Colors.white,
+                                        shadows: [
+                                          Shadow(
+                                            blurRadius: 8,
+                                            color: Colors.black45,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (species.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          species,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontFamily: 'SFPRO',
+                                            color: Colors.white.withOpacity(0.8),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(width: 12),
+                                // Bouton patte
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [coral, coralDark],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: coral.withOpacity(0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(Icons.pets, color: Colors.white, size: 20),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Indicateur de page (dots) si plusieurs animaux
+                          if (pets.length > 1)
+                            Positioned(
+                              bottom: 8,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(pets.length, (i) {
+                                  return Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                                    width: i == index ? 16 : 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: i == index
+                                          ? coral
+                                          : Colors.white.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// -------------------- Preview Map (Home) --------------------
 class _MapPreview extends ConsumerWidget {
   const _MapPreview({super.key});
@@ -3103,9 +4894,7 @@ class _MapPreview extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
     final isDark = themeMode == AppThemeMode.dark;
 
-    final pos = ref
-        .watch(homeUserPositionStreamProvider)
-        .maybeWhen(data: (p) => p, orElse: () => null);
+    final pos = ref.watch(homeUserPositionStreamProvider);
 
     // Fallback éventuel: position du profil si enregistrée
     final me = ref.watch(sessionProvider).user ?? {};
@@ -3128,135 +4917,171 @@ class _MapPreview extends ConsumerWidget {
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
         : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
+    const coral = Color(0xFFF2968F);
+    const coralDark = Color(0xFFF36C6C);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          height: 180,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1) Carte non interactive OU placeholder si pas de centre
-              if (center == null)
-                _MapPlaceholder(isDark: isDark)
-              else
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: coral.withOpacity(isDark ? 0.15 : 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: 180,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1) Carte non interactive OU placeholder si pas de centre
+                if (center == null)
+                  _MapPlaceholder(isDark: isDark)
+                else
+                  IgnorePointer(
+                    ignoring: true,
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: center,
+                        initialZoom: 12,
+                        interactionOptions:
+                            const InteractionOptions(flags: InteractiveFlag.none),
+                      ),
+                      children: [
+                        // ✅ Utiliser CartoDB (theme clair ou sombre)
+                        TileLayer(
+                          urlTemplate: tileUrl,
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          userAgentPackageName: 'com.vethome.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 44,
+                              height: 44,
+                              point: center,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [coral, coralDark],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: coral.withOpacity(0.5),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.my_location,
+                                      size: 20, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // 2) Liseré rose premium
                 IgnorePointer(
                   ignoring: true,
-                  child: FlutterMap(
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 12,
-                      interactionOptions:
-                          const InteractionOptions(flags: InteractiveFlag.none),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: coral.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    children: [
-                      // ✅ Utiliser CartoDB (theme clair ou sombre)
-                      TileLayer(
-                        urlTemplate: tileUrl,
-                        subdomains: const ['a', 'b', 'c', 'd'],
-                        userAgentPackageName: 'com.vethome.app',
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            width: 38,
-                            height: 38,
-                            point: center,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF36C6C), // rose crevette
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Color(0x33000000),
-                                    blurRadius: 6,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.my_location,
-                                    size: 18, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
                 ),
 
-              // 2) Liseré rose
-              IgnorePointer(
-                ignoring: true,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: borderColor),
-                    borderRadius: BorderRadius.circular(16),
+                // 3) Flou léger au-dessus de la carte
+                if (center != null)
+                  ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                      child: Container(color: Colors.transparent),
+                    ),
                   ),
-                ),
-              ),
 
-              // 3) Flou léger au-dessus de la carte
-              if (center != null)
-                ClipRect(
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
-                    child: Container(color: Colors.transparent),
-                  ),
-                ),
-
-              // 4) Overlay cliquable (ouvre la vraie carte)
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => context.push('/maps/nearby'),
-                ),
-              ),
-
-              // 5) Bouton "Professionnels à proximité" en haut à gauche
-              Positioned(
-                left: 12,
-                top: 12,
-                child: Material(
+                // 4) Overlay cliquable (ouvre la vraie carte)
+                Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => context.push('/maps/nearby'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2968F),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFF2968F).withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      // Vérifier si l'utilisateur peut accéder à cette section
+                      if (showRestrictionBlockedDialog(context, ref, l10n.nearbyProfessionals)) return;
+                      context.push('/maps/nearby');
+                    },
+                  ),
+                ),
+
+                // 5) Bouton "Professionnels à proximité" avec design premium
+                Positioned(
+                  left: 14,
+                  top: 14,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        // Vérifier si l'utilisateur peut accéder à cette section
+                        if (showRestrictionBlockedDialog(context, ref, l10n.nearbyProfessionals)) return;
+                        context.push('/maps/nearby');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [coral, coralDark],
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.badge_outlined, size: 16, color: Colors.white),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.nearbyProfessionals,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontFamily: 'SFPRO',
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: coral.withOpacity(0.5),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.badge_outlined, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.nearbyProfessionals,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'SFPRO',
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -3347,6 +5172,211 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+/// -------------------- Section Adoption & Carrière stylée --------------------
+class _AdoptBoostSection extends StatelessWidget {
+  final bool isDark;
+  const _AdoptBoostSection({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Card Adoption
+          Expanded(
+            child: _AdoptBoostCard(
+              isDark: isDark,
+              title: l10n.adopt,
+              subtitle: l10n.changeALife,
+              icon: Icons.favorite_rounded,
+              gradient: const [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
+              route: '/adopt',
+              emoji: '🐾',
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Card Carrière
+          Expanded(
+            child: _AdoptBoostCard(
+              isDark: isDark,
+              title: l10n.boost,
+              subtitle: l10n.yourCareer,
+              icon: Icons.rocket_launch_rounded,
+              gradient: const [Color(0xFF6B5BFF), Color(0xFF8B7FFF)],
+              route: '/internships',
+              emoji: '🚀',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdoptBoostCard extends ConsumerStatefulWidget {
+  final bool isDark;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Color> gradient;
+  final String route;
+  final String emoji;
+
+  const _AdoptBoostCard({
+    required this.isDark,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.gradient,
+    required this.route,
+    required this.emoji,
+  });
+
+  @override
+  ConsumerState<_AdoptBoostCard> createState() => _AdoptBoostCardState();
+}
+
+class _AdoptBoostCardState extends ConsumerState<_AdoptBoostCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        // Vérifier si l'utilisateur peut accéder à cette section
+        if (showRestrictionBlockedDialog(context, ref, widget.title)) return;
+        context.push(widget.route);
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        ),
+        child: Container(
+          height: 130,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.gradient,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: widget.gradient[0].withOpacity(0.4),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Emoji décoratif en arrière-plan
+              Positioned(
+                right: -10,
+                bottom: -10,
+                child: Text(
+                  widget.emoji,
+                  style: TextStyle(
+                    fontSize: 70,
+                    color: Colors.white.withOpacity(0.15),
+                  ),
+                ),
+              ),
+              // Contenu
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icône avec cercle
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Titre
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontFamily: 'SFPRO',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // Sous-titre
+                    Text(
+                      widget.subtitle,
+                      style: TextStyle(
+                        fontFamily: 'SFPRO',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Flèche en haut à droite
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _VethubRow extends ConsumerWidget {
   const _VethubRow();
   @override
@@ -3374,7 +5404,11 @@ class _VethubRow extends ConsumerWidget {
           final (img, title, route) = cards[i];
           return InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => context.push(route),
+            onTap: () {
+              // Vérifier si l'utilisateur peut accéder à cette section
+              if (showRestrictionBlockedDialog(context, ref, title)) return;
+              context.push(route);
+            },
             child: Ink(
               width: 240,
               decoration: BoxDecoration(

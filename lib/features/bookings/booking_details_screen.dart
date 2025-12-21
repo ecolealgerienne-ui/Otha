@@ -7,13 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api.dart';
-import 'booking_flow_screen.dart';
-import 'booking_thanks_screen.dart'; // 👈 AJOUT
+import '../../core/locale_provider.dart';
 
 class BookingDetailsScreen extends ConsumerStatefulWidget {
   const BookingDetailsScreen({super.key, required this.booking});
 
-  /// Le booking passé via GoRouter (state.extra)
   final Map<String, dynamic> booking;
 
   @override
@@ -21,13 +19,18 @@ class BookingDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
-  bool _busy = false;
+  // Theme colors
+  static const _coral = Color(0xFFF36C6C);
+  static const _coralSoft = Color(0xFFFFEEF0);
+  static const _amber = Color(0xFFFFA000);
+  static const _amberSoft = Color(0xFFFFF8E1);
+  static const _darkBg = Color(0xFF121212);
+  static const _darkCard = Color(0xFF1E1E1E);
+  static const _darkCardAlt = Color(0xFF2A2A2A);
 
-  // cache provider détaillé (pour itinéraire si besoin)
+  bool _busy = false;
   Map<String, dynamic>? _providerFull;
   bool _loadingProv = false;
-
-  // 🔎 Resolver d’ID provider (si le booking n’a pas l’id)
   String? _resolvedProviderId;
   bool _resolvingPid = false;
 
@@ -39,7 +42,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   String? get _serviceId {
-    // service.id (camel) ou service_id (snake) ou top-level
     final s = _m['service'];
     final sid = (s is Map)
         ? ((s['id'] ?? s['serviceId'] ?? s['service_id'] ?? '').toString())
@@ -47,10 +49,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     return sid.isEmpty ? null : sid;
   }
 
-  /// Essaie un maximum d’emplacements possibles pour l’id provider
-  /// - booking.providerId / provider_id
-  /// - booking.provider.id / provider_profile.id
-  /// - booking.service.providerId / provider_id
   String? get _providerId {
     final p1 = (_m['providerId'] ?? _m['provider_id'] ?? '').toString();
     if (p1.isNotEmpty) return p1;
@@ -74,10 +72,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     return null;
   }
 
-  // ✅ Utiliser l’id natif si présent, sinon celui résolu par displayName
   String? get _effectiveProviderId => _providerId ?? _resolvedProviderId;
 
-  // --------- Status helpers ----------
   String get _status => (_m['status'] ?? '').toString().toUpperCase();
   bool get _isPending => _status == 'PENDING';
   bool get _isConfirmed => _status == 'CONFIRMED' || _status == 'ACCEPTED';
@@ -85,21 +81,18 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    // essaie de résoudre l’ID provider si manquant (en asynchrone après 1er frame)
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryResolveProviderId());
   }
 
-  // Normalisation simple (minuscules, accents retirés, espaces compactés)
   String _norm(String s) {
     final lower = s.toLowerCase();
     const withAccents = 'àáâäãåçèéêëìíîïñòóôöõùúûüýÿ';
-    const without     = 'aaaaaaceeeeiiiinooooouuuuyy';
+    const without = 'aaaaaaceeeeiiiinooooouuuuyy';
     final map = {for (var i = 0; i < withAccents.length; i++) withAccents[i]: without[i]};
     return lower.split('').map((ch) => map[ch] ?? ch).join().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   String _providerName(Map<String, dynamic> p) {
-    // ⚠️ Établissement (displayName) et pas prénom/nom
     final n = (p['displayName'] ?? p['name'] ?? '').toString().trim();
     return n.isEmpty ? 'Cabinet vétérinaire' : n;
   }
@@ -124,7 +117,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   Map<String, dynamic> _providerMap(Map<String, dynamic> m) {
-    // Map "light" éventuellement présente dans ton booking
     final cand = m['provider'] ?? m['providerProfile'] ?? m['provider_profile'];
     if (cand is Map) return Map<String, dynamic>.from(cand);
     return <String, dynamic>{};
@@ -147,11 +139,9 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     return (dlat, dlng);
   }
 
-  /// 🔎 Résout providerId à partir du displayName via /nearby (comme la liste Vets)
   Future<void> _tryResolveProviderId() async {
     if (_providerId != null || _resolvedProviderId != null) return;
 
-    // Nom d’établissement issu du booking
     final provLight = _providerMap(_m);
     final wantedName = _providerName(provLight).trim();
     if (wantedName.isEmpty) return;
@@ -159,8 +149,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     setState(() => _resolvingPid = true);
     try {
       final api = ref.read(apiProvider);
-
-      // On récupère TOUT (radius monde autour d'Alger) — même technique que VetsList
       final all = await api.nearby(
         lat: 36.75,
         lng: 3.06,
@@ -172,18 +160,19 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
       String? found;
       final wanted = _norm(wantedName);
 
-      // 1) match exact normalisé
       for (final e in all) {
         if (e is! Map) continue;
         final m = Map<String, dynamic>.from(e);
         final name = _norm((m['displayName'] ?? m['name'] ?? '').toString());
         if (name == wanted) {
           final id = (m['id'] ?? '').toString();
-          if (id.isNotEmpty) { found = id; break; }
+          if (id.isNotEmpty) {
+            found = id;
+            break;
+          }
         }
       }
 
-      // 2) fallback: contient() normalisé
       found ??= () {
         for (final e in all) {
           if (e is! Map) continue;
@@ -199,10 +188,9 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
       if (found != null) {
         _resolvedProviderId = found;
-        if (mounted) setState(() {}); // permet d’activer le bouton
+        if (mounted) setState(() {});
       }
     } catch (_) {
-      // si non trouvé, le bouton restera désactivé
     } finally {
       if (mounted) setState(() => _resolvingPid = false);
     }
@@ -224,13 +212,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     }
   }
 
-  // ----------------- ACTIONS -----------------
-
   Future<void> _openMaps() async {
-    // 1) essaie avec la map "light" du booking
     Map<String, dynamic> prov = _providerMap(_m);
-
-    // 2) si pas de mapsUrl/coords, charge les détails du provider
     String? mapsUrl = _mapsUrl(prov);
     var (lat, lng) = _coords(prov);
 
@@ -243,7 +226,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
       }
     }
 
-    // 3) mapsUrl -> coords -> recherche nom/adresse
     try {
       if (mapsUrl != null && mapsUrl.isNotEmpty) {
         final uri = Uri.parse(mapsUrl);
@@ -265,23 +247,56 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible d’ouvrir Google Maps: $e')),
+        SnackBar(content: Text('Impossible d\'ouvrir Google Maps: $e')),
       );
     }
   }
 
   Future<void> _confirmCancel() async {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Annuler le rendez-vous ?'),
-        content: const Text('Cette action est irréversible. Confirmez-vous l’annulation ?'),
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l10n.cancelBookingTitle,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontFamily: 'SFPRO',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          l10n.cancelBookingMessage,
+          style: TextStyle(
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+            fontFamily: 'SFPRO',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Non')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              l10n.no,
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontFamily: 'SFPRO',
+              ),
+            ),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF36C6C)),
-            child: const Text('Oui, annuler'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _coral,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              l10n.yesCancel,
+              style: const TextStyle(fontFamily: 'SFPRO'),
+            ),
           ),
         ],
       ),
@@ -295,271 +310,483 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         status: 'CANCELLED',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rendez-vous annulé.')));
-      // ✅ on remonte "true" pour permettre au parent d’actualiser
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.bookingCancelled)),
+      );
       context.pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.error}: $e')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  /// Ouvre le flow pour choisir un nouveau créneau.
-  /// ❗️On n’annule l’ancien QUE si un nouveau RDV est effectivement créé.
-  /// ❗️Après création, on affiche BookingThanksScreen puis on remonte `true` pour rafraîchir le Home.
   Future<void> _modifyBooking() async {
-    final pid = _effectiveProviderId, sid = _serviceId;
-    if (pid == null || sid == null) {
+    final l10n = AppLocalizations.of(context);
+    final pid = _effectiveProviderId;
+    if (pid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Modification impossible (pro/service manquants).')),
+        SnackBar(content: Text(l10n.modificationImpossible)),
       );
       return;
     }
 
-    // 1) Ouvrir le flow (renvoie la nouvelle réservation ou null si abandon)
-    final created = await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BookingFlowScreen(providerId: pid, serviceId: sid)),
-    );
-
-    if (!mounted) return;
-
-    // 2) L’utilisateur a quitté sans créer -> rien à faire, on ne touche pas l’ancien
-    if (created is! Map || ((created['id'] ?? '').toString().isEmpty)) return;
-
-    // 3) Annuler l’ancien RDV avant d’afficher la page Merci (pour éviter l’effet “double” sur Home)
-    if (_bookingId != null) {
-      setState(() => _busy = true);
-      try {
-        await ref.read(apiProvider).setMyBookingStatus(
-          bookingId: _bookingId!,
-          status: 'CANCELLED',
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ancien rendez-vous annulé.')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Annulation de l’ancien RDV a échoué: $e')),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-    }
-
-    // 4) Page “Merci” (renvoie createdBooking quand on appuie sur Terminer)
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BookingThanksScreen(createdBooking: Map<String, dynamic>.from(created)),
-      ),
-    );
-
-    if (!mounted) return;
-
-    // 5) Fermer l’écran de détails en signalant un changement → Home pourra se rafraîchir
-    context.pop(true);
+    // Naviguer vers la page du vétérinaire pour reprendre un nouveau RDV
+    context.push('/explore/vets/$pid');
   }
 
   @override
   Widget build(BuildContext context) {
-    final coral = const Color(0xFFF36C6C);
-    final amber = const Color(0xFFFFA000);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
 
-    // lecture des infos
+    // Colors based on theme
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F9FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+    final textSecondary = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+
+    // Parse booking data
     final iso = (_m['scheduledAt'] ?? _m['scheduled_at'] ?? '').toString();
     DateTime? dtUtc;
     try {
-      // ✅ Pas de .toLocal() - les heures sont stockées en "UTC naïf"
       dtUtc = DateTime.parse(iso);
     } catch (_) {}
-    final dateStr = dtUtc != null ? DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(dtUtc) : '—';
-    final timeStr = dtUtc != null ? DateFormat('HH:mm', 'fr_FR').format(dtUtc) : '—';
+
+    final dateStr = dtUtc != null
+        ? DateFormat('EEEE d MMMM yyyy', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR').format(dtUtc)
+        : '—';
+    final timeStr = dtUtc != null ? DateFormat('HH:mm').format(dtUtc) : '—';
 
     final provLight = _providerMap(_m);
     final providerName = _providerName(provLight);
     final service = _serviceName(_m);
     final price = _servicePrice(_m);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Détails du rendez-vous'),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Si on ne peut pas pop (rien dans la pile), aller à home
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: bgColor,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: textPrimary,
+              ),
+            ),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+        title: Text(
+          l10n.bookingDetailsTitle,
+          style: TextStyle(
+            color: textPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            fontFamily: 'SFPRO',
+          ),
+        ),
+        centerTitle: true,
         actions: [
           if (_loadingProv || _resolvingPid)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _coral,
+                ),
+              ),
             ),
         ],
       ),
       body: AbsorbPointer(
         absorbing: _busy,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-          children: [
-            // Bandeau résumé — varie selon le statut
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFEEF0),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      _isPending ? Icons.hourglass_empty : Icons.event_available,
-                      color: _isPending ? amber : coral,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _isPending ? 'Rendez-vous en attente de confirmation' : 'Rendez-vous confirmé',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _InfoTile(
-              icon: Icons.calendar_month,
-              title: 'Date',
-              value: dateStr,
-            ),
-            const SizedBox(height: 10),
-            _InfoTile(
-              icon: Icons.schedule,
-              title: 'Heure',
-              value: timeStr,
-            ),
-            const SizedBox(height: 10),
-            _InfoTile(
-              icon: Icons.apartment,
-              title: 'Chez',
-              value: providerName,
-            ),
-            const SizedBox(height: 10),
-            _InfoTile(
-              icon: Icons.medical_services_outlined,
-              title: 'Service choisi',
-              value: service,
-            ),
-            const SizedBox(height: 10),
-            _InfoTile(
-              icon: Icons.payments_outlined,
-              title: 'Montant à régler',
-              value: price == null ? '—' : '${NumberFormat.decimalPattern('fr_FR').format(price)} DA',
-            ),
-          ],
-        ),
-      ),
-
-      // Boutons actions — en PENDING : juste Annuler / Modifier ; en CONFIRMED : + Itinéraire
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -6))],
-          ),
-          child: Row(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
+          child: Column(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _busy ? null : _confirmCancel,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: coral,
-                    side: BorderSide(color: coral),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Annuler'),
-                ),
+              // Status Banner
+              _buildStatusBanner(isDark, l10n, cardColor, textPrimary),
+              const SizedBox(height: 20),
+
+              // Info Cards
+              _buildInfoCard(
+                isDark: isDark,
+                cardColor: cardColor,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                icon: Icons.calendar_month_rounded,
+                iconColor: _coral,
+                title: l10n.dateLabel,
+                value: dateStr,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.tonal(
-                  onPressed: (_busy || _effectiveProviderId == null || _serviceId == null)
-                      ? null
-                      : _modifyBooking,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Modifier'),
-                ),
+              const SizedBox(height: 12),
+
+              _buildInfoCard(
+                isDark: isDark,
+                cardColor: cardColor,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                icon: Icons.schedule_rounded,
+                iconColor: const Color(0xFF6C63FF),
+                title: l10n.timeLabel,
+                value: timeStr,
               ),
-              if (_isConfirmed) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _busy ? null : _openMaps,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: coral,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Itinéraire'),
-                  ),
-                ),
-              ],
+              const SizedBox(height: 12),
+
+              _buildInfoCard(
+                isDark: isDark,
+                cardColor: cardColor,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                icon: Icons.location_on_rounded,
+                iconColor: const Color(0xFF4CAF50),
+                title: l10n.locationLabel,
+                value: providerName,
+              ),
+              const SizedBox(height: 12),
+
+              _buildInfoCard(
+                isDark: isDark,
+                cardColor: cardColor,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                icon: Icons.medical_services_rounded,
+                iconColor: const Color(0xFF2196F3),
+                title: l10n.serviceLabel,
+                value: service,
+              ),
+              const SizedBox(height: 12),
+
+              _buildInfoCard(
+                isDark: isDark,
+                cardColor: cardColor,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                icon: Icons.payments_rounded,
+                iconColor: const Color(0xFFFF9800),
+                title: l10n.amountLabel,
+                value: price == null ? '—' : '${NumberFormat.decimalPattern('fr_FR').format(price)} DA',
+                isHighlighted: true,
+              ),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomBar(isDark, l10n, cardColor, textPrimary),
+      ),
     );
   }
-}
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.icon, required this.title, required this.value});
-  final IconData icon;
-  final String title;
-  final String value;
+  Widget _buildStatusBanner(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary) {
+    final isPending = _isPending;
+    final statusColor = isPending ? _amber : const Color(0xFF4CAF50);
+    final statusBgColor = isDark
+        ? (isPending ? _amber.withOpacity(0.15) : const Color(0xFF4CAF50).withOpacity(0.15))
+        : (isPending ? _amberSoft : const Color(0xFFE8F5E9));
 
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 10, offset: Offset(0, 6))],
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(isDark ? 0.1 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFEEF0),
-              borderRadius: BorderRadius.circular(10),
+              color: statusBgColor,
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.info_outline, color: Color(0xFFF36C6C)),
+            child: Icon(
+              isPending ? Icons.hourglass_empty_rounded : Icons.check_circle_rounded,
+              color: statusColor,
+              size: 28,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(color: Colors.black.withOpacity(.6), fontSize: 12)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  isPending ? l10n.pendingConfirmation : l10n.confirmedBooking,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: textPrimary,
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isPending ? l10n.pendingStatusMessage : l10n.confirmedStatusMessage,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required bool isDark,
+    required Color cardColor,
+    required Color textPrimary,
+    required Color textSecondary,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String value,
+    bool isHighlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: isHighlighted
+            ? Border.all(color: _coral.withOpacity(0.3), width: 1.5)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(isDark ? 0.15 : 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textSecondary,
+                    fontFamily: 'SFPRO',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: isHighlighted ? 18 : 15,
+                    color: isHighlighted ? _coral : textPrimary,
+                    fontFamily: 'SFPRO',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(bool isDark, AppLocalizations l10n, Color cardColor, Color textPrimary) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle indicator
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // Action buttons
+            Row(
+              children: [
+                // Cancel button
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : _confirmCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _coral,
+                      side: BorderSide(color: _coral.withOpacity(0.5), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.close_rounded, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.cancel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'SFPRO',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Modify button
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: (_busy || _effectiveProviderId == null)
+                        ? null
+                        : _modifyBooking,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isDark ? _darkCardAlt : Colors.grey[100],
+                      foregroundColor: textPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_rounded, size: 18, color: textPrimary),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.modify,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'SFPRO',
+                            color: textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Itinerary button (only for confirmed)
+                if (_isConfirmed) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _busy ? null : _openMaps,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _coral,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.directions_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.directions,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'SFPRO',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -56,6 +56,13 @@ enum AdoptRequestStatus {
   REJECTED  // Refusé par le propriétaire
 }
 
+// Système de confiance utilisateur (anti-troll)
+enum TrustStatus {
+  NEW        // Nouveau user - 1 RDV test max, peut annuler > 12h avant
+  VERIFIED   // User vérifié - RDV illimités
+  RESTRICTED // User restreint - bloqué X jours après no-show
+}
+
 model User {
   id        String  @id @default(cuid())
   email     String  @unique
@@ -103,9 +110,30 @@ model User {
   lastSwipeDate   DateTime?
   lastPostDate    DateTime?
 
+  // Système de confiance (anti-troll)
+  trustStatus        TrustStatus @default(NEW)    // NEW → VERIFIED après 1er RDV honoré
+  restrictedUntil    DateTime?                    // Date fin de restriction (si RESTRICTED)
+  noShowCount        Int         @default(0)     // Compteur de no-shows consécutifs
+  verifiedAt         DateTime?                    // Date de vérification
+  lastModifiedBooking String?                     // ID du dernier booking modifié (limite 1 modif pour NEW)
+
+  // Système de sanctions admin
+  isBanned      Boolean   @default(false)  // Compte banni définitivement
+  bannedAt      DateTime?                  // Date du bannissement
+  bannedReason  String?                    // Raison du ban
+  bannedBy      String?                    // Admin ID qui a banni
+  suspendedUntil DateTime?                 // Suspension temporaire (null = pas suspendu)
+  sanctions     UserSanction[]             // Historique des sanctions
+
+  // Système de support/tickets
+  supportTickets        SupportTicket[]   @relation("TicketUser")
+  supportTicketsAssigned SupportTicket[]  @relation("TicketAssignee")
+  supportMessages       SupportMessage[]
+
   @@index([email])
   @@index([city])
   @@index([lat, lng])
+  @@index([isBanned])
 }
 
 model ProviderProfile {
@@ -125,6 +153,11 @@ model ProviderProfile {
   rejectedAt      DateTime?
   rejectionReason String?
 
+  // Commissions personnalisées (modifiables par admin)
+  vetCommissionDa          Int @default(100)  // Commission par RDV confirmé (vétérinaire)
+  daycareHourlyCommissionDa Int @default(10)  // Commission par heure (garderie)
+  daycareDailyCommissionDa  Int @default(100) // Commission par jour (garderie)
+
   // Documents vétérinaires (carte AVN)
   avnCardFront    String?   // URL de la carte AVN recto
   avnCardBack     String?   // URL de la carte AVN verso
@@ -136,11 +169,14 @@ model ProviderProfile {
   timeOffs ProviderTimeOff[]
 
   // Back-relations
-  earnings        ProviderEarning[]
-  collections     AdminCollection[]
-  products        Product[]
-  orders          Order[]
-  daycareBookings DaycareBooking[]
+  earnings         ProviderEarning[]
+  collections      AdminCollection[]
+  products         Product[]
+  orders           Order[]
+  daycareBookings  DaycareBooking[]
+  medicalRecords   MedicalRecord[]
+  prescriptions    Prescription[]
+  diseaseTrackings DiseaseTracking[]
 
   @@index([userId])
   @@index([lat, lng])
@@ -197,13 +233,14 @@ model Service {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  userId      String
-  providerId  String
-  serviceId   String
-  status      BookingStatus @default(PENDING)
-  scheduledAt DateTime
-  createdAt   DateTime      @default(now())
+  id            String        @id @default(cuid())
+  referenceCode String?       @unique // Code de référence unique (ex: VGC-A1B2C3) - pour confirmation sans QR
+  userId        String
+  providerId    String
+  serviceId     String
+  status        BookingStatus @default(PENDING)
+  scheduledAt   DateTime
+  createdAt     DateTime      @default(now())
 
   // Champs spécifiques pour les garderies
   petIds       String[]  @default([])  // IDs des animaux concernés
@@ -293,6 +330,7 @@ model Pet {
   preventiveCare   PreventiveCare[]
   diseaseTrackings DiseaseTracking[]
   daycareBookings  DaycareBooking[]
+  prescriptions    Prescription[]
 
   @@index([ownerId])
 }
@@ -389,6 +427,7 @@ model PreventiveCare {
 model DiseaseTracking {
   id          String   @id @default(cuid())
   petId       String
+  providerId  String?  // Provider qui a créé le suivi
   name        String   // Nom de la maladie (ex: "Allergie cutanée", "Otite")
   description String?  // Description de la maladie
   status      String   // ONGOING (en cours), CURED (guérie), CHRONIC (chronique), MONITORING (surveillance)
@@ -413,10 +452,13 @@ model DiseaseTracking {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   // Entrées d'évolution (timeline)
   progressEntries DiseaseProgressEntry[]
+
+  @@index([providerId])
 
   @@index([petId, status])
   @@index([petId, diagnosisDate])
@@ -445,7 +487,8 @@ model MedicalRecord {
   title       String
   description String?
   date        DateTime
-  vetId       String?  // Provider ID du vétérinaire (optionnel)
+  vetId       String?  // User ID du vétérinaire (optionnel)
+  providerId  String?  // Provider ID (pour contrôle ownership)
   vetName     String?  // Nom du vétérinaire/garderie
   notes       String?
   images      String[] // URLs des images (radios, ordonnances, etc.)
@@ -464,13 +507,35 @@ model MedicalRecord {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
 
   @@index([petId, date])
   @@index([petId, type])
   @@index([bookingId])
   @@index([daycareBookingId])
+  @@index([providerId])
 }
+
+// Ordonnances (Prescriptions)
+model Prescription {
+  id          String   @id @default(cuid())
+  petId       String
+  providerId  String?  // Provider qui a créé l'ordonnance
+  title       String
+  description String?
+  imageUrl    String?  // URL de l'image (scan/photo de l'ordonnance)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pet      Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
+
+  @@index([petId, date])
+  @@index([providerId])
+}
+
 
 model PetAccessToken {
   id        String   @id @default(cuid())
@@ -784,11 +849,14 @@ model OrderItem {
 // =========================
 
 enum DaycareBookingStatus {
-  PENDING       // En attente de confirmation
-  CONFIRMED     // Confirmé par la garderie
-  IN_PROGRESS   // Animal déposé (heure d'arrivée enregistrée)
-  COMPLETED     // Animal récupéré (heure de départ enregistrée)
-  CANCELLED     // Annulé
+  PENDING                   // En attente de confirmation
+  CONFIRMED                 // Confirmé par la garderie
+  PENDING_DROP_VALIDATION   // Client a confirmé son arrivée, en attente validation pro
+  IN_PROGRESS               // Animal déposé (heure d'arrivée enregistrée)
+  PENDING_PICKUP_VALIDATION // Client a confirmé le retrait, en attente validation pro
+  COMPLETED                 // Animal récupéré (heure de départ enregistrée)
+  CANCELLED                 // Annulé
+  DISPUTED                  // Litige (fraude suspectée)
 }
 
 model DaycareBooking {
@@ -806,10 +874,39 @@ model DaycareBooking {
   actualDropOff   DateTime?             // Heure réelle de dépôt
   actualPickup    DateTime?             // Heure réelle de récupération
 
+  // ✅ Anti-fraude: Confirmation dépôt
+  clientDropConfirmedAt     DateTime?   // Quand le client a confirmé l'arrivée
+  dropConfirmationMethod    String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  dropCheckinLat            Float?      // GPS latitude lors du check-in dépôt
+  dropCheckinLng            Float?      // GPS longitude lors du check-in dépôt
+  dropOtpCode               String?     // Code OTP pour dépôt (6 chiffres)
+  dropOtpExpiresAt          DateTime?   // Expiration du code OTP dépôt
+
+  // ✅ Anti-fraude: Confirmation retrait
+  clientPickupConfirmedAt   DateTime?   // Quand le client a confirmé le retrait
+  pickupConfirmationMethod  String?     // 'PROXIMITY', 'QR_SCAN', 'OTP', 'MANUAL'
+  pickupCheckinLat          Float?      // GPS latitude lors du check-in retrait
+  pickupCheckinLng          Float?      // GPS longitude lors du check-in retrait
+  pickupOtpCode             String?     // Code OTP pour retrait (6 chiffres)
+  pickupOtpExpiresAt        DateTime?   // Expiration du code OTP retrait
+
+  // Notes litige
+  disputeNote     String?               // Note en cas de litige
+
   // Tarification
   priceDa         Int                   // Prix de base
   commissionDa    Int       @default(100)  // Commission fixe 100 DA
   totalDa         Int                   // Prix total payé par client
+
+  // ✅ Frais de retard
+  lateFeeDa           Int?              // Frais de retard calculés
+  lateFeeHours        Float?            // Heures de retard
+  lateFeeStatus       String?           // 'PENDING', 'ACCEPTED', 'REJECTED'
+  lateFeeAcceptedAt   DateTime?         // Quand le pro a accepté/refusé
+  lateFeeNote         String?           // Note sur les frais
+
+  // ✅ Notification proximité client
+  clientNearbyAt      DateTime?         // Quand le client est arrivé à proximité
 
   notes           String?               // Notes du client
   createdAt       DateTime              @default(now())
@@ -856,4 +953,129 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+// =========================
+// Système de sanctions admin
+// =========================
+
+enum SanctionType {
+  WARNING      // Avertissement simple
+  SUSPENSION   // Suspension temporaire
+  BAN          // Bannissement définitif
+  UNBAN        // Levée de ban (pour historique)
+  LIFT         // Levée de suspension
+}
+
+model UserSanction {
+  id          String       @id @default(cuid())
+  userId      String
+  type        SanctionType
+  reason      String       // Raison de la sanction
+  duration    Int?         // Durée en jours (null = permanent pour BAN, ou N/A pour WARNING)
+  expiresAt   DateTime?    // Date d'expiration (pour SUSPENSION)
+  issuedBy    String       // Admin ID qui a émis la sanction
+  issuedAt    DateTime     @default(now())
+  liftedAt    DateTime?    // Date de levée (si levée manuellement)
+  liftedBy    String?      // Admin ID qui a levé la sanction
+  metadata    Json?        // Données supplémentaires (booking concerné, etc.)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Tickets de contestation liés à cette sanction
+  appealTickets SupportTicket[]
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([issuedAt])
+  @@index([issuedBy])
+}
+
+
+// =========================
+// Système de support/tickets
+// =========================
+
+enum TicketCategory {
+  GENERAL      // Question générale
+  APPEAL       // Contestation de sanction
+  BUG          // Signalement de bug
+  FEATURE      // Suggestion de fonctionnalité
+  BILLING      // Question facturation
+  OTHER        // Autre
+}
+
+enum TicketStatus {
+  OPEN         // Nouveau ticket
+  IN_PROGRESS  // En cours de traitement
+  WAITING_USER // En attente de réponse utilisateur
+  RESOLVED     // Résolu
+  CLOSED       // Fermé
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Utilisateur qui a ouvert le ticket
+  userId String
+  user   User   @relation("TicketUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sujet et catégorie
+  subject  String
+  category TicketCategory @default(GENERAL)
+  status   TicketStatus   @default(OPEN)
+  priority TicketPriority @default(NORMAL)
+
+  // Sanction concernée (si contestation)
+  relatedSanctionId String?
+  relatedSanction   UserSanction? @relation(fields: [relatedSanctionId], references: [id], onDelete: SetNull)
+
+  // Admin assigné (optionnel)
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  // Fermeture
+  closedAt DateTime?
+  closedBy String?    // Admin ID qui a fermé
+
+  // Messages
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([createdAt])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  // Auteur du message
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Contenu
+  content     String  @db.Text
+  isFromAdmin Boolean @default(false) // True si envoyé par un admin
+
+  // Lu par le destinataire
+  readAt DateTime?
+
+  @@index([ticketId, createdAt])
+  @@index([senderId])
 }

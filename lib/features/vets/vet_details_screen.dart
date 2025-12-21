@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 final _providerDetailsProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+    FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, id) async {
   return ref.read(apiProvider).providerDetails(id);
 });
 
 final _servicesProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, providerId) async {
+    FutureProvider.family.autoDispose<List<Map<String, dynamic>>, String>((ref, providerId) async {
   final list = await ref.read(apiProvider).listServices(providerId);
   return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
@@ -105,7 +109,8 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
   String _selTitle = '';
   String _selDesc  = '';
   int    _selDurationMin = 30;
-  int?   _selPriceDa;
+  int?   _selBasePriceDa;
+  int    _vetCommissionDa = 100;
 
   bool _booking = false;
 
@@ -116,33 +121,48 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     _selDesc  = (svc['description'] ?? '').toString();
     _selDurationMin = int.tryParse('${svc['durationMin'] ?? ''}') ?? 30;
     final p = svc['price'];
-    if (p is num) _selPriceDa = p.toInt();
-    else if (p is String) _selPriceDa = int.tryParse(p);
+    // Le prix stocké EST le prix de base
+    if (p is num) _selBasePriceDa = p.toInt();
+    else if (p is String) _selBasePriceDa = int.tryParse(p);
   }
+
+  // Calcul du prix total (base + commission) pour l'affichage client
+  int? get _selTotalPriceDa => _selBasePriceDa != null ? _selBasePriceDa! + _vetCommissionDa : null;
 
   /// Popup pour les erreurs de trust (nouveau client)
   void _showTrustRestrictionDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         icon: Container(
           padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            color: _coralSoft,
+          decoration: BoxDecoration(
+            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.schedule, color: _coral, size: 32),
         ),
-        title: const Text(
-          'Une etape a la fois',
+        title: Text(
+          l10n.oneStepAtTime,
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+          ),
         ),
-        content: const Text(
-          'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous en cours avant d\'en reserver un autre.\n\nCela nous aide a garantir un service de qualite pour tous.',
+        content: Text(
+          l10n.trustRestrictionMessage,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, height: 1.5),
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark ? Colors.grey[300] : Colors.grey[700],
+          ),
         ),
         actions: [
           SizedBox(
@@ -154,8 +174,110 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('J\'ai compris'),
+              child: Text(l10n.understood),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Vérifie si l'utilisateur a déjà un RDV vétérinaire en cours
+  Future<Map<String, dynamic>?> _checkExistingBooking() async {
+    try {
+      final bookings = await ref.read(apiProvider).myBookings();
+      for (final b in bookings) {
+        if (b is! Map) continue;
+        final status = (b['status'] ?? '').toString().toUpperCase();
+        // Bloquer si un RDV est en attente ou confirmé
+        if (status == 'PENDING' || status == 'CONFIRMED' || status == 'AWAITING_CONFIRMATION' || status == 'PENDING_PRO_VALIDATION') {
+          return Map<String, dynamic>.from(b);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null; // En cas d'erreur, on laisse passer
+    }
+  }
+
+  /// Affiche un dialog si l'utilisateur a déjà un RDV
+  void _showExistingBookingDialog(BuildContext context, Map<String, dynamic> existing) {
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final scheduledAt = existing['scheduledAt']?.toString() ?? '';
+    DateTime? dt;
+    try { dt = DateTime.parse(scheduledAt); } catch (_) {}
+    final dateStr = dt != null
+        ? DateFormat('EEEE d MMMM à HH:mm', 'fr_FR').format(dt)
+        : 'bientôt';
+
+    final providerName = (existing['provider']?['displayName'] ??
+                          existing['providerProfile']?['displayName'] ??
+                          'un vétérinaire').toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.event_busy, color: _coral, size: 32),
+        ),
+        title: Text(
+          'Vous avez déjà un rendez-vous',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+          ),
+        ),
+        content: Text(
+          'Vous avez un rendez-vous prévu $dateStr chez $providerName.\n\nVeuillez annuler ce rendez-vous avant d\'en prendre un nouveau.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: isDark ? Colors.grey[300] : Colors.grey[700],
+          ),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.grey[400] : Colors.grey[600],
+                    side: BorderSide(color: isDark ? Colors.grey[600]! : Colors.grey[300]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Fermer'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    // Naviguer vers les détails du RDV existant
+                    context.push('/booking-details', extra: existing);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _coral,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Voir mon RDV'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -166,6 +288,17 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     if (_selectedServiceId == null || _selectedSlotIso == null || _selectedPetId == null) return;
 
     setState(() => _booking = true);
+
+    // Vérifier si l'utilisateur a déjà un RDV en cours
+    final existingBooking = await _checkExistingBooking();
+    if (existingBooking != null) {
+      if (mounted) {
+        setState(() => _booking = false);
+        _showExistingBookingDialog(context, existingBooking);
+      }
+      return;
+    }
+
     try {
       final res = await ref.read(apiProvider).createBooking(
         serviceId: _selectedServiceId!,
@@ -175,9 +308,19 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
 
       if (mounted) {
         final m = (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+        // Assurer que le service avec le prix est inclus dans les données
         final bookingData = <String, dynamic>{
           'id': (m['id'] ?? '').toString(),
           ...m,
+          // Inclure les infos du service sélectionné si pas présent dans la réponse API
+          if (m['service'] == null || (m['service'] is Map && m['service']['price'] == null))
+            'service': {
+              'id': _selectedServiceId,
+              'title': _selTitle,
+              'description': _selDesc,
+              'durationMin': _selDurationMin,
+              'price': _selTotalPriceDa, // Total = base + commission
+            },
         };
         context.go('/booking/thanks', extra: bookingData);
       }
@@ -206,19 +349,36 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
   Widget build(BuildContext context) {
     final details  = ref.watch(_providerDetailsProvider(widget.providerId));
     final services = ref.watch(_servicesProvider(widget.providerId));
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : Colors.white;
+    final cardColor = isDark ? _darkCard : const Color(0xFFF7F9FB);
+    final cardBorder = isDark ? _darkCardBorder : const Color(0xFFE6EDF2);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       body: details.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Erreur: $e')),
+        loading: () => Center(child: CircularProgressIndicator(color: isDark ? _coral : null)),
+        error: (e, st) => Center(child: Text('${l10n.error}: $e', style: TextStyle(color: textPrimary))),
         data: (p) {
           final name     = (p['displayName'] ?? 'Veterinaire').toString();
           final bio      = (p['bio'] ?? '').toString();
           final rating   = (p['ratingAvg'] as num?)?.toDouble() ?? 0.0;
           final count    = (p['ratingCount'] as num?)?.toInt() ?? 0;
-          final photoUrl = (p['photoUrl'] ?? '').toString();
+          // Le provider peut avoir avatarUrl ou photoUrl selon l'API
+          final photoUrl = (p['avatarUrl'] ?? p['photoUrl'] ?? '').toString();
           final address  = (p['address'] ?? '').toString();
+          // Commission du provider (pour calculer le total client)
+          final vetCommissionDa = (p['vetCommissionDa'] as num?)?.toInt() ?? 100;
+          // Mettre à jour la commission d'état pour le calcul du prix total
+          if (_vetCommissionDa != vetCommissionDa) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _vetCommissionDa = vetCommissionDa);
+            });
+          }
 
           return CustomScrollView(
             slivers: [
@@ -226,7 +386,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
               SliverAppBar(
                 expandedHeight: 220,
                 pinned: true,
-                backgroundColor: Colors.white,
+                backgroundColor: bgColor,
                 surfaceTintColor: Colors.transparent,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
@@ -238,16 +398,18 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                               photoUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
-                                color: _coralSoft,
+                                color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
                                 child: const Icon(Icons.local_hospital, size: 80, color: _coral),
                               ),
                             )
                           : Container(
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
-                                  colors: [_coralSoft, Colors.white],
+                                  colors: isDark
+                                      ? [_coral.withOpacity(0.2), _darkBg]
+                                      : [_coralSoft, Colors.white],
                                 ),
                               ),
                               child: const Icon(Icons.local_hospital, size: 80, color: _coral),
@@ -272,10 +434,10 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: isDark ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.arrow_back, color: Color(0xFF2D2D2D)),
+                    child: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF2D2D2D)),
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -298,22 +460,22 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF2D2D2D),
+                                    color: textPrimary,
                                   ),
                                 ),
                                 if (address.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
+                                      Icon(Icons.location_on, size: 14, color: textSecondary),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           address,
-                                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                          style: TextStyle(fontSize: 13, color: textSecondary),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -328,7 +490,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
+                              color: isDark ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber.shade50,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -338,11 +500,11 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                 const SizedBox(width: 4),
                                 Text(
                                   rating.toStringAsFixed(1),
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary),
                                 ),
                                 Text(
                                   ' ($count)',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  style: TextStyle(fontSize: 12, color: textSecondary),
                                 ),
                               ],
                             ),
@@ -355,21 +517,21 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                         const SizedBox(height: 12),
                         Text(
                           bio,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
+                          style: TextStyle(fontSize: 14, color: textSecondary, height: 1.4),
                         ),
                       ],
 
                       const SizedBox(height: 24),
 
                       // Section Services
-                      _buildSectionTitle('Choisir un service', Icons.medical_services),
+                      _buildSectionTitle(l10n.chooseService, Icons.medical_services, isDark),
                       const SizedBox(height: 12),
 
                       services.when(
-                        loading: () => const LinearProgressIndicator(),
-                        error: (e, st) => Text('Erreur: $e'),
+                        loading: () => LinearProgressIndicator(color: isDark ? _coral : null),
+                        error: (e, st) => Text('${l10n.error}: $e', style: TextStyle(color: textPrimary)),
                         data: (list) {
-                          if (list.isEmpty) return const Text('Aucun service disponible.');
+                          if (list.isEmpty) return Text(l10n.noServiceAvailable, style: TextStyle(color: textSecondary));
 
                           _selectedServiceId ??= (list.first)['id'].toString();
                           final cur = list.firstWhere(
@@ -388,7 +550,9 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                 final desc  = (svc['description'] ?? '').toString();
                                 final dur   = int.tryParse('${svc['durationMin'] ?? ''}') ?? 30;
                                 final price = svc['price'];
-                                final priceDa = price is num ? price.toInt() : (int.tryParse('$price') ?? 0);
+                                // Le prix stocké EST le prix de base, on calcule le total pour le client
+                                final basePriceDa = price is num ? price.toInt() : (int.tryParse('$price') ?? 0);
+                                final totalPriceDa = basePriceDa + vetCommissionDa;
                                 final isSel = id == _selectedServiceId;
 
                                 return GestureDetector(
@@ -401,10 +565,12 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                     margin: const EdgeInsets.only(bottom: 10),
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: isSel ? _coralSoft : const Color(0xFFF7F9FB),
+                                      color: isSel
+                                          ? (isDark ? _coral.withOpacity(0.2) : _coralSoft)
+                                          : cardColor,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: isSel ? _coral : const Color(0xFFE6EDF2),
+                                        color: isSel ? _coral : cardBorder,
                                         width: isSel ? 2 : 1,
                                       ),
                                     ),
@@ -415,12 +581,12 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                           width: 44,
                                           height: 44,
                                           decoration: BoxDecoration(
-                                            color: isSel ? _coral : Colors.grey[200],
+                                            color: isSel ? _coral : (isDark ? _darkCardBorder : Colors.grey[200]),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: Icon(
                                             Icons.vaccines,
-                                            color: isSel ? Colors.white : Colors.grey[500],
+                                            color: isSel ? Colors.white : textSecondary,
                                             size: 22,
                                           ),
                                         ),
@@ -435,14 +601,14 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                                 style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
-                                                  color: isSel ? _coral : const Color(0xFF2D2D2D),
+                                                  color: isSel ? _coral : textPrimary,
                                                 ),
                                               ),
                                               if (desc.isNotEmpty) ...[
                                                 const SizedBox(height: 2),
                                                 Text(
                                                   desc,
-                                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                                  style: TextStyle(fontSize: 12, color: textSecondary),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
@@ -450,21 +616,21 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                               const SizedBox(height: 4),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.access_time, size: 12, color: Colors.grey[500]),
+                                                  Icon(Icons.access_time, size: 12, color: textSecondary),
                                                   const SizedBox(width: 4),
-                                                  Text('$dur min', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                                  Text('$dur min', style: TextStyle(fontSize: 12, color: textSecondary)),
                                                 ],
                                               ),
                                             ],
                                           ),
                                         ),
-                                        // Prix
+                                        // Prix (total = base + commission)
                                         Text(
-                                          '${_fmtDa(priceDa)} DA',
+                                          '${_fmtDa(totalPriceDa)} DA',
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w800,
-                                            color: isSel ? _coral : const Color(0xFF2D2D2D),
+                                            color: isSel ? _coral : textPrimary,
                                           ),
                                         ),
                                       ],
@@ -476,16 +642,16 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                               const SizedBox(height: 24),
 
                               // Section Animal
-                              _buildSectionTitle('Pour quel animal ?', Icons.pets),
+                              _buildSectionTitle(l10n.forWhichAnimal, Icons.pets, isDark),
                               const SizedBox(height: 12),
-                              _buildPetSelector(),
+                              _buildPetSelector(isDark, textPrimary, textSecondary, cardColor, cardBorder, l10n),
 
                               const SizedBox(height: 24),
 
                               // Section Creneaux
-                              _buildSectionTitle('Choisir un creneau', Icons.calendar_today),
+                              _buildSectionTitle(l10n.chooseSlot, Icons.calendar_today, isDark),
                               const SizedBox(height: 12),
-                              _buildSlotsSelector(),
+                              _buildSlotsSelector(isDark, textPrimary, textSecondary, cardColor, cardBorder, l10n),
                             ],
                           );
                         },
@@ -504,10 +670,10 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: bgColor,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),
@@ -515,20 +681,20 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
           ),
           child: Row(
             children: [
-              // Prix total
-              if (_selPriceDa != null)
+              // Prix total (base + commission)
+              if (_selTotalPriceDa != null)
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      Text(l10n.total, style: TextStyle(fontSize: 12, color: textSecondary)),
                       Text(
-                        '${_fmtDa(_selPriceDa!)} DA',
-                        style: const TextStyle(
+                        '${_fmtDa(_selTotalPriceDa!)} DA',
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF2D2D2D),
+                          color: textPrimary,
                         ),
                       ),
                     ],
@@ -548,7 +714,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                       : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: _coral,
-                    disabledBackgroundColor: Colors.grey[300],
+                    disabledBackgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -558,9 +724,9 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                           height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text(
-                          'Confirmer',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      : Text(
+                          l10n.confirmBooking,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),
@@ -571,13 +737,13 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _coralSoft,
+            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: _coral, size: 18),
@@ -585,38 +751,41 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
         const SizedBox(width: 10),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF2D2D2D),
+            color: isDark ? Colors.white : const Color(0xFF2D2D2D),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPetSelector() {
+  Widget _buildPetSelector(bool isDark, Color textPrimary, Color? textSecondary, Color cardColor, Color cardBorder, AppLocalizations l10n) {
     return Consumer(
       builder: (context, ref, _) {
         final petsAsync = ref.watch(_myPetsProvider);
         return petsAsync.when(
-          loading: () => const LinearProgressIndicator(),
-          error: (e, st) => Text('Erreur: $e', style: const TextStyle(color: Colors.red)),
+          loading: () => LinearProgressIndicator(color: isDark ? _coral : null),
+          error: (e, st) => Text('${l10n.error}: $e', style: const TextStyle(color: Colors.red)),
           data: (pets) {
             if (pets.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: isDark ? Colors.orange.shade900.withOpacity(0.3) : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade200),
+                  border: Border.all(color: isDark ? Colors.orange.shade700 : Colors.orange.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber, color: Colors.orange[700]),
+                    Icon(Icons.warning_amber, color: Colors.orange[isDark ? 300 : 700]),
                     const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Vous devez d\'abord ajouter un animal dans votre profil.'),
+                    Expanded(
+                      child: Text(
+                        l10n.addAnimalFirst,
+                        style: TextStyle(color: isDark ? Colors.orange[200] : null),
+                      ),
                     ),
                   ],
                 ),
@@ -638,10 +807,12 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSel ? _coralSoft : const Color(0xFFF7F9FB),
+                      color: isSel
+                          ? (isDark ? _coral.withOpacity(0.2) : _coralSoft)
+                          : cardColor,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSel ? _coral : const Color(0xFFE6EDF2),
+                        color: isSel ? _coral : cardBorder,
                         width: isSel ? 2 : 1,
                       ),
                     ),
@@ -653,7 +824,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: isSel ? _coral : Colors.grey[200],
+                            color: isSel ? _coral : (isDark ? _darkCardBorder : Colors.grey[200]),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: photoUrl.isNotEmpty
@@ -663,7 +834,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                                 )
                               : Icon(
                                   Icons.pets,
-                                  color: isSel ? Colors.white : Colors.grey[500],
+                                  color: isSel ? Colors.white : textSecondary,
                                   size: 18,
                                 ),
                         ),
@@ -677,13 +848,13 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: isSel ? _coral : const Color(0xFF2D2D2D),
+                                color: isSel ? _coral : textPrimary,
                               ),
                             ),
                             if (species.isNotEmpty)
                               Text(
                                 species,
-                                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                style: TextStyle(fontSize: 11, color: textSecondary),
                               ),
                           ],
                         ),
@@ -703,25 +874,25 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
     );
   }
 
-  Widget _buildSlotsSelector() {
+  Widget _buildSlotsSelector(bool isDark, Color textPrimary, Color? textSecondary, Color cardColor, Color cardBorder, AppLocalizations l10n) {
     final async = ref.watch(_naiveSlotsProvider(_SlotsArgs(widget.providerId, _selDurationMin, 14)));
 
     return async.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, st) => Text('Erreur: $e'),
+      loading: () => LinearProgressIndicator(color: isDark ? _coral : null),
+      error: (e, st) => Text('${l10n.error}: $e', style: TextStyle(color: textPrimary)),
       data: (groups) {
         if (groups.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: isDark ? _darkCard : Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(Icons.event_busy, color: Colors.grey[500]),
+                Icon(Icons.event_busy, color: textSecondary),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Aucun creneau disponible sur 14 jours.')),
+                Expanded(child: Text(l10n.noSlotAvailable, style: TextStyle(color: textPrimary))),
               ],
             ),
           );
@@ -756,10 +927,10 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                       width: 60,
                       margin: const EdgeInsets.only(right: 10),
                       decoration: BoxDecoration(
-                        color: isSel ? _coral : const Color(0xFFF7F9FB),
+                        color: isSel ? _coral : cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSel ? _coral : const Color(0xFFE6EDF2),
+                          color: isSel ? _coral : cardBorder,
                         ),
                       ),
                       child: Column(
@@ -770,7 +941,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isSel ? Colors.white.withOpacity(0.8) : Colors.grey[500],
+                              color: isSel ? Colors.white.withOpacity(0.8) : textSecondary,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -779,14 +950,14 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: isSel ? Colors.white : const Color(0xFF2D2D2D),
+                              color: isSel ? Colors.white : textPrimary,
                             ),
                           ),
                           Text(
                             month,
                             style: TextStyle(
                               fontSize: 10,
-                              color: isSel ? Colors.white.withOpacity(0.8) : Colors.grey[500],
+                              color: isSel ? Colors.white.withOpacity(0.8) : textSecondary,
                             ),
                           ),
                         ],
@@ -804,10 +975,10 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: isDark ? _darkCard : Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('Aucun creneau ce jour.'),
+                child: Text(l10n.noSlotThisDay, style: TextStyle(color: textPrimary)),
               )
             else
               Wrap(
@@ -823,10 +994,10 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isSel ? _coral : Colors.white,
+                        color: isSel ? _coral : (isDark ? _darkCard : Colors.white),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSel ? _coral : const Color(0xFFE6EDF2),
+                          color: isSel ? _coral : cardBorder,
                         ),
                         boxShadow: isSel
                             ? [BoxShadow(color: _coral.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
@@ -837,7 +1008,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isSel ? Colors.white : const Color(0xFF2D2D2D),
+                          color: isSel ? Colors.white : textPrimary,
                         ),
                       ),
                     ),

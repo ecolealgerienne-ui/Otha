@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _green = Color(0xFF22C55E);
 const _greenSoft = Color(0xFFE8F5E9);
@@ -14,6 +15,11 @@ const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _orange = Color(0xFFF59E0B);
 const _orangeSoft = Color(0xFFFEF3C7);
+
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkBorder = Color(0xFF2A2A2A);
 
 /// Écran de confirmation du retrait d'animal en garderie
 class DaycarePickupConfirmationScreen extends ConsumerStatefulWidget {
@@ -68,7 +74,6 @@ class _DaycarePickupConfirmationScreenState
     super.dispose();
   }
 
-  /// Démarrer le polling pour vérifier si le pro a validé
   void _startStatusPolling() {
     _statusCheckTimer?.cancel();
     _statusCheckTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
@@ -80,7 +85,6 @@ class _DaycarePickupConfirmationScreenState
     });
   }
 
-  /// Vérifier le statut de la réservation
   Future<void> _checkBookingStatus() async {
     try {
       final api = ref.read(apiProvider);
@@ -89,13 +93,11 @@ class _DaycarePickupConfirmationScreenState
 
       if (!mounted) return;
 
-      // Si le statut est passé à COMPLETED, le pro a validé le retrait
       if (status == 'COMPLETED') {
         _statusCheckTimer?.cancel();
         _otpTimer?.cancel();
         setState(() => _isValidated = true);
 
-        // Afficher la page de succès après un court délai
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
           _showSuccessAndGoHome();
@@ -106,20 +108,23 @@ class _DaycarePickupConfirmationScreenState
     }
   }
 
-  /// Afficher le succès et retourner à l'accueil
   void _showSuccessAndGoHome() {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: _greenSoft,
+              decoration: BoxDecoration(
+                color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -129,20 +134,21 @@ class _DaycarePickupConfirmationScreenState
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Retrait confirmé !',
+            Text(
+              l10n.pickupConfirmedTitle,
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              'Votre animal a été récupéré avec succès.',
+              l10n.animalPickedUpSuccess,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
               ),
               textAlign: TextAlign.center,
             ),
@@ -161,9 +167,9 @@ class _DaycarePickupConfirmationScreenState
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Retourner à l\'accueil',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                child: Text(
+                  l10n.returnToHome,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -173,7 +179,6 @@ class _DaycarePickupConfirmationScreenState
     );
   }
 
-  /// Notifier le pro que le client est à proximité
   Future<void> _notifyNearby() async {
     try {
       final api = ref.read(apiProvider);
@@ -187,7 +192,6 @@ class _DaycarePickupConfirmationScreenState
     }
   }
 
-  /// Charger les frais de retard
   Future<void> _loadLateFee() async {
     try {
       final api = ref.read(apiProvider);
@@ -209,7 +213,6 @@ class _DaycarePickupConfirmationScreenState
     }
   }
 
-  /// Confirmer le retrait de l'animal
   Future<void> _confirmPickup() async {
     if (_isLoading) return;
 
@@ -220,7 +223,6 @@ class _DaycarePickupConfirmationScreenState
 
     try {
       final api = ref.read(apiProvider);
-      // Utiliser la méthode avec calcul de frais de retard
       await api.clientConfirmDaycarePickupWithLateFee(
         widget.bookingId,
         method: 'PROXIMITY',
@@ -230,9 +232,10 @@ class _DaycarePickupConfirmationScreenState
 
       if (!mounted) return;
 
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Retrait confirmé ! La garderie va valider.'),
+        SnackBar(
+          content: Text(l10n.pickupConfirmedSnack),
           backgroundColor: _green,
         ),
       );
@@ -250,7 +253,6 @@ class _DaycarePickupConfirmationScreenState
     }
   }
 
-  /// Afficher le code OTP
   Future<void> _showOtpCode() async {
     setState(() {
       _showOtpSection = true;
@@ -259,15 +261,9 @@ class _DaycarePickupConfirmationScreenState
 
     try {
       final api = ref.read(apiProvider);
-      // D'abord confirmer le retrait pour générer l'OTP
-      await api.clientConfirmDaycarePickupWithLateFee(
-        widget.bookingId,
-        method: 'OTP',
-        lat: widget.lat,
-        lng: widget.lng,
-      );
-
-      // Ensuite récupérer l'OTP
+      // ⚠️ Ne PAS appeler clientConfirmDaycarePickupWithLateFee ici !
+      // L'OTP sera validé par le pro, et c'est ça qui déclenchera la confirmation.
+      // On récupère juste le code OTP à afficher au client.
       final result = await api.getDaycarePickupOtp(widget.bookingId);
 
       if (!mounted) return;
@@ -287,7 +283,6 @@ class _DaycarePickupConfirmationScreenState
       });
 
       _startOtpTimer();
-      // Démarrer le polling pour détecter quand le pro valide l'OTP
       _startStatusPolling();
     } catch (e) {
       if (!mounted) return;
@@ -318,16 +313,15 @@ class _DaycarePickupConfirmationScreenState
     });
   }
 
-  /// Copier le code OTP
   void _copyOtp() {
     if (_otpCode == null) return;
     Clipboard.setData(ClipboardData(text: _otpCode!));
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code copié !')),
+      SnackBar(content: Text(l10n.codeCopied)),
     );
   }
 
-  /// Aller au scan QR
   void _goToQrScan() {
     final pet = widget.bookingData?['pet'] as Map<String, dynamic>?;
     final petId = pet?['id']?.toString() ?? widget.bookingData?['petId']?.toString();
@@ -335,9 +329,10 @@ class _DaycarePickupConfirmationScreenState
     if (petId != null && petId.isNotEmpty) {
       context.push('/pets/$petId/qr');
     } else {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun animal associé à cette réservation'),
+        SnackBar(
+          content: Text(l10n.noAnimalAssociated),
           backgroundColor: Colors.orange,
         ),
       );
@@ -364,9 +359,18 @@ class _DaycarePickupConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtitleColor = isDark ? Colors.grey[400] : Colors.black.withOpacity(0.6);
+    final borderColor = isDark ? _darkBorder : Colors.transparent;
+
     final providerName = widget.bookingData?['provider']?['displayName']?.toString() ?? 'la garderie';
     final pet = widget.bookingData?['pet'] as Map<String, dynamic>?;
-    final petName = pet?['name']?.toString() ?? 'Votre animal';
+    final petName = pet?['name']?.toString() ?? l10n.yourAnimalName;
     final endDateStr = widget.bookingData?['endDate']?.toString();
     DateTime? endDate;
     if (endDateStr != null) {
@@ -379,15 +383,15 @@ class _DaycarePickupConfirmationScreenState
     final hasLateFee = _lateFeeDa != null && _lateFeeDa! > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(Icons.close, color: textColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Confirmer le retrait'),
+        title: Text(l10n.confirmPickupTitle, style: TextStyle(color: textColor)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -398,9 +402,10 @@ class _DaycarePickupConfirmationScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
+                border: isDark ? Border.all(color: borderColor) : null,
+                boxShadow: isDark ? null : const [
                   BoxShadow(
                     color: Color(0x0A000000),
                     blurRadius: 10,
@@ -413,7 +418,9 @@ class _DaycarePickupConfirmationScreenState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: hasLateFee ? _orangeSoft : _greenSoft,
+                      color: hasLateFee
+                          ? (isDark ? _orange.withOpacity(0.15) : _orangeSoft)
+                          : (isDark ? _green.withOpacity(0.15) : _greenSoft),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
@@ -424,19 +431,20 @@ class _DaycarePickupConfirmationScreenState
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Récupérer $petName',
-                    style: const TextStyle(
+                    l10n.pickupPetAt(petName),
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Vous êtes à proximité de $providerName',
+                    l10n.nearDaycare(providerName),
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.black.withOpacity(0.6),
+                      color: subtitleColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -448,7 +456,9 @@ class _DaycarePickupConfirmationScreenState
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: hasLateFee ? _coralSoft : _greenSoft,
+                        color: hasLateFee
+                            ? (isDark ? _coral.withOpacity(0.15) : _coralSoft)
+                            : (isDark ? _green.withOpacity(0.15) : _greenSoft),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -460,12 +470,15 @@ class _DaycarePickupConfirmationScreenState
                             color: hasLateFee ? _coral : _green,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Prévu: $dateStr',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: hasLateFee ? _coral : _green,
+                          Flexible(
+                            child: Text(
+                              l10n.plannedFor(dateStr),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: hasLateFee ? _coral : _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -483,19 +496,20 @@ class _DaycarePickupConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(12),
+                  border: isDark ? Border.all(color: borderColor) : null,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 12),
-                    Text('Calcul des frais...'),
+                    const SizedBox(width: 12),
+                    Text(l10n.calculatingFees, style: TextStyle(color: textColor)),
                   ],
                 ),
               ),
@@ -503,7 +517,7 @@ class _DaycarePickupConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _orangeSoft,
+                  color: isDark ? _orange.withOpacity(0.15) : _orangeSoft,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: _orange),
                 ),
@@ -514,10 +528,10 @@ class _DaycarePickupConfirmationScreenState
                       children: [
                         const Icon(Icons.warning_amber, color: _orange),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Frais de retard',
-                            style: TextStyle(
+                            l10n.lateFeeTitle,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: _orange,
@@ -531,12 +545,12 @@ class _DaycarePickupConfirmationScreenState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Retard: ${_formatHours(_lateFeeHours ?? 0)}',
-                          style: TextStyle(color: Colors.grey.shade700),
+                          l10n.lateDelay(_formatHours(_lateFeeHours ?? 0)),
+                          style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey.shade700),
                         ),
                         Text(
-                          '${_hourlyRate ?? 0} DA/h',
-                          style: TextStyle(color: Colors.grey.shade700),
+                          l10n.ratePerHour('${_hourlyRate ?? 0}'),
+                          style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey.shade700),
                         ),
                       ],
                     ),
@@ -544,10 +558,11 @@ class _DaycarePickupConfirmationScreenState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Total frais:',
+                        Text(
+                          l10n.totalLateFee,
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
+                            color: textColor,
                           ),
                         ),
                         Text(
@@ -562,10 +577,10 @@ class _DaycarePickupConfirmationScreenState
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'La garderie pourra accepter ou refuser ces frais.',
+                      l10n.daycareCanAcceptOrRefuse,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: isDark ? Colors.grey[400] : Colors.grey.shade600,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -576,18 +591,18 @@ class _DaycarePickupConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _greenSoft,
+                  color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _green.withOpacity(0.3)),
+                  border: Border.all(color: _green.withOpacity(isDark ? 0.5 : 0.3)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: _green),
-                    SizedBox(width: 12),
+                    const Icon(Icons.check_circle, color: _green),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Pas de frais de retard',
-                        style: TextStyle(
+                        l10n.noLateFee,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: _green,
                         ),
@@ -605,25 +620,26 @@ class _DaycarePickupConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _green.withOpacity(0.3)),
+                  border: Border.all(color: isDark ? _green.withOpacity(0.5) : _green.withOpacity(0.3)),
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      'Code de vérification',
+                    Text(
+                      l10n.verificationCode,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Montrez ce code à la garderie',
+                      l10n.showCodeToDaycare,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.black.withOpacity(0.6),
+                        color: subtitleColor,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -636,7 +652,7 @@ class _DaycarePickupConfirmationScreenState
                             vertical: 16,
                           ),
                           decoration: BoxDecoration(
-                            color: _greenSoft,
+                            color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -659,19 +675,19 @@ class _DaycarePickupConfirmationScreenState
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Expire dans ${_formatExpiration(_otpExpiresInSeconds)}',
+                        l10n.expiresInTime(_formatExpiration(_otpExpiresInSeconds)),
                         style: TextStyle(
                           fontSize: 13,
-                          color: _otpExpiresInSeconds < 60 ? _coral : Colors.grey,
+                          color: _otpExpiresInSeconds < 60 ? _coral : (isDark ? Colors.grey[400] : Colors.grey),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ] else if (_isLoading) ...[
                       const CircularProgressIndicator(color: _green),
                     ] else ...[
-                      const Text(
-                        'Code expiré',
-                        style: TextStyle(color: _coral, fontWeight: FontWeight.w600),
+                      Text(
+                        l10n.codeExpired,
+                        style: const TextStyle(color: _coral, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ],
@@ -685,7 +701,7 @@ class _DaycarePickupConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _coralSoft,
+                  color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -705,11 +721,12 @@ class _DaycarePickupConfirmationScreenState
             ],
 
             // Boutons d'action
-            const Text(
-              'Choisissez une méthode de confirmation :',
+            Text(
+              l10n.chooseConfirmMethod,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 16),
@@ -718,7 +735,7 @@ class _DaycarePickupConfirmationScreenState
             OutlinedButton.icon(
               onPressed: _isLoading ? null : _goToQrScan,
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scanner le QR code de l\'animal'),
+              label: Text(l10n.scanAnimalQr),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _green,
                 side: const BorderSide(color: _green),
@@ -736,10 +753,10 @@ class _DaycarePickupConfirmationScreenState
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _showOtpCode,
                 icon: const Icon(Icons.pin),
-                label: const Text('Obtenir un code de vérification'),
+                label: Text(l10n.getVerificationCode),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade400),
+                  foregroundColor: isDark ? Colors.grey[400] : Colors.grey.shade700,
+                  side: BorderSide(color: isDark ? Colors.grey[600]! : Colors.grey.shade400),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -762,7 +779,7 @@ class _DaycarePickupConfirmationScreenState
                       ),
                     )
                   : const Icon(Icons.check_circle),
-              label: Text(_isLoading ? 'Confirmation...' : 'Confirmer le retrait'),
+              label: Text(_isLoading ? l10n.confirming : l10n.confirmPickupTitle),
               style: FilledButton.styleFrom(
                 backgroundColor: _green,
                 foregroundColor: Colors.white,
@@ -779,19 +796,19 @@ class _DaycarePickupConfirmationScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: isDark ? Colors.blue.withOpacity(0.15) : Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                  Icon(Icons.info_outline, color: isDark ? Colors.blue[300] : Colors.blue.shade700, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'La garderie validera le retrait et les éventuels frais de retard.',
+                      l10n.daycareWillValidatePickup,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.blue.shade700,
+                        color: isDark ? Colors.blue[300] : Colors.blue.shade700,
                       ),
                     ),
                   ),

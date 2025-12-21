@@ -3,13 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _primary = Color(0xFF00ACC1);
 const _primarySoft = Color(0xFFE0F7FA);
+const _primarySoftDark = Color(0xFF1A3A3D);
 const _ink = Color(0xFF222222);
+const _inkDark = Color(0xFFFFFFFF);
+const _bgLight = Color(0xFFF7F8FA);
+const _bgDark = Color(0xFF121212);
+const _cardLight = Color(0xFFFFFFFF);
+const _cardDark = Color(0xFF1E1E1E);
 
-// Commission for daycare: 100 DA per reservation
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le booking)
+const kDefaultDaycareCommissionDa = 100;
 
 final daycareBookingsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -32,14 +39,17 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final bookingsAsync = ref.watch(daycareBookingsProvider);
 
     return Theme(
-      data: _themed(context),
+      data: _themed(context, isDark),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
+        backgroundColor: isDark ? _bgDark : _bgLight,
         appBar: AppBar(
-          title: const Text('Mes réservations'),
+          title: Text(l10n.myBookings),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -57,37 +67,50 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
                 child: Row(
                   children: [
                     _FilterChip(
-                      label: 'Toutes',
+                      label: l10n.allBookings,
                       selected: _filterStatus == 'ALL',
                       onTap: () => setState(() => _filterStatus = 'ALL'),
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'En attente',
+                      label: l10n.pendingBookings,
                       selected: _filterStatus == 'PENDING',
                       onTap: () => setState(() => _filterStatus = 'PENDING'),
                       color: Colors.orange,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'Confirmées',
+                      label: l10n.confirmedBookings,
                       selected: _filterStatus == 'CONFIRMED',
                       onTap: () => setState(() => _filterStatus = 'CONFIRMED'),
                       color: Colors.blue,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'Terminées',
+                      label: l10n.inCare,
+                      selected: _filterStatus == 'IN_PROGRESS',
+                      onTap: () => setState(() => _filterStatus = 'IN_PROGRESS'),
+                      color: Colors.purple,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: l10n.completedBookings,
                       selected: _filterStatus == 'COMPLETED',
                       onTap: () => setState(() => _filterStatus = 'COMPLETED'),
                       color: Colors.green,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'Annulées',
+                      label: l10n.cancelledBookings,
                       selected: _filterStatus == 'CANCELLED',
                       onTap: () => setState(() => _filterStatus = 'CANCELLED'),
                       color: Colors.red,
+                      isDark: isDark,
                     ),
                   ],
                 ),
@@ -98,7 +121,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
             Expanded(
               child: bookingsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Erreur: $e')),
+                error: (e, _) => Center(child: Text('${l10n.error}: $e', style: TextStyle(color: isDark ? Colors.white : null))),
                 data: (bookings) {
                   final filtered = _filterStatus == 'ALL'
                       ? bookings
@@ -119,7 +142,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
                   });
 
                   if (filtered.isEmpty) {
-                    return _EmptyState(filter: _filterStatus);
+                    return _EmptyState(filter: _filterStatus, isDark: isDark);
                   }
 
                   return RefreshIndicator(
@@ -132,6 +155,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
                       itemBuilder: (_, i) => _BookingCard(
                         booking: filtered[i],
                         isExpanded: _expandedBookingId == filtered[i]['id'],
+                        isDark: isDark,
                         onToggle: () {
                           setState(() {
                             if (_expandedBookingId == filtered[i]['id']) {
@@ -154,21 +178,21 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
     );
   }
 
-  ThemeData _themed(BuildContext context) {
+  ThemeData _themed(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
     return theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         primary: _primary,
-        surface: Colors.white,
+        surface: isDark ? _cardDark : _cardLight,
         onPrimary: Colors.white,
       ),
       appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.white,
-        foregroundColor: _ink,
+        backgroundColor: isDark ? _bgDark : _cardLight,
+        foregroundColor: isDark ? _inkDark : _ink,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
-          color: _ink,
+        titleTextStyle: TextStyle(
+          color: isDark ? _inkDark : _ink,
           fontWeight: FontWeight.w800,
           fontSize: 18,
         ),
@@ -182,6 +206,7 @@ class _DaycareBookingsScreenState extends ConsumerState<DaycareBookingsScreen> {
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: _primary),
+      dividerColor: isDark ? Colors.white12 : null,
     );
   }
 }
@@ -191,11 +216,13 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color? color;
+  final bool isDark;
 
   const _FilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.isDark,
     this.color,
   });
 
@@ -208,10 +235,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? chipColor : Colors.white,
+          color: selected ? chipColor : (isDark ? _cardDark : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? chipColor : Colors.grey.shade300,
+            color: selected ? chipColor : (isDark ? Colors.white24 : Colors.grey.shade300),
           ),
           boxShadow: selected
               ? [BoxShadow(color: chipColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
@@ -220,7 +247,7 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.grey.shade700,
+            color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.grey.shade700),
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
@@ -232,32 +259,38 @@ class _FilterChip extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final String filter;
-  const _EmptyState({required this.filter});
+  final bool isDark;
+  const _EmptyState({required this.filter, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     String message;
     IconData icon;
 
     switch (filter) {
       case 'PENDING':
-        message = 'Aucune réservation en attente';
+        message = l10n.noBookingInCategory;
         icon = Icons.hourglass_empty;
         break;
       case 'CONFIRMED':
-        message = 'Aucune réservation confirmée';
+        message = l10n.noBookingInCategory;
         icon = Icons.thumb_up_outlined;
         break;
+      case 'IN_PROGRESS':
+        message = l10n.noAnimalsInCare;
+        icon = Icons.pets_outlined;
+        break;
       case 'COMPLETED':
-        message = 'Aucune réservation terminée';
+        message = l10n.noBookingInCategory;
         icon = Icons.check_circle_outlined;
         break;
       case 'CANCELLED':
-        message = 'Aucune réservation annulée';
+        message = l10n.noBookingInCategory;
         icon = Icons.cancel_outlined;
         break;
       default:
-        message = 'Aucune réservation pour le moment';
+        message = l10n.noBookings;
         icon = Icons.calendar_today_outlined;
     }
 
@@ -268,7 +301,7 @@ class _EmptyState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _primarySoft,
+              color: isDark ? _primarySoftDark : _primarySoft,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 48, color: _primary),
@@ -276,17 +309,17 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: _ink,
+              color: isDark ? _inkDark : _ink,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Les nouvelles réservations apparaîtront ici',
+            l10n.newBookingsWillAppear,
             style: TextStyle(
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.white60 : Colors.grey.shade600,
               fontSize: 13,
             ),
           ),
@@ -299,12 +332,14 @@ class _EmptyState extends StatelessWidget {
 class _BookingCard extends ConsumerWidget {
   final Map<String, dynamic> booking;
   final bool isExpanded;
+  final bool isDark;
   final VoidCallback onToggle;
   final VoidCallback onStatusUpdate;
 
   const _BookingCard({
     required this.booking,
     required this.isExpanded,
+    required this.isDark,
     required this.onToggle,
     required this.onStatusUpdate,
   });
@@ -313,11 +348,12 @@ class _BookingCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final id = (booking['id'] ?? '').toString();
     final status = (booking['status'] ?? 'PENDING').toString().toUpperCase();
     final totalDa = _asInt(booking['totalDa'] ?? booking['total'] ?? 0);
     final priceDa = _asInt(booking['priceDa'] ?? 0);
-    final commissionDa = _asInt(booking['commissionDa'] ?? kDaycareCommissionDa);
+    final commissionDa = _asInt(booking['commissionDa'] ?? kDefaultDaycareCommissionDa);
     final startDate = booking['startDate'];
     final endDate = booking['endDate'];
     final pet = booking['pet'] as Map<String, dynamic>?;
@@ -337,18 +373,22 @@ class _BookingCard extends ConsumerWidget {
     }
 
     final user = booking['user'] as Map? ?? {};
-    final userName = (user['firstName'] ?? 'Client').toString();
+    final userName = (user['firstName'] ?? l10n.client).toString();
     final userPhone = (user['phone'] ?? '').toString();
 
-    final statusInfo = _getStatusInfo(status);
+    final statusInfo = _getStatusInfo(status, l10n);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _cardDark : _cardLight,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x0A000000),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -368,7 +408,7 @@ class _BookingCard extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: statusInfo.color.withOpacity(0.1),
+                          color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(statusInfo.icon, color: statusInfo.color, size: 20),
@@ -380,16 +420,17 @@ class _BookingCard extends ConsumerWidget {
                           children: [
                             Text(
                               '#${id.length > 8 ? id.substring(0, 8) : id}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
+                                color: isDark ? _inkDark : _ink,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               userName,
                               style: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.white60 : Colors.grey.shade600,
                                 fontSize: 13,
                               ),
                             ),
@@ -401,16 +442,16 @@ class _BookingCard extends ConsumerWidget {
                         children: [
                           Text(
                             _da(priceDa),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
-                              color: _ink,
+                              color: isDark ? _inkDark : _ink,
                             ),
                           ),
                           if (commissionDa > 0) ...[
                             const SizedBox(height: 2),
                             Text(
-                              '+${_da(commissionDa)} commission',
+                              '+${_da(commissionDa)} ${l10n.commissionLabel.toLowerCase()}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.orange.shade700,
@@ -431,7 +472,7 @@ class _BookingCard extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: statusInfo.color.withOpacity(0.1),
+                              color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -448,7 +489,7 @@ class _BookingCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Icon(
                         isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.grey.shade400,
+                        color: isDark ? Colors.white38 : Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -456,22 +497,22 @@ class _BookingCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
+                        Icon(Icons.calendar_today, size: 14, color: isDark ? Colors.white54 : Colors.grey.shade500),
                         const SizedBox(width: 4),
                         Text(
                           '${DateFormat('dd MMM yyyy', 'fr_FR').format(start)} - ${DateFormat('dd MMM yyyy', 'fr_FR').format(end)}',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: isDark ? Colors.white54 : Colors.grey.shade500,
                             fontSize: 12,
                           ),
                         ),
                         const Spacer(),
-                        Icon(Icons.pets, size: 14, color: Colors.grey.shade500),
+                        Icon(Icons.pets, size: 14, color: isDark ? Colors.white54 : Colors.grey.shade500),
                         const SizedBox(width: 4),
                         Text(
-                          '${pets.length} animal${pets.length > 1 ? 'ux' : ''}',
+                          '${pets.length} ${l10n.animal}${pets.length > 1 ? 's' : ''}',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: isDark ? Colors.white54 : Colors.grey.shade500,
                             fontSize: 12,
                           ),
                         ),
@@ -485,21 +526,25 @@ class _BookingCard extends ConsumerWidget {
 
           // Expanded content
           if (isExpanded) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: isDark ? Colors.white12 : null),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Animal
-                  const Text(
-                    'Animal',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  Text(
+                    l10n.animal,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: isDark ? _inkDark : _ink,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ...pets.map((pet) {
                     final petData = pet is Map ? Map<String, dynamic>.from(pet) : <String, dynamic>{};
-                    final petName = (petData['name'] ?? 'Animal').toString();
+                    final petName = (petData['name'] ?? l10n.animal).toString();
                     final petType = (petData['type'] ?? petData['species'] ?? '').toString();
                     final petBreed = (petData['breed'] ?? '').toString();
                     final petSize = (petData['size'] ?? '').toString();
@@ -508,19 +553,19 @@ class _BookingCard extends ConsumerWidget {
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _primarySoft.withOpacity(0.3),
+                        color: isDark ? _primarySoftDark : _primarySoft.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _primary.withOpacity(0.2)),
+                        border: Border.all(color: _primary.withOpacity(isDark ? 0.3 : 0.2)),
                       ),
                       child: Row(
                         children: [
                           // Grande image de l'animal
                           CircleAvatar(
                             radius: 35,
-                            backgroundColor: _primary.withOpacity(0.1),
+                            backgroundColor: _primary.withOpacity(isDark ? 0.2 : 0.1),
                             backgroundImage: petPhotoUrl.isNotEmpty ? NetworkImage(petPhotoUrl) : null,
                             child: petPhotoUrl.isEmpty
-                                ? Icon(Icons.pets, color: _primary, size: 32)
+                                ? const Icon(Icons.pets, color: _primary, size: 32)
                                 : null,
                           ),
                           const SizedBox(width: 14),
@@ -530,10 +575,10 @@ class _BookingCard extends ConsumerWidget {
                               children: [
                                 Text(
                                   petName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 17,
-                                    color: _ink,
+                                    color: isDark ? _inkDark : _ink,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -541,7 +586,7 @@ class _BookingCard extends ConsumerWidget {
                                   Text(
                                     petBreed,
                                     style: TextStyle(
-                                      color: Colors.grey.shade700,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -551,7 +596,7 @@ class _BookingCard extends ConsumerWidget {
                                   Text(
                                     [petType, petSize].where((s) => s.isNotEmpty).join(' • '),
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? Colors.white60 : Colors.grey.shade600,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -569,11 +614,11 @@ class _BookingCard extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Icon(Icons.phone_outlined, size: 16, color: Colors.grey.shade600),
+                        Icon(Icons.phone_outlined, size: 16, color: isDark ? Colors.white60 : Colors.grey.shade600),
                         const SizedBox(width: 6),
                         Text(
                           userPhone,
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                          style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 13),
                         ),
                       ],
                     ),
@@ -581,22 +626,26 @@ class _BookingCard extends ConsumerWidget {
 
                   if (notes.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    const Text(
-                      'Note du client',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    Text(
+                      l10n.clientNote,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? _inkDark : _ink,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         notes,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: isDark ? Colors.white70 : Colors.grey.shade700,
                           fontSize: 13,
                           fontStyle: FontStyle.italic,
                         ),
@@ -612,12 +661,12 @@ class _BookingCard extends ConsumerWidget {
                         if (status == 'PENDING') ...[
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _updateStatus(context, ref, id, 'CANCELLED'),
+                              onPressed: () => _updateStatus(context, ref, id, 'CANCELLED', l10n),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.red,
                                 side: const BorderSide(color: Colors.red),
                               ),
-                              child: const Text('Refuser'),
+                              child: Text(l10n.reject),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -630,13 +679,14 @@ class _BookingCard extends ConsumerWidget {
                               ref,
                               id,
                               status == 'PENDING' ? 'CONFIRMED' : 'COMPLETED',
+                              l10n,
                             ),
                             icon: Icon(
                               status == 'PENDING' ? Icons.check : Icons.check_circle,
                               size: 18,
                             ),
                             label: Text(
-                              status == 'PENDING' ? 'Accepter' : 'Marquer terminée',
+                              status == 'PENDING' ? l10n.accept : l10n.markCompleted,
                             ),
                           ),
                         ),
@@ -653,7 +703,7 @@ class _BookingCard extends ConsumerWidget {
   }
 
   Future<void> _updateStatus(
-      BuildContext context, WidgetRef ref, String bookingId, String newStatus) async {
+      BuildContext context, WidgetRef ref, String bookingId, String newStatus, AppLocalizations l10n) async {
     final api = ref.read(apiProvider);
 
     try {
@@ -665,7 +715,7 @@ class _BookingCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Réservation ${newStatus == 'CANCELLED' ? 'refusée' : 'mise à jour'}'),
+            content: Text(newStatus == 'CANCELLED' ? l10n.bookingRejected : l10n.bookingUpdated),
             backgroundColor: newStatus == 'CANCELLED' ? Colors.red : Colors.green,
           ),
         );
@@ -673,24 +723,30 @@ class _BookingCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${l10n.error}: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  _StatusInfo _getStatusInfo(String status) {
+  _StatusInfo _getStatusInfo(String status, AppLocalizations l10n) {
     switch (status) {
       case 'PENDING':
-        return _StatusInfo('En attente', Colors.orange, Icons.hourglass_empty);
+        return _StatusInfo(l10n.pendingBookings, Colors.orange, Icons.hourglass_empty);
       case 'CONFIRMED':
-        return _StatusInfo('Confirmée', Colors.blue, Icons.thumb_up);
+        return _StatusInfo(l10n.confirmedBookings, Colors.blue, Icons.thumb_up);
+      case 'PENDING_DROP_VALIDATION':
+        return _StatusInfo(l10n.dropOffToValidate, Colors.teal, Icons.login);
       case 'IN_PROGRESS':
-        return _StatusInfo('En cours', Colors.purple, Icons.pets);
+        return _StatusInfo(l10n.inProgressBookings, Colors.purple, Icons.pets);
+      case 'PENDING_PICKUP_VALIDATION':
+        return _StatusInfo(l10n.pickupToValidate, Colors.indigo, Icons.logout);
       case 'COMPLETED':
-        return _StatusInfo('Terminée', Colors.green, Icons.check_circle);
+        return _StatusInfo(l10n.completedBookings, Colors.green, Icons.check_circle);
       case 'CANCELLED':
-        return _StatusInfo('Annulée', Colors.red, Icons.cancel);
+        return _StatusInfo(l10n.cancelledBookings, Colors.red, Icons.cancel);
+      case 'DISPUTED':
+        return _StatusInfo(l10n.disputed, Colors.deepOrange, Icons.warning);
       default:
         return _StatusInfo(status, Colors.grey, Icons.help_outline);
     }

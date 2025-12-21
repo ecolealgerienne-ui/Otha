@@ -33,27 +33,23 @@ android {
     defaultConfig {
         applicationId = "com.vegece.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        targetSdk = 35
+        versionCode = 7
+        versionName = "1.0.7"
     }
 
     signingConfigs {
-        if (hasKeystore) {
-            create("release") {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            }
+        create("release") {
+            storeFile = file("D:\\VetHome\\vethome\\Claude\\android\\app\\upload-keystore.jks")
+            storePassword = "O0775326005o"
+            keyAlias = "upload"
+            keyPassword = "O0775326005o"
         }
     }
 
     buildTypes {
         release {
-            if (hasKeystore) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

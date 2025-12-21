@@ -21,6 +21,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _adoptPosts = [];
   bool _loadingConversations = false;
+  bool _resetTrustLoading = false;
 
   @override
   void initState() {
@@ -102,6 +103,92 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
+      }
+    }
+  }
+
+  Future<void> _resetTrustStatus() async {
+    final userId = widget.user['id']?.toString() ?? '';
+    final name = _getUserName();
+    final trustStatus = widget.user['trustStatus']?.toString() ?? 'NEW';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Réinitialiser le statut de confiance'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Réinitialiser le statut de confiance de $name ?'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '⚠️ Cette action va:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  SizedBox(height: 8),
+                  Text('• Remettre le statut à "VERIFIED"', style: TextStyle(fontSize: 12)),
+                  Text('• Décrémenter le compteur de no-show', style: TextStyle(fontSize: 12)),
+                  Text('• Lever la restriction de compte', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Réinitialiser'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _resetTrustLoading = true);
+
+    try {
+      final api = ref.read(apiProvider);
+      await api.adminResetUserTrustStatus(userId);
+
+      // Mettre à jour le user localement
+      widget.user['trustStatus'] = 'NEW';
+      widget.user['restrictedUntil'] = null;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Statut de confiance réinitialisé'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _resetTrustLoading = false);
       }
     }
   }
@@ -241,6 +328,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
                   const SizedBox(height: 16),
 
+                  // Carte statut de confiance (Trust System)
+                  _buildTrustStatusCard(user),
+
+                  const SizedBox(height: 16),
+
                   // Carte quotas adoption
                   _Card(
                     title: 'Quotas adoption',
@@ -372,6 +464,114 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildTrustStatusCard(Map<String, dynamic> user) {
+    final trustStatus = user['trustStatus']?.toString() ?? 'NEW';
+    final restrictedUntilRaw = user['restrictedUntil'];
+    final noShowCount = user['noShowCount'] ?? 0;
+
+    DateTime? restrictedUntil;
+    if (restrictedUntilRaw is String && restrictedUntilRaw.isNotEmpty) {
+      restrictedUntil = DateTime.tryParse(restrictedUntilRaw);
+    }
+
+    // Couleur et icône selon le statut
+    final Color statusColor;
+    final IconData statusIcon;
+    final String statusLabel;
+
+    switch (trustStatus) {
+      case 'VERIFIED':
+        statusColor = Colors.green;
+        statusIcon = Icons.verified;
+        statusLabel = 'Vérifié ✓';
+        break;
+      case 'RESTRICTED':
+        statusColor = Colors.red;
+        statusIcon = Icons.block;
+        statusLabel = 'Restreint 🚫';
+        break;
+      default:
+        statusColor = Colors.blue;
+        statusIcon = Icons.person_outline;
+        statusLabel = 'Nouveau';
+    }
+
+    return _Card(
+      title: 'Statut de confiance',
+      icon: Icons.shield,
+      child: Column(
+        children: [
+          // Badge de statut
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 32),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                      if (trustStatus == 'RESTRICTED' && restrictedUntil != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Jusqu\'au ${_formatDate(restrictedUntil.toIso8601String())}',
+                          style: TextStyle(fontSize: 12, color: statusColor),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Infos supplémentaires
+          _InfoRow('No-shows', noShowCount.toString()),
+
+          // Bouton de reset si restreint
+          if (trustStatus == 'RESTRICTED') ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _resetTrustLoading ? null : _resetTrustStatus,
+                icon: _resetTrustLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.lock_open),
+                label: Text(_resetTrustLoading ? 'Réinitialisation...' : 'Lever la restriction'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

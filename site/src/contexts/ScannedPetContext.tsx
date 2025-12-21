@@ -1,0 +1,349 @@
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import type { Pet, MedicalRecord, Vaccination, Prescription, HealthStatsAggregated, DiseaseTracking, Booking } from '../types';
+import api from '../api/client';
+
+interface ScannedPetState {
+  pet: Pet | null;
+  token: string | null;
+  records: MedicalRecord[];
+  vaccinations: Vaccination[];
+  prescriptions: Prescription[];
+  healthStats: HealthStatsAggregated | null; // Aggregated from MedicalRecord
+  diseases: DiseaseTracking[];
+  activeBooking: Booking | null;
+  bookingConfirmed: boolean;
+}
+
+interface ScannedPetContextType extends ScannedPetState {
+  // Actions
+  setPetData: (
+    pet: Pet,
+    token: string,
+    records?: MedicalRecord[],
+    vaccinations?: Vaccination[],
+    prescriptions?: Prescription[],
+    healthStats?: HealthStatsAggregated | null,
+    diseases?: DiseaseTracking[]
+  ) => void;
+  setBooking: (booking: Booking | null, confirmed?: boolean) => void;
+  updateRecords: (records: MedicalRecord[]) => void;
+  updateVaccinations: (vaccinations: Vaccination[]) => void;
+  updatePrescriptions: (prescriptions: Prescription[]) => void;
+  updateHealthStats: (stats: HealthStatsAggregated | null) => void;
+  updateDiseases: (diseases: DiseaseTracking[]) => void;
+  addRecord: (record: MedicalRecord) => void;
+  addPrescription: (prescription: Prescription) => void;
+  addDisease: (disease: DiseaseTracking) => void;
+  editPrescription: (id: string, updated: Prescription) => void;
+  editDisease: (id: string, updated: DiseaseTracking) => void;
+  removeRecord: (id: string) => void;
+  removePrescription: (id: string) => void;
+  removeDisease: (id: string) => void;
+  clearPet: () => void;
+  // Polling
+  isPolling: boolean;
+  startPolling: () => void;
+  stopPolling: () => void;
+}
+
+const initialState: ScannedPetState = {
+  pet: null,
+  token: null,
+  records: [],
+  vaccinations: [],
+  prescriptions: [],
+  healthStats: null,
+  diseases: [],
+  activeBooking: null,
+  bookingConfirmed: false,
+};
+
+const ScannedPetContext = createContext<ScannedPetContextType | null>(null);
+
+export function ScannedPetProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<ScannedPetState>(initialState);
+  const [isPolling, setIsPolling] = useState(false);
+  const [lastScannedAt, setLastScannedAt] = useState<string | null>(null);
+  const pollingRef = useRef<number | null>(null);
+
+  // Poll for scanned pet from Flutter app
+  const pollForScannedPet = useCallback(async () => {
+    try {
+      console.log('🔍 Polling for scanned pet...');
+      const result = await api.getScannedPet();
+      console.log('📥 Poll result:', { hasPet: !!result.pet, scannedAt: result.scannedAt, lastScannedAt });
+
+      if (result.pet && result.scannedAt !== lastScannedAt) {
+        console.log('✅ New pet detected from Flutter!', result.pet, 'Token:', result.token);
+        setLastScannedAt(result.scannedAt);
+        const petData = result.pet as Pet & {
+          medicalRecords?: MedicalRecord[];
+          vaccinations?: Vaccination[];
+          prescriptions?: Prescription[];
+          diseaseTrackings?: DiseaseTracking[];
+          treatments?: any[];
+        };
+
+        // Build health stats from medical records (temperature, heartRate)
+        let healthStats: HealthStatsAggregated | null = null;
+        const medicalRecords = petData.medicalRecords || [];
+        const weightRecords = (petData as any).weightRecords || [];
+
+        // Extract health data from medical records
+        const tempData = medicalRecords
+          .filter((r: any) => r.temperatureC != null)
+          .map((r: any) => ({ date: r.date, temperatureC: r.temperatureC }));
+        const heartData = medicalRecords
+          .filter((r: any) => r.heartRate != null)
+          .map((r: any) => ({ date: r.date, heartRate: r.heartRate }));
+
+        if (weightRecords.length > 0 || tempData.length > 0 || heartData.length > 0) {
+          healthStats = {
+            weight: weightRecords.length > 0 ? {
+              current: weightRecords[0]?.weightKg,
+              min: Math.min(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              max: Math.max(...weightRecords.map((w: any) => parseFloat(w.weightKg))),
+              data: weightRecords,
+            } : undefined,
+            temperature: tempData.length > 0 ? {
+              current: tempData[0]?.temperatureC,
+              average: tempData.reduce((a: number, b: any) => a + parseFloat(b.temperatureC), 0) / tempData.length,
+              data: tempData,
+            } : undefined,
+            heartRate: heartData.length > 0 ? {
+              current: heartData[0]?.heartRate,
+              average: Math.round(heartData.reduce((a: number, b: any) => a + b.heartRate, 0) / heartData.length),
+              data: heartData,
+            } : undefined,
+          } as HealthStatsAggregated;
+        }
+
+        // ✅ Look for active booking for this pet (may have been confirmed by Flutter)
+        let activeBooking: Booking | null = null;
+        let bookingConfirmed = false;
+        try {
+          const booking = await api.getActiveBookingForPet(petData.id);
+          if (booking && booking.id) {
+            activeBooking = booking;
+            // Check if booking was already confirmed by Flutter
+            bookingConfirmed = booking.status === 'CONFIRMED' || booking.status === 'COMPLETED';
+          }
+        } catch {
+          // No active booking - that's ok
+        }
+
+        // Load diseases - try from petData first, then via API if empty
+        let diseases: DiseaseTracking[] = (petData.diseaseTrackings || []) as unknown as DiseaseTracking[];
+        if (diseases.length === 0 && result.token) {
+          try {
+            diseases = await api.listDiseasesByToken(result.token);
+          } catch {
+            // Diseases not available - that's ok
+          }
+        }
+
+        // Map treatments to prescriptions format (Flutter uses treatments for "Ordonnances")
+        const treatments = petData.treatments || [];
+        const prescriptions = treatments.map((t: any) => ({
+          id: t.id,
+          petId: t.petId,
+          providerId: t.providerId || null,
+          title: t.name,
+          description: [t.dosage, t.frequency, t.notes].filter(Boolean).join(' - '),
+          imageUrl: t.attachments?.[0] || null,
+          attachments: t.attachments || [],
+          date: t.startDate,
+          isActive: t.isActive,
+          endDate: t.endDate,
+        })) as unknown as Prescription[];
+
+        setState({
+          pet: petData,
+          token: result.token || '', // Use token from backend
+          records: petData.medicalRecords || [],
+          vaccinations: petData.vaccinations || [],
+          prescriptions,
+          healthStats,
+          diseases,
+          activeBooking,
+          bookingConfirmed,
+        });
+
+        setIsPolling(false);
+        api.clearScannedPet().catch(() => {});
+
+        // ✅ Dispatch event to notify ProPatients to refresh recent patients
+        window.dispatchEvent(new CustomEvent('pet-scanned-from-flutter'));
+      }
+    } catch (error) {
+      console.error('❌ Poll error:', error);
+    }
+  }, [lastScannedAt]);
+
+  // Debug: log polling state changes
+  useEffect(() => {
+    console.log('📊 isPolling changed to:', isPolling);
+  }, [isPolling]);
+
+  // Start/stop polling
+  useEffect(() => {
+    if (isPolling) {
+      console.log('▶️ Starting poll interval (every 2s)');
+      pollingRef.current = window.setInterval(pollForScannedPet, 2000);
+      pollForScannedPet(); // Initial poll
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [isPolling, pollForScannedPet]);
+
+  const setPetData = useCallback(
+    (
+      pet: Pet,
+      token: string,
+      records: MedicalRecord[] = [],
+      vaccinations: Vaccination[] = [],
+      prescriptions: Prescription[] = [],
+      healthStats: HealthStatsAggregated | null = null,
+      diseases: DiseaseTracking[] = []
+    ) => {
+      setState({
+        pet,
+        token,
+        records,
+        vaccinations,
+        prescriptions,
+        healthStats,
+        diseases,
+        activeBooking: null,
+        bookingConfirmed: false,
+      });
+    },
+    []
+  );
+
+  const setBooking = useCallback((booking: Booking | null, confirmed = false) => {
+    setState((prev) => ({
+      ...prev,
+      activeBooking: booking,
+      bookingConfirmed: confirmed,
+    }));
+  }, []);
+
+  const updateRecords = useCallback((records: MedicalRecord[]) => {
+    setState((prev) => ({ ...prev, records }));
+  }, []);
+
+  const updateVaccinations = useCallback((vaccinations: Vaccination[]) => {
+    setState((prev) => ({ ...prev, vaccinations }));
+  }, []);
+
+  const updatePrescriptions = useCallback((prescriptions: Prescription[]) => {
+    setState((prev) => ({ ...prev, prescriptions }));
+  }, []);
+
+  const updateHealthStats = useCallback((healthStats: HealthStatsAggregated | null) => {
+    setState((prev) => ({ ...prev, healthStats }));
+  }, []);
+
+  const updateDiseases = useCallback((diseases: DiseaseTracking[]) => {
+    setState((prev) => ({ ...prev, diseases }));
+  }, []);
+
+  const addRecord = useCallback((record: MedicalRecord) => {
+    setState((prev) => ({ ...prev, records: [record, ...prev.records] }));
+  }, []);
+
+  const addPrescription = useCallback((prescription: Prescription) => {
+    setState((prev) => ({ ...prev, prescriptions: [prescription, ...prev.prescriptions] }));
+  }, []);
+
+  const addDisease = useCallback((disease: DiseaseTracking) => {
+    setState((prev) => ({ ...prev, diseases: [disease, ...prev.diseases] }));
+  }, []);
+
+  const editPrescription = useCallback((id: string, updated: Prescription) => {
+    setState((prev) => ({
+      ...prev,
+      prescriptions: prev.prescriptions.map((p) => (p.id === id ? updated : p)),
+    }));
+  }, []);
+
+  const editDisease = useCallback((id: string, updated: DiseaseTracking) => {
+    setState((prev) => ({
+      ...prev,
+      diseases: prev.diseases.map((d) => (d.id === id ? updated : d)),
+    }));
+  }, []);
+
+  const removeRecord = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, records: prev.records.filter((r) => r.id !== id) }));
+  }, []);
+
+  const removePrescription = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, prescriptions: prev.prescriptions.filter((p) => p.id !== id) }));
+  }, []);
+
+  const removeDisease = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, diseases: prev.diseases.filter((d) => d.id !== id) }));
+  }, []);
+
+  const clearPet = useCallback(() => {
+    setState(initialState);
+    setIsPolling(false);
+  }, []);
+
+  const startPolling = useCallback(() => {
+    setIsPolling(true);
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    setIsPolling(false);
+  }, []);
+
+  return (
+    <ScannedPetContext.Provider
+      value={{
+        ...state,
+        setPetData,
+        setBooking,
+        updateRecords,
+        updateVaccinations,
+        updatePrescriptions,
+        updateHealthStats,
+        updateDiseases,
+        addRecord,
+        addPrescription,
+        addDisease,
+        editPrescription,
+        editDisease,
+        removeRecord,
+        removePrescription,
+        removeDisease,
+        clearPet,
+        isPolling,
+        startPolling,
+        stopPolling,
+      }}
+    >
+      {children}
+    </ScannedPetContext.Provider>
+  );
+}
+
+export function useScannedPet() {
+  const context = useContext(ScannedPetContext);
+  if (!context) {
+    throw new Error('useScannedPet must be used within a ScannedPetProvider');
+  }
+  return context;
+}

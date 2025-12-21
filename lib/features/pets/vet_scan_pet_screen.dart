@@ -125,6 +125,16 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
             // Auto-confirmer le booking immédiatement
             await _confirmBooking();
+
+            // ✅ Re-sync with website AFTER booking confirmation
+            // so the website knows the booking is confirmed
+            try {
+              await api.setScannedPet(token);
+              debugPrint('✅ Pet re-synced with website after confirmation');
+            } catch (e) {
+              debugPrint('⚠️ Could not re-sync pet: $e');
+            }
+
             return; // Sortir de la fonction après confirmation
           } else {
             debugPrint('⚠️ Aucun booking actif trouvé (ni vet ni daycare)');
@@ -235,12 +245,12 @@ class _VetScanPetScreenState extends ConsumerState<VetScanPetScreen> {
 
       if (!mounted) return;
 
-      // ✅ Pour les bookings vétérinaires, naviguer vers le carnet médical vet
+      // ✅ Pour les bookings vétérinaires, naviguer vers le hub de santé
       if (_bookingType == 'vet' && _petData != null && _scannedToken != null) {
         final petId = _petData!['id']?.toString() ?? '';
         if (petId.isNotEmpty) {
-          // Naviguer vers le carnet médical (pour vétérinaires)
-          context.go('/vet/pet/$petId/medical?token=$_scannedToken&confirmed=true');
+          // Naviguer vers le hub de santé avec paramètres vet
+          context.go('/pets/$petId/health-stats?token=$_scannedToken&confirmed=true&vet=true');
           return;
         }
       }

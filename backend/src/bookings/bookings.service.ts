@@ -5,12 +5,16 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { BookingStatus, Prisma, NotificationType } from '@prisma/client';
+import { BookingStatus, Prisma, NotificationType, TrustStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-const COMMISSION_DA = Number(process.env.APP_COMMISSION_DA ?? 100);
+// Fallback si la commission du provider n'est pas trouvée
+const DEFAULT_COMMISSION_DA = Number(process.env.APP_COMMISSION_DA ?? 100);
+
+// Durées de restriction progressives (en jours)
+const RESTRICTION_DURATIONS = [3, 7, 14, 30]; // 1er no-show: 3j, 2ème: 7j, 3ème: 14j, 4ème+: 30j
 
 @Injectable()
 export class BookingsService {
@@ -19,6 +23,18 @@ export class BookingsService {
     private availability: AvailabilityService,
     private notificationsService: NotificationsService,
   ) {}
+
+  /**
+   * Récupère la commission personnalisée du provider (vétérinaire)
+   * Retourne la valeur par défaut si non trouvée
+   */
+  private async getProviderVetCommission(providerId: string): Promise<number> {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { vetCommissionDa: true },
+    });
+    return provider?.vetCommissionDa ?? DEFAULT_COMMISSION_DA;
+  }
 
   /** --------- Client: mes réservations --------- */
   async listMine(userId: string) {
@@ -41,6 +57,7 @@ export class BookingsService {
       orderBy: { scheduledAt: 'desc' },
       select: {
         id: true,
+        referenceCode: true, // ✅ Code de référence (ex: VGC-A2B3C4)
         status: true,
         scheduledAt: true,
         providerId: true, // ✅ important pour activer "Modifier"
@@ -85,6 +102,7 @@ export class BookingsService {
 
       return {
         id: b.id,
+        referenceCode: b.referenceCode, // ✅ Code de référence (ex: VGC-A2B3C4)
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
         providerId: b.providerId, // ✅ top-level direct
@@ -127,6 +145,15 @@ export class BookingsService {
       throw new ForbiddenException('Completed booking cannot be modified');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si annulation tardive pour NEW user
+    if (status === 'CANCELLED') {
+      const cancelCheck = await this.checkUserCanCancel(userId, id);
+      if (cancelCheck.isNoShow) {
+        // Annulation < 12h avant le RDV → appliquer pénalité no-show
+        await this.applyNoShowPenalty(userId);
+      }
+    }
+
     const updated = await this.prisma.booking.update({
       where: { id },
       data: {
@@ -137,7 +164,7 @@ export class BookingsService {
       },
     });
 
-    // Si on annule => supprimer l’earning éventuel
+    // Si on annule => supprimer l'earning éventuel
     if (status === 'CANCELLED') {
       await this.prisma.providerEarning.deleteMany({ where: { bookingId: id } });
     }
@@ -171,6 +198,12 @@ export class BookingsService {
       throw new ForbiddenException('Cancelled booking cannot be rescheduled');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si NEW user peut modifier (limite 1 modif)
+    const rescheduleCheck = await this.checkUserCanReschedule(userId, id);
+    if (!rescheduleCheck.canReschedule) {
+      throw new ForbiddenException(rescheduleCheck.reason || 'Modification non autorisée');
+    }
+
     // Vérifie côté serveur que le slot est libre pour ce provider & durée
     const duration = b.service.durationMin;
     const isFree = await this.availability.isSlotFree(
@@ -182,7 +215,7 @@ export class BookingsService {
       throw new BadRequestException('Slot not available');
     }
 
-    // Conserve le statut actuel (pas de “reset” en PENDING)
+    // Conserve le statut actuel (pas de "reset" en PENDING)
     const updated = await this.prisma.booking.update({
       where: { id },
       data: { scheduledAt: when },
@@ -198,6 +231,18 @@ export class BookingsService {
         },
       },
     });
+
+    // ✅ TRUST SYSTEM: Tracker la modification pour NEW users
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true },
+    });
+    if (user?.trustStatus === 'NEW') {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { lastModifiedBooking: id },
+      });
+    }
 
     return {
       id: updated.id,
@@ -241,22 +286,46 @@ export class BookingsService {
         id: true,
         status: true,
         scheduledAt: true,
+        petIds: true, // ✅ IDs des animaux du booking
         service: { select: { id: true, title: true, price: true } },
         user: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            phone: true, // ⚠️ pas d’email
+            phone: true, // ⚠️ pas d'email
+            trustStatus: true, // ✅ TRUST SYSTEM
             pets: {
               orderBy: { updatedAt: 'desc' },
               take: 1,
-              select: { idNumber: true, breed: true, name: true },
+              select: { id: true, idNumber: true, breed: true, name: true, species: true, photoUrl: true }, // ✅ Include id and photoUrl for fallback
             },
           },
         },
       },
     });
+
+    // ✅ Récupérer les infos des pets pour tous les bookings
+    const allPetIds = [...new Set(rows.flatMap(r => r.petIds || []))];
+    const pets = allPetIds.length > 0
+      ? await this.prisma.pet.findMany({
+          where: { id: { in: allPetIds } },
+          select: { id: true, name: true, species: true, breed: true, photoUrl: true },
+        })
+      : [];
+    const petsMap = new Map(pets.map(p => [p.id, p]));
+
+    // ✅ TRUST SYSTEM: Récupérer le nombre de RDV complétés par user pour détecter les "premiers RDV"
+    const userIds = [...new Set(rows.map(r => r.user.id))];
+    const completedCounts = await Promise.all(
+      userIds.map(async (uid) => ({
+        userId: uid,
+        count: await this.prisma.booking.count({
+          where: { userId: uid, status: 'COMPLETED' },
+        }),
+      }))
+    );
+    const completedMap = new Map(completedCounts.map(c => [c.userId, c.count]));
 
     return rows.map((b) => {
       const price =
@@ -266,16 +335,38 @@ export class BookingsService {
       const displayName =
         [b.user.firstName, b.user.lastName].filter(Boolean).join(' ').trim() ||
         'Client';
-      const pet = b.user.pets?.[0];
-      const petType = (pet?.idNumber || pet?.breed || '').trim();
+      const userPet = b.user.pets?.[0];
+      const petType = (userPet?.idNumber || userPet?.breed || '').trim();
+
+      // ✅ Récupérer le premier animal du booking (avec son ID pour les patients récents)
+      const bookingPet = (b.petIds || []).map(id => petsMap.get(id)).find(Boolean);
+
+      // ✅ TRUST SYSTEM: Déterminer si c'est le premier RDV du client
+      const isFirstBooking = b.user.trustStatus === 'NEW' && (completedMap.get(b.user.id) ?? 0) === 0;
+
+      // ✅ Fallback: use user's pet if booking doesn't have petIds
+      const fallbackPet = userPet?.id
+        ? { id: userPet.id, name: userPet.name, species: userPet.species, breed: userPet.breed, photoUrl: userPet.photoUrl }
+        : null;
 
       return {
         id: b.id,
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
+        petIds: b.petIds || [], // ✅ Liste des IDs des animaux
         service: { id: b.service.id, title: b.service.title, price },
-        user: { id: b.user.id, displayName, phone: b.user.phone ?? null },
-        pet: { label: petType || null, name: pet?.name ?? null },
+        user: {
+          id: b.user.id,
+          displayName,
+          phone: b.user.phone ?? null,
+          isFirstBooking, // ✅ Pour afficher "Nouveau client" côté PRO
+          trustStatus: b.user.trustStatus, // ✅ Statut de confiance
+        },
+        // ✅ Pet avec ID et photoUrl pour permettre le chargement du dossier médical
+        // Fallback to user's pet if booking doesn't have petIds linked
+        pet: bookingPet
+          ? { id: bookingPet.id, name: bookingPet.name, species: bookingPet.species, breed: bookingPet.breed, photoUrl: bookingPet.photoUrl }
+          : fallbackPet || { label: petType || null, name: userPet?.name ?? null },
       };
     });
   }
@@ -347,7 +438,7 @@ export class BookingsService {
 
     if (status === 'COMPLETED') {
       const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-      const commission = COMMISSION_DA;
+      const commission = await this.getProviderVetCommission(prov.id);
       const net = Math.max(gross - commission, 0);
 
       await this.prisma.providerEarning.upsert({
@@ -423,7 +514,7 @@ export class BookingsService {
       confirmed,
       completed,
       cancelled,
-      dueDa: completed * COMMISSION_DA,
+      dueDa: completed * DEFAULT_COMMISSION_DA, // TODO: calculer depuis les vraies commissions
       collectedDa: Number(collected._sum.commissionDa ?? 0),
     };
   }
@@ -524,7 +615,7 @@ export class BookingsService {
       const completed = r?.completed ?? 0;
       const cancelled = r?.cancelled ?? 0;
 
-      const dueDa = completed * COMMISSION_DA;
+      const dueDa = completed * DEFAULT_COMMISSION_DA; // TODO: calculer depuis les vraies commissions
       const collectedDa = mapPaid.get(key) ?? 0; // cash (par paidAt)
       const collectedDaScheduled = mapSched.get(key) ?? 0; // accrual (payé mais rattaché au mois d’origine)
 
@@ -669,7 +760,7 @@ export class BookingsService {
       where: { status: 'COMPLETED', scheduledAt: { gte: from, lt: to } },
     });
 
-    const totalDueMonthDa = completed * COMMISSION_DA;
+    const totalDueMonthDa = completed * DEFAULT_COMMISSION_DA; // TODO: calculer depuis les vraies commissions
 
     const collectedAgg = await this.prisma.providerEarning.aggregate({
       _sum: { commissionDa: true },
@@ -901,7 +992,7 @@ export class BookingsService {
 
     // ✅ Créer la commission
     const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-    const commission = COMMISSION_DA;
+    const commission = await this.getProviderVetCommission(prov.id);
     const net = Math.max(gross - commission, 0);
 
     await this.prisma.providerEarning.upsert({
@@ -916,6 +1007,9 @@ export class BookingsService {
         netToProviderDa: net,
       },
     });
+
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(b.userId);
 
     // 🏥 NOUVEAU: Créer automatiquement un acte médical pour chaque animal
     const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
@@ -1028,6 +1122,7 @@ export class BookingsService {
 
   /**
    * PRO valide ou refuse la confirmation client
+   * Intègre le système de confiance anti-troll
    */
   async proValidateClientConfirmation(
     userId: string,
@@ -1057,7 +1152,7 @@ export class BookingsService {
 
       // ✅ Créer la commission
       const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-      const commission = COMMISSION_DA;
+      const commission = await this.getProviderVetCommission(prov.id);
       const net = Math.max(gross - commission, 0);
 
       await this.prisma.providerEarning.upsert({
@@ -1078,8 +1173,11 @@ export class BookingsService {
         where: { bookingId: b.id },
         data: { isPending: false },
       });
+
+      // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+      await this.verifyUserIfNeeded(b.userId);
     } else {
-      // ❌ PRO REFUSE = CLIENT MENT
+      // ❌ PRO REFUSE = CLIENT MENT (NO-SHOW)
       await this.prisma.booking.update({
         where: { id: bookingId },
         data: {
@@ -1097,6 +1195,9 @@ export class BookingsService {
           note: 'Pro claims client did not attend (DISPUTED)',
         },
       });
+
+      // ❌ TRUST SYSTEM: Appliquer la pénalité no-show
+      await this.applyNoShowPenalty(b.userId);
     }
 
     return { success: true };
@@ -1156,168 +1257,6 @@ export class BookingsService {
             : (b.service.price as Prisma.Decimal).toNumber(),
       },
     }));
-  }
-
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /**
-   * Génère un code OTP 6 chiffres pour un booking
-   * Le client peut demander ce code pour le montrer au pro
-   */
-  async generateBookingOtp(userId: string, bookingId: string) {
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, userId },
-      include: { provider: true },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier que le RDV n'est pas déjà terminé/annulé
-    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
-      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
-    }
-
-    // Générer un code 6 chiffres
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        confirmationOtp: otp,
-        confirmationOtpExpiresAt: expiresAt,
-        confirmationOtpAttempts: 0,
-      },
-    });
-
-    return {
-      otp,
-      expiresAt: expiresAt.toISOString(),
-      expiresInSeconds: 600,
-    };
-  }
-
-  /**
-   * Récupère l'OTP actif pour un booking (côté client)
-   * Si l'OTP est expiré, en génère un nouveau
-   */
-  async getBookingOtp(userId: string, bookingId: string) {
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, userId },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier si un OTP valide existe
-    if (
-      booking.confirmationOtp &&
-      booking.confirmationOtpExpiresAt &&
-      booking.confirmationOtpExpiresAt > new Date()
-    ) {
-      const remainingMs = booking.confirmationOtpExpiresAt.getTime() - Date.now();
-      return {
-        otp: booking.confirmationOtp,
-        expiresAt: booking.confirmationOtpExpiresAt.toISOString(),
-        expiresInSeconds: Math.floor(remainingMs / 1000),
-      };
-    }
-
-    // Sinon, générer un nouveau
-    return this.generateBookingOtp(userId, bookingId);
-  }
-
-  /**
-   * Le PRO vérifie l'OTP donné par le client
-   * Si valide → confirme le booking et crée la commission
-   */
-  async verifyBookingOtpByPro(proUserId: string, bookingId: string, otp: string) {
-    const prov = await this.prisma.providerProfile.findUnique({
-      where: { userId: proUserId },
-    });
-    if (!prov) throw new ForbiddenException('No provider profile');
-
-    const booking = await this.prisma.booking.findFirst({
-      where: { id: bookingId, providerId: prov.id },
-      include: { service: true, user: true },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-
-    // Vérifier le statut
-    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
-      throw new BadRequestException('Ce rendez-vous ne peut plus être confirmé');
-    }
-
-    // Vérifier le nombre de tentatives
-    if (booking.confirmationOtpAttempts >= 5) {
-      throw new BadRequestException('Trop de tentatives. Demandez au client de régénérer le code.');
-    }
-
-    // Vérifier l'expiration
-    if (!booking.confirmationOtp || !booking.confirmationOtpExpiresAt) {
-      throw new BadRequestException('Aucun code OTP actif. Le client doit en générer un.');
-    }
-    if (booking.confirmationOtpExpiresAt < new Date()) {
-      throw new BadRequestException('Code OTP expiré. Le client doit en régénérer un.');
-    }
-
-    // Vérifier le code
-    if (booking.confirmationOtp !== otp) {
-      await this.prisma.booking.update({
-        where: { id: bookingId },
-        data: { confirmationOtpAttempts: { increment: 1 } },
-      });
-      throw new BadRequestException('Code OTP invalide');
-    }
-
-    // ✅ OTP valide → Confirmer le booking
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: 'COMPLETED',
-        proConfirmedAt: new Date(),
-        clientConfirmedAt: new Date(), // Les deux confirment via OTP
-        confirmationMethod: 'OTP',
-        confirmationOtp: null, // Nettoyer l'OTP
-        confirmationOtpExpiresAt: null,
-      },
-    });
-
-    // Créer la commission
-    const gross = Number((booking.service.price as any)?.toNumber?.() ?? 0);
-    const commission = COMMISSION_DA;
-    const net = Math.max(gross - commission, 0);
-
-    await this.prisma.providerEarning.upsert({
-      where: { bookingId: booking.id },
-      update: {},
-      create: {
-        providerId: prov.id,
-        bookingId: booking.id,
-        serviceId: booking.serviceId,
-        grossPriceDa: gross,
-        commissionDa: commission,
-        netToProviderDa: net,
-      },
-    });
-
-    // Créer l'acte médical pour chaque animal
-    const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
-    for (const petId of petIds) {
-      await this.prisma.medicalRecord.create({
-        data: {
-          petId,
-          type: 'VET_VISIT',
-          title: `Visite vétérinaire - ${booking.service.title}`,
-          description: `Rendez-vous confirmé par OTP`,
-          date: booking.scheduledAt,
-          vetId: prov.id,
-          vetName: prov.displayName,
-          providerType: 'VET',
-          bookingId: booking.id,
-          durationMinutes: booking.service.durationMin || 30,
-        },
-      });
-    }
-
-    return { success: true, message: 'Rendez-vous confirmé avec succès' };
   }
 
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
@@ -1455,7 +1394,7 @@ export class BookingsService {
   async clientConfirmWithMethod(
     userId: string,
     bookingId: string,
-    method: 'SIMPLE' | 'OTP' | 'QR_SCAN',
+    method: 'SIMPLE' | 'QR_SCAN',
     rating?: number,
     comment?: string,
   ) {
@@ -1696,5 +1635,459 @@ export class BookingsService {
     };
 
     return { global, providers: stats };
+  }
+
+  // ==================== SYSTÈME DE CONFIANCE (ANTI-TROLL) ====================
+
+  /**
+   * Calcule la durée de restriction en jours selon le nombre de no-shows
+   */
+  private getRestrictionDays(noShowCount: number): number {
+    const index = Math.min(noShowCount - 1, RESTRICTION_DURATIONS.length - 1);
+    return RESTRICTION_DURATIONS[Math.max(0, index)];
+  }
+
+  /**
+   * Applique une pénalité no-show à un utilisateur
+   * Incrémente le compteur et définit la date de fin de restriction
+   */
+  private async applyNoShowPenalty(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { noShowCount: true },
+    });
+    if (!user) return;
+
+    const newNoShowCount = user.noShowCount + 1;
+    const restrictionDays = this.getRestrictionDays(newNoShowCount);
+    const restrictedUntil = new Date();
+    restrictedUntil.setDate(restrictedUntil.getDate() + restrictionDays);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        noShowCount: newNoShowCount,
+        trustStatus: 'RESTRICTED',
+        restrictedUntil,
+      },
+    });
+  }
+
+  /**
+   * Vérifie et passe un utilisateur NEW en VERIFIED après son premier RDV complété
+   */
+  private async verifyUserIfNeeded(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true, verifiedAt: true },
+    });
+    if (!user) return;
+
+    // Si l'utilisateur est NEW, le passer en VERIFIED
+    if (user.trustStatus === 'NEW') {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          trustStatus: 'VERIFIED',
+          verifiedAt: new Date(),
+          noShowCount: 0, // Reset si jamais
+        },
+      });
+    }
+  }
+
+  /**
+   * Vérifie si un utilisateur peut créer un booking
+   * Retourne { canBook: boolean, reason?: string, isFirstBooking?: boolean }
+   */
+  async checkUserCanBook(userId: string): Promise<{
+    canBook: boolean;
+    reason?: string;
+    isFirstBooking?: boolean;
+    trustStatus?: TrustStatus;
+    restrictedUntil?: Date | null;
+    suspendedUntil?: Date | null;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        trustStatus: true,
+        restrictedUntil: true,
+        noShowCount: true,
+        isBanned: true,
+        suspendedUntil: true,
+      },
+    });
+
+    if (!user) {
+      return { canBook: false, reason: 'Utilisateur non trouvé' };
+    }
+
+    // Vérifier si l'utilisateur est banni (sanction admin permanente)
+    if (user.isBanned) {
+      return {
+        canBook: false,
+        reason: 'Votre compte a été banni. Veuillez contacter le support.',
+        trustStatus: user.trustStatus,
+      };
+    }
+
+    // Vérifier si l'utilisateur est suspendu (sanction admin temporaire)
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      const remainingDays = Math.ceil(
+        (user.suspendedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      return {
+        canBook: false,
+        reason: `Votre compte est suspendu pour encore ${remainingDays} jour(s).`,
+        trustStatus: user.trustStatus,
+        suspendedUntil: user.suspendedUntil,
+      };
+    }
+
+    // Lever automatiquement la suspension expirée
+    if (user.suspendedUntil && user.suspendedUntil <= new Date()) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { suspendedUntil: null },
+      });
+    }
+
+    // Vérifier si la restriction est expirée (trust system automatique)
+    if (user.trustStatus === 'RESTRICTED') {
+      if (user.restrictedUntil && user.restrictedUntil <= new Date()) {
+        // Restriction expirée → remettre en NEW pour un nouveau test
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            trustStatus: 'NEW',
+            restrictedUntil: null,
+          },
+        });
+        // Continuer avec le statut NEW
+      } else {
+        // Toujours restreint
+        const remainingDays = user.restrictedUntil
+          ? Math.ceil((user.restrictedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : 0;
+        return {
+          canBook: false,
+          reason: `Votre compte est restreint pour encore ${remainingDays} jour(s) suite à des annulations tardives ou absences répétées.`,
+          trustStatus: user.trustStatus,
+          restrictedUntil: user.restrictedUntil,
+        };
+      }
+    }
+
+    // Vérifier si NEW user a déjà un RDV VETO actif ET FUTUR
+    // Note: Les systèmes vet/daycare/petshop sont indépendants - un RDV garderie ne bloque PAS le véto
+    // Note: Les RDV passés (date < aujourd'hui) ne bloquent pas - ce sont des "fantômes" à nettoyer
+    const now = new Date();
+
+    if (user.trustStatus === 'NEW') {
+      // Vérifier uniquement les bookings véto actifs ET futurs (pas les garderies, pas les RDV passés!)
+      const activeVetBooking = await this.prisma.booking.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+          scheduledAt: { gte: now }, // Seulement les RDV futurs
+        },
+      });
+
+      if (activeVetBooking) {
+        return {
+          canBook: false,
+          reason: 'En tant que nouveau client, vous devez d\'abord honorer votre rendez-vous vétérinaire en cours.',
+          trustStatus: user.trustStatus,
+          isFirstBooking: false,
+        };
+      }
+
+      return {
+        canBook: true,
+        trustStatus: user.trustStatus,
+        isFirstBooking: true,
+      };
+    }
+
+    // VERIFIED → vérifier qu'il n'a pas déjà un RDV véto actif ET FUTUR
+    const activeVetBooking = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'CONFIRMED', 'AWAITING_CONFIRMATION', 'PENDING_PRO_VALIDATION'] },
+        scheduledAt: { gte: now }, // Seulement les RDV futurs
+      },
+      select: { id: true, scheduledAt: true, provider: { select: { displayName: true } } },
+    });
+
+    if (activeVetBooking) {
+      const dateStr = activeVetBooking.scheduledAt
+        ? activeVetBooking.scheduledAt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+        : 'bientôt';
+      const providerName = activeVetBooking.provider?.displayName || 'un vétérinaire';
+      return {
+        canBook: false,
+        reason: `Vous avez déjà un rendez-vous prévu ${dateStr} chez ${providerName}. Veuillez l'annuler avant d'en prendre un nouveau.`,
+        trustStatus: user.trustStatus,
+        isFirstBooking: false,
+      };
+    }
+
+    return {
+      canBook: true,
+      trustStatus: user.trustStatus,
+      isFirstBooking: false,
+    };
+  }
+
+  /**
+   * Vérifie si un utilisateur NEW peut annuler son RDV (> 12h avant)
+   */
+  async checkUserCanCancel(userId: string, bookingId: string): Promise<{
+    canCancel: boolean;
+    reason?: string;
+    isNoShow?: boolean;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true },
+    });
+    if (!user) return { canCancel: false, reason: 'Utilisateur non trouvé' };
+
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, userId },
+    });
+    if (!booking) return { canCancel: false, reason: 'RDV non trouvé' };
+
+    // VERIFIED users peuvent toujours annuler (mais avec conséquences si < 12h)
+    if (user.trustStatus === 'VERIFIED') {
+      return { canCancel: true, isNoShow: false };
+    }
+
+    // NEW users: vérifier si > 12h avant le RDV
+    const hoursUntilBooking = (booking.scheduledAt.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilBooking < 12) {
+      // Peut annuler mais sera compté comme no-show
+      return {
+        canCancel: true,
+        isNoShow: true,
+        reason: 'Annuler moins de 12h avant le rendez-vous sera compté comme une absence.',
+      };
+    }
+
+    return { canCancel: true, isNoShow: false };
+  }
+
+  /**
+   * Vérifie si un utilisateur NEW peut modifier son RDV (limite: 1 modif)
+   */
+  async checkUserCanReschedule(userId: string, bookingId: string): Promise<{
+    canReschedule: boolean;
+    reason?: string;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true, lastModifiedBooking: true },
+    });
+    if (!user) return { canReschedule: false, reason: 'Utilisateur non trouvé' };
+
+    // VERIFIED users peuvent toujours modifier
+    if (user.trustStatus === 'VERIFIED') {
+      return { canReschedule: true };
+    }
+
+    // NEW users: une seule modification autorisée
+    if (user.lastModifiedBooking === bookingId) {
+      return {
+        canReschedule: false,
+        reason: 'En tant que nouveau client, vous ne pouvez modifier ce rendez-vous qu\'une seule fois.',
+      };
+    }
+
+    return { canReschedule: true };
+  }
+
+  /**
+   * Récupère les infos de confiance d'un utilisateur (pour affichage PRO)
+   */
+  async getUserTrustInfo(userId: string): Promise<{
+    trustStatus: TrustStatus;
+    isFirstBooking: boolean;
+    noShowCount: number;
+    totalCompletedBookings: number;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustStatus: true, noShowCount: true, verifiedAt: true },
+    });
+
+    const completedBookings = await this.prisma.booking.count({
+      where: { userId, status: 'COMPLETED' },
+    });
+
+    return {
+      trustStatus: user?.trustStatus ?? 'NEW',
+      isFirstBooking: user?.trustStatus === 'NEW' && completedBookings === 0,
+      noShowCount: user?.noShowCount ?? 0,
+      totalCompletedBookings: completedBookings,
+    };
+  }
+
+  // ==================== CONFIRMATION PAR CODE DE RÉFÉRENCE ====================
+
+  /**
+   * PRO confirme un booking par son code de référence (VGC-XXXXXX)
+   * Utilisé pour les vétérinaires sans caméra QR
+   * Retourne le booking confirmé + infos du pet pour afficher le carnet de santé
+   */
+  async confirmByReferenceCode(proUserId: string, referenceCode: string) {
+    const prov = await this.prisma.providerProfile.findUnique({
+      where: { userId: proUserId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+    if (!prov) throw new ForbiddenException('No provider profile');
+
+    // Chercher le booking par code de référence
+    const booking = await this.prisma.booking.findUnique({
+      where: { referenceCode },
+      include: {
+        service: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Aucun rendez-vous trouvé avec ce code');
+    }
+
+    // Vérifier que le booking appartient bien à ce provider
+    if (booking.providerId !== prov.id) {
+      throw new ForbiddenException('Ce rendez-vous ne vous appartient pas');
+    }
+
+    // Vérifier que le booking n'est pas déjà terminé
+    if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(booking.status)) {
+      throw new BadRequestException('Ce rendez-vous est déjà terminé ou annulé');
+    }
+
+    // Vérifier que le booking est prévu aujourd'hui (tolérance: ±12h)
+    const now = new Date();
+    const scheduledTime = new Date(booking.scheduledAt);
+    const hoursDiff = Math.abs(now.getTime() - scheduledTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDiff > 12) {
+      throw new BadRequestException(
+        'Ce rendez-vous ne peut être confirmé que le jour même (±12h)'
+      );
+    }
+
+    // ✅ Confirmer le booking avec méthode REFERENCE_CODE
+    await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        proConfirmedAt: new Date(),
+        status: 'COMPLETED',
+        confirmationMethod: 'REFERENCE_CODE',
+      },
+    });
+
+    // ✅ Créer la commission
+    const gross = Number((booking.service.price as Prisma.Decimal).toNumber());
+    const commission = await this.getProviderVetCommission(prov.id);
+    const net = Math.max(gross - commission, 0);
+
+    await this.prisma.providerEarning.upsert({
+      where: { bookingId: booking.id },
+      update: {},
+      create: {
+        providerId: prov.id,
+        bookingId: booking.id,
+        serviceId: booking.serviceId,
+        grossPriceDa: gross,
+        commissionDa: commission,
+        netToProviderDa: net,
+      },
+    });
+
+    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+    await this.verifyUserIfNeeded(booking.userId);
+
+    // 🏥 Créer l'acte médical pour chaque animal
+    const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
+    const petIds = Array.isArray(booking.petIds) ? booking.petIds : [];
+
+    for (const petId of petIds) {
+      await this.prisma.medicalRecord.create({
+        data: {
+          petId: petId,
+          type: 'VET_VISIT',
+          title: `Visite vétérinaire - ${booking.service.title}`,
+          description: `Rendez-vous confirmé par code de référence`,
+          date: booking.scheduledAt,
+          vetId: prov.id,
+          vetName: providerName,
+          providerType: 'VET',
+          bookingId: booking.id,
+          durationMinutes: booking.service.durationMin || 30,
+        },
+      });
+    }
+
+    // ✅ Récupérer les infos des animaux pour le carnet de santé
+    const pets = petIds.length > 0
+      ? await this.prisma.pet.findMany({
+          where: { id: { in: petIds } },
+          include: {
+            medicalRecords: { orderBy: { date: 'desc' }, take: 10 },
+            vaccinations: { orderBy: { date: 'desc' } },
+          },
+        })
+      : [];
+
+    // Générer un token d'accès pour le premier pet (pour le carnet de santé)
+    let accessToken: string | null = null;
+    if (pets.length > 0) {
+      const tokenRecord = await this.prisma.petAccessToken.create({
+        data: {
+          petId: pets[0].id,
+          token: require('crypto').randomBytes(32).toString('hex'),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+        },
+      });
+      accessToken = tokenRecord.token;
+    }
+
+    return {
+      success: true,
+      message: 'Rendez-vous confirmé avec succès',
+      booking: {
+        id: booking.id,
+        referenceCode: booking.referenceCode,
+        status: 'COMPLETED',
+        scheduledAt: booking.scheduledAt.toISOString(),
+        service: {
+          id: booking.service.id,
+          title: booking.service.title,
+        },
+        user: {
+          displayName: [booking.user.firstName, booking.user.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || 'Client',
+          phone: booking.user.phone,
+        },
+      },
+      pet: pets[0] || null,
+      pets,
+      accessToken, // Token pour accéder au carnet de santé
+    };
   }
 }

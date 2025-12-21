@@ -12,8 +12,11 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI });
 
-  // sécurité & validation
-  app.use(helmet());
+  // sécurité avec helmet - autoriser les images cross-origin pour /uploads
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images to be loaded cross-origin
+    crossOriginEmbedderPolicy: false, // Disable COEP to allow cross-origin images
+  }));
   app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
 

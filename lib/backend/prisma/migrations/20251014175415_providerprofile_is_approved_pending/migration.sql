@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "ProviderProfile" ADD COLUMN     "appliedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "isApproved" BOOLEAN NOT NULL DEFAULT false;

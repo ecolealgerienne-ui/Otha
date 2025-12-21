@@ -24,7 +24,6 @@ import '../features/home/home_screen.dart';
 
 // Bookings & provider (hérités)
 import '../features/providers/provider_details_screen.dart';
-import '../features/bookings/booking_flow_screen.dart';
 import '../features/bookings/booking_details_screen.dart';
 import '../features/bookings/booking_thanks_screen.dart';
 import '../features/bookings/booking_proximity_confirmation_screen.dart';
@@ -38,6 +37,10 @@ import '../features/adopt/adopt_chats_screen.dart';
 import '../features/adopt/adopt_create_screen.dart';
 import '../features/adopt/adopt_conversation_screen.dart';
 
+// Support
+import '../features/support/support_tickets_screen.dart';
+import '../features/support/support_conversation_screen.dart';
+
 // Pro
 import '../features/pro/pro_shell.dart';
 import '../features/pro/pro_home_screen.dart';
@@ -46,7 +49,6 @@ import '../features/pro/pro_provider_agenda_screen.dart';
 import '../features/pro/pro_availability_screen.dart';
 import '../features/pro/pro_appointments_screen.dart';
 import '../features/pro/pro_pending_validations_screen.dart';
-import '../features/pro/pro_verify_otp_screen.dart';
 import '../features/daycare/daycare_pending_validations_screen.dart';
 import '../features/petshop/pro_petshop_home_screen.dart';
 import '../features/petshop/petshop_products_screen.dart';
@@ -105,7 +107,6 @@ import '../features/pets/pet_medical_history_screen.dart';
 import '../features/pets/add_medical_record_screen.dart';
 import '../features/pets/pet_qr_code_screen.dart';
 import '../features/pets/vet_scan_pet_screen.dart';
-import '../features/pets/vet_pet_medical_screen.dart';
 import '../features/pets/pet_health_hub_screen.dart';
 import '../features/pets/pet_health_stats_screen.dart';
 import '../features/pets/pet_prescriptions_screen.dart';
@@ -361,6 +362,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/medical',
         builder: (ctx, st) => PetMedicalHistoryScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -373,24 +375,30 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/health-stats',
         builder: (ctx, st) => PetHealthHubScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
+          isVetAccess: st.uri.queryParameters['vet'] == 'true',
+          bookingConfirmed: st.uri.queryParameters['confirmed'] == 'true',
         ),
       ),
       GoRoute(
         path: '/pets/:id/health-stats-detail',
         builder: (ctx, st) => PetHealthStatsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/prescriptions',
         builder: (ctx, st) => PetPrescriptionsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/treatments/new',
         builder: (ctx, st) => PetTreatmentFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -398,18 +406,21 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => PetTreatmentFormScreen(
           petId: st.pathParameters['id']!,
           treatmentId: st.pathParameters['treatmentId'],
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/diseases',
         builder: (ctx, st) => PetDiseasesScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/diseases/new',
         builder: (ctx, st) => PetDiseaseFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -430,12 +441,14 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/pets/:id/vaccinations',
         builder: (ctx, st) => PetVaccinationsScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
         path: '/pets/:id/vaccinations/new',
         builder: (ctx, st) => PetVaccinationFormScreen(
           petId: st.pathParameters['id']!,
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -443,6 +456,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => PetVaccinationFormScreen(
           petId: st.pathParameters['id']!,
           vaccinationId: st.pathParameters['vaccinationId'],
+          token: st.uri.queryParameters['token'],
         ),
       ),
       GoRoute(
@@ -471,19 +485,8 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           );
         },
       ),
-      // Vet: voir le carnet médical d'un patient après scan QR
-      GoRoute(
-        path: '/vet/pet/:petId/medical',
-        builder: (ctx, st) {
-          final token = st.uri.queryParameters['token'] ?? '';
-          final confirmed = st.uri.queryParameters['confirmed'] == 'true';
-          return VetPetMedicalScreen(
-            petId: st.pathParameters['petId']!,
-            token: token,
-            bookingConfirmed: confirmed,
-          );
-        },
-      ),
+      // Note: L'ancienne route /vet/pet/:petId/medical est remplacée par
+      // /pets/:id/health-stats?token=...&vet=true&confirmed=true
 
       // -------- Hérités (provider & booking) --------
       GoRoute(
@@ -493,10 +496,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       ),
       GoRoute(
         path: '/book/:providerId/:serviceId',
-        builder: (ctx, st) => BookingFlowScreen(
-          providerId: st.pathParameters['providerId']!,
-          serviceId: st.pathParameters['serviceId']!,
-        ),
+        redirect: (ctx, st) => '/explore/vets/${st.pathParameters['providerId']}',
       ),
 
       // -------- Map --------
@@ -602,6 +602,7 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) {
           final data = st.extra as Map<String, dynamic>? ?? {};
           return DaycareBookingConfirmationScreen(
+            booking: data['booking'] as Map<String, dynamic>?,
             bookingId: data['bookingId'] as String?,
             totalDa: data['totalDa'] as int? ?? 0,
             petName: data['petName'] as String?,
@@ -719,6 +720,18 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         ),
       ),
 
+      // -------- Support --------
+      GoRoute(
+        path: '/support',
+        builder: (ctx, st) => const SupportTicketsScreen(),
+      ),
+      GoRoute(
+        path: '/support/:ticketId',
+        builder: (ctx, st) => SupportConversationScreen(
+          ticketId: st.pathParameters['ticketId']!,
+        ),
+      ),
+
       // -------- PRO (protégé + shell) --------
       ShellRoute(
         builder: (context, state, child) => RequireRole(
@@ -750,17 +763,6 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
           GoRoute(
             path: '/pro/pending-validations',
             builder: (_, __) => const ProPendingValidationsScreen(),
-          ),
-          GoRoute(
-            path: '/pro/verify-otp/:bookingId',
-            builder: (_, state) {
-              final bookingId = state.pathParameters['bookingId'] ?? '';
-              final bookingData = (state.extra as Map<String, dynamic>?) ?? <String, dynamic>{};
-              return ProVerifyOtpScreen(
-                bookingId: bookingId,
-                bookingData: bookingData,
-              );
-            },
           ),
           // ✅ Settings passe sous le shell (protégé, back stack propre)
           GoRoute(

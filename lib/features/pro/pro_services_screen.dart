@@ -3,9 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 
-// Commission fixe (DA) ajoutée au prix saisi par le pro (affiché côté client)
-const int kCommissionDa = 100;
-
 int? _asInt(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.toInt();
@@ -24,7 +21,8 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
   bool _loading = true;
   String? _error;
   final List<Map<String, dynamic>> _items = [];
-  bool _didFirstLoad = false; // pour relancer au retour d’onglet
+  bool _didFirstLoad = false; // pour relancer au retour d'onglet
+  int _commissionDa = 100; // Commission par défaut, sera remplacée par la valeur du provider
 
   // UI extras
   final _search = TextEditingController();
@@ -65,7 +63,15 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
     try {
       final api = ref.read(apiProvider);
       await api.ensureAuth();
-      await api.myProvider(); // warm-up providerId
+      final provider = await api.myProvider();
+
+      // Récupérer la commission du provider
+      if (provider != null) {
+        final vetCommission = _asInt(provider['vetCommissionDa']);
+        if (vetCommission != null && vetCommission > 0) {
+          _commissionDa = vetCommission;
+        }
+      }
 
       final list = await api.myServices();
       _items
@@ -128,7 +134,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
           final created = await showModalBottomSheet<Map<String, dynamic>>(
             context: context,
             isScrollControlled: true,
-            builder: (_) => const _EditServiceSheet(),
+            builder: (_) => _EditServiceSheet(commissionDa: _commissionDa),
           );
           if (created != null) _upsertLocal(created);
         },
@@ -193,11 +199,13 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                                 (s['title'] ?? 'Service').toString().trim();
                             final durationMin =
                                 _asInt(s['durationMin'] ?? s['duration']);
-                            final priceServer =
+                            // Le prix stocké EST le prix de base (ce que le pro reçoit)
+                            final basePrice =
                                 _asInt(s['price'] ?? s['priceCents']);
-                            int? basePrice =
-                                priceServer != null ? priceServer - kCommissionDa : null;
-                            if (basePrice != null && basePrice < 0) basePrice = 0;
+                            // Calculer le total pour le client
+                            final totalPrice = basePrice != null
+                                ? basePrice + _commissionDa
+                                : null;
 
                             final desc =
                                 (s['description'] ?? '').toString().trim();
@@ -209,16 +217,16 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                               title: title,
                               description: desc.replaceAll('[A_DOMICILE]', '').trim(),
                               durationMin: durationMin,
-                              basePriceDa: basePrice,
-                              totalPriceDa: priceServer,
-                              commissionDa: kCommissionDa,
+                              basePrice: basePrice,
+                              commissionDa: _commissionDa,
+                              totalPrice: totalPrice,
                               isHome: isHome,
                               onTap: () async {
                                 final updated = await showModalBottomSheet<
                                     Map<String, dynamic>>(
                                   context: context,
                                   isScrollControlled: true,
-                                  builder: (_) => _EditServiceSheet(existing: s),
+                                  builder: (_) => _EditServiceSheet(existing: s, commissionDa: _commissionDa),
                                 );
                                 if (updated != null) _upsertLocal(updated);
                               },
@@ -228,7 +236,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                                       await showModalBottomSheet<Map<String, dynamic>>(
                                     context: context,
                                     isScrollControlled: true,
-                                    builder: (_) => _EditServiceSheet(existing: s),
+                                    builder: (_) => _EditServiceSheet(existing: s, commissionDa: _commissionDa),
                                   );
                                   if (updated != null) _upsertLocal(updated);
                                 } else if (v == 'delete') {
@@ -236,7 +244,7 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                                     context: context,
                                     builder: (dialogCtx) => AlertDialog(
                                       title: const Text('Supprimer le service ?'),
-                                      content: Text('“$title” sera définitivement supprimé.'),
+                                      content: Text('"$title" sera définitivement supprimé.'),
                                       actions: [
                                         TextButton(
                                           onPressed: () => Navigator.of(dialogCtx).pop(false),
@@ -422,9 +430,9 @@ class _ServiceCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.durationMin,
-    required this.basePriceDa,
-    required this.totalPriceDa,
+    required this.basePrice,
     required this.commissionDa,
+    required this.totalPrice,
     required this.isHome,
     required this.onTap,
     required this.onMenuSelected,
@@ -433,9 +441,9 @@ class _ServiceCard extends StatelessWidget {
   final String title;
   final String description;
   final int? durationMin;
-  final int? basePriceDa;   // hors commission (pro)
-  final int? totalPriceDa;  // total payé par le client
+  final int? basePrice;
   final int commissionDa;
+  final int? totalPrice;
   final bool isHome;
   final VoidCallback onTap;
   final ValueChanged<String> onMenuSelected;
@@ -447,8 +455,6 @@ class _ServiceCard extends StatelessWidget {
         _chip(icon: Icons.schedule, label: '${durationMin} min'),
       if (isHome)
         _chip(icon: Icons.home_outlined, label: 'À domicile'),
-      if (basePriceDa != null && totalPriceDa != null)
-        _chip(icon: Icons.payments_outlined, label: '${basePriceDa} + $commissionDa = $totalPriceDa DA'),
     ];
 
     return TweenAnimationBuilder<double>(
@@ -500,6 +506,41 @@ class _ServiceCard extends StatelessWidget {
                           style: const TextStyle(color: Colors.black87, height: 1.2),
                         ),
                       ],
+                      // Affichage du prix avec décomposition: base + commission = total
+                      if (totalPrice != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F7FF),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF2E7DFF).withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.payments_outlined, size: 16, color: Color(0xFF2E7DFF)),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${basePrice ?? 0} + $commissionDa = $totalPrice DA',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2E7DFF),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Votre prix + Commission = Total client',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -529,12 +570,13 @@ class _ServiceCard extends StatelessWidget {
 }
 
 /// =====================
-/// Bottom sheet d’édition (inchangé côté logique)
+/// Bottom sheet d'édition
 /// =====================
 
 class _EditServiceSheet extends ConsumerStatefulWidget {
-  const _EditServiceSheet({this.existing});
+  const _EditServiceSheet({this.existing, required this.commissionDa});
   final Map<String, dynamic>? existing;
+  final int commissionDa;
 
   @override
   ConsumerState<_EditServiceSheet> createState() => _EditServiceSheetState();
@@ -543,7 +585,7 @@ class _EditServiceSheet extends ConsumerStatefulWidget {
 class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
   final _title = TextEditingController();
   final _duration = TextEditingController();
-  final _price = TextEditingController(); // prix saisi HORS commission
+  final _price = TextEditingController();
   final _desc = TextEditingController();
   bool _atHome = false; // UI-only
   bool _saving = false;
@@ -567,10 +609,10 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
       final d = _asInt(e['durationMin'] ?? e['duration']);
       if (d != null) _duration.text = d.toString();
 
-      final pServer = _asInt(e['price'] ?? e['priceCents']); // total (incl. commission)
+      final pServer = _asInt(e['price'] ?? e['priceCents']);
       if (pServer != null) {
-        final base = pServer - kCommissionDa;
-        _price.text = (base > 0 ? base : 0).toString();
+        // Le prix stocké EST le prix de base (ce que le pro reçoit)
+        _price.text = pServer.toString();
       }
 
       _atHome = isHome;
@@ -627,16 +669,54 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
               ),
               const SizedBox(height: 12),
 
-              // Prix obligatoire (hors commission)
               TextField(
                 controller: _price,
-                decoration: InputDecoration(
-                  labelText: 'Tarif (DA, hors commission) *',
+                decoration: const InputDecoration(
+                  labelText: 'Votre prix (DA) *',
                   hintText: 'ex: 2000',
-                  helperText: '+$kCommissionDa DA de commission seront ajoutés automatiquement',
+                  helperText: 'Le montant que vous recevrez',
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              const SizedBox(height: 12),
+
+              // Commission info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F4FD),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF2E7DFF).withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 20, color: Color(0xFF2E7DFF)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Commission Vegece: ${widget.commissionDa} DA',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2E7DFF),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Le client paiera: Votre prix + ${widget.commissionDa} DA',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -666,11 +746,11 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                       : () async {
                           final titleRaw = _title.text.trim();
                           final dur = int.tryParse(_duration.text.trim());
-                          final basePrice = int.tryParse(_price.text.trim());
+                          final price = int.tryParse(_price.text.trim());
 
-                          if (titleRaw.isEmpty || dur == null || basePrice == null) {
+                          if (titleRaw.isEmpty || dur == null || price == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Titre, durée et tarif sont obligatoires')),
+                              const SnackBar(content: Text('Titre, durée et prix sont obligatoires')),
                             );
                             return;
                           }
@@ -680,14 +760,12 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                             );
                             return;
                           }
-                          if (basePrice < 0) {
+                          if (price < 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Le tarif doit être positif')),
+                              const SnackBar(content: Text('Le prix doit être positif')),
                             );
                             return;
                           }
-
-                          final priceToSend = basePrice + kCommissionDa;
 
                           final titleForApi = _atHome && !titleRaw.toLowerCase().contains('domicile')
                               ? '$titleRaw (à domicile)'
@@ -698,6 +776,9 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                               ? (descRaw.isEmpty ? '[A_DOMICILE]' : '$descRaw [A_DOMICILE]')
                               : (descRaw.isEmpty ? null : descRaw);
 
+                          // Stocker le prix de base directement (pas le total)
+                          // Le total sera calculé à l'affichage: base + commission
+
                           setState(() => _saving = true);
                           try {
                             Map<String, dynamic> saved;
@@ -707,14 +788,14 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                                     id,
                                     title: titleForApi,
                                     durationMin: dur,
-                                    price: priceToSend,
+                                    price: price, // Prix de base stocké directement
                                     description: descForApi,
                                   );
                             } else {
                               saved = await ref.read(apiProvider).createMyService(
                                     title: titleForApi,
                                     durationMin: dur,
-                                    price: priceToSend,
+                                    price: price, // Prix de base stocké directement
                                     description: descForApi,
                                   );
                             }

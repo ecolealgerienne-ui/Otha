@@ -1,10 +1,12 @@
 // lib/features/pro/pro_settings_screen.dart
+import 'dart:io';
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 
 
 import '../../core/api.dart';
@@ -28,7 +30,10 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
-  final _photoUrl = TextEditingController();
+  String? _photoUrl;
+  File? _avatarFile;
+  final _picker = ImagePicker();
+  bool _uploadingPhoto = false;
 
   // provider
   final _address = TextEditingController();
@@ -67,7 +72,6 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
     _lastName.dispose();
     _email.dispose();
     _phone.dispose();
-    _photoUrl.dispose();
     _address.dispose();
     _bio.dispose();
     super.dispose();
@@ -100,7 +104,8 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
     _lastName.text  = (me['lastName']  ?? '').toString();
     _email.text     = (me['email']     ?? '').toString();
     _phone.text     = (me['phone']     ?? '').toString();
-    _photoUrl.text  = (me['photoUrl']  ?? me['avatar'] ?? '').toString();
+    _photoUrl       = (me['photoUrl']  ?? me['avatar'] ?? '').toString();
+    if (_photoUrl?.isEmpty == true) _photoUrl = null;
 
     // PROVIDER
     try {
@@ -160,6 +165,55 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
     return _errBio == null;
   }
 
+  /// Upload photo de profil via ImagePicker
+  Future<void> _pickAndUploadPhoto() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        imageQuality: 90,
+      );
+      if (image == null) return;
+
+      final file = File(image.path);
+      setState(() {
+        _avatarFile = file;
+        _uploadingPhoto = true;
+      });
+
+      final api = ref.read(apiProvider);
+      final url = await api.uploadLocalFile(file, folder: 'avatar');
+
+      // Mettre à jour le user ET le provider avec la même photo
+      await api.updateMe(photoUrl: url);
+
+      // Aussi mettre à jour le provider avec avatarUrl
+      final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
+      final displayName = fullName.isEmpty ? _email.text.split('@').first : fullName;
+      await api.upsertMyProvider(
+        displayName: displayName,
+        avatarUrl: url,
+      );
+
+      await ref.read(sessionProvider.notifier).refreshMe();
+
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = url;
+        _uploadingPhoto = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo mise à jour')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadingPhoto = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur upload: $e')),
+      );
+    }
+  }
+
   Future<void> _save() async {
     if (!_validate()) return;
 
@@ -170,10 +224,6 @@ class _ProSettingsScreenState extends ConsumerState<ProSettingsScreen> {
     await api.ensureAuth();
 
     try {
-      await api.updateMe(
-        photoUrl: _photoUrl.text.trim().isEmpty ? null : _photoUrl.text.trim(),
-      );
-
       final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
       final displayName = fullName.isEmpty ? _email.text.split('@').first : fullName;
 
@@ -371,6 +421,14 @@ Future<void> _toggleVisibility(bool v) async {
     final display = fullName.isEmpty ? 'Docteur' : fullName;
     final initial = display.isNotEmpty ? display[0].toUpperCase() : 'D';
 
+    // Détermine l'image à afficher
+    ImageProvider? avatarImage;
+    if (_avatarFile != null) {
+      avatarImage = FileImage(_avatarFile!);
+    } else if (_photoUrl != null && _photoUrl!.startsWith('http')) {
+      avatarImage = NetworkImage(_photoUrl!);
+    }
+
     return _card(
       child: Row(
         children: [
@@ -379,42 +437,30 @@ Future<void> _toggleVisibility(bool v) async {
             children: [
               CircleAvatar(
                 radius: 34,
-                backgroundImage: _photoUrl.text.trim().isEmpty ? null : NetworkImage(_photoUrl.text.trim()),
-                child: _photoUrl.text.trim().isEmpty
-                    ? Text(initial, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))
-                    : null,
+                backgroundColor: const Color(0xFFFFEEF0),
+                backgroundImage: avatarImage,
+                child: _uploadingPhoto
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _salmon),
+                      )
+                    : avatarImage == null
+                        ? Text(initial, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _salmon))
+                        : null,
               ),
               Positioned(
                 right: -4,
                 bottom: -4,
                 child: Material(
-                  color: _ink,
+                  color: _salmon,
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
-                    onTap: () async {
-                      final ctrl = TextEditingController(text: _photoUrl.text.trim());
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Modifier la photo'),
-                          content: TextField(
-                            controller: ctrl,
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'URL de la photo (temporaire)',
-                            ),
-                          ),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Valider')),
-                          ],
-                        ),
-                      );
-                      if (ok == true) setState(() => _photoUrl.text = ctrl.text.trim());
-                    },
+                    onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+                    borderRadius: BorderRadius.circular(16),
                     child: const Padding(
                       padding: EdgeInsets.all(6),
-                      child: Icon(Icons.edit, size: 14, color: Colors.white),
+                      child: Icon(Icons.camera_alt, size: 14, color: Colors.white),
                     ),
                   ),
                 ),

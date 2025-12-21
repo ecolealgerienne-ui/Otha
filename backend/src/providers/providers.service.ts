@@ -8,6 +8,10 @@ import { Prisma, $Enums } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MapsService } from '../maps/maps.service';
 
+// In-memory cache for scanned pet sync between Flutter app and website
+// Key: providerId, Value: { token, petData, scannedAt }
+const scannedPetCache = new Map<string, { token: string; petData: any; scannedAt: Date }>();
+
 @Injectable()
 export class ProvidersService {
   constructor(
@@ -144,13 +148,38 @@ export class ProvidersService {
         lng: true,
         specialties: true,
         bio: true,
+        avatarUrl: true,
+        // Commission fields
+        vetCommissionDa: true,
+        daycareHourlyCommissionDa: true,
+        daycareDailyCommissionDa: true,
+        // Inclure les services actifs
+        services: {
+          where: { archivedAt: null },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            price: true,
+            durationMin: true,
+          },
+          take: 5,
+        },
+        // Inclure les disponibilités hebdomadaires (relation: weekly)
+        weekly: {
+          select: {
+            weekday: true,
+            startMin: true,
+            endMin: true,
+          },
+          orderBy: [{ weekday: 'asc' }, { startMin: 'asc' }],
+        },
       },
     });
 
-    const includeAllKinds = status === 'all';
-    const allowed = includeAllKinds
-      ? new Set(['vet', 'daycare', 'petshop'])
-      : new Set(['vet']);
+    // Toujours inclure tous les types (vet, daycare, petshop) - le filtrage par type
+    // doit être fait côté client, pas basé sur le status d'approbation
+    const allowed = new Set(['vet', 'daycare', 'petshop']);
 
     const filtered = rows.filter((p) => {
       const sp: any = p.specialties ?? {};
@@ -187,6 +216,22 @@ export class ProvidersService {
             ? +this.haversineKm(lat, lng, plat as number, plng as number).toFixed(2)
             : undefined;
 
+        // Transformer les services (convertir Decimal en number)
+        const services = ((p as any).services ?? []).map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          price: s.price ? Number(s.price) : null,
+          durationMin: s.durationMin,
+        }));
+
+        // Transformer les disponibilités (minutes -> HH:mm)
+        const availability = ((p as any).weekly ?? []).map((a: any) => ({
+          dayOfWeek: a.weekday,
+          startTime: `${String(Math.floor(a.startMin / 60)).padStart(2, '0')}:${String(a.startMin % 60).padStart(2, '0')}`,
+          endTime: `${String(Math.floor(a.endMin / 60)).padStart(2, '0')}:${String(a.endMin % 60).padStart(2, '0')}`,
+        }));
+
         return {
           id: p.id,
           displayName: p.displayName,
@@ -195,6 +240,13 @@ export class ProvidersService {
           lng: hasCoords ? (plng as number) : null,
           specialties: p.specialties,
           bio: p.bio,
+          avatarUrl: p.avatarUrl,
+          services,
+          availability,
+          // Commission fields
+          vetCommissionDa: (p as any).vetCommissionDa,
+          daycareHourlyCommissionDa: (p as any).daycareHourlyCommissionDa,
+          daycareDailyCommissionDa: (p as any).daycareDailyCommissionDa,
           ...(distance_km !== undefined ? { distance_km } : {}),
         };
       })
@@ -261,7 +313,7 @@ export class ProvidersService {
   }
 
 async upsertMyProvider(userId: string, dto: any) {
-  const { displayName, bio, address, specialties, timezone } = dto ?? {};
+  const { displayName, bio, address, specialties, timezone, avnCardFront, avnCardBack, avatarUrl } = dto ?? {};
   if (!displayName || String(displayName).trim().length === 0) {
     throw new ForbiddenException('displayName is required');
   }
@@ -346,8 +398,17 @@ async upsertMyProvider(userId: string, dto: any) {
         finalUrl = this.maps.ensureAtCenter(finalUrl, lat!, lng!);
       }
     }
-    normalized = { kind: 'vet', mapsUrl: this.maps.sanitizeMapsUrl(finalUrl) };
+    // Préserver les specialties existantes et juste mettre à jour mapsUrl
+    const existingSpec = (existing?.specialties as any) ?? {};
+    normalized = {
+      ...existingSpec,
+      kind: existingSpec.kind || 'vet',
+      mapsUrl: this.maps.sanitizeMapsUrl(finalUrl)
+    };
   }
+
+  // Si aucune modification de specialties n'est demandée mais qu'on met à jour avatarUrl,
+  // on ne touche PAS aux specialties existantes (normalized reste undefined)
 
   if (existing) {
     const data: Prisma.ProviderProfileUpdateInput = {
@@ -359,6 +420,9 @@ async upsertMyProvider(userId: string, dto: any) {
     if (this.isFiniteNonZero(lat)) data.lat = lat!;
     if (this.isFiniteNonZero(lng)) data.lng = lng!;
     if (normalized) data.specialties = normalized as Prisma.InputJsonValue;
+    if (avnCardFront) data.avnCardFront = avnCardFront;
+    if (avnCardBack) data.avnCardBack = avnCardBack;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
 
     return this.prisma.providerProfile.update({ where: { userId }, data });
   }
@@ -373,8 +437,21 @@ async upsertMyProvider(userId: string, dto: any) {
   if (this.isFiniteNonZero(lat)) createData.lat = lat!;
   if (this.isFiniteNonZero(lng)) createData.lng = lng!;
   if (normalized) createData.specialties = normalized as Prisma.InputJsonValue;
+  if (avnCardFront) createData.avnCardFront = avnCardFront;
+  if (avnCardBack) createData.avnCardBack = avnCardBack;
+  if (avatarUrl !== undefined) createData.avatarUrl = avatarUrl;
 
-  return this.prisma.providerProfile.create({ data: createData });
+  // Créer le provider profile
+  const profile = await this.prisma.providerProfile.create({ data: createData });
+
+  // IMPORTANT: Définir le role basé sur le kind (vet, daycare, petshop, etc.)
+  const kind = (normalized as any)?.kind || 'vet';
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { role: kind },
+  });
+
+  return profile;
 }
 
 
@@ -511,6 +588,8 @@ async upsertMyProvider(userId: string, dto: any) {
         rejectedAt: true,
         rejectionReason: true,
         specialties: true,
+        avnCardFront: true,
+        avnCardBack: true,
         user: {
           select: {
             id: true,
@@ -570,6 +649,39 @@ async upsertMyProvider(userId: string, dto: any) {
     });
 
     return { success: true, provider: updated };
+  }
+
+  /** Admin: met à jour un provider (displayName, address, lat, lng, mapsUrl) */
+  async adminUpdateProvider(providerId: string, dto: any) {
+    const exists = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { id: true, specialties: true },
+    });
+    if (!exists) throw new NotFoundException('Provider not found');
+
+    const currentSpecialties = (exists.specialties as Record<string, any>) ?? {};
+
+    const data: any = {};
+    if (dto.displayName !== undefined) data.displayName = dto.displayName;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+
+    // Gérer mapsUrl dans specialties
+    if (dto.mapsUrl !== undefined || dto.specialties?.mapsUrl !== undefined) {
+      const mapsUrl = dto.mapsUrl ?? dto.specialties?.mapsUrl;
+      data.specialties = {
+        ...currentSpecialties,
+        mapsUrl: mapsUrl,
+      };
+    }
+
+    const updated = await this.prisma.providerProfile.update({
+      where: { id: providerId },
+      data,
+    });
+
+    return updated;
   }
 
   /** Backfill admin : étend maps.app.goo.gl → parse coords → met à jour lat/lng + mapsUrl */
@@ -650,5 +762,101 @@ async upsertMyProvider(userId: string, dto: any) {
       },
       select: { id: true, isApproved: true, appliedAt: true, rejectedAt: true, rejectionReason: true },
     });
+  }
+
+  /* ======================= Scanned Pet Sync ======================= */
+
+  /**
+   * Store a scanned pet token for this provider (called from Flutter app)
+   * The website will poll this to get the pet data
+   */
+  async setScannedPet(userId: string, token: string): Promise<{ success: boolean; pet?: any }> {
+    console.log('🔵 setScannedPet called:', { userId, tokenLength: token?.length });
+
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    console.log('🔵 Provider found:', provider?.id || 'NOT FOUND');
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    // Get pet data from token (simplified query - some tables/columns may not exist in prod)
+    const accessToken = await this.prisma.petAccessToken.findUnique({
+      where: { token },
+      include: {
+        pet: {
+          include: {
+            medicalRecords: { orderBy: { date: 'desc' } },
+            weightRecords: { orderBy: { date: 'desc' }, take: 10 },
+            vaccinations: { orderBy: { date: 'desc' } },
+            allergies: true,
+            prescriptions: { orderBy: { date: 'desc' } },
+            diseaseTrackings: {
+              orderBy: { diagnosisDate: 'desc' },
+              include: { progressEntries: { orderBy: { date: 'desc' }, take: 5 } }
+            },
+            treatments: { where: { isActive: true }, orderBy: { startDate: 'desc' } },
+            owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          },
+        },
+      },
+    });
+
+    if (!accessToken) throw new NotFoundException('Token not found');
+    if (accessToken.expiresAt < new Date()) {
+      throw new ForbiddenException('Token expired');
+    }
+
+    // Store in cache
+    console.log('🔵 Storing pet in cache for provider:', provider.id, '- Pet:', accessToken.pet?.name);
+    scannedPetCache.set(provider.id, {
+      token,
+      petData: accessToken.pet,
+      scannedAt: new Date(),
+    });
+    console.log('🔵 Cache now has', scannedPetCache.size, 'entries');
+
+    // Auto-clear after 30 minutes
+    setTimeout(() => {
+      const cached = scannedPetCache.get(provider.id);
+      if (cached?.token === token) {
+        scannedPetCache.delete(provider.id);
+      }
+    }, 30 * 60 * 1000);
+
+    return { success: true, pet: accessToken.pet };
+  }
+
+  /**
+   * Get the currently scanned pet for this provider (called from website polling)
+   */
+  async getScannedPet(userId: string): Promise<{ pet: any | null; scannedAt: Date | null; token: string | null }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const cached = scannedPetCache.get(provider.id);
+    console.log('🟢 getScannedPet for provider:', provider.id, '- Has cached pet:', !!cached, '- Cache size:', scannedPetCache.size);
+    if (!cached) {
+      return { pet: null, scannedAt: null, token: null };
+    }
+
+    return { pet: cached.petData, scannedAt: cached.scannedAt, token: cached.token };
+  }
+
+  /**
+   * Clear the scanned pet for this provider
+   */
+  async clearScannedPet(userId: string): Promise<{ success: boolean }> {
+    const provider = await this.prisma.providerProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    scannedPetCache.delete(provider.id);
+    return { success: true };
   }
 }

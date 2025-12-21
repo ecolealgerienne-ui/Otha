@@ -10,35 +10,16 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/location_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralLight = Color(0xFFFFEEF0);
 const _coralDark = Color(0xFFE85555);
 const _ink = Color(0xFF222222);
 
-// ---------------- Centre utilisateur (DEVICE -> PROFIL -> fallback) ----------------
-final _userCenterProvider = FutureProvider<LatLng>((ref) async {
-  try {
-    if (await Geolocator.isLocationServiceEnabled()) {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm != LocationPermission.denied && perm != LocationPermission.deniedForever) {
-        final last = await Geolocator.getLastKnownPosition()
-            .timeout(const Duration(milliseconds: 300), onTimeout: () => null);
-        if (last != null) return LatLng(last.latitude, last.longitude);
-        final cur = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-        ).timeout(const Duration(seconds: 2));
-        return LatLng(cur.latitude, cur.longitude);
-      }
-    }
-  } catch (_) {}
-  final me = ref.read(sessionProvider).user ?? {};
-  final pLat = (me['lat'] as num?)?.toDouble();
-  final pLng = (me['lng'] as num?)?.toDouble();
-  if (pLat != null && pLng != null && pLat != 0 && pLng != 0) return LatLng(pLat, pLng);
-  return const LatLng(36.75, 3.06);
-});
+// ---------------- Centre utilisateur (via provider centralisé) ----------------
+// Utilise le provider centralisé de location_provider.dart
+// Avec fallback sur le profil utilisateur si pas de GPS
 
 // ID du provider courant (pour surligner mon marqueur)
 final _myProviderIdProvider = FutureProvider<String?>((ref) async {
@@ -51,7 +32,7 @@ final _myProviderIdProvider = FutureProvider<String?>((ref) async {
 // ---------------- Tous les pros ----------------
 final allVetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
-  final center = await ref.watch(_userCenterProvider.future);
+  final center = ref.watch(currentLatLngProvider);
 
   final raw = await api.nearby(
     lat: center.latitude,
@@ -123,8 +104,8 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final c = await ref.read(_userCenterProvider.future);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final c = ref.read(currentLatLngProvider);
       if (!mounted) return;
       setState(() => _center = c);
       _mapCtl.move(c, 13);
@@ -329,14 +310,14 @@ class _NearbyVetsMapScreenState extends ConsumerState<NearbyVetsMapScreen>
                             icon: Icons.refresh,
                             onTap: () {
                               ref.invalidate(allVetsProvider);
-                              ref.invalidate(_userCenterProvider);
+                              ref.invalidate(locationStreamProvider);
                             },
                           ),
                           const SizedBox(width: 8),
                           _CircleButton(
                             icon: Icons.my_location,
-                            onTap: () async {
-                              final c = await ref.read(_userCenterProvider.future);
+                            onTap: () {
+                              final c = ref.read(currentLatLngProvider);
                               if (!mounted) return;
                               setState(() {
                                 _center = c;

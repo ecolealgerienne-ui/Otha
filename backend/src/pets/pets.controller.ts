@@ -2,6 +2,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { PetsService } from './pets.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('pets')
@@ -71,8 +73,20 @@ export class PetsController {
   // ============ ACCESS TOKENS (QR Code) ============
 
   @Post(':petId/access-token')
-  generateAccessToken(@Req() req: any, @Param('petId') petId: string) {
-    return this.pets.generateAccessToken(req.user.sub, petId);
+  generateAccessToken(@Req() req: any, @Param('petId') petId: string, @Body() body?: { expirationMinutes?: number }) {
+    const expirationMinutes = body?.expirationMinutes ?? 30;
+    return this.pets.generateAccessToken(req.user.sub, petId, expirationMinutes);
+  }
+
+  /**
+   * PRO: Generate access token for a pet from a confirmed booking
+   * Allows vets to access pet health records after confirmed appointments
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post(':petId/pro-access-token')
+  generateProAccessToken(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.generateProAccessToken(req.user.sub, petId);
   }
 
   // Endpoint public pour le vétérinaire - accès via token
@@ -92,6 +106,126 @@ export class PetsController {
     const vetId = req.user.sub;
     const vetName = dto.vetName || 'Vétérinaire';
     return this.pets.createMedicalRecordByToken(token, vetId, vetName, dto);
+  }
+
+  // Vet ajoute une ordonnance via token
+  @Post('by-token/:token/prescriptions')
+  createPrescriptionByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createPrescriptionByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un suivi de maladie via token
+  @Post('by-token/:token/diseases')
+  createDiseaseByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createDiseaseByToken(token, req.user.sub, dto);
+  }
+
+  // Vet liste les maladies via token
+  @Get('by-token/:token/diseases')
+  listDiseasesByToken(@Param('token') token: string) {
+    return this.pets.listDiseasesByToken(token);
+  }
+
+  // Vet récupère le détail d'une maladie via token
+  @Get('by-token/:token/diseases/:diseaseId')
+  getDiseaseByToken(
+    @Param('token') token: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.getDiseaseByToken(token, diseaseId);
+  }
+
+  // Vet ajoute une entrée de progression via token
+  @Post('by-token/:token/diseases/:diseaseId/progress')
+  addProgressEntryByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.addProgressEntryByToken(token, req.user.sub, diseaseId, dto);
+  }
+
+  // Vet ajoute une vaccination via token
+  @Post('by-token/:token/vaccinations')
+  createVaccinationByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createVaccinationByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un traitement via token
+  @Post('by-token/:token/treatments')
+  createTreatmentByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createTreatmentByToken(token, req.user.sub, dto);
+  }
+
+  // Vet ajoute un poids via token
+  @Post('by-token/:token/weight-records')
+  createWeightRecordByToken(
+    @Req() req: any,
+    @Param('token') token: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.createWeightRecordByToken(token, req.user.sub, dto);
+  }
+
+  // ============ MEDICAL RECORDS (DELETE by provider) ============
+
+  @Delete('medical-records/:recordId')
+  deleteMedicalRecordByProvider(@Req() req: any, @Param('recordId') recordId: string) {
+    return this.pets.deleteMedicalRecordByProvider(req.user.sub, recordId);
+  }
+
+  // ============ PRESCRIPTIONS ============
+
+  @Get(':petId/prescriptions')
+  listPrescriptions(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listPrescriptions(req.user.sub, petId);
+  }
+
+  @Patch('prescriptions/:prescriptionId')
+  updatePrescriptionByProvider(
+    @Req() req: any,
+    @Param('prescriptionId') prescriptionId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updatePrescriptionByProvider(req.user.sub, prescriptionId, dto);
+  }
+
+  @Delete('prescriptions/:prescriptionId')
+  deletePrescriptionByProvider(@Req() req: any, @Param('prescriptionId') prescriptionId: string) {
+    return this.pets.deletePrescriptionByProvider(req.user.sub, prescriptionId);
+  }
+
+  // ============ DISEASES (UPDATE/DELETE by provider) ============
+
+  @Patch('diseases/:diseaseId')
+  updateDiseaseByProvider(
+    @Req() req: any,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updateDiseaseByProvider(req.user.sub, diseaseId, dto);
+  }
+
+  @Delete('diseases/:diseaseId')
+  deleteDiseaseByProvider(@Req() req: any, @Param('diseaseId') diseaseId: string) {
+    return this.pets.deleteDiseaseByProvider(req.user.sub, diseaseId);
   }
 
   // ============ WEIGHT RECORDS ============
@@ -217,5 +351,72 @@ export class PetsController {
     @Param('careId') careId: string,
   ) {
     return this.pets.deletePreventiveCare(req.user.sub, petId, careId);
+  }
+
+  // ============ HEALTH STATISTICS ============
+
+  @Get(':petId/health-stats')
+  getHealthStats(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.getHealthStats(req.user.sub, petId);
+  }
+
+  // ============ DISEASE TRACKING ============
+
+  @Get(':petId/diseases')
+  listDiseases(@Req() req: any, @Param('petId') petId: string) {
+    return this.pets.listDiseaseTrackings(req.user.sub, petId);
+  }
+
+  @Get(':petId/diseases/:diseaseId')
+  getDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.getDiseaseTracking(req.user.sub, petId, diseaseId);
+  }
+
+  @Post(':petId/diseases')
+  createDisease(@Req() req: any, @Param('petId') petId: string, @Body() dto: any) {
+    return this.pets.createDiseaseTracking(req.user.sub, petId, dto);
+  }
+
+  @Patch(':petId/diseases/:diseaseId')
+  updateDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.updateDiseaseTracking(req.user.sub, petId, diseaseId, dto);
+  }
+
+  @Delete(':petId/diseases/:diseaseId')
+  deleteDisease(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+  ) {
+    return this.pets.deleteDiseaseTracking(req.user.sub, petId, diseaseId);
+  }
+
+  @Post(':petId/diseases/:diseaseId/progress')
+  addProgress(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Body() dto: any,
+  ) {
+    return this.pets.addProgressEntry(req.user.sub, petId, diseaseId, dto);
+  }
+
+  @Delete(':petId/diseases/:diseaseId/progress/:entryId')
+  deleteProgress(
+    @Req() req: any,
+    @Param('petId') petId: string,
+    @Param('diseaseId') diseaseId: string,
+    @Param('entryId') entryId: string,
+  ) {
+    return this.pets.deleteProgressEntry(req.user.sub, petId, diseaseId, entryId);
   }
 }

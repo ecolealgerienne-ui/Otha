@@ -381,45 +381,15 @@ class ApiClient {
         }
       }
     } on DioException catch (e) {
-      // Si presign échoue (404 ou autre), on tente le local
-      if (e.response?.statusCode != 404 && e.response?.statusCode != 500) {
-        rethrow;
-      }
+      // S3 presign a échoué - on remonte l'erreur au lieu de fallback silencieux
+      debugPrint('S3 presign FAILED: ${e.response?.statusCode} - ${e.message}');
+      rethrow;
     }
 
-    // Priorité 2: Upload local (fallback dev)
-    final candidates = <String>['/uploads/local', '/upload/local', '/uploads', '/upload'];
-
-    DioException? last;
-    for (final path in candidates) {
-      try {
-        final res = await _authRetry(() async {
-          final form = FormData.fromMap({
-            'file': await MultipartFile.fromFile(file.path, filename: filename),
-          });
-          return await _dio.post(path, data: form);
-        });
-        final m = _unwrap<Map<String, dynamic>>(res.data);
-        final url = (m['url'] ??
-                m['Location'] ??
-                m['location'] ??
-                m['publicUrl'] ??
-                m['public_url'] ??
-                '')
-            .toString();
-        if (url.isNotEmpty) return url;
-
-        final loc = res.headers['location']?.first;
-        if (loc != null && loc.isNotEmpty) return loc;
-      } on DioException catch (e) {
-        last = e;
-        if (e.response?.statusCode != 404) rethrow;
-      }
-    }
-
-    throw last ?? DioException(
-      requestOptions: RequestOptions(path: '/uploads'),
-      error: 'Aucun endpoint d\'upload disponible',
+    // Si on arrive ici, presign n'a pas retourné de publicUrl valide
+    throw DioException(
+      requestOptions: RequestOptions(path: '/uploads/presign'),
+      error: 'S3 presign n\'a pas retourné d\'URL publique',
     );
   }
 
@@ -993,14 +963,14 @@ Future<List<Map<String, dynamic>>> providerAgenda({
     String? notes,
   }) async {
     await ensureAuth();
-    final res = await _dio.post('/daycare/bookings', data: {
+    final res = await _authRetry(() async => await _dio.post('/daycare/bookings', data: {
       'petId': petId,
       'providerId': providerId,
       'startDate': startDate,
       'endDate': endDate,
       'priceDa': priceDa,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
-    });
+    }));
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
@@ -1438,9 +1408,11 @@ Future<List<Map<String, dynamic>>> providerAgenda({
 
   // --------------- Pet Access Token (QR Code) ---------------
 
-  Future<Map<String, dynamic>> generatePetAccessToken(String petId) async {
+  Future<Map<String, dynamic>> generatePetAccessToken(String petId, {int expirationMinutes = 30}) async {
     await ensureAuth();
-    final res = await _dio.post('/pets/$petId/access-token');
+    final res = await _dio.post('/pets/$petId/access-token', data: {
+      'expirationMinutes': expirationMinutes,
+    });
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
@@ -1477,6 +1449,134 @@ Future<List<Map<String, dynamic>>> providerAgenda({
       if (images != null) 'images': images,
     };
     final res = await _dio.post('/pets/by-token/$token/medical-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create vaccination via token (vet access)
+  Future<Map<String, dynamic>> createVaccinationByToken(
+    String token, {
+    required String name,
+    required String dateIso,
+    String? nextDueDateIso,
+    String? batchNumber,
+    String? vetName,
+    String? notes,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'date': dateIso,
+      if (nextDueDateIso != null) 'nextDueDate': nextDueDateIso,
+      if (batchNumber != null) 'batchNumber': batchNumber,
+      if (vetName != null) 'veterinarian': vetName,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _dio.post('/pets/by-token/$token/vaccinations', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create treatment via token (vet access)
+  Future<Map<String, dynamic>> createTreatmentByToken(
+    String token, {
+    required String name,
+    required String startDateIso,
+    String? dosage,
+    String? frequency,
+    String? endDateIso,
+    bool isActive = true,
+    String? notes,
+    List<String>? attachments,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      'startDate': startDateIso,
+      'isActive': isActive,
+      if (dosage != null) 'dosage': dosage,
+      if (frequency != null) 'frequency': frequency,
+      if (endDateIso != null) 'endDate': endDateIso,
+      if (notes != null) 'notes': notes,
+      if (attachments != null) 'attachments': attachments,
+    };
+    final res = await _dio.post('/pets/by-token/$token/treatments', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create weight record via token (vet access)
+  Future<Map<String, dynamic>> createWeightRecordByToken(
+    String token, {
+    required double weightKg,
+    required String dateIso,
+    String? context,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'weightKg': weightKg,
+      'date': dateIso,
+      if (context != null) 'context': context,
+    };
+    final res = await _dio.post('/pets/by-token/$token/weight-records', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Create disease via token (vet access)
+  Future<Map<String, dynamic>> createDiseaseByToken(
+    String token, {
+    required String name,
+    String? description,
+    String? status,
+    String? severity,
+    String? symptoms,
+    String? treatment,
+    String? notes,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'name': name,
+      if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (severity != null) 'severity': severity,
+      if (symptoms != null) 'symptoms': symptoms,
+      if (treatment != null) 'treatment': treatment,
+      if (notes != null) 'notes': notes,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/by-token/$token/diseases', data: body);
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// List diseases via token (vet access)
+  Future<List<dynamic>> listDiseasesByToken(String token) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/by-token/$token/diseases');
+    return _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  }
+
+  /// Get disease detail via token (vet access)
+  Future<Map<String, dynamic>> getDiseaseByToken(String token, String diseaseId) async {
+    await ensureAuth();
+    final res = await _dio.get('/pets/by-token/$token/diseases/$diseaseId');
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Add disease progress entry via token (vet access)
+  Future<Map<String, dynamic>> addDiseaseProgressByToken(
+    String token,
+    String diseaseId, {
+    required String notes,
+    String? severity,
+    String? treatmentUpdate,
+    List<String>? images,
+  }) async {
+    await ensureAuth();
+    final body = <String, dynamic>{
+      'notes': notes,
+      if (severity != null) 'severity': severity,
+      if (treatmentUpdate != null) 'treatmentUpdate': treatmentUpdate,
+      if (images != null) 'images': images,
+    };
+    final res = await _dio.post('/pets/by-token/$token/diseases/$diseaseId/progress', data: body);
     return _unwrap<Map<String, dynamic>>(res.data);
   }
 
@@ -2772,6 +2872,28 @@ Future<Map<String, dynamic>> adminUpdateUser(String userId, {
   return _unwrap<Map<String, dynamic>>(res.data);
 }
 
+// Admin: reset user trust status (fix accidental penalties)
+Future<Map<String, dynamic>> adminResetUserTrustStatus(String userId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/users/$userId/reset-trust'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
+// Admin: get disputed daycare bookings
+Future<List<Map<String, dynamic>>> adminGetDisputedDaycareBookings() async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.get('/daycare/admin/disputed-bookings'));
+  final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+}
+
+// Admin: cancel disputed daycare booking
+Future<Map<String, dynamic>> adminCancelDisputedDaycareBooking(String bookingId) async {
+  await ensureAuth();
+  final res = await _authRetry(() async => await _dio.post('/daycare/admin/cancel-disputed/$bookingId'));
+  return _unwrap<Map<String, dynamic>>(res.data);
+}
+
 // ========================== FIN ADMIN (Users) ==========================
 
 
@@ -3380,35 +3502,6 @@ final hay = [
     return list.length;
   }
 
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /// CLIENT: Récupérer le code OTP pour un booking (le génère si nécessaire)
-  Future<Map<String, dynamic>> getBookingOtp(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.get('/bookings/$bookingId/otp'));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
-  /// CLIENT: Générer un nouveau code OTP pour un booking
-  Future<Map<String, dynamic>> generateBookingOtp(String bookingId) async {
-    final res = await _authRetry(() async => await _dio.post('/bookings/$bookingId/otp/generate'));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
-  /// PRO: Vérifier le code OTP donné par le client
-  Future<Map<String, dynamic>> verifyBookingOtp({
-    required String bookingId,
-    required String otp,
-  }) async {
-    final res = await _authRetry(() async => await _dio.post(
-      '/bookings/$bookingId/otp/verify',
-      data: {'otp': otp},
-    ));
-    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
-    return Map<String, dynamic>.from(data as Map);
-  }
-
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
 
   /// CLIENT: Vérifier si proche du cabinet (pour afficher page confirmation)
@@ -3439,10 +3532,10 @@ final hay = [
     return Map<String, dynamic>.from(data as Map);
   }
 
-  /// CLIENT: Confirmer avec une méthode spécifique (SIMPLE, OTP, QR_SCAN)
+  /// CLIENT: Confirmer avec une méthode spécifique (SIMPLE, QR_SCAN)
   Future<Map<String, dynamic>> clientConfirmWithMethod({
     required String bookingId,
-    required String method, // 'SIMPLE' | 'OTP' | 'QR_SCAN'
+    required String method, // 'SIMPLE' | 'QR_SCAN'
     int? rating,
     String? comment,
   }) async {
@@ -3490,5 +3583,61 @@ final hay = [
     final res = await _authRetry(() async => await _dio.get('/bookings/user/$userId/trust-info'));
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return Map<String, dynamic>.from(data as Map);
+  }
+
+  // ==================== SUPPORT TICKETS ====================
+
+  /// Créer un nouveau ticket de support
+  Future<Map<String, dynamic>> createSupportTicket({
+    required String subject,
+    required String message,
+    String? category,
+    String? relatedSanctionId,
+  }) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/support/tickets',
+      data: {
+        'subject': subject,
+        'message': message,
+        if (category != null) 'category': category,
+        if (relatedSanctionId != null) 'relatedSanctionId': relatedSanctionId,
+      },
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Récupérer mes tickets de support
+  Future<List<Map<String, dynamic>>> getSupportTickets() async {
+    final res = await _authRetry(() async => await _dio.get('/support/tickets'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  /// Récupérer un ticket avec ses messages
+  Future<Map<String, dynamic>> getSupportTicketMessages(String ticketId) async {
+    final res = await _authRetry(() async => await _dio.get('/support/tickets/$ticketId'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Envoyer un message dans un ticket
+  Future<Map<String, dynamic>> sendSupportMessage(String ticketId, String content) async {
+    final res = await _authRetry(() async => await _dio.post(
+      '/support/tickets/$ticketId/messages',
+      data: {'content': content},
+    ));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Compter les tickets non lus
+  Future<int> getSupportUnreadCount() async {
+    final res = await _authRetry(() async => await _dio.get('/support/unread'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    return (data['count'] as int?) ?? 0;
   }
 }

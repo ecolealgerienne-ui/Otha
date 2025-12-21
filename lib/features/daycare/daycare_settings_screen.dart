@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 
 class DaycareSettingsScreen extends ConsumerStatefulWidget {
   const DaycareSettingsScreen({super.key});
@@ -20,8 +21,15 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
   // Palette cyan (daycare)
   static const Color _primary = Color(0xFF00ACC1);
   static const Color _primarySoft = Color(0xFFE0F7FA);
+  static const Color _primarySoftDark = Color(0xFF1A3A3D);
   static const Color _ink = Color(0xFF222222);
+  static const Color _inkDark = Color(0xFFFFFFFF);
   static const Color _muted = Color(0xFF6B6B6B);
+  static const Color _mutedDark = Color(0xFFB0B0B0);
+  static const Color _bgLight = Color(0xFFF7F8FA);
+  static const Color _bgDark = Color(0xFF121212);
+  static const Color _cardLight = Color(0xFFFFFFFF);
+  static const Color _cardDark = Color(0xFF1E1E1E);
 
   // user
   final _firstName = TextEditingController();
@@ -247,18 +255,19 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label copie')));
   }
 
-  void _showPreviewDialog() {
+  void _showPreviewDialog(bool isDark, AppLocalizations l10n) {
     final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
-    final display = fullName.isEmpty ? 'Ma Garderie' : fullName;
+    final display = fullName.isEmpty ? l10n.myDaycare : fullName;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _cardDark : null,
         title: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: _primarySoft,
+              backgroundColor: isDark ? _primarySoftDark : _primarySoft,
               backgroundImage:
                   _photoUrl.text.trim().isEmpty ? null : NetworkImage(_photoUrl.text.trim()),
               child: _photoUrl.text.trim().isEmpty
@@ -268,7 +277,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(display, style: const TextStyle(fontSize: 16)),
+              child: Text(display, style: TextStyle(fontSize: 16, color: isDark ? _inkDark : _ink)),
             ),
           ],
         ),
@@ -279,10 +288,10 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             if (_address.text.trim().isNotEmpty) ...[
               Row(
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: _muted),
+                  Icon(Icons.location_on, size: 16, color: isDark ? _mutedDark : _muted),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(_address.text.trim(), style: const TextStyle(fontSize: 13)),
+                    child: Text(_address.text.trim(), style: TextStyle(fontSize: 13, color: isDark ? _inkDark : _ink)),
                   ),
                 ],
               ),
@@ -291,11 +300,11 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             if (_bio.text.trim().isNotEmpty) ...[
               Text(
                 _bio.text.trim(),
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 13),
               ),
               const SizedBox(height: 8),
             ],
-            const Divider(),
+            Divider(color: isDark ? Colors.white12 : null),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -303,7 +312,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
                     size: 16, color: _visible ? Colors.green : Colors.orange),
                 const SizedBox(width: 8),
                 Text(
-                  _visible ? 'Visible par les clients' : 'Non visible',
+                  _visible ? l10n.visibleToClients : l10n.notVisible,
                   style: TextStyle(
                     color: _visible ? Colors.green : Colors.orange,
                     fontWeight: FontWeight.w600,
@@ -314,15 +323,15 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Reservations: $_bookingCount',
-              style: const TextStyle(fontSize: 12, color: _muted),
+              '${l10n.allBookings}: $_bookingCount',
+              style: TextStyle(fontSize: 12, color: isDark ? _mutedDark : _muted),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fermer'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -331,6 +340,10 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {
@@ -343,8 +356,9 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
         }
       },
       child: Theme(
-        data: _themed(context),
+        data: _themed(context, isDark),
         child: Scaffold(
+          backgroundColor: isDark ? _bgDark : _bgLight,
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -357,7 +371,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
                 }
               },
             ),
-            title: const Text('Parametres garderie'),
+            title: Text(l10n.daycareSettings),
             actions: [
               IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
             ],
@@ -365,19 +379,23 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              _headerCard(),
+              _headerCard(isDark, l10n),
               const SizedBox(height: 12),
-              _statsRow(),
+              _statsRow(isDark, l10n),
               const SizedBox(height: 12),
-              _businessCard(),
+              _businessCard(isDark, l10n),
               const SizedBox(height: 12),
-              _bioCard(),
+              _bioCard(isDark, l10n),
+              const SizedBox(height: 12),
+              _languageCard(isDark, l10n),
+              const SizedBox(height: 12),
+              _themeCard(isDark, l10n),
               const SizedBox(height: 20),
               SizedBox(
                 height: 48,
                 child: FilledButton(
                   onPressed: _loading ? null : _save,
-                  child: Text(_loading ? '...' : 'Enregistrer'),
+                  child: Text(_loading ? '...' : l10n.save),
                 ),
               ),
             ],
@@ -387,21 +405,21 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  ThemeData _themed(BuildContext context) {
+  ThemeData _themed(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
     return theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         primary: _primary,
-        surface: Colors.white,
+        surface: isDark ? _cardDark : _cardLight,
         onPrimary: Colors.white,
       ),
       appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.white,
-        foregroundColor: _ink,
+        backgroundColor: isDark ? _bgDark : _cardLight,
+        foregroundColor: isDark ? _inkDark : _ink,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
-          color: _ink,
+        titleTextStyle: TextStyle(
+          color: isDark ? _inkDark : _ink,
           fontWeight: FontWeight.w800,
           fontSize: 18,
         ),
@@ -415,31 +433,32 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
         ),
       ),
       chipTheme: theme.chipTheme.copyWith(
-        backgroundColor: _primarySoft,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: _ink),
+        backgroundColor: isDark ? _primarySoftDark : _primarySoft,
+        labelStyle: TextStyle(fontWeight: FontWeight.w700, color: isDark ? _inkDark : _ink),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        side: BorderSide(color: _primary.withOpacity(0.3)),
+        side: BorderSide(color: _primary.withOpacity(isDark ? 0.4 : 0.3)),
       ),
-      dividerTheme: theme.dividerTheme.copyWith(color: Colors.black12),
+      dividerTheme: theme.dividerTheme.copyWith(color: isDark ? Colors.white12 : Colors.black12),
       snackBarTheme: theme.snackBarTheme.copyWith(
-        backgroundColor: _ink,
+        backgroundColor: isDark ? _cardDark : _ink,
         contentTextStyle: const TextStyle(color: Colors.white),
       ),
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         contentPadding: EdgeInsets.zero,
         dense: true,
-        titleTextStyle: TextStyle(fontWeight: FontWeight.w700, color: _ink),
-        subtitleTextStyle: TextStyle(color: _muted),
+        titleTextStyle: TextStyle(fontWeight: FontWeight.w700, color: isDark ? _inkDark : _ink),
+        subtitleTextStyle: TextStyle(color: isDark ? _mutedDark : _muted),
       ),
     );
   }
 
-  Widget _headerCard() {
+  Widget _headerCard(bool isDark, AppLocalizations l10n) {
     final fullName = '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
-    final display = fullName.isEmpty ? 'Ma Garderie' : fullName;
+    final display = fullName.isEmpty ? l10n.myDaycare : fullName;
     final initial = display.isNotEmpty ? display[0].toUpperCase() : 'G';
 
     return _card(
+      isDark: isDark,
       child: Row(
         children: [
           Stack(
@@ -447,7 +466,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             children: [
               CircleAvatar(
                 radius: 34,
-                backgroundColor: _primarySoft,
+                backgroundColor: isDark ? _primarySoftDark : _primarySoft,
                 backgroundImage:
                     _photoUrl.text.trim().isEmpty ? null : NetworkImage(_photoUrl.text.trim()),
                 child: _photoUrl.text.trim().isEmpty
@@ -460,7 +479,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
                 right: -4,
                 bottom: -4,
                 child: Material(
-                  color: _ink,
+                  color: isDark ? _primary : _ink,
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
                     onTap: () async {
@@ -468,21 +487,24 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text('Modifier la photo'),
+                          backgroundColor: isDark ? _cardDark : null,
+                          title: Text(l10n.editPhoto, style: TextStyle(color: isDark ? Colors.white : null)),
                           content: TextField(
                             controller: ctrl,
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'URL de la photo',
+                            style: TextStyle(color: isDark ? Colors.white : null),
+                            decoration: InputDecoration(
+                              border: const OutlineInputBorder(),
+                              labelText: l10n.photoUrl,
+                              labelStyle: TextStyle(color: isDark ? Colors.white60 : null),
                             ),
                           ),
                           actions: [
                             TextButton(
                                 onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Annuler')),
+                                child: Text(l10n.cancel)),
                             FilledButton(
                                 onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Valider')),
+                                child: Text(l10n.verify)),
                           ],
                         ),
                       );
@@ -502,7 +524,7 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(display, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                Text(display, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
@@ -510,16 +532,16 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
                   children: [
                     Chip(label: Text(_kind.toUpperCase())),
                     Chip(
-                      label: Text(_approved ? 'APPROUVE' : 'EN ATTENTE',
+                      label: Text(_approved ? l10n.approved.toUpperCase() : l10n.pendingApproval.toUpperCase(),
                           style: TextStyle(
-                              color: _approved ? Colors.white : _ink, fontWeight: FontWeight.w800)),
-                      backgroundColor: _approved ? _primary : _primarySoft,
+                              color: _approved ? Colors.white : (isDark ? _inkDark : _ink), fontWeight: FontWeight.w800)),
+                      backgroundColor: _approved ? _primary : (isDark ? _primarySoftDark : _primarySoft),
                     ),
                     if (_providerId != null && _providerId!.isNotEmpty)
                       ActionChip(
                         label: Text(
                             'ID: ${_providerId!.substring(0, (_providerId!.length > 8) ? 8 : _providerId!.length)}...'),
-                        onPressed: () => _copy('ID fournisseur', _providerId!),
+                        onPressed: () => _copy(l10n.providerId, _providerId!),
                       ),
                   ],
                 ),
@@ -531,22 +553,23 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _statsRow() {
+  Widget _statsRow(bool isDark, AppLocalizations l10n) {
     return _card(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Resume des reservations', style: TextStyle(fontWeight: FontWeight.w800)),
+          Text(l10n.bookingsSummary, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 12,
             runSpacing: 8,
             children: [
-              _pill('Completees', _countDelivered, Colors.green),
-              _pill('En attente', _countPending, Colors.orange),
-              _pill('Annulees', _countCancelled, Colors.red),
-              _pill('Total', _countTotal, _primary),
-              _pill('Reservations', _bookingCount, Colors.blue),
+              _pill(l10n.completedBookings, _countDelivered, Colors.green, isDark),
+              _pill(l10n.pendingBookings, _countPending, Colors.orange, isDark),
+              _pill(l10n.cancelledBookings, _countCancelled, Colors.red, isDark),
+              _pill(l10n.total, _countTotal, _primary, isDark),
+              _pill(l10n.allBookings, _bookingCount, Colors.blue, isDark),
             ],
           ),
         ],
@@ -554,25 +577,26 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _businessCard() {
+  Widget _businessCard(bool isDark, AppLocalizations l10n) {
     return _card(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Informations garderie', style: TextStyle(fontWeight: FontWeight.w800)),
+          Text(l10n.daycareInfo, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
           const SizedBox(height: 10),
-          _kv('Email', _email.text.trim().isEmpty ? '—' : _email.text.trim(), copyable: true),
-          _kv('Telephone', _phone.text.trim().isEmpty ? '—' : _phone.text.trim(), copyable: true),
+          _kv(l10n.email, _email.text.trim().isEmpty ? '—' : _email.text.trim(), copyable: true, isDark: isDark),
+          _kv(l10n.phone, _phone.text.trim().isEmpty ? '—' : _phone.text.trim(), copyable: true, isDark: isDark),
           const SizedBox(height: 6),
-          _kv('Adresse', _address.text.trim().isEmpty ? '—' : _address.text.trim(), copyable: true),
-          _kv('Lien Google Maps', (_mapsUrl ?? '').isEmpty ? '—' : _mapsUrl!, copyable: true),
+          _kv(l10n.address, _address.text.trim().isEmpty ? '—' : _address.text.trim(), copyable: true, isDark: isDark),
+          _kv(l10n.googleMapsLink, (_mapsUrl ?? '').isEmpty ? '—' : _mapsUrl!, copyable: true, isDark: isDark),
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Visibilite publique'),
+                  title: Text(l10n.publicVisibility, style: TextStyle(color: isDark ? _inkDark : _ink)),
                   value: _visible,
                   onChanged: _toggleVisibility,
                 ),
@@ -580,9 +604,9 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
               const SizedBox(width: 8),
               if (_providerId != null && _providerId!.isNotEmpty)
                 OutlinedButton.icon(
-                  onPressed: () => _showPreviewDialog(),
+                  onPressed: () => _showPreviewDialog(isDark, l10n),
                   icon: const Icon(Icons.visibility),
-                  label: const Text('Apercu'),
+                  label: Text(l10n.preview),
                 ),
             ],
           ),
@@ -591,25 +615,30 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _bioCard() {
+  Widget _bioCard(bool isDark, AppLocalizations l10n) {
     return _card(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Description', style: TextStyle(fontWeight: FontWeight.w800)),
+          Text(l10n.description, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
           const SizedBox(height: 8),
           TextField(
             controller: _bio,
             minLines: 3,
             maxLines: 5,
             maxLength: _bioMax,
+            style: TextStyle(color: isDark ? Colors.white : null),
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               border:
                   const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
               isDense: true,
               errorText: _errBio,
-              helperText: 'Visible par les clients',
+              helperText: l10n.visibleToClients,
+              helperStyle: TextStyle(color: isDark ? Colors.white60 : null),
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : null,
+              filled: isDark,
             ),
           ),
         ],
@@ -617,12 +646,136 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _pill(String label, int value, Color color) {
+  Widget _languageCard(bool isDark, AppLocalizations l10n) {
+    final currentLocale = ref.watch(localeProvider);
+
+    return _card(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.language, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _languageOption('Français', 'fr', currentLocale, isDark),
+              const SizedBox(width: 8),
+              _languageOption('English', 'en', currentLocale, isDark),
+              const SizedBox(width: 8),
+              _languageOption('العربية', 'ar', currentLocale, isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _languageOption(String label, String localeCode, Locale currentLocale, bool isDark) {
+    final isSelected = currentLocale.languageCode == localeCode;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          ref.read(localeProvider.notifier).setLocale(AppLanguage.fromCode(localeCode));
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? _primary : (isDark ? Colors.white.withOpacity(0.05) : _primarySoft.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? _primary : (isDark ? Colors.white24 : _primary.withOpacity(0.3)),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : (isDark ? _inkDark : _ink),
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(height: 4),
+                const Icon(Icons.check_circle, size: 16, color: Colors.white),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _themeCard(bool isDark, AppLocalizations l10n) {
+    final themeMode = ref.watch(themeProvider);
+
+    return _card(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.theme, style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? _inkDark : _ink)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _themeOption(l10n.lightMode, Icons.light_mode, AppThemeMode.light, themeMode, isDark),
+              const SizedBox(width: 8),
+              _themeOption(l10n.darkMode, Icons.dark_mode, AppThemeMode.dark, themeMode, isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _themeOption(String label, IconData icon, AppThemeMode mode, AppThemeMode currentMode, bool isDark) {
+    final isSelected = currentMode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          ref.read(themeProvider.notifier).setTheme(mode);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? _primary : (isDark ? Colors.white.withOpacity(0.05) : _primarySoft.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? _primary : (isDark ? Colors.white24 : _primary.withOpacity(0.3)),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : (isDark ? _inkDark : _ink)),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : (isDark ? _inkDark : _ink),
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(height: 4),
+                const Icon(Icons.check_circle, size: 16, color: Colors.white),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(String label, int value, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
+        border: Border.all(color: color.withOpacity(isDark ? 0.4 : 0.3)),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -633,8 +786,8 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: color.withOpacity(0.3)),
+              color: isDark ? _cardDark : Colors.white,
+              border: Border.all(color: color.withOpacity(isDark ? 0.4 : 0.3)),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('$value',
@@ -648,34 +801,34 @@ class _DaycareSettingsScreenState extends ConsumerState<DaycareSettingsScreen> {
     );
   }
 
-  Widget _kv(String k, String v, {bool copyable = false}) {
+  Widget _kv(String k, String v, {bool copyable = false, required bool isDark}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(k, style: const TextStyle(color: _muted))),
+          SizedBox(width: 130, child: Text(k, style: TextStyle(color: isDark ? _mutedDark : _muted))),
           const SizedBox(width: 8),
-          Expanded(child: Text(v)),
+          Expanded(child: Text(v, style: TextStyle(color: isDark ? _inkDark : _ink))),
           if (copyable && v.trim().isNotEmpty && v != '—')
             IconButton(
-              icon: const Icon(Icons.copy, size: 18),
+              icon: Icon(Icons.copy, size: 18, color: isDark ? Colors.white60 : null),
               onPressed: () => _copy(k, v),
-              tooltip: 'Copier',
+              tooltip: 'Copy',
             ),
         ],
       ),
     );
   }
 
-  Widget _card({required Widget child}) {
+  Widget _card({required Widget child, required bool isDark}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _cardDark : _cardLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _primary.withOpacity(0.2)),
-        boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0, 6))],
+        border: Border.all(color: _primary.withOpacity(isDark ? 0.3 : 0.2)),
+        boxShadow: [BoxShadow(color: isDark ? Colors.black26 : const Color(0x11000000), blurRadius: 10, offset: const Offset(0, 6))],
       ),
       child: child,
     );

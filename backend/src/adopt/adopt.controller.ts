@@ -24,11 +24,12 @@ import { SendMessageDto } from './dto/send-message.dto';
 export class AdoptController {
   constructor(private readonly service: AdoptService) {}
 
-  // ====== Feed public ======
+  // ====== Feed (authentifié pour exclure ses propres posts) ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @Get('feed')
   async feed(@Query() q: FeedQueryDto, @Req() req: any) {
-    const user = req.user ?? null;
-    return this.service.feed(user, q);
+    return this.service.feed(req.user, q);
   }
 
   @Get('posts/:id')
@@ -184,5 +185,24 @@ export class AdoptController {
   @Post('conversations/:id/decline-adoption')
   async declineAdoption(@Req() req: any, @Param('id') conversationId: string) {
     return this.service.declineAdoption(req.user, conversationId);
+  }
+
+  // ====== Hide Conversation (Soft Delete) ======
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/hide')
+  async hideConversation(@Req() req: any, @Param('id') conversationId: string) {
+    return this.service.hideConversation(req.user, conversationId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('conversations/:id/report')
+  async reportConversation(
+    @Req() req: any,
+    @Param('id') conversationId: string,
+    @Body('reason') reason: string,
+  ) {
+    return this.service.reportConversation(req.user, conversationId, reason);
   }
 }

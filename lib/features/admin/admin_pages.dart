@@ -292,6 +292,76 @@ Future<void> _handleResetQuotas(BuildContext context, String userId, String user
   }
 }
 
+Future<void> _handleResetTrust(BuildContext context, String userId, String userName) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Lever la restriction'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Lever la restriction de compte pour $userName ?'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '⚠️ Cette action va:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                SizedBox(height: 8),
+                Text('• Remettre le statut à "VERIFIED"', style: TextStyle(fontSize: 12)),
+                Text('• Décrémenter le compteur de no-show', style: TextStyle(fontSize: 12)),
+                Text('• Lever la restriction de compte', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(backgroundColor: Colors.green),
+          child: const Text('Lever restriction'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    final api = ref.read(apiProvider);
+    await api.adminResetUserTrustStatus(userId);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Restriction levée'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+}
+
 Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user) async {
   final userId = user['id']?.toString() ?? '';
   final firstNameCtl = TextEditingController(text: user['firstName']?.toString() ?? '');
@@ -444,6 +514,7 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                         final phone = (m['phone'] ?? '').toString();
                         final role = (m['role'] ?? '').toString();
                         final reportedCount = (m['reportedConversationsCount'] ?? 0) as int;
+                        final trustStatus = (m['trustStatus'] ?? 'NEW').toString();
                         final name = [
                           first,
                           last,
@@ -497,6 +568,55 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                                   ),
                                 ),
                               ],
+                              // Badge RESTRICTED
+                              if (trustStatus == 'RESTRICTED') ...[
+                                const SizedBox(width: 4),
+                                Tooltip(
+                                  message: 'Compte restreint',
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('🚫', style: TextStyle(fontSize: 12)),
+                                        SizedBox(width: 2),
+                                        Text(
+                                          'RESTRICTED',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              // Badge VERIFIED
+                              if (trustStatus == 'VERIFIED') ...[
+                                const SizedBox(width: 4),
+                                Tooltip(
+                                  message: 'Utilisateur vérifié',
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('✓', style: TextStyle(fontSize: 12, color: Colors.green)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           subtitle: Text(
@@ -520,6 +640,8 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                                 await _showEditUserDialog(context, m);
                               } else if (value == 'reset_quotas') {
                                 await _handleResetQuotas(context, userId, name.isEmpty ? email : name);
+                              } else if (value == 'reset_trust') {
+                                await _handleResetTrust(context, userId, name.isEmpty ? email : name);
                               } else if (value == 'view_reported') {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -549,6 +671,17 @@ Future<void> _showEditUserDialog(BuildContext context, Map<String, dynamic> user
                                   ],
                                 ),
                               ),
+                              if (trustStatus == 'RESTRICTED')
+                                const PopupMenuItem(
+                                  value: 'reset_trust',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.lock_open, size: 18, color: Colors.green),
+                                      SizedBox(width: 8),
+                                      Text('Lever restriction', style: TextStyle(color: Colors.green)),
+                                    ],
+                                  ),
+                                ),
                               if (reportedCount > 0)
                                 const PopupMenuItem(
                                   value: 'view_reported',

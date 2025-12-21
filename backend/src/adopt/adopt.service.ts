@@ -258,6 +258,14 @@ export class AdoptService {
     if (!existing) throw new NotFoundException('Post not found');
     this.assertOwnerOrAdmin(user, existing);
 
+    // Empêcher la modification si l'animal est déjà adopté ou archivé
+    if (existing.status === AdoptStatus.ADOPTED) {
+      throw new BadRequestException('Cannot modify an adopted animal listing');
+    }
+    if (existing.status === AdoptStatus.ARCHIVED) {
+      throw new BadRequestException('Cannot modify an archived listing');
+    }
+
     const { lat, lng } = this.normalizeGeo(dto);
     const maybeSex = this.asSex(dto.sex);
 
@@ -347,7 +355,7 @@ export class AdoptService {
   async feed(user: any | null, q: FeedQueryDto) {
     const limit = q.limit ?? 10;
 
-    const where: any = { status: AdoptStatus.APPROVED };
+    const where: any = { status: AdoptStatus.APPROVED, adoptedAt: null };
     const and: any[] = [];
     if (q.species) where.species = q.species;
     if (q.sex) where.sex = this.asSex(q.sex);
@@ -720,8 +728,8 @@ export class AdoptService {
     const conversations = await this.prisma.adoptConversation.findMany({
       where: {
         OR: [
-          { ownerId: userId },
-          { adopterId: userId },
+          { ownerId: userId, hiddenByOwner: false },
+          { adopterId: userId, hiddenByAdopter: false },
         ],
       },
       include: {
@@ -795,6 +803,7 @@ export class AdoptService {
       myRole: isOwner ? 'owner' : 'adopter',
       myAnonymousName: isOwner ? conversation.ownerAnonymousName : conversation.adopterAnonymousName,
       otherPersonName: isOwner ? conversation.adopterAnonymousName : conversation.ownerAnonymousName,
+      pendingAdoptionConfirmation: conversation.pendingAdoptionConfirmation || false,
       messages: conversation.messages.map((m) => ({
         id: m.id,
         content: m.content,
@@ -945,6 +954,23 @@ export class AdoptService {
         },
       });
 
+      // Créer une notification pour l'adopteur
+      try {
+        await this.notificationsService.createNotification(
+          adoptedById,
+          NotificationType.NEW_ADOPT_MESSAGE,
+          `Demande de confirmation d'adoption`,
+          `Le propriétaire souhaite finaliser l'adoption de ${animalName} avec vous !`,
+          {
+            conversationId: conversation.id,
+            postId: post.id,
+            senderId: userId,
+          },
+        );
+      } catch (err) {
+        console.error('Failed to create notification:', err);
+      }
+
       // Marquer la conversation comme en attente de confirmation
       await this.prisma.adoptConversation.update({
         where: { id: conversation.id },
@@ -1057,6 +1083,73 @@ export class AdoptService {
   }
 
   /**
+   * Masquer une conversation (soft delete)
+   */
+  async hideConversation(user: any, conversationId: string) {
+    const userId = this.requireUserId(user);
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    const isOwner = conversation.ownerId === userId;
+    const isAdopter = conversation.adopterId === userId;
+
+    if (!isOwner && !isAdopter) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    // Masquer pour l'utilisateur concerné
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        hiddenByOwner: isOwner ? true : conversation.hiddenByOwner,
+        hiddenByAdopter: isAdopter ? true : conversation.hiddenByAdopter,
+      },
+    });
+
+    return { ok: true };
+  }
+
+  async reportConversation(user: any, conversationId: string, reason: string) {
+    const userId = this.requireUserId(user);
+
+    if (!reason || reason.trim().length === 0) {
+      throw new BadRequestException('Reason is required');
+    }
+
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    const isOwner = conversation.ownerId === userId;
+    const isAdopter = conversation.adopterId === userId;
+
+    if (!isOwner && !isAdopter) {
+      throw new ForbiddenException('Not your conversation');
+    }
+
+    // Signaler pour l'utilisateur concerné
+    await this.prisma.adoptConversation.update({
+      where: { id: conversationId },
+      data: {
+        reportedByOwner: isOwner ? true : conversation.reportedByOwner,
+        reportReasonByOwner: isOwner ? reason : conversation.reportReasonByOwner,
+        reportedAtByOwner: isOwner ? new Date() : conversation.reportedAtByOwner,
+        reportedByAdopter: isAdopter ? true : conversation.reportedByAdopter,
+        reportReasonByAdopter: isAdopter ? reason : conversation.reportReasonByAdopter,
+        reportedAtByAdopter: isAdopter ? new Date() : conversation.reportedAtByAdopter,
+      },
+    });
+
+    return { ok: true, message: 'Conversation signalée' };
+  }
+
+  /**
    * Récupérer les adoptions en attente de création de profil pet
    */
   async myPendingPetCreation(user: any) {
@@ -1073,6 +1166,113 @@ export class AdoptService {
     });
 
     return posts.map((post) => this.pickPublic(post));
+  }
+
+  // ---------- Admin: Conversations ----------
+
+  /**
+   * Admin: Récupérer toutes les conversations
+   */
+  async adminGetAllConversations(limit = 50) {
+    const conversations = await this.prisma.adoptConversation.findMany({
+      include: {
+        post: { include: { images: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    });
+
+    return conversations.map((c) => ({
+      id: c.id,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      post: this.pickPublic(c.post),
+      owner: {
+        id: c.owner.id,
+        name: `${c.owner.firstName || ''} ${c.owner.lastName || ''}`.trim() || 'Anonyme',
+        email: c.owner.email,
+      },
+      adopter: {
+        id: c.adopter.id,
+        name: `${c.adopter.firstName || ''} ${c.adopter.lastName || ''}`.trim() || 'Anonyme',
+        email: c.adopter.email,
+      },
+      ownerAnonymousName: c.ownerAnonymousName,
+      adopterAnonymousName: c.adopterAnonymousName,
+      hiddenByOwner: c.hiddenByOwner,
+      hiddenByAdopter: c.hiddenByAdopter,
+      reportedByOwner: c.reportedByOwner,
+      reportedByAdopter: c.reportedByAdopter,
+      hasReports: c.reportedByOwner || c.reportedByAdopter,
+      lastMessage: c.messages[0]
+        ? {
+            content: c.messages[0].content,
+            sentAt: c.messages[0].createdAt,
+          }
+        : null,
+    }));
+  }
+
+  /**
+   * Admin: Récupérer les détails d'une conversation avec tous les messages
+   */
+  async adminGetConversationDetails(conversationId: string) {
+    const conversation = await this.prisma.adoptConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        post: { include: { images: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        adopter: { select: { id: true, firstName: true, lastName: true, email: true } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    return {
+      id: conversation.id,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      post: this.pickPublic(conversation.post),
+      owner: {
+        id: conversation.owner.id,
+        name: `${conversation.owner.firstName || ''} ${conversation.owner.lastName || ''}`.trim() || 'Anonyme',
+        email: conversation.owner.email,
+      },
+      adopter: {
+        id: conversation.adopter.id,
+        name: `${conversation.adopter.firstName || ''} ${conversation.adopter.lastName || ''}`.trim() || 'Anonyme',
+        email: conversation.adopter.email,
+      },
+      ownerAnonymousName: conversation.ownerAnonymousName,
+      adopterAnonymousName: conversation.adopterAnonymousName,
+      hiddenByOwner: conversation.hiddenByOwner,
+      hiddenByAdopter: conversation.hiddenByAdopter,
+      pendingAdoptionConfirmation: conversation.pendingAdoptionConfirmation,
+      // Signalements
+      reportedByOwner: conversation.reportedByOwner,
+      reportReasonByOwner: conversation.reportReasonByOwner,
+      reportedAtByOwner: conversation.reportedAtByOwner,
+      reportedByAdopter: conversation.reportedByAdopter,
+      reportReasonByAdopter: conversation.reportReasonByAdopter,
+      reportedAtByAdopter: conversation.reportedAtByAdopter,
+      messages: conversation.messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        sentAt: m.createdAt,
+        senderId: m.senderId,
+        sentByOwner: m.senderId === conversation.ownerId,
+        read: !!m.readAt,
+      })),
+    };
   }
 
   /**

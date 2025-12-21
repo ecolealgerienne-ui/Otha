@@ -8,64 +8,27 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import '../../core/session_controller.dart';
+import '../../core/location_provider.dart';
 
-const _primary = Color(0xFF00ACC1);
-const _primarySoft = Color(0xFFE0F7FA);
-const _ink = Color(0xFF222222);
+// Design constants - même thème que vet_details_screen
+const _coral = Color(0xFFF36C6C);
+const _coralSoft = Color(0xFFFFEEF0);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
-// Commission cachée ajoutée au prix affiché
-const kDaycareCommissionDa = 100;
+// Commission par défaut (fallback si non définie dans le profil du provider)
+const kDefaultDaycareHourlyCommissionDa = 10;
+const kDefaultDaycareDailyCommissionDa = 100;
 
-/// Provider qui charge la liste des garderies autour du centre
+/// Provider qui charge la liste des garderies
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
 
-  // ---------- 1) Centre utilisateur: DEVICE d'abord, puis PROFIL, sinon fallback ----------
-  Future<({double lat, double lng})> getCenter() async {
-    // a) Device (GPS/Wi-Fi)
-    try {
-      if (await Geolocator.isLocationServiceEnabled()) {
-        var perm = await Geolocator.checkPermission();
-        if (perm == LocationPermission.denied) {
-          perm = await Geolocator.requestPermission();
-        }
-        if (perm != LocationPermission.denied &&
-            perm != LocationPermission.deniedForever) {
-          final last = await Geolocator.getLastKnownPosition().timeout(
-            const Duration(milliseconds: 300),
-            onTimeout: () => null,
-          );
-          if (last != null) {
-            return (lat: last.latitude, lng: last.longitude);
-          }
-          try {
-            final pos = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.medium,
-            ).timeout(const Duration(seconds: 2));
-            return (lat: pos.latitude, lng: pos.longitude);
-          } on TimeoutException {
-            // continue
-          } catch (_) {
-            // continue
-          }
-        }
-      }
-    } catch (_) {/* ignore */}
-
-    // b) Profil utilisateur (fallback)
-    final me = ref.read(sessionProvider).user ?? {};
-    final pLat = (me['lat'] as num?)?.toDouble();
-    final pLng = (me['lng'] as num?)?.toDouble();
-    if (pLat != null && pLng != null && pLat != 0 && pLng != 0) {
-      return (lat: pLat, lng: pLng);
-    }
-
-    // c) Fallback absolu (Alger)
-    return (lat: 36.75, lng: 3.06);
-  }
-
-  final center = await getCenter();
+  // Utilise le provider GPS centralisé
+  final center = ref.watch(currentCoordsProvider);
 
   final raw = await api.nearby(
     lat: center.lat,
@@ -96,7 +59,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
 
   final rows = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
-  // Filter to only show daycares
   final daycaresOnly = rows.where((m) {
     final specialties = m['specialties'] as Map<String, dynamic>?;
     final kind = (specialties?['kind'] ?? '').toString().toLowerCase();
@@ -114,7 +76,6 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
     final imageUrls = images?.map((e) => e.toString()).toList() ?? <String>[];
 
     final capacity = specs?['capacity'];
-
     final animalTypes = specs?['animalTypes'] as List?;
     final types = animalTypes?.map((e) => e.toString()).toList() ?? <String>[];
 
@@ -135,6 +96,10 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       dKm = _haversineKm(lat, lng);
     }
 
+    // Commissions personnalisées (du profil provider)
+    final hourlyCommission = m['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa;
+    final dailyCommission = m['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa;
+
     return <String, dynamic>{
       'id': id,
       'displayName': name,
@@ -146,6 +111,8 @@ final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>(
       'animalTypes': types,
       'hourlyRate': hourlyRate,
       'dailyRate': dailyRate,
+      'daycareHourlyCommissionDa': hourlyCommission,
+      'daycareDailyCommissionDa': dailyCommission,
       'is24_7': is24_7,
       'openingTime': openingTime,
       'closingTime': closingTime,
@@ -210,116 +177,188 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final async = ref.watch(daycareProvidersListProvider);
 
-    return Theme(
-      data: _themed(context),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
-        appBar: AppBar(
-          title: const Text('Garderies'),
-          backgroundColor: Colors.white,
+    final bgColor = isDark ? _darkBg : Colors.white;
+    final cardColor = isDark ? _darkCard : const Color(0xFFF7F9FB);
+    final cardBorder = isDark ? _darkCardBorder : const Color(0xFFE6EDF2);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2D2D2D);
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: bgColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.pets, color: _coral, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              l10n.daycaresTitle,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: textPrimary,
+              ),
+            ),
+          ],
         ),
-        body: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, st) => Center(child: Text('Erreur: $err')),
-          data: (daycares) {
-            final filtered = _filterDaycares(daycares);
-
-            return Column(
-              children: [
-                // Search bar
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.white,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher une garderie...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                  ),
+      ),
+      body: Column(
+        children: [
+          // Barre de recherche
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              style: TextStyle(color: textPrimary),
+              decoration: InputDecoration(
+                hintText: l10n.searchDaycare,
+                hintStyle: TextStyle(color: textSecondary),
+                prefixIcon: Icon(Icons.search, color: textSecondary),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: textSecondary),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                filled: true,
+                fillColor: cardColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cardBorder),
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cardBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _coral, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+            ),
+          ),
 
-                // List - Style Booking.com
-                Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                              const SizedBox(height: 16),
-                              Text(
-                                _searchQuery.isEmpty
-                                    ? 'Aucune garderie disponible'
-                                    : 'Aucun résultat',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                              ),
-                            ],
+          // Contenu
+          Expanded(
+            child: async.when(
+              loading: () => Center(
+                child: CircularProgressIndicator(color: isDark ? _coral : null),
+              ),
+              error: (err, st) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: textSecondary),
+                    const SizedBox(height: 16),
+                    Text('Erreur: $err', style: TextStyle(color: textSecondary)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(daycareProvidersListProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Réessayer'),
+                      style: FilledButton.styleFrom(backgroundColor: _coral),
+                    ),
+                  ],
+                ),
+              ),
+              data: (daycares) {
+                final filtered = _filterDaycares(daycares);
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                            shape: BoxShape.circle,
                           ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: () async {
-                            ref.invalidate(daycareProvidersListProvider);
-                          },
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                            itemCount: filtered.length,
-                            itemBuilder: (context, i) => _BookingComStyleCard(daycare: filtered[i]),
+                          child: Icon(
+                            _searchQuery.isEmpty ? Icons.pets : Icons.search_off,
+                            size: 40,
+                            color: _coral,
                           ),
                         ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty ? l10n.noDaycareAvailable : l10n.noDaycareFound,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-  ThemeData _themed(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.copyWith(
-      colorScheme: theme.colorScheme.copyWith(
-        primary: _primary,
-        surface: Colors.white,
-        onPrimary: Colors.white,
-      ),
-      appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.white,
-        foregroundColor: _ink,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
-          color: _ink,
-          fontWeight: FontWeight.w800,
-          fontSize: 18,
-        ),
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    return _DaycareCard(
+                      daycare: filtered[index],
+                      isDark: isDark,
+                      cardColor: cardColor,
+                      cardBorder: cardBorder,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _BookingComStyleCard extends StatefulWidget {
+class _DaycareCard extends StatefulWidget {
   final Map<String, dynamic> daycare;
+  final bool isDark;
+  final Color cardColor;
+  final Color cardBorder;
+  final Color textPrimary;
+  final Color? textSecondary;
+  final AppLocalizations l10n;
 
-  const _BookingComStyleCard({required this.daycare});
+  const _DaycareCard({
+    required this.daycare,
+    required this.isDark,
+    required this.cardColor,
+    required this.cardBorder,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.l10n,
+  });
 
   @override
-  State<_BookingComStyleCard> createState() => _BookingComStyleCardState();
+  State<_DaycareCard> createState() => _DaycareCardState();
 }
 
-class _BookingComStyleCardState extends State<_BookingComStyleCard> {
+class _DaycareCardState extends State<_DaycareCard> {
   final PageController _pageController = PageController();
-  int _currentImageIndex = 0;
+  int _currentPage = 0;
 
   @override
   void dispose() {
@@ -342,287 +381,317 @@ class _BookingComStyleCardState extends State<_BookingComStyleCard> {
     final openingTime = widget.daycare['openingTime']?.toString() ?? '08:00';
     final closingTime = widget.daycare['closingTime']?.toString() ?? '20:00';
 
+    // Commissions personnalisées du provider
+    final hourlyCommission = widget.daycare['daycareHourlyCommissionDa'] ?? kDefaultDaycareHourlyCommissionDa;
+    final dailyCommission = widget.daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa;
+
     String? priceText;
     if (hourlyRate != null) {
-      final priceWithCommission = (hourlyRate as int) + kDaycareCommissionDa;
-      priceText = 'À partir de $priceWithCommission DA/heure';
+      final priceWithCommission = (hourlyRate as int) + (hourlyCommission as int);
+      priceText = '$priceWithCommission DA${widget.l10n.perHour}';
     } else if (dailyRate != null) {
-      final priceWithCommission = (dailyRate as int) + kDaycareCommissionDa;
-      priceText = 'À partir de $priceWithCommission DA/jour';
+      final priceWithCommission = (dailyRate as int) + (dailyCommission as int);
+      priceText = '$priceWithCommission DA${widget.l10n.perDay}';
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            final id = (widget.daycare['id'] ?? '').toString();
-            if (id.isNotEmpty) {
-              context.push('/explore/daycare/$id', extra: widget.daycare);
-            }
-          },
+    return GestureDetector(
+      onTap: () {
+        final id = (widget.daycare['id'] ?? '').toString();
+        if (id.isNotEmpty) {
+          context.push('/explore/daycare/$id', extra: widget.daycare);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: widget.cardColor,
           borderRadius: BorderRadius.circular(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Grande image avec slider (style Booking.com)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: SizedBox(
-                  height: 220,
-                  child: Stack(
-                    children: [
-                      // Images
-                      images.isNotEmpty
-                          ? PageView.builder(
-                              controller: _pageController,
-                              onPageChanged: (index) {
-                                setState(() => _currentImageIndex = index);
-                              },
-                              itemCount: images.length,
-                              itemBuilder: (context, index) {
-                                return Image.network(
-                                  images[index].toString(),
-                                  width: double.infinity,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _placeholderImage(),
-                                );
-                              },
-                            )
-                          : _placeholderImage(),
-
-                      // Distance badge (top left)
-                      if (distanceKm != null)
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on, size: 14, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${distanceKm.toStringAsFixed(1)} km',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      // Image indicators (bottom center)
-                      if (images.length > 1)
-                        Positioned(
-                          bottom: 12,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(images.length, (index) {
-                              return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _currentImageIndex == index
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.4),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Contenu
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          border: Border.all(color: widget.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image avec PageView
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: 160,
+                child: Stack(
                   children: [
-                    // Nom de la garderie
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    // Images
+                    images.isNotEmpty
+                        ? PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (index) {
+                              setState(() => _currentPage = index);
+                            },
+                            itemCount: images.length,
+                            itemBuilder: (context, index) {
+                              return Image.network(
+                                images[index].toString(),
+                                width: double.infinity,
+                                height: 160,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                              );
+                            },
+                          )
+                        : _buildPlaceholder(),
 
-                    if (address.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
+                    // Badges
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Row(
                         children: [
-                          Icon(Icons.place, size: 14, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              address,
-                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          if (distanceKm != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.location_on, size: 14, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${distanceKm.toStringAsFixed(1)} km',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                    ],
+                    ),
 
-                    const SizedBox(height: 10),
+                    // Badge 24/7
+                    if (is24_7)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _coral,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            widget.l10n.open247,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
 
-                    // Horaires
+                    // Indicateurs de page
+                    if (images.length > 1)
+                      Positioned(
+                        bottom: 12,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(images.length, (index) {
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: _currentPage == index ? 16 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                color: _currentPage == index
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.5),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Contenu
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nom
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      color: widget.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Adresse
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: _primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          is24_7 ? 'Ouvert 24h/24 - 7j/7' : 'Ouvert $openingTime - $closingTime',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _primary,
-                            fontWeight: FontWeight.w600,
+                        Icon(Icons.location_on, size: 14, color: widget.textSecondary),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(fontSize: 13, color: widget.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
+                  ],
 
-                    if (bio.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        bio,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  // Horaires si pas 24/7
+                  if (!is24_7) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 14, color: widget.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.l10n.openFromTo(openingTime, closingTime),
+                          style: TextStyle(fontSize: 13, color: widget.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  // Bio
+                  if (bio.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      bio,
+                      style: TextStyle(fontSize: 13, color: widget.textSecondary, height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // Infos (capacité + types d'animaux)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (capacity != null)
+                        _buildChip(
+                          Icons.pets,
+                          widget.l10n.animalsCount(capacity as int),
+                        ),
+                      ...animalTypes.take(2).map((type) {
+                        return _buildChip(Icons.pets, type.toString());
+                      }),
                     ],
+                  ),
 
+                  // Prix
+                  if (priceText != null) ...[
                     const SizedBox(height: 12),
-
-                    // Capacité
-                    if (capacity != null)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _infoBadge(
-                            Icons.pets,
-                            'Capacité: $capacity animaux',
-                            Colors.orange,
-                          ),
-                        ],
-                      ),
-
-                    if (animalTypes.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: animalTypes.take(4).map((type) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _primarySoft,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: _primary.withOpacity(0.3)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.l10n.fromPrice,
+                              style: TextStyle(fontSize: 11, color: widget.textSecondary),
                             ),
-                            child: Text(
-                              type.toString(),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: _primary,
+                            Text(
+                              priceText,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: _coral,
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-
-                    if (priceText != null) ...[
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            priceText,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: _primary,
-                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _coral,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          const Icon(Icons.arrow_forward_ios, size: 16, color: _primary),
-                        ],
-                      ),
-                    ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.l10n.bookNow,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _placeholderImage() {
+  Widget _buildPlaceholder() {
     return Container(
       width: double.infinity,
-      height: 220,
-      decoration: BoxDecoration(
-        color: _primarySoft,
-      ),
-      child: const Center(
-        child: Icon(Icons.pets, size: 64, color: _primary),
+      height: 160,
+      color: widget.isDark ? _darkCard : _coralSoft,
+      child: Center(
+        child: Icon(
+          Icons.pets,
+          size: 48,
+          color: _coral.withOpacity(0.5),
+        ),
       ),
     );
   }
 
-  Widget _infoBadge(IconData icon, String label, Color color) {
+  Widget _buildChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: widget.isDark ? _coral.withOpacity(0.15) : _coralSoft,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: _coral),
+          const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: color,
+              color: _coral,
             ),
           ),
         ],

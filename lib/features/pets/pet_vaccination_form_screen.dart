@@ -14,12 +14,16 @@ const _purple = Color(0xFF9B59B6);
 class PetVaccinationFormScreen extends ConsumerStatefulWidget {
   final String petId;
   final String? vaccinationId; // null = create, non-null = edit
+  final String? token; // Token optionnel pour accès vétérinaire
 
   const PetVaccinationFormScreen({
     super.key,
     required this.petId,
     this.vaccinationId,
+    this.token,
   });
+
+  bool get isVetAccess => token != null && token!.isNotEmpty;
 
   @override
   ConsumerState<PetVaccinationFormScreen> createState() => _PetVaccinationFormScreenState();
@@ -98,22 +102,40 @@ class _PetVaccinationFormScreenState extends ConsumerState<PetVaccinationFormScr
       final api = ref.read(apiProvider);
 
       if (widget.vaccinationId == null) {
-        // Create
-        await api.createVaccination(
-          widget.petId,
-          name: _nameController.text.trim(),
-          dateIso: _date.toIso8601String(),
-          nextDueDateIso: _nextDueDate?.toIso8601String(),
-          batchNumber: _batchNumberController.text.trim().isNotEmpty
-              ? _batchNumberController.text.trim()
-              : null,
-          vetName: _vetNameController.text.trim().isNotEmpty
-              ? _vetNameController.text.trim()
-              : null,
-          notes: _notesController.text.trim().isNotEmpty
-              ? _notesController.text.trim()
-              : null,
-        );
+        // Create - utiliser token-based API si vet access
+        if (widget.isVetAccess) {
+          await api.createVaccinationByToken(
+            widget.token!,
+            name: _nameController.text.trim(),
+            dateIso: _date.toIso8601String(),
+            nextDueDateIso: _nextDueDate?.toIso8601String(),
+            batchNumber: _batchNumberController.text.trim().isNotEmpty
+                ? _batchNumberController.text.trim()
+                : null,
+            vetName: _vetNameController.text.trim().isNotEmpty
+                ? _vetNameController.text.trim()
+                : null,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+          );
+        } else {
+          await api.createVaccination(
+            widget.petId,
+            name: _nameController.text.trim(),
+            dateIso: _date.toIso8601String(),
+            nextDueDateIso: _nextDueDate?.toIso8601String(),
+            batchNumber: _batchNumberController.text.trim().isNotEmpty
+                ? _batchNumberController.text.trim()
+                : null,
+            vetName: _vetNameController.text.trim().isNotEmpty
+                ? _vetNameController.text.trim()
+                : null,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
+          );
+        }
 
         if (mounted) {
           context.pop();

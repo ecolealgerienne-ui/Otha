@@ -25,6 +25,18 @@ import { BookingsService } from './bookings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 
+// Caractères pour le code de référence (sans 0/O, 1/I/L pour éviter confusion)
+const REF_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Génère un code de référence unique (ex: VGC-A2B3C4) */
+function generateReferenceCode(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += REF_CHARS.charAt(Math.floor(Math.random() * REF_CHARS.length));
+  }
+  return `VGC-${code}`;
+}
+
 @ApiTags('bookings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -178,6 +190,12 @@ export class BookingsController {
       throw new BadRequestException('serviceId and scheduledAt are required');
     }
 
+    // ✅ TRUST SYSTEM: Vérifier si l'utilisateur peut réserver
+    const trustCheck = await this.svc.checkUserCanBook(req.user.sub);
+    if (!trustCheck.canBook) {
+      throw new ForbiddenException(trustCheck.reason || 'Vous ne pouvez pas réserver pour le moment');
+    }
+
     const when = this.parseWhen(body.scheduledAt);
     if (!when) throw new BadRequestException('Invalid scheduledAt');
 
@@ -193,6 +211,16 @@ export class BookingsController {
       const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
       if (!ok) throw new BadRequestException('Slot not available');
 
+      // Générer un code de référence unique (avec retry si collision)
+      let referenceCode = generateReferenceCode();
+      let attempts = 0;
+      while (attempts < 5) {
+        const existing = await tx.booking.findUnique({ where: { referenceCode } });
+        if (!existing) break;
+        referenceCode = generateReferenceCode();
+        attempts++;
+      }
+
       return tx.booking.create({
         data: {
           userId: req.user.sub,
@@ -201,6 +229,7 @@ export class BookingsController {
           scheduledAt: when, // UTC côté DB
           status: 'PENDING',
           petIds, // IDs des animaux concernés
+          referenceCode, // Code de référence unique (ex: VGC-A2B3C4)
         },
       });
     }, { isolationLevel: 'Serializable' });
@@ -344,6 +373,28 @@ export class BookingsController {
     return this.svc.findActiveBookingForPet(petId);
   }
 
+  // ==================== CONFIRMATION PAR CODE DE RÉFÉRENCE ====================
+  // ⚠️ IMPORTANT: Cette route DOIT être AVANT les routes :id pour éviter les conflits
+
+  /**
+   * PRO: Confirmer un booking par son code de référence (VGC-XXXXXX)
+   * POST /bookings/confirm-by-reference
+   * @body referenceCode - Le code de référence (ex: VGC-A2B3C4)
+   * Retourne le booking confirmé avec les infos du pet pour afficher le carnet de santé
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Post('confirm-by-reference')
+  confirmByReferenceCode(
+    @Req() req: any,
+    @Body() body: { referenceCode: string },
+  ) {
+    if (!body?.referenceCode || typeof body.referenceCode !== 'string') {
+      throw new BadRequestException('referenceCode is required');
+    }
+    return this.svc.confirmByReferenceCode(req.user.sub, body.referenceCode.toUpperCase().trim());
+  }
+
   /**
    * PRO confirme un booking (après scan QR ou manuellement)
    * POST /bookings/:id/pro-confirm
@@ -431,44 +482,6 @@ export class BookingsController {
     return this.svc.checkGracePeriods();
   }
 
-  // ==================== SYSTÈME OTP DE CONFIRMATION ====================
-
-  /**
-   * CLIENT: Récupérer son code OTP (le génère si nécessaire)
-   * GET /bookings/:id/otp
-   */
-  @Get(':id/otp')
-  getBookingOtp(@Req() req: any, @Param('id') id: string) {
-    return this.svc.getBookingOtp(req.user.sub, id);
-  }
-
-  /**
-   * CLIENT: Générer un nouveau code OTP
-   * POST /bookings/:id/otp/generate
-   */
-  @Post(':id/otp/generate')
-  generateBookingOtp(@Req() req: any, @Param('id') id: string) {
-    return this.svc.generateBookingOtp(req.user.sub, id);
-  }
-
-  /**
-   * PRO: Vérifier le code OTP donné par le client
-   * POST /bookings/:id/otp/verify
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PRO', 'ADMIN')
-  @Post(':id/otp/verify')
-  verifyBookingOtp(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() body: { otp: string },
-  ) {
-    if (!body?.otp || typeof body.otp !== 'string') {
-      throw new BadRequestException('otp is required');
-    }
-    return this.svc.verifyBookingOtpByPro(req.user.sub, id, body.otp);
-  }
-
   // ==================== CHECK-IN GÉOLOCALISÉ ====================
 
   /**
@@ -511,11 +524,11 @@ export class BookingsController {
   clientConfirmWithMethod(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() body: { method: 'SIMPLE' | 'OTP' | 'QR_SCAN'; rating?: number; comment?: string },
+    @Body() body: { method: 'SIMPLE' | 'QR_SCAN'; rating?: number; comment?: string },
   ) {
-    const validMethods = ['SIMPLE', 'OTP', 'QR_SCAN'];
+    const validMethods = ['SIMPLE', 'QR_SCAN'];
     if (!body?.method || !validMethods.includes(body.method)) {
-      throw new BadRequestException('method must be SIMPLE, OTP, or QR_SCAN');
+      throw new BadRequestException('method must be SIMPLE or QR_SCAN');
     }
     return this.svc.clientConfirmWithMethod(
       req.user.sub,
@@ -524,5 +537,49 @@ export class BookingsController {
       body.rating,
       body.comment,
     );
+  }
+
+  // ==================== SYSTÈME DE CONFIANCE (ANTI-TROLL) ====================
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut réserver
+   * GET /bookings/me/trust-status
+   * Retourne { canBook, reason?, trustStatus, isFirstBooking?, restrictedUntil? }
+   */
+  @Get('me/trust-status')
+  checkUserCanBook(@Req() req: any) {
+    return this.svc.checkUserCanBook(req.user.sub);
+  }
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut annuler un RDV
+   * GET /bookings/:id/can-cancel
+   * Retourne { canCancel, reason?, isNoShow? }
+   */
+  @Get(':id/can-cancel')
+  checkUserCanCancel(@Req() req: any, @Param('id') id: string) {
+    return this.svc.checkUserCanCancel(req.user.sub, id);
+  }
+
+  /**
+   * CLIENT: Vérifier si l'utilisateur peut modifier un RDV
+   * GET /bookings/:id/can-reschedule
+   * Retourne { canReschedule, reason? }
+   */
+  @Get(':id/can-reschedule')
+  checkUserCanReschedule(@Req() req: any, @Param('id') id: string) {
+    return this.svc.checkUserCanReschedule(req.user.sub, id);
+  }
+
+  /**
+   * PRO: Récupérer les infos de confiance d'un client
+   * GET /bookings/user/:userId/trust-info
+   * Retourne { trustStatus, isFirstBooking, noShowCount, totalCompletedBookings }
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PRO', 'ADMIN')
+  @Get('user/:userId/trust-info')
+  getUserTrustInfo(@Param('userId') userId: string) {
+    return this.svc.getUserTrustInfo(userId);
   }
 }

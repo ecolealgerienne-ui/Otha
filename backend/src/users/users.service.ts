@@ -17,6 +17,9 @@ const userSelect = {
   photoUrl: true,
   createdAt: true,
   updatedAt: true,
+  trustStatus: true,
+  noShowCount: true,
+  restrictedUntil: true,
 } satisfies Prisma.UserSelect;
 
 @Injectable()
@@ -112,7 +115,25 @@ export class UsersService {
       skip: query?.offset ?? 0,
     });
 
-    return users;
+    // Ajouter le compteur de conversations signalées pour chaque utilisateur
+    const usersWithReportCounts = await Promise.all(
+      users.map(async (user) => {
+        const reportedConversationsCount = await this.prisma.adoptConversation.count({
+          where: {
+            OR: [
+              { ownerId: user.id, reportedByAdopter: true },
+              { adopterId: user.id, reportedByOwner: true },
+            ],
+          },
+        });
+        return {
+          ...user,
+          reportedConversationsCount,
+        };
+      }),
+    );
+
+    return usersWithReportCounts;
   }
 
   // Admin: reset quotas adoption d'un utilisateur
@@ -231,7 +252,72 @@ export class UsersService {
       adopterAnonymousName: conv.adopterAnonymousName,
       lastMessage: conv.messages[0] || null,
       messageCount: conv.messages.length > 0 ? 1 : 0, // On ne récupère que le dernier
+      reportedByOwner: conv.reportedByOwner,
+      reportedByAdopter: conv.reportedByAdopter,
     }));
+  }
+
+  // Admin: get all adopt posts of a user (all statuses)
+  async getUserAdoptPosts(userId: string) {
+    const posts = await this.prisma.adoptPost.findMany({
+      where: {
+        createdById: userId,
+      },
+      include: {
+        images: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return posts.map((post) => ({
+      id: post.id,
+      title: post.title,
+      animalName: post.animalName,
+      species: post.species,
+      sex: post.sex,
+      ageMonths: post.ageMonths,
+      city: post.city,
+      status: post.status,
+      adoptedAt: post.adoptedAt,
+      adoptedById: post.adoptedById,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      images: post.images,
+      createdBy: post.createdBy,
+    }));
+  }
+
+  // Admin: reset user trust status (fix accidental penalties)
+  async resetUserTrustStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, trustStatus: true, noShowCount: true, restrictedUntil: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remettre à VERIFIED (pas NEW) car c'était un accident
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        trustStatus: 'VERIFIED',
+        noShowCount: Math.max(0, (user.noShowCount || 0) - 1), // Décrémenter le no-show count
+        restrictedUntil: null,
+      },
+      select: userSelect,
+    });
+
+    return { ok: true, message: 'Trust status reset to VERIFIED', user: updatedUser };
   }
 
   // Admin: update user info

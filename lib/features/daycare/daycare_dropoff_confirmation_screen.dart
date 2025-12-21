@@ -7,11 +7,17 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _green = Color(0xFF22C55E);
 const _greenSoft = Color(0xFFE8F5E9);
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
+
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkBorder = Color(0xFF2A2A2A);
 
 /// Écran de confirmation du dépôt d'animal en garderie
 class DaycareDropOffConfirmationScreen extends ConsumerStatefulWidget {
@@ -49,7 +55,6 @@ class _DaycareDropOffConfirmationScreenState
   @override
   void initState() {
     super.initState();
-    // Notifier le pro que le client est à proximité
     _notifyNearby();
   }
 
@@ -60,7 +65,6 @@ class _DaycareDropOffConfirmationScreenState
     super.dispose();
   }
 
-  /// Démarrer le polling pour vérifier si le pro a validé
   void _startStatusPolling() {
     _statusCheckTimer?.cancel();
     _statusCheckTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
@@ -72,7 +76,6 @@ class _DaycareDropOffConfirmationScreenState
     });
   }
 
-  /// Vérifier le statut de la réservation
   Future<void> _checkBookingStatus() async {
     try {
       final api = ref.read(apiProvider);
@@ -81,13 +84,11 @@ class _DaycareDropOffConfirmationScreenState
 
       if (!mounted) return;
 
-      // Si le statut est passé à IN_PROGRESS, le pro a validé le dépôt
       if (status == 'IN_PROGRESS') {
         _statusCheckTimer?.cancel();
         _otpTimer?.cancel();
         setState(() => _isValidated = true);
 
-        // Afficher la page de succès après un court délai
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
           _showSuccessAndGoHome();
@@ -98,12 +99,15 @@ class _DaycareDropOffConfirmationScreenState
     }
   }
 
-  /// Afficher le succès et retourner à l'accueil
   void _showSuccessAndGoHome() {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -111,7 +115,7 @@ class _DaycareDropOffConfirmationScreenState
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _greenSoft,
+                color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -121,20 +125,21 @@ class _DaycareDropOffConfirmationScreenState
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Dépôt confirmé !',
+            Text(
+              l10n.dropOffConfirmedTitle,
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              'Votre animal a été déposé avec succès à la garderie.',
+              l10n.animalDroppedSuccess,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
               ),
               textAlign: TextAlign.center,
             ),
@@ -153,9 +158,9 @@ class _DaycareDropOffConfirmationScreenState
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Retourner à l\'accueil',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                child: Text(
+                  l10n.returnToHome,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -165,7 +170,6 @@ class _DaycareDropOffConfirmationScreenState
     );
   }
 
-  /// Notifier le pro que le client est à proximité
   Future<void> _notifyNearby() async {
     try {
       final api = ref.read(apiProvider);
@@ -179,7 +183,6 @@ class _DaycareDropOffConfirmationScreenState
     }
   }
 
-  /// Confirmer le dépôt de l'animal
   Future<void> _confirmDropOff() async {
     if (_isLoading) return;
 
@@ -199,9 +202,10 @@ class _DaycareDropOffConfirmationScreenState
 
       if (!mounted) return;
 
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dépôt confirmé ! La garderie va valider.'),
+        SnackBar(
+          content: Text(l10n.dropOffConfirmedSnack),
           backgroundColor: _green,
         ),
       );
@@ -219,7 +223,6 @@ class _DaycareDropOffConfirmationScreenState
     }
   }
 
-  /// Afficher le code OTP
   Future<void> _showOtpCode() async {
     setState(() {
       _showOtpSection = true;
@@ -228,15 +231,9 @@ class _DaycareDropOffConfirmationScreenState
 
     try {
       final api = ref.read(apiProvider);
-      // D'abord confirmer le dépôt pour générer l'OTP
-      await api.clientConfirmDaycareDropOff(
-        widget.bookingId,
-        method: 'OTP',
-        lat: widget.lat,
-        lng: widget.lng,
-      );
-
-      // Ensuite récupérer l'OTP
+      // ⚠️ Ne PAS appeler clientConfirmDaycareDropOff ici !
+      // L'OTP sera validé par le pro, et c'est ça qui déclenchera la confirmation.
+      // On récupère juste le code OTP à afficher au client.
       final result = await api.getDaycareDropOtp(widget.bookingId);
 
       if (!mounted) return;
@@ -251,12 +248,11 @@ class _DaycareDropOffConfirmationScreenState
             if (_otpExpiresInSeconds < 0) _otpExpiresInSeconds = 0;
           }
         } else {
-          _otpExpiresInSeconds = 600; // 10 minutes par défaut
+          _otpExpiresInSeconds = 600;
         }
       });
 
       _startOtpTimer();
-      // Démarrer le polling pour détecter quand le pro valide l'OTP
       _startStatusPolling();
     } catch (e) {
       if (!mounted) return;
@@ -287,27 +283,26 @@ class _DaycareDropOffConfirmationScreenState
     });
   }
 
-  /// Copier le code OTP
   void _copyOtp() {
     if (_otpCode == null) return;
     Clipboard.setData(ClipboardData(text: _otpCode!));
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code copié !')),
+      SnackBar(content: Text(l10n.codeCopied)),
     );
   }
 
-  /// Aller au scan QR
   void _goToQrScan() {
-    // Naviguer vers l'écran de QR code de l'animal
     final pet = widget.bookingData?['pet'] as Map<String, dynamic>?;
     final petId = pet?['id']?.toString() ?? widget.bookingData?['petId']?.toString();
 
     if (petId != null && petId.isNotEmpty) {
       context.push('/pets/$petId/qr');
     } else {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun animal associé à cette réservation'),
+        SnackBar(
+          content: Text(l10n.noAnimalAssociated),
           backgroundColor: Colors.orange,
         ),
       );
@@ -322,9 +317,18 @@ class _DaycareDropOffConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtitleColor = isDark ? Colors.grey[400] : Colors.black.withOpacity(0.6);
+    final borderColor = isDark ? _darkBorder : Colors.transparent;
+
     final providerName = widget.bookingData?['provider']?['displayName']?.toString() ?? 'la garderie';
     final pet = widget.bookingData?['pet'] as Map<String, dynamic>?;
-    final petName = pet?['name']?.toString() ?? 'Votre animal';
+    final petName = pet?['name']?.toString() ?? l10n.yourAnimalName;
     final startDateStr = widget.bookingData?['startDate']?.toString();
     DateTime? startDate;
     if (startDateStr != null) {
@@ -335,15 +339,15 @@ class _DaycareDropOffConfirmationScreenState
         : '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cardColor,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(Icons.close, color: textColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Confirmer le dépôt'),
+        title: Text(l10n.confirmDropOffTitle, style: TextStyle(color: textColor)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -354,9 +358,10 @@ class _DaycareDropOffConfirmationScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
+                border: isDark ? Border.all(color: borderColor) : null,
+                boxShadow: isDark ? null : const [
                   BoxShadow(
                     color: Color(0x0A000000),
                     blurRadius: 10,
@@ -369,7 +374,7 @@ class _DaycareDropOffConfirmationScreenState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: _greenSoft,
+                      color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
@@ -380,19 +385,20 @@ class _DaycareDropOffConfirmationScreenState
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Déposer $petName',
-                    style: const TextStyle(
+                    l10n.dropPetAt(petName),
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
+                      color: textColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Vous êtes à proximité de $providerName',
+                    l10n.nearDaycare(providerName),
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.black.withOpacity(0.6),
+                      color: subtitleColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -404,7 +410,7 @@ class _DaycareDropOffConfirmationScreenState
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: _greenSoft,
+                        color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -412,12 +418,15 @@ class _DaycareDropOffConfirmationScreenState
                         children: [
                           const Icon(Icons.calendar_today, size: 16, color: _green),
                           const SizedBox(width: 8),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
+                          Flexible(
+                            child: Text(
+                              dateStr,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -435,25 +444,26 @@ class _DaycareDropOffConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _green.withOpacity(0.3)),
+                  border: Border.all(color: isDark ? _green.withOpacity(0.5) : _green.withOpacity(0.3)),
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      'Code de vérification',
+                    Text(
+                      l10n.verificationCode,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Montrez ce code à la garderie',
+                      l10n.showCodeToDaycare,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.black.withOpacity(0.6),
+                        color: subtitleColor,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -466,7 +476,7 @@ class _DaycareDropOffConfirmationScreenState
                             vertical: 16,
                           ),
                           decoration: BoxDecoration(
-                            color: _greenSoft,
+                            color: isDark ? _green.withOpacity(0.15) : _greenSoft,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -489,19 +499,19 @@ class _DaycareDropOffConfirmationScreenState
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Expire dans ${_formatExpiration(_otpExpiresInSeconds)}',
+                        l10n.expiresInTime(_formatExpiration(_otpExpiresInSeconds)),
                         style: TextStyle(
                           fontSize: 13,
-                          color: _otpExpiresInSeconds < 60 ? _coral : Colors.grey,
+                          color: _otpExpiresInSeconds < 60 ? _coral : (isDark ? Colors.grey[400] : Colors.grey),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ] else if (_isLoading) ...[
                       const CircularProgressIndicator(color: _green),
                     ] else ...[
-                      const Text(
-                        'Code expiré',
-                        style: TextStyle(color: _coral, fontWeight: FontWeight.w600),
+                      Text(
+                        l10n.codeExpired,
+                        style: const TextStyle(color: _coral, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ],
@@ -515,7 +525,7 @@ class _DaycareDropOffConfirmationScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _coralSoft,
+                  color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -535,11 +545,12 @@ class _DaycareDropOffConfirmationScreenState
             ],
 
             // Boutons d'action
-            const Text(
-              'Choisissez une méthode de confirmation :',
+            Text(
+              l10n.chooseConfirmMethod,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 16),
@@ -548,7 +559,7 @@ class _DaycareDropOffConfirmationScreenState
             OutlinedButton.icon(
               onPressed: _isLoading ? null : _goToQrScan,
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scanner le QR code de l\'animal'),
+              label: Text(l10n.scanAnimalQr),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _green,
                 side: const BorderSide(color: _green),
@@ -566,10 +577,10 @@ class _DaycareDropOffConfirmationScreenState
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _showOtpCode,
                 icon: const Icon(Icons.pin),
-                label: const Text('Obtenir un code de vérification'),
+                label: Text(l10n.getVerificationCode),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade400),
+                  foregroundColor: isDark ? Colors.grey[400] : Colors.grey.shade700,
+                  side: BorderSide(color: isDark ? Colors.grey[600]! : Colors.grey.shade400),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -592,7 +603,7 @@ class _DaycareDropOffConfirmationScreenState
                       ),
                     )
                   : const Icon(Icons.check_circle),
-              label: Text(_isLoading ? 'Confirmation...' : 'Confirmer le dépôt'),
+              label: Text(_isLoading ? l10n.confirming : l10n.confirmDropOffTitle),
               style: FilledButton.styleFrom(
                 backgroundColor: _green,
                 foregroundColor: Colors.white,
@@ -609,19 +620,19 @@ class _DaycareDropOffConfirmationScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: isDark ? Colors.blue.withOpacity(0.15) : Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                  Icon(Icons.info_outline, color: isDark ? Colors.blue[300] : Colors.blue.shade700, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'La garderie recevra une notification et devra valider le dépôt de votre animal.',
+                      l10n.daycareWillValidateDropOff,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.blue.shade700,
+                        color: isDark ? Colors.blue[300] : Colors.blue.shade700,
                       ),
                     ),
                   ),
