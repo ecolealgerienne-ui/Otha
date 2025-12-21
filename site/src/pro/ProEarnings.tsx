@@ -61,7 +61,8 @@ export function ProEarnings() {
   async function fetchProviderCommission() {
     try {
       const provider = await api.myProvider();
-      if (provider?.vetCommissionDa) {
+      // Vérification robuste: accepte 0 comme valeur valide
+      if (provider && typeof provider.vetCommissionDa === 'number') {
         setCommissionDa(provider.vetCommissionDa);
       }
     } catch (error) {
