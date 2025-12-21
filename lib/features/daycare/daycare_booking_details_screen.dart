@@ -61,7 +61,19 @@ class _DaycareBookingDetailsScreenState extends ConsumerState<DaycareBookingDeta
     // Les dates sont stockées en heure locale naïve (sans timezone), ne pas appeler toLocal()
     final startDate = DateTime.parse(_m['startDate']);
     final endDate = DateTime.parse(_m['endDate']);
-    final totalDa = _m['totalDa'] ?? ((_m['priceDa'] ?? 0) + (_m['commissionDa'] ?? 100));
+
+    // Commission: d'abord depuis le booking, puis depuis le provider, puis fallback
+    int commissionDa = 100; // Fallback par défaut
+    if (_m['commissionDa'] is int) {
+      commissionDa = _m['commissionDa'] as int;
+    } else if (provider != null) {
+      // Essayer de récupérer depuis le provider
+      final daily = provider['daycareDailyCommissionDa'];
+      final hourly = provider['daycareHourlyCommissionDa'];
+      if (daily is int && daily > 0) commissionDa = daily;
+      else if (hourly is int && hourly > 0) commissionDa = hourly;
+    }
+    final totalDa = _m['totalDa'] ?? ((_m['priceDa'] ?? 0) + commissionDa);
 
     final dateFormat = DateFormat('EEEE d MMMM yyyy', locale == 'ar' ? 'ar' : locale == 'en' ? 'en' : 'fr_FR');
     final timeFormat = DateFormat('HH:mm');
