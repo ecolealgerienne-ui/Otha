@@ -66,9 +66,11 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
       final provider = await api.myProvider();
 
       // Récupérer la commission du provider
-      final vetCommission = _asInt(provider['vetCommissionDa']);
-      if (vetCommission != null && vetCommission > 0) {
-        _commissionDa = vetCommission;
+      if (provider != null) {
+        final vetCommission = _asInt(provider['vetCommissionDa']);
+        if (vetCommission != null && vetCommission > 0) {
+          _commissionDa = vetCommission;
+        }
       }
 
       final list = await api.myServices();
