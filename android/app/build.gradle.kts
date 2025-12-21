@@ -7,6 +7,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        load(FileInputStream(keystorePropertiesFile))
+    }
+}
+val hasKeystore = keystorePropertiesFile.exists()
+        && keystoreProperties.containsKey("storeFile")
+        && keystoreProperties.containsKey("storePassword")
+        && keystoreProperties.containsKey("keyAlias")
+        && keystoreProperties.containsKey("keyPassword")
+
 android {
     namespace = "com.vegece.app"
     compileSdk = flutter.compileSdkVersion
