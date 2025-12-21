@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
@@ -61,10 +62,12 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.adoptAcceptRequest(requestId);
-      _showSnackBar('Demande acceptée', Colors.green);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar(l10n.adoptRequestAccepted, Colors.green);
       _loadData(); // Refresh instant
     } catch (e) {
-      _showSnackBar('Erreur: $e', Colors.red);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar('${l10n.adoptError}: $e', Colors.red);
     }
   }
 
@@ -72,10 +75,12 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.adoptRejectRequest(requestId);
-      _showSnackBar('Demande refusée', Colors.orange);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar(l10n.adoptRequestRejected, Colors.orange);
       _loadData(); // Refresh instant
     } catch (e) {
-      _showSnackBar('Erreur: $e', Colors.red);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar('${l10n.adoptError}: $e', Colors.red);
     }
   }
 
@@ -83,10 +88,12 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
     try {
       final api = ref.read(apiProvider);
       await api.adoptHideConversation(conversationId);
-      _showSnackBar('Conversation supprimée', Colors.grey);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar(l10n.adoptConversationDeleted, Colors.grey);
       _loadData(); // Refresh instant
     } catch (e) {
-      _showSnackBar('Erreur: $e', Colors.red);
+      final l10n = AppLocalizations.of(context);
+      _showSnackBar('${l10n.adoptError}: $e', Colors.red);
     }
   }
 
@@ -105,17 +112,22 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF8F8F8);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // Header
           Container(
             padding: EdgeInsets.only(top: topPadding + 8, left: 16, right: 16, bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -135,9 +147,9 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                   child: const Icon(Icons.chat_bubble_rounded, color: _rosePrimary, size: 20),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Messages',
-                  style: TextStyle(
+                Text(
+                  l10n.adoptMessages,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -152,7 +164,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${_requests.length} nouvelle${_requests.length > 1 ? 's' : ''}',
+                      '${_requests.length} ${_requests.length > 1 ? l10n.adoptNews : l10n.adoptNew}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -195,7 +207,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                   // Section: Nouvelles demandes
                                   if (_requests.isNotEmpty) ...[
                                     _SectionHeader(
-                                      title: 'Nouvelles demandes',
+                                      title: l10n.adoptNewRequests,
                                       count: _requests.length,
                                     ),
                                     SizedBox(
@@ -225,7 +237,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                   // Section: Messages
                                   if (_chats.isNotEmpty) ...[
                                     _SectionHeader(
-                                      title: 'Conversations',
+                                      title: l10n.adoptConversations,
                                       count: _chats.length,
                                     ),
                                     ListView.builder(
@@ -706,13 +718,15 @@ class _ChatTileState extends State<_ChatTile> {
 }
 
 // Empty state
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   final VoidCallback onRefresh;
 
   const _EmptyState({required this.onRefresh});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+
     return ListView(
       children: [
         const SizedBox(height: 120),
@@ -729,9 +743,9 @@ class _EmptyState extends StatelessWidget {
                 child: const Icon(Icons.chat_bubble_outline, size: 56, color: _rosePrimary),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Aucun message',
-                style: TextStyle(
+              Text(
+                l10n.adoptNoMessages,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -739,7 +753,7 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Vos demandes et conversations\napparaîtront ici',
+                l10n.adoptNoMessagesDesc,
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
@@ -752,7 +766,7 @@ class _EmptyState extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Actualiser'),
+                label: Text(l10n.adoptRefresh),
               ),
             ],
           ),
@@ -763,14 +777,16 @@ class _EmptyState extends StatelessWidget {
 }
 
 // Error state
-class _ErrorState extends StatelessWidget {
+class _ErrorState extends ConsumerWidget {
   final String error;
   final VoidCallback onRetry;
 
   const _ErrorState({required this.error, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -779,9 +795,9 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            const Text(
-              'Erreur de chargement',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.adoptLoadingError,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -794,7 +810,7 @@ class _ErrorState extends StatelessWidget {
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
               icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
+              label: Text(l10n.adoptRetry),
             ),
           ],
         ),
