@@ -10,7 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-const COMMISSION_DA = Number(process.env.APP_COMMISSION_DA ?? 100);
+// Fallback si la commission du provider n'est pas trouvée
+const DEFAULT_COMMISSION_DA = Number(process.env.APP_COMMISSION_DA ?? 100);
 
 // Durées de restriction progressives (en jours)
 const RESTRICTION_DURATIONS = [3, 7, 14, 30]; // 1er no-show: 3j, 2ème: 7j, 3ème: 14j, 4ème+: 30j
@@ -22,6 +23,18 @@ export class BookingsService {
     private availability: AvailabilityService,
     private notificationsService: NotificationsService,
   ) {}
+
+  /**
+   * Récupère la commission personnalisée du provider (vétérinaire)
+   * Retourne la valeur par défaut si non trouvée
+   */
+  private async getProviderVetCommission(providerId: string): Promise<number> {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { vetCommissionDa: true },
+    });
+    return provider?.vetCommissionDa ?? DEFAULT_COMMISSION_DA;
+  }
 
   /** --------- Client: mes réservations --------- */
   async listMine(userId: string) {
@@ -425,7 +438,7 @@ export class BookingsService {
 
     if (status === 'COMPLETED') {
       const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-      const commission = COMMISSION_DA;
+      const commission = await this.getProviderVetCommission(prov.id);
       const net = Math.max(gross - commission, 0);
 
       await this.prisma.providerEarning.upsert({
@@ -501,7 +514,7 @@ export class BookingsService {
       confirmed,
       completed,
       cancelled,
-      dueDa: completed * COMMISSION_DA,
+      dueDa: completed * DEFAULT_COMMISSION_DA, // TODO: calculer depuis les vraies commissions
       collectedDa: Number(collected._sum.commissionDa ?? 0),
     };
   }
@@ -602,7 +615,7 @@ export class BookingsService {
       const completed = r?.completed ?? 0;
       const cancelled = r?.cancelled ?? 0;
 
-      const dueDa = completed * COMMISSION_DA;
+      const dueDa = completed * DEFAULT_COMMISSION_DA; // TODO: calculer depuis les vraies commissions
       const collectedDa = mapPaid.get(key) ?? 0; // cash (par paidAt)
       const collectedDaScheduled = mapSched.get(key) ?? 0; // accrual (payé mais rattaché au mois d’origine)
 
@@ -747,7 +760,7 @@ export class BookingsService {
       where: { status: 'COMPLETED', scheduledAt: { gte: from, lt: to } },
     });
 
-    const totalDueMonthDa = completed * COMMISSION_DA;
+    const totalDueMonthDa = completed * DEFAULT_COMMISSION_DA; // TODO: calculer depuis les vraies commissions
 
     const collectedAgg = await this.prisma.providerEarning.aggregate({
       _sum: { commissionDa: true },
@@ -979,7 +992,7 @@ export class BookingsService {
 
     // ✅ Créer la commission
     const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-    const commission = COMMISSION_DA;
+    const commission = await this.getProviderVetCommission(prov.id);
     const net = Math.max(gross - commission, 0);
 
     await this.prisma.providerEarning.upsert({
@@ -1139,7 +1152,7 @@ export class BookingsService {
 
       // ✅ Créer la commission
       const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-      const commission = COMMISSION_DA;
+      const commission = await this.getProviderVetCommission(prov.id);
       const net = Math.max(gross - commission, 0);
 
       await this.prisma.providerEarning.upsert({
@@ -1988,7 +2001,7 @@ export class BookingsService {
 
     // ✅ Créer la commission
     const gross = Number((booking.service.price as Prisma.Decimal).toNumber());
-    const commission = COMMISSION_DA;
+    const commission = await this.getProviderVetCommission(prov.id);
     const net = Math.max(gross - commission, 0);
 
     await this.prisma.providerEarning.upsert({

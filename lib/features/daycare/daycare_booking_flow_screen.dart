@@ -27,6 +27,18 @@ class _DaycareBookingFlowScreenState extends ConsumerState<DaycareBookingFlowScr
   final _notesController = TextEditingController();
   int _priceDa = 1000; // Prix par défaut
 
+  // Commission dynamique depuis le provider sélectionné
+  int get _commissionDa {
+    if (_selectedDaycare == null) return 100; // Fallback par défaut
+    // Utiliser daycareHourlyCommissionDa ou daycareDailyCommissionDa selon le contexte
+    final hourly = _selectedDaycare!['daycareHourlyCommissionDa'];
+    final daily = _selectedDaycare!['daycareDailyCommissionDa'];
+    // Priorité à daily car c'est un prix journalier
+    if (daily is int && daily > 0) return daily;
+    if (hourly is int && hourly > 0) return hourly;
+    return 100; // Fallback
+  }
+
   // Loading states
   Future<List<dynamic>>? _daycaresFuture;
   Future<List<dynamic>>? _petsFuture;
@@ -410,11 +422,11 @@ class _DaycareBookingFlowScreenState extends ConsumerState<DaycareBookingFlowScr
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
-                    Text('Prix de base: ${_priceDa} DA'),
-                    Text('Commission: 100 DA'),
+                    Text('Prix de base: $_priceDa DA'),
+                    Text('Commission: $_commissionDa DA'),
                     const Divider(),
                     Text(
-                      'Total: ${_priceDa + 100} DA',
+                      'Total: ${_priceDa + _commissionDa} DA',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
