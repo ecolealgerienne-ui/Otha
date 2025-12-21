@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Clock, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, DollarSign, Info } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Card, Button, Input } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { Service } from '../types';
 
+// Commission par défaut (sera remplacée par la valeur du provider)
+const DEFAULT_COMMISSION_DA = 100;
+
 interface ServiceFormData {
   title: string;
   description: string;
   durationMin: number;
-  price: number;
+  basePrice: number; // Prix de base (ce que le pro reçoit)
 }
 
 export function ProServices() {
@@ -19,6 +22,7 @@ export function ProServices() {
   const [showModal, setShowModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [commissionDa, setCommissionDa] = useState(DEFAULT_COMMISSION_DA);
 
   const {
     register,
@@ -29,7 +33,19 @@ export function ProServices() {
 
   useEffect(() => {
     fetchServices();
+    fetchProviderCommission();
   }, []);
+
+  async function fetchProviderCommission() {
+    try {
+      const provider = await api.myProvider();
+      if (provider && typeof provider.vetCommissionDa === 'number') {
+        setCommissionDa(provider.vetCommissionDa);
+      }
+    } catch (error) {
+      console.error('Error fetching provider commission:', error);
+    }
+  }
 
   async function fetchServices() {
     setLoading(true);
@@ -49,18 +65,20 @@ export function ProServices() {
       title: '',
       description: '',
       durationMin: 30,
-      price: 0,
+      basePrice: 0,
     });
     setShowModal(true);
   };
 
   const openEditModal = (service: Service) => {
     setEditingService(service);
+    // Le prix stocké = total (base + commission), on extrait le base
+    const basePrice = Math.max(0, service.price - commissionDa);
     reset({
       title: service.title,
       description: service.description || '',
       durationMin: service.durationMin,
-      price: service.price,
+      basePrice,
     });
     setShowModal(true);
   };
@@ -68,11 +86,13 @@ export function ProServices() {
   const onSubmit = async (data: ServiceFormData) => {
     setActionLoading(true);
     try {
+      // On envoie le total (base + commission) au backend
+      const totalPrice = data.basePrice + commissionDa;
       const payload = {
         title: data.title,
         description: data.description,
         durationMin: data.durationMin,
-        price: data.price,
+        price: totalPrice,
       };
 
       if (editingService) {
@@ -99,6 +119,9 @@ export function ProServices() {
       console.error('Error deleting service:', error);
     }
   };
+
+  // Calcul du prix de base à partir du total stocké
+  const getBasePrice = (totalPrice: number) => Math.max(0, totalPrice - commissionDa);
 
   return (
     <DashboardLayout>
@@ -134,42 +157,48 @@ export function ProServices() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.map((service) => (
-              <Card key={service.id}>
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">{service.title}</h3>
-                  <div className="flex space-x-1">
-                    <button
-                      onClick={() => openEditModal(service)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(service.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+            {services.map((service) => {
+              const basePrice = getBasePrice(service.price);
+              return (
+                <Card key={service.id}>
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="font-semibold text-gray-900">{service.title}</h3>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => openEditModal(service)}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(service.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {service.description && (
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{service.description}</p>
-                )}
+                  {service.description && (
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{service.description}</p>
+                  )}
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock size={14} className="mr-1" />
-                    {service.durationMin} min
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Clock size={14} className="mr-1" />
+                      {service.durationMin} min
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center font-semibold text-primary-600">
+                        <DollarSign size={14} className="mr-1" />
+                        {basePrice} + {commissionDa} = {service.price} DA
+                      </div>
+                      <p className="text-xs text-gray-400">Votre prix + Commission = Total client</p>
+                    </div>
                   </div>
-                  <div className="flex items-center font-semibold text-primary-600">
-                    <DollarSign size={14} className="mr-1" />
-                    {service.price} DA
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -223,15 +252,26 @@ export function ProServices() {
                 <div>
                   <Input
                     type="number"
-                    label="Prix (DZD)"
+                    label="Votre prix (DA)"
                     min={0}
-                    {...register('price', {
+                    {...register('basePrice', {
                       required: 'Prix requis',
                       min: { value: 0, message: 'Prix invalide' },
                       valueAsNumber: true,
                     })}
-                    error={errors.price?.message}
+                    error={errors.basePrice?.message}
                   />
+                </div>
+              </div>
+
+              {/* Commission info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium">Commission Vegece: {commissionDa} DA</p>
+                  <p className="text-blue-600">
+                    Le client paiera: Votre prix + {commissionDa} DA
+                  </p>
                 </div>
               </div>
 
