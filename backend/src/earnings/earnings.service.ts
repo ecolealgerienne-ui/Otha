@@ -68,14 +68,28 @@ export class EarningsService {
     const dueDa = completed * commissionDa;
 
     // 1) overlay admin (collecte figée)
-    let collectedDa = await this.collectedOverlay(providerId, ym, dueDa);
+    const collectedDa = await this.collectedOverlay(providerId, ym, dueDa);
 
     // 2) (optionnel) si vous avez une table de paiements réels, agrégez ici, puis clamp:
     // collectedDa = Math.min(collectedDa + realPaymentsDa, dueDa);
 
     const netDa = Math.max(dueDa - collectedDa, 0);
 
-    return { month: ym, ...counts, dueDa, collectedDa, netDa };
+    // Retourner le format attendu par le frontend
+    return {
+      month: ym,
+      bookingCount: completed,
+      totalAmount: dueDa, // Pour l'instant, on utilise la commission comme montant total
+      totalCommission: dueDa,
+      netAmount: netDa,
+      collected: collectedDa >= dueDa && dueDa > 0,
+      collectedAmount: collectedDa,
+      // Champs legacy pour compatibilité
+      ...counts,
+      dueDa,
+      collectedDa,
+      netDa,
+    };
   }
 
   // Liste des N derniers mois (courant inclus)
