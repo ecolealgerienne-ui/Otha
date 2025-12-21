@@ -298,6 +298,39 @@ export function AdminEarnings() {
                   </div>
                 </div>
 
+                {/* Totaux du provider sélectionné */}
+                {!earningsLoading && earnings.length > 0 && (
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-blue-600 font-medium">Commission générée</p>
+                      <p className="text-xl font-bold text-blue-900">
+                        {formatCurrency(earnings.reduce((sum, e) => sum + e.totalCommission, 0))}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-green-600 font-medium">Total collecté</p>
+                      <p className="text-xl font-bold text-green-900">
+                        {formatCurrency(earnings.reduce((sum, e) => {
+                          const ext = e as MonthlyEarnings & { collectedAmount?: number };
+                          return sum + (ext.collectedAmount ?? (e.collected ? e.totalCommission : 0));
+                        }, 0))}
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      <p className="text-sm text-orange-600 font-medium">Reste à collecter</p>
+                      <p className="text-xl font-bold text-orange-900">
+                        {formatCurrency(
+                          earnings.reduce((sum, e) => sum + e.totalCommission, 0) -
+                          earnings.reduce((sum, e) => {
+                            const ext = e as MonthlyEarnings & { collectedAmount?: number };
+                            return sum + (ext.collectedAmount ?? (e.collected ? e.totalCommission : 0));
+                          }, 0)
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {earningsLoading ? (
                   <div className="flex items-center justify-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
