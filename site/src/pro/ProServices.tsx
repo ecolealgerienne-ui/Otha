@@ -72,13 +72,12 @@ export function ProServices() {
 
   const openEditModal = (service: Service) => {
     setEditingService(service);
-    // Le prix stocké = total (base + commission), on extrait le base
-    const basePrice = Math.max(0, service.price - commissionDa);
+    // Le prix stocké EST le prix de base (ce que le pro reçoit)
     reset({
       title: service.title,
       description: service.description || '',
       durationMin: service.durationMin,
-      basePrice,
+      basePrice: service.price,
     });
     setShowModal(true);
   };
@@ -86,13 +85,13 @@ export function ProServices() {
   const onSubmit = async (data: ServiceFormData) => {
     setActionLoading(true);
     try {
-      // On envoie le total (base + commission) au backend
-      const totalPrice = data.basePrice + commissionDa;
+      // On stocke le prix de base directement (pas le total)
+      // Le total sera calculé à l'affichage: base + commission
       const payload = {
         title: data.title,
         description: data.description,
         durationMin: data.durationMin,
-        price: totalPrice,
+        price: data.basePrice, // Prix de base stocké directement
       };
 
       if (editingService) {
@@ -120,8 +119,8 @@ export function ProServices() {
     }
   };
 
-  // Calcul du prix de base à partir du total stocké
-  const getBasePrice = (totalPrice: number) => Math.max(0, totalPrice - commissionDa);
+  // Le prix stocké EST le prix de base, on calcule le total pour l'affichage
+  const getTotalPrice = (basePrice: number) => basePrice + commissionDa;
 
   return (
     <DashboardLayout>
@@ -158,7 +157,9 @@ export function ProServices() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {services.map((service) => {
-              const basePrice = getBasePrice(service.price);
+              // Le prix stocké EST le prix de base
+              const basePrice = service.price;
+              const totalPrice = getTotalPrice(basePrice);
               return (
                 <Card key={service.id}>
                   <div className="flex items-start justify-between mb-4">
@@ -191,7 +192,7 @@ export function ProServices() {
                     <div className="text-right">
                       <div className="flex items-center font-semibold text-primary-600">
                         <DollarSign size={14} className="mr-1" />
-                        {basePrice} + {commissionDa} = {service.price} DA
+                        {basePrice} + {commissionDa} = {totalPrice} DA
                       </div>
                       <p className="text-xs text-gray-400">Votre prix + Commission = Total client</p>
                     </div>
