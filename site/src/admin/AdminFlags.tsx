@@ -64,13 +64,14 @@ const USER_FLAG_TYPES = [
 
 // Types de flags PROFESSIONNELS
 const PRO_FLAG_TYPES = [
-  { value: 'PRO_HIGH_CANCELLATION', label: 'Annulations pro elevees', color: 'bg-red-500', icon: Briefcase },
-  { value: 'PRO_LOW_VERIFICATION', label: 'Faible verification', color: 'bg-orange-500', icon: Briefcase },
-  { value: 'PRO_GHOST_COMPLETIONS', label: 'RDV fantomes', color: 'bg-red-600', icon: Briefcase },
-  { value: 'PRO_UNRESPONSIVE', label: 'Pro non-reactif', color: 'bg-yellow-500', icon: Briefcase },
+  { value: 'PRO_HIGH_CANCELLATION', label: 'Annulations pro élevées', color: 'bg-red-500', icon: Briefcase },
+  { value: 'PRO_LOW_VERIFICATION', label: 'Faible vérification', color: 'bg-orange-500', icon: Briefcase },
+  { value: 'PRO_GHOST_COMPLETIONS', label: 'RDV fantômes', color: 'bg-red-600', icon: Briefcase },
+  { value: 'PRO_UNRESPONSIVE', label: 'Pro non-réactif', color: 'bg-yellow-500', icon: Briefcase },
   { value: 'PRO_LATE_CONFIRMATIONS', label: 'Confirmations tardives', color: 'bg-amber-500', icon: Briefcase },
-  { value: 'PRO_LOW_COMPLETION', label: 'Faible completion', color: 'bg-orange-600', icon: Briefcase },
+  { value: 'PRO_LOW_COMPLETION', label: 'Faible complétion', color: 'bg-orange-600', icon: Briefcase },
   { value: 'PRO_SUSPICIOUS', label: 'Pro suspect', color: 'bg-purple-500', icon: Briefcase },
+  { value: 'PRO_LATE_PAYMENT', label: 'Retard de paiement', color: 'bg-red-700', icon: Briefcase },
 ];
 
 const ALL_FLAG_TYPES = [...USER_FLAG_TYPES, ...PRO_FLAG_TYPES];
@@ -230,7 +231,7 @@ export function AdminFlags() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Flag className="text-red-400" size={24} />
-            <h1 className="text-xl font-bold">Admin Flags</h1>
+            <h1 className="text-xl font-bold">Signalements</h1>
           </div>
           <div className="flex items-center gap-3">
             <button

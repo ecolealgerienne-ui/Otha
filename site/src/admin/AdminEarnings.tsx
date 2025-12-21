@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X } from 'lucide-react';
+import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X, AlertTriangle } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
@@ -35,6 +35,9 @@ export function AdminEarnings() {
   const [collectionNote, setCollectionNote] = useState('');
   const [collectionMode, setCollectionMode] = useState<'set' | 'add' | 'subtract'>('set');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Track unpaid months per provider
+  const [unpaidMonthsMap, setUnpaidMonthsMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchProviders();
@@ -72,7 +75,16 @@ export function AdminEarnings() {
     try {
       const data = await api.adminHistoryMonthly(providerId, 12);
       // Ensure data is always an array
-      setEarnings(Array.isArray(data) ? data : []);
+      const earningsData = Array.isArray(data) ? data : [];
+      setEarnings(earningsData);
+
+      // Calculate unpaid months (months with commission > 0 and not fully collected)
+      const unpaidCount = earningsData.filter((e: MonthlyEarnings & { collectedAmount?: number }) => {
+        const collectedAmount = e.collectedAmount ?? (e.collected ? e.totalCommission : 0);
+        return e.totalCommission > 0 && collectedAmount < e.totalCommission;
+      }).length;
+
+      setUnpaidMonthsMap((prev) => ({ ...prev, [providerId]: unpaidCount }));
     } catch (error) {
       console.error('Error fetching earnings:', error);
       setEarnings([]);
@@ -228,37 +240,48 @@ export function AdminEarnings() {
                 <p className="text-gray-500 text-sm text-center py-4">Aucun professionnel trouvé</p>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredProviders.map((provider) => (
-                    <button
-                      key={provider.id}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedProvider?.id === provider.id
-                          ? 'bg-primary-50 border border-primary-200'
-                          : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                      onClick={() => handleSelectProvider(provider)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        {provider.avatarUrl ? (
-                          <img
-                            src={provider.avatarUrl}
-                            alt={provider.displayName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-700 font-medium">
-                              {provider.displayName?.charAt(0) || '?'}
-                            </span>
+                  {filteredProviders.map((provider) => {
+                    const unpaidMonths = unpaidMonthsMap[provider.id] || 0;
+                    return (
+                      <button
+                        key={provider.id}
+                        className={`w-full text-left p-3 rounded-lg transition-colors ${
+                          selectedProvider?.id === provider.id
+                            ? 'bg-primary-50 border border-primary-200'
+                            : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                        onClick={() => handleSelectProvider(provider)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {provider.avatarUrl ? (
+                            <img
+                              src={provider.avatarUrl}
+                              alt={provider.displayName}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                              <span className="text-primary-700 font-medium">
+                                {provider.displayName?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">{provider.displayName}</p>
+                              {unpaidMonths > 0 && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium" title={`${unpaidMonths} mois impayé(s)`}>
+                                  <AlertTriangle size={12} />
+                                  <span>{unpaidMonths}</span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{provider.address || 'Non renseigné'}</p>
                           </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900">{provider.displayName}</p>
-                          <p className="text-xs text-gray-500">{provider.address || 'Non renseigné'}</p>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -443,16 +466,6 @@ export function AdminEarnings() {
                   Définir
                 </button>
                 <button
-                  onClick={() => setCollectionMode('add')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                    collectionMode === 'add'
-                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
-                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
-                  }`}
-                >
-                  <Plus size={16} /> Ajouter
-                </button>
-                <button
                   onClick={() => setCollectionMode('subtract')}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
                     collectionMode === 'subtract'
@@ -462,14 +475,24 @@ export function AdminEarnings() {
                 >
                   <Minus size={16} /> Retirer
                 </button>
+                <button
+                  onClick={() => setCollectionMode('add')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                    collectionMode === 'add'
+                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  <Plus size={16} /> Ajouter
+                </button>
               </div>
             </div>
 
             {/* Montant */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {collectionMode === 'set' ? 'Montant total collecté' :
-                 collectionMode === 'add' ? 'Montant à ajouter' : 'Montant à retirer'} (DA)
+                {collectionMode === 'set' ? 'Nouveau total collecté' :
+                 collectionMode === 'subtract' ? 'Montant à retirer' : 'Montant à ajouter'} (DA)
               </label>
               <Input
                 type="number"
@@ -477,7 +500,7 @@ export function AdminEarnings() {
                 onChange={(e) => setCollectionAmount(e.target.value)}
                 placeholder="0"
                 min="0"
-                max={modalData.totalCommission}
+                max={collectionMode === 'subtract' ? modalData.collected : modalData.totalCommission}
               />
               {collectionMode === 'set' && (
                 <div className="flex gap-2 mt-2">
@@ -495,7 +518,60 @@ export function AdminEarnings() {
                   </button>
                 </div>
               )}
+              {collectionMode === 'subtract' && modalData.collected > 0 && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setCollectionAmount(modalData.collected.toString())}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Tout retirer ({formatCurrency(modalData.collected)})
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Calcul du nouveau total */}
+            {collectionAmount && parseInt(collectionAmount, 10) > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-600">Actuellement collecté:</span>
+                    <span className="font-medium">{formatCurrency(modalData.collected)}</span>
+                  </div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-600">
+                      {collectionMode === 'set' ? 'Nouveau montant:' :
+                       collectionMode === 'subtract' ? 'Retrait:' : 'Ajout:'}
+                    </span>
+                    <span className={`font-medium ${collectionMode === 'subtract' ? 'text-red-600' : collectionMode === 'add' ? 'text-green-600' : ''}`}>
+                      {collectionMode === 'subtract' ? '-' : collectionMode === 'add' ? '+' : ''}{formatCurrency(parseInt(collectionAmount, 10))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-blue-200">
+                    <span className="font-semibold text-gray-800">Nouveau total:</span>
+                    <span className="font-bold text-blue-700">
+                      {formatCurrency(
+                        collectionMode === 'set' ? parseInt(collectionAmount, 10) :
+                        collectionMode === 'subtract' ? Math.max(0, modalData.collected - parseInt(collectionAmount, 10)) :
+                        Math.min(modalData.totalCommission, modalData.collected + parseInt(collectionAmount, 10))
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-gray-500">Restant à collecter:</span>
+                    <span className="text-xs font-medium text-orange-600">
+                      {formatCurrency(
+                        modalData.totalCommission - (
+                          collectionMode === 'set' ? parseInt(collectionAmount, 10) :
+                          collectionMode === 'subtract' ? Math.max(0, modalData.collected - parseInt(collectionAmount, 10)) :
+                          Math.min(modalData.totalCommission, modalData.collected + parseInt(collectionAmount, 10))
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Note */}
             <div className="mb-6">
