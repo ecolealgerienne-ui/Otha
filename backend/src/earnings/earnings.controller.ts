@@ -29,8 +29,8 @@ export class EarningsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post('admin/collect-month')
-  async adminCollectMonth(@Body() dto: { providerId: string; month: string; note?: string }) {
-    return this.earnings.collectMonth(dto.providerId, dto.month, dto.note);
+  async adminCollectMonth(@Body() dto: { providerId: string; month: string; note?: string; amount?: number }) {
+    return this.earnings.collectMonth(dto.providerId, dto.month, dto.note, dto.amount);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,6 +38,22 @@ export class EarningsController {
   @Post('admin/uncollect-month')
   async adminUncollectMonth(@Body() dto: { providerId: string; month: string }) {
     return this.earnings.uncollectMonth(dto.providerId, dto.month);
+  }
+
+  // Ajouter un montant à la collecte
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/add-collection')
+  async adminAddCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.addToCollection(dto.providerId, dto.month, dto.amount, dto.note);
+  }
+
+  // Retirer un montant de la collecte
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/subtract-collection')
+  async adminSubtractCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.subtractFromCollection(dto.providerId, dto.month, dto.amount, dto.note);
   }
 
   // ---------- PRO (ME) ----------
