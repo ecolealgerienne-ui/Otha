@@ -86,18 +86,20 @@ export function AdminEarnings() {
     fetchProviderEarnings(provider.id);
   };
 
-  function openCollectionModal(earning: MonthlyEarnings) {
+  function openCollectionModal(earning: MonthlyEarnings & { collectedAmount?: number }) {
     const monthLabel = format(new Date(earning.month + '-01'), 'MMMM yyyy', { locale: fr });
+    const collectedAmount = earning.collectedAmount ?? (earning.collected ? earning.totalCommission : 0);
+    const remaining = Math.max(0, earning.totalCommission - collectedAmount);
     setModalData({
       month: earning.month,
       monthLabel,
       totalCommission: earning.totalCommission,
-      collected: earning.collected ? earning.totalCommission : 0,
-      remaining: earning.collected ? 0 : earning.totalCommission,
+      collected: collectedAmount,
+      remaining,
     });
-    setCollectionAmount(earning.collected ? '' : earning.totalCommission.toString());
+    setCollectionAmount(remaining > 0 ? remaining.toString() : '');
     setCollectionNote('');
-    setCollectionMode('set');
+    setCollectionMode(collectedAmount > 0 ? 'add' : 'set');
     setShowCollectionModal(true);
   }
 
@@ -297,7 +299,11 @@ export function AdminEarnings() {
                         </tr>
                       </thead>
                       <tbody>
-                        {earnings.map((earning) => (
+                        {earnings.map((earning) => {
+                          const ext = earning as MonthlyEarnings & { collectedAmount?: number };
+                          const collectedAmount = ext.collectedAmount ?? (earning.collected ? earning.totalCommission : 0);
+                          const isPartial = collectedAmount > 0 && collectedAmount < earning.totalCommission;
+                          return (
                           <tr key={earning.month} className="border-b border-gray-100">
                             <td className="py-3 px-4">
                               <span className="font-medium text-gray-900">
@@ -319,7 +325,11 @@ export function AdminEarnings() {
                             <td className="text-center py-3 px-4">
                               {earning.collected ? (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                                  Collecté
+                                  ✓ {formatCurrency(collectedAmount)}
+                                </span>
+                              ) : isPartial ? (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                  Partiel: {formatCurrency(collectedAmount)}
                                 </span>
                               ) : (
                                 <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
@@ -371,7 +381,8 @@ export function AdminEarnings() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        );
+                        })}
                       </tbody>
                     </table>
                   </div>
