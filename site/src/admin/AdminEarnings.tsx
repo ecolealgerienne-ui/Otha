@@ -443,16 +443,6 @@ export function AdminEarnings() {
                   Définir
                 </button>
                 <button
-                  onClick={() => setCollectionMode('add')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                    collectionMode === 'add'
-                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
-                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
-                  }`}
-                >
-                  <Plus size={16} /> Ajouter
-                </button>
-                <button
                   onClick={() => setCollectionMode('subtract')}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
                     collectionMode === 'subtract'
@@ -462,14 +452,24 @@ export function AdminEarnings() {
                 >
                   <Minus size={16} /> Retirer
                 </button>
+                <button
+                  onClick={() => setCollectionMode('add')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                    collectionMode === 'add'
+                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  <Plus size={16} /> Ajouter
+                </button>
               </div>
             </div>
 
             {/* Montant */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {collectionMode === 'set' ? 'Montant total collecté' :
-                 collectionMode === 'add' ? 'Montant à ajouter' : 'Montant à retirer'} (DA)
+                {collectionMode === 'set' ? 'Nouveau total collecté' :
+                 collectionMode === 'subtract' ? 'Montant à retirer' : 'Montant à ajouter'} (DA)
               </label>
               <Input
                 type="number"
@@ -477,7 +477,7 @@ export function AdminEarnings() {
                 onChange={(e) => setCollectionAmount(e.target.value)}
                 placeholder="0"
                 min="0"
-                max={modalData.totalCommission}
+                max={collectionMode === 'subtract' ? modalData.collected : modalData.totalCommission}
               />
               {collectionMode === 'set' && (
                 <div className="flex gap-2 mt-2">
@@ -495,7 +495,60 @@ export function AdminEarnings() {
                   </button>
                 </div>
               )}
+              {collectionMode === 'subtract' && modalData.collected > 0 && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setCollectionAmount(modalData.collected.toString())}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Tout retirer ({formatCurrency(modalData.collected)})
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Calcul du nouveau total */}
+            {collectionAmount && parseInt(collectionAmount, 10) > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-600">Actuellement collecté:</span>
+                    <span className="font-medium">{formatCurrency(modalData.collected)}</span>
+                  </div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-600">
+                      {collectionMode === 'set' ? 'Nouveau montant:' :
+                       collectionMode === 'subtract' ? 'Retrait:' : 'Ajout:'}
+                    </span>
+                    <span className={`font-medium ${collectionMode === 'subtract' ? 'text-red-600' : collectionMode === 'add' ? 'text-green-600' : ''}`}>
+                      {collectionMode === 'subtract' ? '-' : collectionMode === 'add' ? '+' : ''}{formatCurrency(parseInt(collectionAmount, 10))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-blue-200">
+                    <span className="font-semibold text-gray-800">Nouveau total:</span>
+                    <span className="font-bold text-blue-700">
+                      {formatCurrency(
+                        collectionMode === 'set' ? parseInt(collectionAmount, 10) :
+                        collectionMode === 'subtract' ? Math.max(0, modalData.collected - parseInt(collectionAmount, 10)) :
+                        Math.min(modalData.totalCommission, modalData.collected + parseInt(collectionAmount, 10))
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-gray-500">Restant à collecter:</span>
+                    <span className="text-xs font-medium text-orange-600">
+                      {formatCurrency(
+                        modalData.totalCommission - (
+                          collectionMode === 'set' ? parseInt(collectionAmount, 10) :
+                          collectionMode === 'subtract' ? Math.max(0, modalData.collected - parseInt(collectionAmount, 10)) :
+                          Math.min(modalData.totalCommission, modalData.collected + parseInt(collectionAmount, 10))
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Note */}
             <div className="mb-6">
