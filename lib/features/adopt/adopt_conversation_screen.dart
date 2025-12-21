@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);

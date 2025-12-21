@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
@@ -53,7 +54,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
         setState(() {
           _posts.addAll(posts);
           _loading = false;
-          _backendMessage = posts.isEmpty ? 'Aucune annonce disponible' : null;
+          _backendMessage = posts.isEmpty ? AppLocalizations.of(context).adoptNoAds : null;
         });
       }
     } catch (e) {
@@ -61,7 +62,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
         setState(() {
           _loading = false;
           _error = e.toString();
-          _backendMessage = 'Erreur chargement: ${e.toString()}';
+          _backendMessage = '${AppLocalizations.of(context).adoptErrorLoading}: ${e.toString()}';
         });
       }
     }
@@ -112,18 +113,23 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF8F8F8);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
     final quotasAsync = ref.watch(_quotasProvider);
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // Header style Tinder
           Container(
             padding: EdgeInsets.only(top: topPadding + 8, left: 16, right: 16, bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -160,14 +166,14 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.pets, color: Colors.white, size: 20),
-                      SizedBox(width: 6),
+                      const Icon(Icons.pets, color: Colors.white, size: 20),
+                      const SizedBox(width: 6),
                       Text(
-                        'Adopt',
-                        style: TextStyle(
+                        l10n.adoptHeader,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -233,7 +239,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          'Recherche d\'animaux...',
+                          l10n.adoptSearching,
                           style: TextStyle(color: Colors.grey[600], fontSize: 16),
                         ),
                       ],
@@ -278,12 +284,14 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
 }
 
 // Empty state widget
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   final VoidCallback onRefresh;
   const _EmptyState({required this.onRefresh});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -292,16 +300,16 @@ class _EmptyState extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: _roseLight,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.pets, size: 64, color: _rosePrimary),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Aucune annonce',
-              style: TextStyle(
+            Text(
+              l10n.adoptNoAdsTitle,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -309,7 +317,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Il n\'y a pas d\'animaux à adopter\npour le moment. Revenez plus tard !',
+              l10n.adoptNoAdsDesc,
               style: TextStyle(fontSize: 15, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
@@ -322,7 +330,7 @@ class _EmptyState extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
               icon: const Icon(Icons.refresh),
-              label: const Text('Actualiser', style: TextStyle(fontSize: 16)),
+              label: Text(l10n.adoptRefresh, style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -400,31 +408,33 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> with SingleTickerProvi
           action: isLike ? 'LIKE' : 'PASS',
         );
         widget.onInvalidateQuotas();
-        widget.onMessage(isLike ? '❤️ Demande envoyée' : 'Passé');
+        final l10n = AppLocalizations.of(context);
+        widget.onMessage(isLike ? l10n.adoptRequestSent : l10n.adoptPassed);
 
         // Demander le rechargement du feed après le swipe
         widget.onSwipeComplete();
       } catch (e) {
+        final l10n = AppLocalizations.of(context);
         final errorMsg = e.toString();
 
         // Détecter les différentes erreurs
         if (errorMsg.contains('403') || errorMsg.contains('Cannot swipe own post')) {
-          widget.onMessage('❌ Cette annonce vous appartient');
+          widget.onMessage(l10n.adoptOwnPost);
         } else if (errorMsg.contains('quota') || errorMsg.contains('Quota') ||
                    errorMsg.contains('limite') || errorMsg.contains('limit')) {
           if (isLike) {
-            widget.onMessage('⏳ Quota atteint : 5 likes maximum par jour');
+            widget.onMessage(l10n.adoptQuotaReached);
           } else {
-            widget.onMessage('⏳ Quota atteint pour aujourd\'hui');
+            widget.onMessage(l10n.adoptQuotaReachedToday);
           }
         } else if (errorMsg.contains('400')) {
-          widget.onMessage('⚠️ Requête invalide. Veuillez réessayer');
+          widget.onMessage(l10n.adoptInvalidRequest);
         } else if (errorMsg.contains('429')) {
-          widget.onMessage('⏳ Trop de requêtes. Patientez un moment');
+          widget.onMessage(l10n.adoptTooManyRequests);
         } else if (errorMsg.contains('500') || errorMsg.contains('502') || errorMsg.contains('503')) {
-          widget.onMessage('🔧 Serveur temporairement indisponible');
+          widget.onMessage(l10n.adoptServerUnavailable);
         } else {
-          widget.onMessage('❌ Erreur: ${errorMsg.length > 50 ? '${errorMsg.substring(0, 50)}...' : errorMsg}');
+          widget.onMessage('❌ ${l10n.adoptError}: ${errorMsg.length > 50 ? '${errorMsg.substring(0, 50)}...' : errorMsg}');
         }
       }
     }
@@ -512,7 +522,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> with SingleTickerProvi
                         border: Border.all(color: _redNope, width: 4),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
+                      child: const Text(
                         'NOPE',
                         style: TextStyle(
                           color: _redNope,
@@ -538,7 +548,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> with SingleTickerProvi
                         border: Border.all(color: _greenLike, width: 4),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
+                      child: const Text(
                         'LIKE',
                         style: TextStyle(
                           color: _greenLike,
@@ -630,17 +640,17 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _PostCard extends StatefulWidget {
+class _PostCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> post;
   final bool isPreview;
 
   const _PostCard({required this.post, this.isPreview = false});
 
   @override
-  State<_PostCard> createState() => _PostCardState();
+  ConsumerState<_PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<_PostCard> {
+class _PostCardState extends ConsumerState<_PostCard> {
   int _currentImageIndex = 0;
   Offset? _pointerDownPosition;
 
@@ -659,32 +669,32 @@ class _PostCardState extends State<_PostCard> {
     }
   }
 
-  String _getSpeciesLabel(String species) {
+  String _getSpeciesLabel(String species, AppLocalizations l10n) {
     switch (species.toLowerCase()) {
       case 'dog':
-        return 'Chien';
+        return l10n.adoptDog;
       case 'cat':
-        return 'Chat';
+        return l10n.adoptCat;
       case 'rabbit':
-        return 'Lapin';
+        return l10n.adoptRabbit;
       case 'bird':
-        return 'Oiseau';
+        return l10n.adoptBird;
       case 'other':
-        return 'Autre';
+        return l10n.adoptOther;
       default:
         return species;
     }
   }
 
-  String _getSexLabel(String? sex) {
+  String _getSexLabel(String? sex, AppLocalizations l10n) {
     if (sex == null) return '';
     switch (sex.toUpperCase()) {
       case 'M':
       case 'MALE':
-        return 'Mâle';
+        return l10n.adoptMale;
       case 'F':
       case 'FEMALE':
-        return 'Femelle';
+        return l10n.adoptFemale;
       default:
         return '';
     }
@@ -692,6 +702,7 @@ class _PostCardState extends State<_PostCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final images = (widget.post['images'] as List<dynamic>?)
         ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
         .where((url) => url != null && url.isNotEmpty)
@@ -708,11 +719,11 @@ class _PostCardState extends State<_PostCard> {
 
     final ageText = ageMonths != null
         ? ageMonths < 12
-            ? '$ageMonths mois'
-            : '${(ageMonths / 12).floor()} an${ageMonths >= 24 ? 's' : ''}'
+            ? '$ageMonths ${l10n.adoptMonths}'
+            : '${(ageMonths / 12).floor()} ${ageMonths >= 24 ? l10n.adoptYears : l10n.adoptYear}'
         : '';
 
-    final sexLabel = _getSexLabel(sex);
+    final sexLabel = _getSexLabel(sex, l10n);
 
     return Container(
       decoration: BoxDecoration(
@@ -852,14 +863,14 @@ class _PostCardState extends State<_PostCard> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle, color: Colors.white, size: 14),
-                      SizedBox(width: 4),
+                      const Icon(Icons.check_circle, color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
                       Text(
-                        'ADOPTÉ',
-                        style: TextStyle(
+                        l10n.adoptAdopted,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
@@ -924,7 +935,7 @@ class _PostCardState extends State<_PostCard> {
                           if (species.isNotEmpty)
                             _InfoTag(
                               icon: _getSpeciesIcon(species),
-                              label: _getSpeciesLabel(species),
+                              label: _getSpeciesLabel(species, l10n),
                             ),
                           // Sex tag
                           if (sexLabel.isNotEmpty)
