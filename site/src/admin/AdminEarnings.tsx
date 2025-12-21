@@ -52,13 +52,43 @@ export function AdminEarnings() {
       // Use lowercase status like Flutter app
       const data = await api.listProviderApplications('approved', 100);
       // Ensure data is always an array
-      setProviders(Array.isArray(data) ? data : []);
+      const providersList = Array.isArray(data) ? data : [];
+      setProviders(providersList);
+
+      // Précharger les mois impayés pour tous les providers
+      fetchAllUnpaidMonths(providersList);
     } catch (error) {
       console.error('Error fetching providers:', error);
       setProviders([]);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function fetchAllUnpaidMonths(providersList: ProviderProfile[]) {
+    // Charger les earnings de tous les providers en parallèle
+    const unpaidMap: Record<string, number> = {};
+
+    await Promise.all(
+      providersList.map(async (provider) => {
+        try {
+          const data = await api.adminHistoryMonthly(provider.id, 12);
+          const earningsData = Array.isArray(data) ? data : [];
+
+          const unpaidCount = earningsData.filter((e: MonthlyEarnings & { collectedAmount?: number }) => {
+            const collectedAmount = e.collectedAmount ?? (e.collected ? e.totalCommission : 0);
+            return e.totalCommission > 0 && collectedAmount < e.totalCommission;
+          }).length;
+
+          unpaidMap[provider.id] = unpaidCount;
+        } catch (error) {
+          console.error(`Error fetching earnings for provider ${provider.id}:`, error);
+          unpaidMap[provider.id] = 0;
+        }
+      })
+    );
+
+    setUnpaidMonthsMap(unpaidMap);
   }
 
   async function fetchGlobalStats() {
