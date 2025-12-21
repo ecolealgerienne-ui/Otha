@@ -199,11 +199,12 @@ class _ProServicesScreenState extends ConsumerState<ProServicesScreen>
                                 (s['title'] ?? 'Service').toString().trim();
                             final durationMin =
                                 _asInt(s['durationMin'] ?? s['duration']);
-                            final totalPrice =
+                            // Le prix stocké EST le prix de base (ce que le pro reçoit)
+                            final basePrice =
                                 _asInt(s['price'] ?? s['priceCents']);
-                            // Calculer le prix de base (ce que le pro reçoit)
-                            final basePrice = totalPrice != null
-                                ? (totalPrice - _commissionDa).clamp(0, totalPrice)
+                            // Calculer le total pour le client
+                            final totalPrice = basePrice != null
+                                ? basePrice + _commissionDa
                                 : null;
 
                             final desc =
@@ -610,9 +611,8 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
 
       final pServer = _asInt(e['price'] ?? e['priceCents']);
       if (pServer != null) {
-        // Calculer le prix de base (ce que le pro reçoit) = total - commission
-        final basePrice = (pServer - widget.commissionDa).clamp(0, pServer);
-        _price.text = basePrice.toString();
+        // Le prix stocké EST le prix de base (ce que le pro reçoit)
+        _price.text = pServer.toString();
       }
 
       _atHome = isHome;
@@ -776,8 +776,8 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                               ? (descRaw.isEmpty ? '[A_DOMICILE]' : '$descRaw [A_DOMICILE]')
                               : (descRaw.isEmpty ? null : descRaw);
 
-                          // Calculer le prix total (base + commission) à envoyer au backend
-                          final totalPrice = price + widget.commissionDa;
+                          // Stocker le prix de base directement (pas le total)
+                          // Le total sera calculé à l'affichage: base + commission
 
                           setState(() => _saving = true);
                           try {
@@ -788,14 +788,14 @@ class _EditServiceSheetState extends ConsumerState<_EditServiceSheet> {
                                     id,
                                     title: titleForApi,
                                     durationMin: dur,
-                                    price: totalPrice,
+                                    price: price, // Prix de base stocké directement
                                     description: descForApi,
                                   );
                             } else {
                               saved = await ref.read(apiProvider).createMyService(
                                     title: titleForApi,
                                     durationMin: dur,
-                                    price: totalPrice,
+                                    price: price, // Prix de base stocké directement
                                     description: descForApi,
                                   );
                             }
