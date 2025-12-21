@@ -100,16 +100,73 @@ export class EarningsService {
     return this.monthRow(providerId, canonYm(ym));
   }
 
-  // Marquer collecté: on calcule le due du mois et on « fige » amountDa = dueDa
-  async collectMonth(providerId: string, ymRaw: string, note?: string) {
+  // Marquer collecté: on peut spécifier un montant personnalisé ou collecter tout
+  async collectMonth(providerId: string, ymRaw: string, note?: string, customAmount?: number) {
     const ym = canonYm(ymRaw);
     const row = await this.monthRow(providerId, ym);
+
+    // Si un montant personnalisé est fourni, l'utiliser (limité au maximum dû)
+    const amountToCollect = customAmount !== undefined
+      ? Math.min(Math.max(0, customAmount), row.dueDa)
+      : row.dueDa;
+
     await this.prisma.adminCollection.upsert({
       where: { providerId_month: { providerId, month: ym } },
-      update: { amountDa: row.dueDa, note },
-      create: { providerId, month: ym, amountDa: row.dueDa, note },
+      update: { amountDa: amountToCollect, note },
+      create: { providerId, month: ym, amountDa: amountToCollect, note },
     });
-    // Retourner la ligne normalisée recalculée (collectedDa == dueDa)
+    // Retourner la ligne normalisée recalculée
+    return this.monthRow(providerId, ym);
+  }
+
+  // Ajouter un montant à la collecte existante
+  async addToCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+    const row = await this.monthRow(providerId, ym);
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId, month: ym } },
+    });
+
+    const currentAmount = existing?.amountDa ?? 0;
+    // Ajouter le montant mais ne pas dépasser le dû
+    const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
+
+    await this.prisma.adminCollection.upsert({
+      where: { providerId_month: { providerId, month: ym } },
+      update: { amountDa: newAmount, note: note || existing?.note },
+      create: { providerId, month: ym, amountDa: newAmount, note },
+    });
+
+    return this.monthRow(providerId, ym);
+  }
+
+  // Retirer un montant de la collecte
+  async subtractFromCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId, month: ym } },
+    });
+
+    if (!existing) {
+      return this.monthRow(providerId, ym);
+    }
+
+    const newAmount = Math.max(0, existing.amountDa - amountDa);
+
+    if (newAmount === 0) {
+      // Si le montant devient 0, supprimer l'enregistrement
+      await this.prisma.adminCollection.delete({
+        where: { providerId_month: { providerId, month: ym } },
+      });
+    } else {
+      await this.prisma.adminCollection.update({
+        where: { providerId_month: { providerId, month: ym } },
+        data: { amountDa: newAmount, note: note || existing.note },
+      });
+    }
+
     return this.monthRow(providerId, ym);
   }
 

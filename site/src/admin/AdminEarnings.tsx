@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, Calendar, Search } from 'lucide-react';
+import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { ProviderProfile, MonthlyEarnings } from '../types';
 import { format, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+interface CollectionModalData {
+  month: string;
+  monthLabel: string;
+  totalCommission: number;
+  collected: number;
+  remaining: number;
+}
 
 export function AdminEarnings() {
   const [providers, setProviders] = useState<ProviderProfile[]>([]);
@@ -19,6 +27,14 @@ export function AdminEarnings() {
     totalCommission: number;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Modal state
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [modalData, setModalData] = useState<CollectionModalData | null>(null);
+  const [collectionAmount, setCollectionAmount] = useState('');
+  const [collectionNote, setCollectionNote] = useState('');
+  const [collectionMode, setCollectionMode] = useState<'set' | 'add' | 'subtract'>('set');
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     fetchProviders();
@@ -70,7 +86,50 @@ export function AdminEarnings() {
     fetchProviderEarnings(provider.id);
   };
 
-  async function handleCollect(month: string) {
+  function openCollectionModal(earning: MonthlyEarnings) {
+    const monthLabel = format(new Date(earning.month + '-01'), 'MMMM yyyy', { locale: fr });
+    setModalData({
+      month: earning.month,
+      monthLabel,
+      totalCommission: earning.totalCommission,
+      collected: earning.collected ? earning.totalCommission : 0,
+      remaining: earning.collected ? 0 : earning.totalCommission,
+    });
+    setCollectionAmount(earning.collected ? '' : earning.totalCommission.toString());
+    setCollectionNote('');
+    setCollectionMode('set');
+    setShowCollectionModal(true);
+  }
+
+  async function handleCollectionSubmit() {
+    if (!selectedProvider || !modalData) return;
+
+    const amount = parseInt(collectionAmount, 10);
+    if (isNaN(amount) || amount < 0) {
+      alert('Veuillez entrer un montant valide');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      if (collectionMode === 'set') {
+        await api.adminCollectMonth(selectedProvider.id, modalData.month, collectionNote || undefined, amount);
+      } else if (collectionMode === 'add') {
+        await api.adminAddCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+      } else if (collectionMode === 'subtract') {
+        await api.adminSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+      }
+      fetchProviderEarnings(selectedProvider.id);
+      setShowCollectionModal(false);
+    } catch (error) {
+      console.error('Error with collection:', error);
+      alert('Erreur lors de la collecte');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleCollectAll(month: string) {
     if (!selectedProvider) return;
     try {
       await api.adminCollectMonth(selectedProvider.id, month);
@@ -269,22 +328,47 @@ export function AdminEarnings() {
                               )}
                             </td>
                             <td className="text-center py-3 px-4">
-                              {earning.collected ? (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleUncollect(earning.month)}
-                                >
-                                  Annuler
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleCollect(earning.month)}
-                                >
-                                  Collecter
-                                </Button>
-                              )}
+                              <div className="flex items-center justify-center gap-1">
+                                {earning.collected ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => openCollectionModal(earning)}
+                                      title="Modifier la collecte"
+                                    >
+                                      Modifier
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => handleUncollect(earning.month)}
+                                      title="Annuler la collecte"
+                                    >
+                                      Annuler
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleCollectAll(earning.month)}
+                                      title="Collecter tout"
+                                    >
+                                      Tout
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => openCollectionModal(earning)}
+                                      title="Collecter un montant spécifique"
+                                    >
+                                      Partiel
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -302,6 +386,137 @@ export function AdminEarnings() {
           </div>
         </div>
       </div>
+
+      {/* Modal de collecte */}
+      {showCollectionModal && modalData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Collecte - {modalData.monthLabel}
+              </h3>
+              <button
+                onClick={() => setShowCollectionModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Résumé */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500">Commission totale:</span>
+                  <p className="font-semibold text-gray-900">{formatCurrency(modalData.totalCommission)}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Déjà collecté:</span>
+                  <p className="font-semibold text-green-600">{formatCurrency(modalData.collected)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mode de collecte */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Type d'opération</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCollectionMode('set')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    collectionMode === 'set'
+                      ? 'bg-primary-100 text-primary-700 border-2 border-primary-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  Définir
+                </button>
+                <button
+                  onClick={() => setCollectionMode('add')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                    collectionMode === 'add'
+                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  <Plus size={16} /> Ajouter
+                </button>
+                <button
+                  onClick={() => setCollectionMode('subtract')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                    collectionMode === 'subtract'
+                      ? 'bg-red-100 text-red-700 border-2 border-red-500'
+                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  <Minus size={16} /> Retirer
+                </button>
+              </div>
+            </div>
+
+            {/* Montant */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {collectionMode === 'set' ? 'Montant total collecté' :
+                 collectionMode === 'add' ? 'Montant à ajouter' : 'Montant à retirer'} (DA)
+              </label>
+              <Input
+                type="number"
+                value={collectionAmount}
+                onChange={(e) => setCollectionAmount(e.target.value)}
+                placeholder="0"
+                min="0"
+                max={modalData.totalCommission}
+              />
+              {collectionMode === 'set' && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setCollectionAmount(modalData.totalCommission.toString())}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    Tout ({formatCurrency(modalData.totalCommission)})
+                  </button>
+                  <button
+                    onClick={() => setCollectionAmount(Math.floor(modalData.totalCommission / 2).toString())}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    50% ({formatCurrency(Math.floor(modalData.totalCommission / 2))})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Note */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Note (optionnel)</label>
+              <Input
+                type="text"
+                value={collectionNote}
+                onChange={(e) => setCollectionNote(e.target.value)}
+                placeholder="Ex: Paiement espèces..."
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowCollectionModal(false)}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleCollectionSubmit}
+                disabled={actionLoading || !collectionAmount}
+              >
+                {actionLoading ? 'En cours...' : 'Confirmer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

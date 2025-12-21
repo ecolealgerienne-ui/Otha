@@ -830,12 +830,20 @@ class ApiClient {
     return Array.isArray(result) ? result : [];
   }
 
-  async adminCollectMonth(providerId: string, month: string, note?: string): Promise<void> {
-    await this._client.post('/earnings/admin/collect-month', { providerId, month, note });
+  async adminCollectMonth(providerId: string, month: string, note?: string, amount?: number): Promise<void> {
+    await this._client.post('/earnings/admin/collect-month', { providerId, month, note, amount });
   }
 
   async adminUncollectMonth(providerId: string, month: string): Promise<void> {
     await this._client.post('/earnings/admin/uncollect-month', { providerId, month });
+  }
+
+  async adminAddCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/add-collection', { providerId, month, amount, note });
+  }
+
+  async adminSubtractCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/subtract-collection', { providerId, month, amount, note });
   }
 
   async adminTraceabilityStats(from: string, to: string): Promise<{
