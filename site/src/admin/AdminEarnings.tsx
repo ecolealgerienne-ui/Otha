@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X } from 'lucide-react';
+import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X, AlertTriangle } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
@@ -35,6 +35,9 @@ export function AdminEarnings() {
   const [collectionNote, setCollectionNote] = useState('');
   const [collectionMode, setCollectionMode] = useState<'set' | 'add' | 'subtract'>('set');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Track unpaid months per provider
+  const [unpaidMonthsMap, setUnpaidMonthsMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchProviders();
@@ -72,7 +75,16 @@ export function AdminEarnings() {
     try {
       const data = await api.adminHistoryMonthly(providerId, 12);
       // Ensure data is always an array
-      setEarnings(Array.isArray(data) ? data : []);
+      const earningsData = Array.isArray(data) ? data : [];
+      setEarnings(earningsData);
+
+      // Calculate unpaid months (months with commission > 0 and not fully collected)
+      const unpaidCount = earningsData.filter((e: MonthlyEarnings & { collectedAmount?: number }) => {
+        const collectedAmount = e.collectedAmount ?? (e.collected ? e.totalCommission : 0);
+        return e.totalCommission > 0 && collectedAmount < e.totalCommission;
+      }).length;
+
+      setUnpaidMonthsMap((prev) => ({ ...prev, [providerId]: unpaidCount }));
     } catch (error) {
       console.error('Error fetching earnings:', error);
       setEarnings([]);
@@ -228,37 +240,48 @@ export function AdminEarnings() {
                 <p className="text-gray-500 text-sm text-center py-4">Aucun professionnel trouvé</p>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredProviders.map((provider) => (
-                    <button
-                      key={provider.id}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedProvider?.id === provider.id
-                          ? 'bg-primary-50 border border-primary-200'
-                          : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                      onClick={() => handleSelectProvider(provider)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        {provider.avatarUrl ? (
-                          <img
-                            src={provider.avatarUrl}
-                            alt={provider.displayName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-700 font-medium">
-                              {provider.displayName?.charAt(0) || '?'}
-                            </span>
+                  {filteredProviders.map((provider) => {
+                    const unpaidMonths = unpaidMonthsMap[provider.id] || 0;
+                    return (
+                      <button
+                        key={provider.id}
+                        className={`w-full text-left p-3 rounded-lg transition-colors ${
+                          selectedProvider?.id === provider.id
+                            ? 'bg-primary-50 border border-primary-200'
+                            : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                        onClick={() => handleSelectProvider(provider)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {provider.avatarUrl ? (
+                            <img
+                              src={provider.avatarUrl}
+                              alt={provider.displayName}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                              <span className="text-primary-700 font-medium">
+                                {provider.displayName?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">{provider.displayName}</p>
+                              {unpaidMonths > 0 && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium" title={`${unpaidMonths} mois impayé(s)`}>
+                                  <AlertTriangle size={12} />
+                                  <span>{unpaidMonths}</span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{provider.address || 'Non renseigné'}</p>
                           </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900">{provider.displayName}</p>
-                          <p className="text-xs text-gray-500">{provider.address || 'Non renseigné'}</p>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </Card>

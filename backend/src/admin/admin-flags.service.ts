@@ -22,7 +22,8 @@ export type ProFlagType =
   | 'PRO_UNRESPONSIVE'           // Pro ne répond pas aux demandes (RDV expirés)
   | 'PRO_LATE_CONFIRMATIONS'     // Pro met > 24h à confirmer
   | 'PRO_LOW_COMPLETION'         // Taux de complétion < 50%
-  | 'PRO_SUSPICIOUS';            // Comportement suspect général
+  | 'PRO_SUSPICIOUS'             // Comportement suspect général
+  | 'PRO_LATE_PAYMENT';          // Retard de paiement des commissions
 
 export type FlagType = UserFlagType | ProFlagType;
 
@@ -210,6 +211,14 @@ export class AdminFlagsService {
     });
 
     if (existingFlag) {
+      // Ne pas dupliquer si la note contient déjà un message similaire
+      // Extraire la partie principale du message (avant les chiffres spécifiques)
+      const notePrefix = note.split(/\d/)[0].trim();
+      if (existingFlag.note && existingFlag.note.includes(notePrefix)) {
+        // Le message existe déjà, ne pas dupliquer
+        return existingFlag;
+      }
+
       // Mettre à jour la note existante
       return this.prisma.adminFlag.update({
         where: { id: existingFlag.id },
@@ -258,7 +267,10 @@ export class AdminFlagsService {
 
     return this.prisma.adminFlag.update({
       where: { id },
-      data: { resolved: false },
+      data: {
+        resolved: false,
+        note: flag.note ? `${flag.note} | RÉOUVERT` : 'RÉOUVERT',
+      },
     });
   }
 
