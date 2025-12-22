@@ -914,6 +914,39 @@ class AppLocalizations {
       'bannedMessage': 'Votre compte a été banni suite à une violation de nos conditions d\'utilisation.',
       'suspendedMessage': 'Vous ne pouvez pas accéder aux services pendant cette période.',
       'restrictedMessage': 'Vous ne pouvez pas réserver de nouveaux rendez-vous pendant cette période.',
+      // Password Reset
+      'forgotPasswordTitle': 'Mot de passe oublié',
+      'resetPasswordTitle': 'Réinitialiser le mot de passe',
+      'resetPasswordDesc': 'Pas de panique ! Entrez votre adresse email et nous vous enverrons un code de vérification.',
+      'emailAddress': 'Adresse email',
+      'emailPlaceholder': 'exemple@email.com',
+      'sendCode': 'Envoyer le code',
+      'enterVerificationCode': 'Entrez le code de vérification',
+      'codeSentTo': 'Un code à 6 chiffres a été envoyé à',
+      'resendCode': 'Renvoyer le code',
+      'verify': 'Vérifier',
+      'createNewPassword': 'Créez un nouveau mot de passe',
+      'newPasswordDesc': 'Votre nouveau mot de passe doit contenir au moins 8 caractères.',
+      'newPassword': 'Nouveau mot de passe',
+      'confirmNewPassword': 'Confirmer le mot de passe',
+      'minCharacters': 'Minimum 8 caractères',
+      'repeatPassword': 'Répétez le mot de passe',
+      'changePassword': 'Changer le mot de passe',
+      'passwordChangedSuccess': 'Mot de passe modifié avec succès !',
+      'codeVerified': 'Code vérifié ! Entrez votre nouveau mot de passe.',
+      'newCodeSent': 'Un nouveau code a été envoyé',
+      'enterEmail': 'Veuillez entrer votre adresse email',
+      'invalidEmail': 'Veuillez entrer une adresse email valide',
+      'connectionError': 'Erreur de connexion. Réessayez plus tard.',
+      'enter6DigitCode': 'Veuillez entrer le code à 6 chiffres',
+      'invalidOrExpiredCode': 'Code invalide ou expiré',
+      'tooManyAttempts': 'Trop de tentatives. Demandez un nouveau code.',
+      'verificationError': 'Erreur de vérification',
+      'enterNewPassword': 'Veuillez entrer un nouveau mot de passe',
+      'passwordMinLength': 'Le mot de passe doit contenir au moins 8 caractères',
+      'passwordsNotMatch': 'Les mots de passe ne correspondent pas',
+      'passwordChangeError': 'Erreur lors du changement de mot de passe',
+      'sendCodeError': 'Erreur lors de l\'envoi du code',
     },
     'en': {
       'appName': 'Vegece',
@@ -1686,6 +1719,39 @@ class AppLocalizations {
       'bannedMessage': 'Your account has been banned for violating our terms of use.',
       'suspendedMessage': 'You cannot access services during this period.',
       'restrictedMessage': 'You cannot book new appointments during this period.',
+      // Password Reset
+      'forgotPasswordTitle': 'Forgot password',
+      'resetPasswordTitle': 'Reset password',
+      'resetPasswordDesc': 'Don\'t worry! Enter your email address and we\'ll send you a verification code.',
+      'emailAddress': 'Email address',
+      'emailPlaceholder': 'example@email.com',
+      'sendCode': 'Send code',
+      'enterVerificationCode': 'Enter verification code',
+      'codeSentTo': 'A 6-digit code has been sent to',
+      'resendCode': 'Resend code',
+      'verify': 'Verify',
+      'createNewPassword': 'Create a new password',
+      'newPasswordDesc': 'Your new password must contain at least 8 characters.',
+      'newPassword': 'New password',
+      'confirmNewPassword': 'Confirm password',
+      'minCharacters': 'Minimum 8 characters',
+      'repeatPassword': 'Repeat password',
+      'changePassword': 'Change password',
+      'passwordChangedSuccess': 'Password changed successfully!',
+      'codeVerified': 'Code verified! Enter your new password.',
+      'newCodeSent': 'A new code has been sent',
+      'enterEmail': 'Please enter your email address',
+      'invalidEmail': 'Please enter a valid email address',
+      'connectionError': 'Connection error. Please try again later.',
+      'enter6DigitCode': 'Please enter the 6-digit code',
+      'invalidOrExpiredCode': 'Invalid or expired code',
+      'tooManyAttempts': 'Too many attempts. Request a new code.',
+      'verificationError': 'Verification error',
+      'enterNewPassword': 'Please enter a new password',
+      'passwordMinLength': 'Password must contain at least 8 characters',
+      'passwordsNotMatch': 'Passwords do not match',
+      'passwordChangeError': 'Error changing password',
+      'sendCodeError': 'Error sending code',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -2458,6 +2524,39 @@ class AppLocalizations {
       'bannedMessage': 'تم حظر حسابك بسبب انتهاك شروط الاستخدام.',
       'suspendedMessage': 'لا يمكنك الوصول إلى الخدمات خلال هذه الفترة.',
       'restrictedMessage': 'لا يمكنك حجز مواعيد جديدة خلال هذه الفترة.',
+      // Password Reset
+      'forgotPasswordTitle': 'نسيت كلمة المرور',
+      'resetPasswordTitle': 'إعادة تعيين كلمة المرور',
+      'resetPasswordDesc': 'لا تقلق! أدخل بريدك الإلكتروني وسنرسل لك رمز التحقق.',
+      'emailAddress': 'البريد الإلكتروني',
+      'emailPlaceholder': 'example@email.com',
+      'sendCode': 'إرسال الرمز',
+      'enterVerificationCode': 'أدخل رمز التحقق',
+      'codeSentTo': 'تم إرسال رمز مكون من 6 أرقام إلى',
+      'resendCode': 'إعادة إرسال الرمز',
+      'verify': 'تحقق',
+      'createNewPassword': 'إنشاء كلمة مرور جديدة',
+      'newPasswordDesc': 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.',
+      'newPassword': 'كلمة المرور الجديدة',
+      'confirmNewPassword': 'تأكيد كلمة المرور',
+      'minCharacters': '8 أحرف كحد أدنى',
+      'repeatPassword': 'أعد كتابة كلمة المرور',
+      'changePassword': 'تغيير كلمة المرور',
+      'passwordChangedSuccess': 'تم تغيير كلمة المرور بنجاح!',
+      'codeVerified': 'تم التحقق من الرمز! أدخل كلمة المرور الجديدة.',
+      'newCodeSent': 'تم إرسال رمز جديد',
+      'enterEmail': 'يرجى إدخال بريدك الإلكتروني',
+      'invalidEmail': 'يرجى إدخال بريد إلكتروني صالح',
+      'connectionError': 'خطأ في الاتصال. يرجى المحاولة لاحقاً.',
+      'enter6DigitCode': 'يرجى إدخال الرمز المكون من 6 أرقام',
+      'invalidOrExpiredCode': 'رمز غير صالح أو منتهي الصلاحية',
+      'tooManyAttempts': 'محاولات كثيرة جداً. اطلب رمزاً جديداً.',
+      'verificationError': 'خطأ في التحقق',
+      'enterNewPassword': 'يرجى إدخال كلمة مرور جديدة',
+      'passwordMinLength': 'يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل',
+      'passwordsNotMatch': 'كلمات المرور غير متطابقة',
+      'passwordChangeError': 'خطأ في تغيير كلمة المرور',
+      'sendCodeError': 'خطأ في إرسال الرمز',
     },
   };
 
@@ -3135,6 +3234,40 @@ class AppLocalizations {
   String get adoptNoMessagesDesc => _get('adoptNoMessagesDesc');
   String get adoptLoadingError => _get('adoptLoadingError');
   String get adoptRetry => _get('adoptRetry');
+
+  // Password Reset translations
+  String get forgotPasswordTitle => _get('forgotPasswordTitle');
+  String get resetPasswordTitle => _get('resetPasswordTitle');
+  String get resetPasswordDesc => _get('resetPasswordDesc');
+  String get emailAddress => _get('emailAddress');
+  String get emailPlaceholder => _get('emailPlaceholder');
+  String get sendCode => _get('sendCode');
+  String get enterVerificationCode => _get('enterVerificationCode');
+  String get codeSentTo => _get('codeSentTo');
+  String get resendCode => _get('resendCode');
+  String get verify => _get('verify');
+  String get createNewPassword => _get('createNewPassword');
+  String get newPasswordDesc => _get('newPasswordDesc');
+  String get newPassword => _get('newPassword');
+  String get confirmNewPassword => _get('confirmNewPassword');
+  String get minCharacters => _get('minCharacters');
+  String get repeatPassword => _get('repeatPassword');
+  String get changePassword => _get('changePassword');
+  String get passwordChangedSuccess => _get('passwordChangedSuccess');
+  String get codeVerified => _get('codeVerified');
+  String get newCodeSent => _get('newCodeSent');
+  String get enterEmail => _get('enterEmail');
+  String get invalidEmail => _get('invalidEmail');
+  String get connectionError => _get('connectionError');
+  String get enter6DigitCode => _get('enter6DigitCode');
+  String get invalidOrExpiredCode => _get('invalidOrExpiredCode');
+  String get tooManyAttempts => _get('tooManyAttempts');
+  String get verificationError => _get('verificationError');
+  String get enterNewPassword => _get('enterNewPassword');
+  String get passwordMinLength => _get('passwordMinLength');
+  String get passwordsNotMatch => _get('passwordsNotMatch');
+  String get passwordChangeError => _get('passwordChangeError');
+  String get sendCodeError => _get('sendCodeError');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
-import '../../core/theme_provider.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   final String asRole;
@@ -25,15 +24,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _sendResetCode() async {
+    final l10n = AppLocalizations.of(context);
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      setState(() => _error = 'Veuillez entrer votre adresse email');
+      setState(() => _error = l10n.enterEmail);
       return;
     }
 
     // Basic email validation
     if (!email.contains('@') || !email.contains('.')) {
-      setState(() => _error = 'Veuillez entrer une adresse email valide');
+      setState(() => _error = l10n.invalidEmail);
       return;
     }
 
@@ -53,14 +53,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         context.push('/auth/reset-code?email=${Uri.encodeComponent(email)}&as=${widget.asRole}');
       } else {
         setState(() {
-          _error = result['message'] ?? 'Une erreur est survenue';
+          _error = result['message'] ?? l10n.connectionError;
           _loading = false;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Erreur de connexion. Réessayez plus tard.';
+        _error = l10n.connectionError;
         _loading = false;
       });
     }
@@ -84,7 +84,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Mot de passe oublié',
+          l10n.forgotPasswordTitle,
           style: TextStyle(color: textColor),
         ),
         surfaceTintColor: Colors.transparent,
@@ -96,7 +96,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           children: [
             const SizedBox(height: 8),
             Text(
-              'Réinitialiser le mot de passe',
+              l10n.resetPasswordTitle,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -105,12 +105,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              "Pas de panique ! Entrez votre adresse email et nous vous enverrons un code de vérification.",
+              l10n.resetPasswordDesc,
               style: TextStyle(color: subtextColor, fontSize: 15),
             ),
             const SizedBox(height: 24),
             Text(
-              'Adresse email',
+              l10n.emailAddress,
               style: TextStyle(color: subtextColor, fontSize: 13, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
@@ -120,7 +120,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               autocorrect: false,
               style: TextStyle(color: textColor),
               decoration: InputDecoration(
-                hintText: 'exemple@email.com',
+                hintText: l10n.emailPlaceholder,
                 hintStyle: TextStyle(color: subtextColor.withOpacity(0.5)),
                 prefixIcon: Icon(Icons.email_outlined, color: subtextColor),
                 border: OutlineInputBorder(
@@ -181,7 +181,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         height: 24,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text('Envoyer le code'),
+                    : Text(l10n.sendCode),
               ),
             ),
             const SizedBox(height: 16),
