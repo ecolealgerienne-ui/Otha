@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
-import '../../core/theme_provider.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String email;
@@ -48,8 +47,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   String get _code => _codeControllers.map((c) => c.text).join();
 
   Future<void> _verifyCode() async {
+    final l10n = AppLocalizations.of(context);
     if (_code.length != 6) {
-      setState(() => _error = 'Veuillez entrer le code à 6 chiffres');
+      setState(() => _error = l10n.enter6DigitCode);
       return;
     }
 
@@ -68,11 +68,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         setState(() {
           _codeVerified = true;
           _loading = false;
-          _success = 'Code vérifié ! Entrez votre nouveau mot de passe.';
+          _success = l10n.codeVerified;
         });
       } else {
         setState(() {
-          _error = 'Code invalide ou expiré';
+          _error = l10n.invalidOrExpiredCode;
           _loading = false;
         });
       }
@@ -80,29 +80,30 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       if (!mounted) return;
       setState(() {
         _error = e.toString().contains('Trop de tentatives')
-            ? 'Trop de tentatives. Demandez un nouveau code.'
-            : 'Erreur de vérification';
+            ? l10n.tooManyAttempts
+            : l10n.verificationError;
         _loading = false;
       });
     }
   }
 
   Future<void> _resetPassword() async {
+    final l10n = AppLocalizations.of(context);
     final password = _passwordController.text;
     final confirm = _confirmController.text;
 
     if (password.isEmpty) {
-      setState(() => _error = 'Veuillez entrer un nouveau mot de passe');
+      setState(() => _error = l10n.enterNewPassword);
       return;
     }
 
     if (password.length < 8) {
-      setState(() => _error = 'Le mot de passe doit contenir au moins 8 caractères');
+      setState(() => _error = l10n.passwordMinLength);
       return;
     }
 
     if (password != confirm) {
-      setState(() => _error = 'Les mots de passe ne correspondent pas');
+      setState(() => _error = l10n.passwordsNotMatch);
       return;
     }
 
@@ -125,11 +126,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         // Show success message and go to login
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Mot de passe modifié avec succès !'),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(l10n.passwordChangedSuccess),
               ],
             ),
             backgroundColor: Colors.green,
@@ -139,20 +140,21 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         context.go('/auth/login?as=${widget.asRole}');
       } else {
         setState(() {
-          _error = result['message'] ?? 'Une erreur est survenue';
+          _error = result['message'] ?? l10n.passwordChangeError;
           _loading = false;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Erreur lors du changement de mot de passe';
+        _error = l10n.passwordChangeError;
         _loading = false;
       });
     }
   }
 
   Future<void> _resendCode() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _loading = true;
       _error = null;
@@ -166,7 +168,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
       setState(() {
         _loading = false;
-        _success = 'Un nouveau code a été envoyé à ${widget.email}';
+        _success = '${l10n.newCodeSent} ${widget.email}';
       });
 
       // Clear the code fields
@@ -177,7 +179,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Erreur lors de l\'envoi du code';
+        _error = l10n.sendCodeError;
         _loading = false;
       });
     }
@@ -185,6 +187,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     final coral = const Color(0xFFF36C6C);
     final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
@@ -200,7 +203,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          _codeVerified ? 'Nouveau mot de passe' : 'Vérification',
+          _codeVerified ? l10n.newPassword : l10n.verify,
           style: TextStyle(color: textColor),
         ),
         surfaceTintColor: Colors.transparent,
@@ -215,7 +218,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             if (!_codeVerified) ...[
               // Step 1: Enter verification code
               Text(
-                'Entrez le code de vérification',
+                l10n.enterVerificationCode,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -227,7 +230,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 text: TextSpan(
                   style: TextStyle(color: subtextColor, fontSize: 15),
                   children: [
-                    const TextSpan(text: 'Un code à 6 chiffres a été envoyé à '),
+                    TextSpan(text: '${l10n.codeSentTo} '),
                     TextSpan(
                       text: widget.email,
                       style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
@@ -296,7 +299,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 child: TextButton(
                   onPressed: _loading ? null : _resendCode,
                   child: Text(
-                    'Renvoyer le code',
+                    l10n.resendCode,
                     style: TextStyle(color: coral, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -304,7 +307,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             ] else ...[
               // Step 2: Enter new password
               Text(
-                'Créez un nouveau mot de passe',
+                l10n.createNewPassword,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -313,14 +316,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Votre nouveau mot de passe doit contenir au moins 8 caractères.',
+                l10n.newPasswordDesc,
                 style: TextStyle(color: subtextColor, fontSize: 15),
               ),
               const SizedBox(height: 32),
 
               // New password field
               Text(
-                'Nouveau mot de passe',
+                l10n.newPassword,
                 style: TextStyle(color: subtextColor, fontSize: 13, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
@@ -329,7 +332,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 obscureText: !_showPassword,
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  hintText: 'Minimum 8 caractères',
+                  hintText: l10n.minCharacters,
                   hintStyle: TextStyle(color: subtextColor.withOpacity(0.5)),
                   prefixIcon: Icon(Icons.lock_outline, color: subtextColor),
                   suffixIcon: IconButton(
@@ -359,7 +362,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
               // Confirm password field
               Text(
-                'Confirmer le mot de passe',
+                l10n.confirmNewPassword,
                 style: TextStyle(color: subtextColor, fontSize: 13, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
@@ -368,7 +371,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 obscureText: !_showPassword,
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  hintText: 'Répétez le mot de passe',
+                  hintText: l10n.repeatPassword,
                   hintStyle: TextStyle(color: subtextColor.withOpacity(0.5)),
                   prefixIcon: Icon(Icons.lock_outline, color: subtextColor),
                   border: OutlineInputBorder(
@@ -462,7 +465,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         height: 24,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : Text(_codeVerified ? 'Changer le mot de passe' : 'Vérifier'),
+                    : Text(_codeVerified ? l10n.changePassword : l10n.verify),
               ),
             ),
             const SizedBox(height: 16),
