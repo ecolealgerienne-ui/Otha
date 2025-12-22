@@ -17,23 +17,19 @@ workflows:
       - name: Install CocoaPods
         script: cd ios && pod install --repo-update
 
-      - name: Build Flutter iOS frameworks
-        script: |
-          flutter build ios-framework --no-debug --no-profile --release
-
       - name: Build unsigned app with xcodebuild
         script: |
+          # Build directly with xcodebuild, bypassing Flutter's signing checks
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build/ios/derived \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            -allowProvisioningUpdates=NO \
             clean build
 
       - name: Create unsigned IPA for Sideloadly
