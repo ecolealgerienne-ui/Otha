@@ -33,8 +33,7 @@ workflows:
 
     artifacts:
       - build/ios/iphoneos/Runner.app
-      - Vethome-unsigned.ipa
-      - flutter_drive.log
+      - "*.ipa"
 
     publishing:
       email:
