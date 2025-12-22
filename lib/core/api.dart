@@ -235,6 +235,35 @@ class ApiClient {
     await _storage.delete(key: 'my_provider_id');
   }
 
+  // ====== Password Reset ======
+
+  /// Request a password reset code to be sent by email
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    final res = await _dio.post('/auth/forgot-password', data: {'email': email});
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Verify the reset code is valid
+  Future<bool> verifyResetCode({required String email, required String code}) async {
+    final res = await _dio.post('/auth/verify-reset-code', data: {'email': email, 'code': code});
+    final data = _unwrap<Map<String, dynamic>>(res.data);
+    return data['valid'] == true;
+  }
+
+  /// Reset password with the code
+  Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final res = await _dio.post('/auth/reset-password', data: {
+      'email': email,
+      'code': code,
+      'newPassword': newPassword,
+    });
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
   Future<Map<String, dynamic>> me() async {
     await ensureAuth();
     final res = await _authRetry(() async => await _dio.get('/users/me'));

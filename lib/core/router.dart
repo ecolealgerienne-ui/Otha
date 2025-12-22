@@ -14,6 +14,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/user_register_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/auth/otp_screen.dart';
+import '../features/auth/reset_password_screen.dart';
 import '../features/auth/profile_completion_screen.dart';
 import '../features/auth/location_permission_screen.dart';
 import '../features/auth/trust_explanation_screen.dart';
@@ -151,7 +152,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/auth/register/user',
         '/auth/register/pro',
         '/auth/forgot-password',
+        '/auth/forgot',
         '/auth/otp',
+        '/auth/reset-code',
         '/auth/location-permission',
         '/auth/trust-explanation',
         '/auth/profile-completion',
@@ -292,6 +295,13 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         path: '/auth/otp',
         builder: (ctx, st) =>
             OtpScreen(asRole: st.uri.queryParameters['as'] ?? 'user'),
+      ),
+      GoRoute(
+        path: '/auth/reset-code',
+        builder: (ctx, st) => ResetPasswordScreen(
+          email: st.uri.queryParameters['email'] ?? '',
+          asRole: st.uri.queryParameters['as'] ?? 'user',
+        ),
       ),
       GoRoute(
         path: '/auth/profile-completion',
