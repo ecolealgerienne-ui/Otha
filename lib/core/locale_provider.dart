@@ -3091,6 +3091,50 @@ class AppLocalizations {
   String get clientNote => _get('clientNote');
   String get bookingRejected => _get('bookingRejected');
   String get bookingUpdated => _get('bookingUpdated');
+
+  // Adopt module translations
+  String get adoptDiscussions => _get('adoptDiscussions');
+  String get adoptAdopter => _get('adoptAdopter');
+  String get adoptCreate => _get('adoptCreate');
+  String get adoptNoAds => _get('adoptNoAds');
+  String get adoptErrorLoading => _get('adoptErrorLoading');
+  String get adoptHeader => _get('adoptHeader');
+  String get adoptSearching => _get('adoptSearching');
+  String get adoptNoAdsTitle => _get('adoptNoAdsTitle');
+  String get adoptNoAdsDesc => _get('adoptNoAdsDesc');
+  String get adoptRefresh => _get('adoptRefresh');
+  String get adoptRequestSent => _get('adoptRequestSent');
+  String get adoptPassed => _get('adoptPassed');
+  String get adoptOwnPost => _get('adoptOwnPost');
+  String get adoptQuotaReached => _get('adoptQuotaReached');
+  String get adoptQuotaReachedToday => _get('adoptQuotaReachedToday');
+  String get adoptInvalidRequest => _get('adoptInvalidRequest');
+  String get adoptTooManyRequests => _get('adoptTooManyRequests');
+  String get adoptServerUnavailable => _get('adoptServerUnavailable');
+  String get adoptError => _get('adoptError');
+  String get adoptDog => _get('adoptDog');
+  String get adoptCat => _get('adoptCat');
+  String get adoptRabbit => _get('adoptRabbit');
+  String get adoptBird => _get('adoptBird');
+  String get adoptOther => _get('adoptOther');
+  String get adoptMale => _get('adoptMale');
+  String get adoptFemale => _get('adoptFemale');
+  String get adoptMonths => _get('adoptMonths');
+  String get adoptYears => _get('adoptYears');
+  String get adoptYear => _get('adoptYear');
+  String get adoptAdopted => _get('adoptAdopted');
+  String get adoptRequestAccepted => _get('adoptRequestAccepted');
+  String get adoptRequestRejected => _get('adoptRequestRejected');
+  String get adoptConversationDeleted => _get('adoptConversationDeleted');
+  String get adoptMessages => _get('adoptMessages');
+  String get adoptNews => _get('adoptNews');
+  String get adoptNew => _get('adoptNew');
+  String get adoptNewRequests => _get('adoptNewRequests');
+  String get adoptConversations => _get('adoptConversations');
+  String get adoptNoMessages => _get('adoptNoMessages');
+  String get adoptNoMessagesDesc => _get('adoptNoMessagesDesc');
+  String get adoptLoadingError => _get('adoptLoadingError');
+  String get adoptRetry => _get('adoptRetry');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
