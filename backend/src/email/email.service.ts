@@ -8,13 +8,24 @@ export class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private config: ConfigService) {
+    const smtpUser = this.config.get<string>('SMTP_USER');
+    const smtpPass = this.config.get<string>('SMTP_PASS');
+    const smtpHost = this.config.get<string>('SMTP_HOST', 'smtp.gmail.com');
+    const smtpPort = this.config.get<number>('SMTP_PORT', 587);
+
+    this.logger.log(`📧 SMTP Config: host=${smtpHost}, port=${smtpPort}, user=${smtpUser ? smtpUser.substring(0, 5) + '***' : 'NOT SET'}`);
+
+    if (!smtpUser || !smtpPass) {
+      this.logger.warn('⚠️ SMTP credentials not configured! Email sending will fail.');
+    }
+
     this.transporter = nodemailer.createTransport({
-      host: this.config.get<string>('SMTP_HOST', 'smtp.gmail.com'),
-      port: this.config.get<number>('SMTP_PORT', 587),
+      host: smtpHost,
+      port: smtpPort,
       secure: false,
       auth: {
-        user: this.config.get<string>('SMTP_USER', 'contact@vegece.com'),
-        pass: this.config.get<string>('SMTP_PASS'),
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
   }
@@ -24,7 +35,7 @@ export class EmailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Vegece" <${this.config.get<string>('SMTP_USER', 'contact@vegece.com')}>`,
+        from: `"Vegece" <${this.config.get<string>('SMTP_USER')}>`,
         to: email,
         subject: 'Réinitialisation de votre mot de passe - Vegece',
         html: `
@@ -66,10 +77,13 @@ export class EmailService {
         text: `Bonjour ${name},\n\nVotre code de réinitialisation Vegece est: ${code}\n\nCe code est valable pendant 15 minutes.\n\nSi vous n'avez pas demandé cette réinitialisation, ignorez cet email.`,
       });
 
-      this.logger.log(`Password reset email sent to ${email}`);
+      this.logger.log(`✅ Password reset email sent to ${email}`);
       return true;
-    } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${email}:`, error);
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to send password reset email to ${email}`);
+      this.logger.error(`Error: ${error.message || error}`);
+      if (error.code) this.logger.error(`SMTP Error Code: ${error.code}`);
+      if (error.response) this.logger.error(`SMTP Response: ${error.response}`);
       return false;
     }
   }
@@ -79,7 +93,7 @@ export class EmailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Vegece" <${this.config.get<string>('SMTP_USER', 'contact@vegece.com')}>`,
+        from: `"Vegece" <${this.config.get<string>('SMTP_USER')}>`,
         to: email,
         subject: 'Votre mot de passe a été modifié - Vegece',
         html: `
