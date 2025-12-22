@@ -4,8 +4,6 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Votre position est utilisée pour afficher les vétérinaires à proximité.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Vegece</string>
 	<key>CFBundleExecutable</key>
@@ -47,5 +45,51 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Location Permission -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Votre position est utilisée pour afficher les vétérinaires et garderies à proximité.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Votre position est utilisée pour afficher les professionnels à proximité.</string>
+
+	<!-- Camera Permission (for image_picker, mobile_scanner) -->
+	<key>NSCameraUsageDescription</key>
+	<string>L'accès à la caméra permet de prendre des photos de vos animaux et de scanner les QR codes.</string>
+
+	<!-- Photo Library Permissions (for image_picker, image_cropper) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>L'accès à la galerie permet de sélectionner des photos de vos animaux.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Permet de sauvegarder des photos dans votre galerie.</string>
+
+	<!-- Microphone Permission (optional, for video) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>L'accès au microphone permet d'enregistrer des vidéos avec son.</string>
+
+	<!-- Google Sign-In URL Schemes -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.504453952190-4e2d7g0nqo3mp016vi8e9s52bj0off46</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- App Transport Security (allow HTTP for development) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<!-- Face ID Permission (for flutter_secure_storage) -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Utilisez Face ID pour accéder de manière sécurisée à l'application.</string>
 </dict>
 </plist>
