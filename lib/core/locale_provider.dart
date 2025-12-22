@@ -3245,7 +3245,6 @@ class AppLocalizations {
   String get enterVerificationCode => _get('enterVerificationCode');
   String get codeSentTo => _get('codeSentTo');
   String get resendCode => _get('resendCode');
-  String get verify => _get('verify');
   String get createNewPassword => _get('createNewPassword');
   String get newPasswordDesc => _get('newPasswordDesc');
   String get newPassword => _get('newPassword');
