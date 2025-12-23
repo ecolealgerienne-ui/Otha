@@ -853,47 +853,10 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                 itemBuilder: (context, index) {
                   final conv = _conversations[index];
 
-                  // Try multiple possible field names for user ID
-                  final requester = conv['requester'] as Map<String, dynamic>?;
-                  final user = conv['user'] as Map<String, dynamic>?;
-                  final otherUser = conv['otherUser'] as Map<String, dynamic>?;
-                  final otherUserId = conv['otherUserId']?.toString()
-                      ?? conv['requesterId']?.toString()
-                      ?? conv['userId']?.toString()
-                      ?? requester?['id']?.toString()
-                      ?? user?['id']?.toString()
-                      ?? otherUser?['id']?.toString()
-                      ?? conv['id']?.toString(); // Fallback to conversation ID
-
-                  // Try multiple possible field names for name
-                  final otherPersonName = (
-                      conv['otherPersonName']
-                      ?? conv['requesterName']
-                      ?? requester?['anonymousName']
-                      ?? requester?['displayName']
-                      ?? user?['anonymousName']
-                      ?? user?['displayName']
-                      ?? otherUser?['anonymousName']
-                      ?? otherUser?['displayName']
-                      ?? widget.l10n.adoptAnonymous
-                  ).toString();
-
-                  final lastMessageRaw = conv['lastMessage'];
-                  String lastMessageText;
-                  if (lastMessageRaw is Map<String, dynamic>) {
-                    lastMessageText = (lastMessageRaw['content'] ?? '').toString();
-                  } else if (lastMessageRaw is String) {
-                    lastMessageText = lastMessageRaw;
-                  } else {
-                    lastMessageText = widget.l10n.adoptNoMessage;
-                  }
-
-                  final post = conv['post'] as Map<String, dynamic>? ?? {};
-                  final images = (post['images'] as List<dynamic>?)
-                      ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
-                      .where((url) => url != null && url.isNotEmpty)
-                      .cast<String>()
-                      .toList() ?? [];
+                  // API returns: adopterId, adopterName, lastMessage (string)
+                  final adopterId = conv['adopterId']?.toString();
+                  final adopterName = (conv['adopterName'] ?? widget.l10n.adoptAnonymous).toString();
+                  final lastMessage = (conv['lastMessage'] ?? widget.l10n.adoptNoMessage).toString();
 
                   return Container(
                     decoration: BoxDecoration(
@@ -906,30 +869,14 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                       child: Row(
                         children: [
                           // Avatar
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: images.isNotEmpty
-                                ? Image.network(
-                                    images.first,
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
-                                      child: const Icon(Icons.person, color: _rosePrimary),
-                                    ),
-                                  )
-                                : Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.person, color: _rosePrimary),
-                                  ),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.person, color: _rosePrimary),
                           ),
                           const SizedBox(width: 12),
                           // Name and last message
@@ -938,7 +885,7 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  otherPersonName,
+                                  adopterName,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
@@ -949,7 +896,7 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  lastMessageText,
+                                  lastMessage,
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: textSecondary,
@@ -963,8 +910,8 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                           const SizedBox(width: 8),
                           // Select button
                           FilledButton(
-                            onPressed: otherUserId != null
-                                ? () => widget.onAdopterSelected(otherUserId)
+                            onPressed: adopterId != null
+                                ? () => widget.onAdopterSelected(adopterId)
                                 : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: _rosePrimary,
