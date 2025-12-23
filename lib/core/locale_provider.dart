@@ -296,8 +296,54 @@ class AppLocalizations {
       // Home screen - Adoption & Carrière
       'adopt': 'Adoptez',
       'changeALife': 'Changez une vie',
-      'boost': 'Boostez',
-      'yourCareer': 'Votre carrière',
+      'boost': 'Carrière',
+      'yourCareer': 'Votre prochaine opportunité',
+      // Career translations
+      'careerTitle': 'Carrière',
+      'careerSubtitle': 'Stages & Emplois',
+      'careerRequests': 'Demandes',
+      'careerOffers': 'Offres',
+      'careerMyPost': 'Mon annonce',
+      'careerCreatePost': 'Créer mon annonce',
+      'careerEditPost': 'Modifier mon annonce',
+      'careerPublicBio': 'Présentez-vous (visible par tous)',
+      'careerPublicBioHint': 'Ex: Je recherche un stage de 3 mois dans le domaine vétérinaire...',
+      'careerDetailedBio': 'Bio détaillée (visible par les pros)',
+      'careerDetailedBioHint': 'Décrivez vos compétences, expériences...',
+      'careerCity': 'Ville',
+      'careerDomain': 'Domaine',
+      'careerDomainHint': 'Ex: Vétérinaire, ASV, Secrétaire...',
+      'careerDuration': 'Durée',
+      'careerDurationHint': 'Ex: 3 mois, CDI, CDD...',
+      'careerFullName': 'Nom complet',
+      'careerEmail': 'Email de contact',
+      'careerPhone': 'Téléphone',
+      'careerCV': 'CV (image)',
+      'careerUploadCV': 'Télécharger mon CV',
+      'careerContact': 'Contacter',
+      'careerViewCV': 'Voir le CV',
+      'careerPendingApproval': 'En attente de validation',
+      'careerApproved': 'Approuvée',
+      'careerRejected': 'Rejetée',
+      'careerOnePostOnly': 'Vous ne pouvez avoir qu\'une seule annonce de ce type',
+      'careerNoResults': 'Aucune annonce trouvée',
+      'careerSearchCity': 'Rechercher par ville...',
+      'careerSalary': 'Salaire/Rémunération',
+      'careerRequirements': 'Prérequis',
+      'careerPostPublished': 'Annonce publiée ! En attente de validation.',
+      'careerPostUpdated': 'Annonce mise à jour',
+      'careerPostDeleted': 'Annonce supprimée',
+      'careerTypeRequest': 'Demande',
+      'careerTypeOffer': 'Offre',
+      'careerFindWorker': 'Trouver un collaborateur',
+      'careerCandidates': 'Candidats',
+      'careerMyOffer': 'Mon offre',
+      'careerCreateOffer': 'Publier une offre',
+      'careerPrivateInfo': 'Informations privées',
+      'careerPrivateInfoNote': 'Visible uniquement par les professionnels',
+      'careerPublicInfo': 'Informations publiques',
+      'careerTitle2': 'Titre de l\'annonce',
+      'careerTitleHint': 'Ex: Recherche stage vétérinaire',
       // Adopt screens
       'adoptDiscussions': 'Discussions',
       'adoptAdopter': 'Adopter',
@@ -1155,8 +1201,54 @@ class AppLocalizations {
       // Home screen - Adoption & Career
       'adopt': 'Adopt',
       'changeALife': 'Change a life',
-      'boost': 'Boost',
-      'yourCareer': 'Your career',
+      'boost': 'Career',
+      'yourCareer': 'Your next opportunity',
+      // Career translations
+      'careerTitle': 'Career',
+      'careerSubtitle': 'Internships & Jobs',
+      'careerRequests': 'Requests',
+      'careerOffers': 'Offers',
+      'careerMyPost': 'My post',
+      'careerCreatePost': 'Create my post',
+      'careerEditPost': 'Edit my post',
+      'careerPublicBio': 'Introduce yourself (visible to all)',
+      'careerPublicBioHint': 'Ex: I am looking for a 3-month internship in veterinary...',
+      'careerDetailedBio': 'Detailed bio (visible to pros)',
+      'careerDetailedBioHint': 'Describe your skills, experiences...',
+      'careerCity': 'City',
+      'careerDomain': 'Field',
+      'careerDomainHint': 'Ex: Veterinarian, ASV, Secretary...',
+      'careerDuration': 'Duration',
+      'careerDurationHint': 'Ex: 3 months, Permanent, Fixed-term...',
+      'careerFullName': 'Full name',
+      'careerEmail': 'Contact email',
+      'careerPhone': 'Phone',
+      'careerCV': 'CV (image)',
+      'careerUploadCV': 'Upload my CV',
+      'careerContact': 'Contact',
+      'careerViewCV': 'View CV',
+      'careerPendingApproval': 'Pending approval',
+      'careerApproved': 'Approved',
+      'careerRejected': 'Rejected',
+      'careerOnePostOnly': 'You can only have one post of this type',
+      'careerNoResults': 'No posts found',
+      'careerSearchCity': 'Search by city...',
+      'careerSalary': 'Salary/Compensation',
+      'careerRequirements': 'Requirements',
+      'careerPostPublished': 'Post published! Pending approval.',
+      'careerPostUpdated': 'Post updated',
+      'careerPostDeleted': 'Post deleted',
+      'careerTypeRequest': 'Request',
+      'careerTypeOffer': 'Offer',
+      'careerFindWorker': 'Find a collaborator',
+      'careerCandidates': 'Candidates',
+      'careerMyOffer': 'My offer',
+      'careerCreateOffer': 'Publish an offer',
+      'careerPrivateInfo': 'Private information',
+      'careerPrivateInfoNote': 'Visible only to professionals',
+      'careerPublicInfo': 'Public information',
+      'careerTitle2': 'Post title',
+      'careerTitleHint': 'Ex: Looking for veterinary internship',
       // Adopt screens
       'adoptDiscussions': 'Discussions',
       'adoptAdopter': 'Adopt',
@@ -2014,8 +2106,54 @@ class AppLocalizations {
       // Home screen - Adoption & Career
       'adopt': 'تبنَّ',
       'changeALife': 'غيّر حياة',
-      'boost': 'عزّز',
-      'yourCareer': 'مسيرتك المهنية',
+      'boost': 'الوظائف',
+      'yourCareer': 'فرصتك القادمة',
+      // Career translations
+      'careerTitle': 'الوظائف',
+      'careerSubtitle': 'تدريب وتوظيف',
+      'careerRequests': 'الطلبات',
+      'careerOffers': 'العروض',
+      'careerMyPost': 'إعلاني',
+      'careerCreatePost': 'إنشاء إعلان',
+      'careerEditPost': 'تعديل إعلاني',
+      'careerPublicBio': 'قدم نفسك (مرئي للجميع)',
+      'careerPublicBioHint': 'مثال: أبحث عن تدريب لمدة 3 أشهر في مجال البيطرة...',
+      'careerDetailedBio': 'نبذة مفصلة (مرئية للمحترفين)',
+      'careerDetailedBioHint': 'صف مهاراتك وخبراتك...',
+      'careerCity': 'المدينة',
+      'careerDomain': 'المجال',
+      'careerDomainHint': 'مثال: طبيب بيطري، مساعد بيطري...',
+      'careerDuration': 'المدة',
+      'careerDurationHint': 'مثال: 3 أشهر، دائم، مؤقت...',
+      'careerFullName': 'الاسم الكامل',
+      'careerEmail': 'البريد الإلكتروني',
+      'careerPhone': 'الهاتف',
+      'careerCV': 'السيرة الذاتية (صورة)',
+      'careerUploadCV': 'تحميل سيرتي الذاتية',
+      'careerContact': 'تواصل',
+      'careerViewCV': 'عرض السيرة الذاتية',
+      'careerPendingApproval': 'في انتظار الموافقة',
+      'careerApproved': 'تمت الموافقة',
+      'careerRejected': 'مرفوض',
+      'careerOnePostOnly': 'يمكنك نشر إعلان واحد فقط من هذا النوع',
+      'careerNoResults': 'لم يتم العثور على إعلانات',
+      'careerSearchCity': 'البحث حسب المدينة...',
+      'careerSalary': 'الراتب/التعويض',
+      'careerRequirements': 'المتطلبات',
+      'careerPostPublished': 'تم نشر الإعلان! في انتظار الموافقة.',
+      'careerPostUpdated': 'تم تحديث الإعلان',
+      'careerPostDeleted': 'تم حذف الإعلان',
+      'careerTypeRequest': 'طلب',
+      'careerTypeOffer': 'عرض',
+      'careerFindWorker': 'البحث عن متعاون',
+      'careerCandidates': 'المرشحون',
+      'careerMyOffer': 'عرضي',
+      'careerCreateOffer': 'نشر عرض',
+      'careerPrivateInfo': 'معلومات خاصة',
+      'careerPrivateInfoNote': 'مرئية فقط للمحترفين',
+      'careerPublicInfo': 'معلومات عامة',
+      'careerTitle2': 'عنوان الإعلان',
+      'careerTitleHint': 'مثال: أبحث عن تدريب بيطري',
       // Adopt screens
       'adoptDiscussions': 'المحادثات',
       'adoptAdopter': 'تبنّي',
@@ -2926,6 +3064,52 @@ class AppLocalizations {
   String get changeALife => _get('changeALife');
   String get boost => _get('boost');
   String get yourCareer => _get('yourCareer');
+  // Career getters
+  String get careerTitle => _get('careerTitle');
+  String get careerSubtitle => _get('careerSubtitle');
+  String get careerRequests => _get('careerRequests');
+  String get careerOffers => _get('careerOffers');
+  String get careerMyPost => _get('careerMyPost');
+  String get careerCreatePost => _get('careerCreatePost');
+  String get careerEditPost => _get('careerEditPost');
+  String get careerPublicBio => _get('careerPublicBio');
+  String get careerPublicBioHint => _get('careerPublicBioHint');
+  String get careerDetailedBio => _get('careerDetailedBio');
+  String get careerDetailedBioHint => _get('careerDetailedBioHint');
+  String get careerCity => _get('careerCity');
+  String get careerDomain => _get('careerDomain');
+  String get careerDomainHint => _get('careerDomainHint');
+  String get careerDuration => _get('careerDuration');
+  String get careerDurationHint => _get('careerDurationHint');
+  String get careerFullName => _get('careerFullName');
+  String get careerEmail => _get('careerEmail');
+  String get careerPhone => _get('careerPhone');
+  String get careerCV => _get('careerCV');
+  String get careerUploadCV => _get('careerUploadCV');
+  String get careerContact => _get('careerContact');
+  String get careerViewCV => _get('careerViewCV');
+  String get careerPendingApproval => _get('careerPendingApproval');
+  String get careerApproved => _get('careerApproved');
+  String get careerRejected => _get('careerRejected');
+  String get careerOnePostOnly => _get('careerOnePostOnly');
+  String get careerNoResults => _get('careerNoResults');
+  String get careerSearchCity => _get('careerSearchCity');
+  String get careerSalary => _get('careerSalary');
+  String get careerRequirements => _get('careerRequirements');
+  String get careerPostPublished => _get('careerPostPublished');
+  String get careerPostUpdated => _get('careerPostUpdated');
+  String get careerPostDeleted => _get('careerPostDeleted');
+  String get careerTypeRequest => _get('careerTypeRequest');
+  String get careerTypeOffer => _get('careerTypeOffer');
+  String get careerFindWorker => _get('careerFindWorker');
+  String get careerCandidates => _get('careerCandidates');
+  String get careerMyOffer => _get('careerMyOffer');
+  String get careerCreateOffer => _get('careerCreateOffer');
+  String get careerPrivateInfo => _get('careerPrivateInfo');
+  String get careerPrivateInfoNote => _get('careerPrivateInfoNote');
+  String get careerPublicInfo => _get('careerPublicInfo');
+  String get careerTitle2 => _get('careerTitle2');
+  String get careerTitleHint => _get('careerTitleHint');
   // Vet details
   String get chooseService => _get('chooseService');
   String get forWhichAnimal => _get('forWhichAnimal');

@@ -38,6 +38,10 @@ import '../features/adopt/adopt_chats_screen.dart';
 import '../features/adopt/adopt_create_screen.dart';
 import '../features/adopt/adopt_conversation_screen.dart';
 
+// Career
+import '../features/career/career_screen.dart';
+import '../features/career/career_create_screen.dart';
+
 // Support
 import '../features/support/support_tickets_screen.dart';
 import '../features/support/support_conversation_screen.dart';
@@ -728,6 +732,16 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
         builder: (ctx, st) => AdoptConversationScreen(
           conversationId: st.pathParameters['conversationId']!,
         ),
+      ),
+
+      // -------- Career --------
+      GoRoute(
+        path: '/career',
+        builder: (ctx, st) => const CareerScreen(),
+      ),
+      GoRoute(
+        path: '/career/create',
+        builder: (ctx, st) => const CareerCreateScreen(),
       ),
 
       // -------- Support --------
