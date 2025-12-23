@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../../core/session_controller.dart';
 
 // Colors
 const _primaryPurple = Color(0xFF6B5BFF);
@@ -150,6 +151,11 @@ class _CareerCreateScreenState extends ConsumerState<CareerCreateScreen> {
     final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
     final isEditing = widget.existingPost != null;
 
+    // Check if user is PRO - only PROs can create OFFER type
+    final session = ref.watch(sessionProvider);
+    final userRole = (session.user?['role'] ?? 'USER').toString().toUpperCase();
+    final isPro = userRole == 'PRO' || userRole == 'ADMIN';
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -176,8 +182,8 @@ class _CareerCreateScreenState extends ConsumerState<CareerCreateScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Type selector (only for new posts)
-            if (!isEditing) ...[
+            // Type selector (only for new posts AND only for PRO users)
+            if (!isEditing && isPro) ...[
               Text(
                 'Type d\'annonce',
                 style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),

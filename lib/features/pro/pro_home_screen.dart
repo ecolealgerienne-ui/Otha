@@ -885,6 +885,8 @@ class _ActionGrid extends StatelessWidget {
           const Color(0xFF3A86FF)),
       _Action('Scanner patient', Icons.qr_code_scanner, '/vet/scan',
           const Color(0xFFFF6D00)),
+      _Action('Carrière', Icons.work_outline, '/career',
+          const Color(0xFF6B5BFF)),
     ];
 
     return Padding(
