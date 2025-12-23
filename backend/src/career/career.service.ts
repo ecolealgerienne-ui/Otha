@@ -46,8 +46,29 @@ export class CareerService {
       status: CareerStatus.APPROVED,
     };
 
-    if (query.type) {
-      where.type = query.type;
+    // For non-pro users (clients): they can only see
+    // 1. OFFER posts (from pros) - to apply
+    // 2. Their own REQUEST posts
+    // They CANNOT see other clients' REQUEST posts (anti-scam)
+    if (!userIsPro) {
+      if (query.type === 'REQUEST') {
+        // If explicitly filtering REQUEST, only show own posts
+        where.type = CareerType.REQUEST;
+        where.createdById = userId;
+      } else if (query.type === 'OFFER') {
+        where.type = CareerType.OFFER;
+      } else {
+        // No type filter: show OFFERs + own REQUESTs
+        where.OR = [
+          { type: CareerType.OFFER },
+          { type: CareerType.REQUEST, createdById: userId },
+        ];
+      }
+    } else {
+      // Pros can see everything
+      if (query.type) {
+        where.type = query.type;
+      }
     }
 
     if (query.city) {
@@ -148,7 +169,13 @@ export class CareerService {
       throw new NotFoundException('Post not found');
     }
 
+    // Anti-scam: Clients cannot view other clients' REQUEST posts
+    // They can only view: OFFERs, or their own REQUESTs
     const isOwnPost = post.createdById === userId;
+    if (!userIsPro && post.type === CareerType.REQUEST && !isOwnPost) {
+      throw new ForbiddenException('Accès non autorisé');
+    }
+
     const canSeePrivate = userIsPro || isOwnPost || post.type === CareerType.OFFER;
 
     return {
@@ -361,6 +388,7 @@ export class CareerService {
 
   async contactPost(user: any, postId: string) {
     const userId = this.requireUserId(user);
+    const userIsPro = this.isPro(user);
 
     const post = await this.prisma.careerPost.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
@@ -369,6 +397,12 @@ export class CareerService {
     }
     if (post.createdById === userId) {
       throw new BadRequestException('Cannot contact your own post');
+    }
+
+    // Anti-scam: Clients can only contact OFFER posts (from pros)
+    // They cannot contact other clients' REQUEST posts
+    if (!userIsPro && post.type === CareerType.REQUEST) {
+      throw new ForbiddenException('Vous ne pouvez pas contacter cette annonce');
     }
 
     // Vérifier si une conversation existe déjà
