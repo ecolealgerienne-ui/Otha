@@ -3491,6 +3491,14 @@ class AppLocalizations {
   String get adoptAnonymous => _get('adoptAnonymous');
   String get adoptNoMessage => _get('adoptNoMessage');
   String get adoptNewBadge => _get('adoptNewBadge');
+  String get adoptReadyToFinalize => _get('adoptReadyToFinalize');
+  String get adoptProposeAdoptionTo => _get('adoptProposeAdoptionTo');
+  String get adoptPropose => _get('adoptPropose');
+  String get adoptWaitingForAdopter => _get('adoptWaitingForAdopter');
+  String get adoptAdoptionProposalWaiting => _get('adoptAdoptionProposalWaiting');
+  String get adoptNoMessagesInChat => _get('adoptNoMessagesInChat');
+  String get adoptStartConversation => _get('adoptStartConversation');
+  String get adoptYourMessage => _get('adoptYourMessage');
 
   // Password Reset translations
   String get forgotPasswordTitle => _get('forgotPasswordTitle');
