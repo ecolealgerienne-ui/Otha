@@ -617,4 +617,118 @@ export class CareerService {
 
     return { count: result.count };
   }
+
+  async adminGetPost(id: string) {
+    const post = await this.prisma.careerPost.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            photoUrl: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: { conversations: true },
+        },
+      },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+    return post;
+  }
+
+  async adminGetPostConversations(postId: string) {
+    const conversations = await this.prisma.careerConversation.findMany({
+      where: { postId },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        participant: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            photoUrl: true,
+            role: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                photoUrl: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: { messages: true },
+        },
+      },
+    });
+
+    return conversations;
+  }
+
+  async adminGetConversationMessages(conversationId: string) {
+    const conversation = await this.prisma.careerConversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        post: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            createdById: true,
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                photoUrl: true,
+              },
+            },
+          },
+        },
+        participant: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            photoUrl: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                photoUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!conversation) throw new NotFoundException('Conversation not found');
+    return conversation;
+  }
 }

@@ -65,4 +65,19 @@ export class CareerAdminController {
   async approveAll(@Req() req: any) {
     return this.service.adminApproveAll(req.user);
   }
+
+  @Get('posts/:id')
+  async getPost(@Param('id') id: string) {
+    return this.service.adminGetPost(id);
+  }
+
+  @Get('posts/:id/conversations')
+  async getPostConversations(@Param('id') id: string) {
+    return this.service.adminGetPostConversations(id);
+  }
+
+  @Get('conversations/:id/messages')
+  async getConversationMessages(@Param('id') id: string) {
+    return this.service.adminGetConversationMessages(id);
+  }
 }

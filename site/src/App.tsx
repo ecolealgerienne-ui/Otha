@@ -26,6 +26,7 @@ import {
   AdminApplications,
   AdminUsers,
   AdminAdoptions,
+  AdminCareer,
   AdminEarnings,
   AdminCommissions,
   AdminFlags,
@@ -103,6 +104,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminAdoptions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/career"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminCareer />
               </ProtectedRoute>
             }
           />
