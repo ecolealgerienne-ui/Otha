@@ -23,6 +23,92 @@ const _darkCardBorder = Color(0xFF2A2A2A);
 const kDefaultDaycareHourlyCommissionDa = 10;
 const kDefaultDaycareDailyCommissionDa = 100;
 
+/// Helper pour déterminer le statut d'ouverture d'une garderie
+class DaycareOpenStatus {
+  final bool isOpen;
+  final String closingTime;
+  final String? nextOpenDay;
+  final String? nextOpenTime;
+
+  DaycareOpenStatus({
+    required this.isOpen,
+    required this.closingTime,
+    this.nextOpenDay,
+    this.nextOpenTime,
+  });
+
+  static DaycareOpenStatus calculate({
+    required bool is24_7,
+    required String openingTime,
+    required String closingTime,
+    required List<dynamic> availableDays,
+  }) {
+    if (is24_7) {
+      return DaycareOpenStatus(isOpen: true, closingTime: '24/7');
+    }
+
+    final now = DateTime.now();
+    final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
+
+    // Convertir en index de notre tableau (0 = Lundi, 6 = Dimanche)
+    final dayIndex = currentWeekday - 1;
+
+    // Parser les heures
+    final openParts = openingTime.split(':');
+    final closeParts = closingTime.split(':');
+    final openHour = int.tryParse(openParts[0]) ?? 8;
+    final openMin = int.tryParse(openParts.length > 1 ? openParts[1] : '0') ?? 0;
+    final closeHour = int.tryParse(closeParts[0]) ?? 20;
+    final closeMin = int.tryParse(closeParts.length > 1 ? closeParts[1] : '0') ?? 0;
+
+    final currentMinutes = now.hour * 60 + now.minute;
+    final openMinutes = openHour * 60 + openMin;
+    final closeMinutes = closeHour * 60 + closeMin;
+
+    // Vérifier si le jour actuel est disponible
+    final isTodayAvailable = dayIndex < availableDays.length && availableDays[dayIndex] == true;
+
+    // Vérifier si on est dans les heures d'ouverture
+    final isWithinHours = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+
+    if (isTodayAvailable && isWithinHours) {
+      return DaycareOpenStatus(isOpen: true, closingTime: closingTime);
+    }
+
+    // Trouver le prochain jour/heure d'ouverture
+    String? nextDay;
+    String? nextTime;
+
+    // Si aujourd'hui est dispo mais on n'est pas encore dans les heures
+    if (isTodayAvailable && currentMinutes < openMinutes) {
+      nextDay = _getDayName(dayIndex);
+      nextTime = openingTime;
+    } else {
+      // Chercher le prochain jour disponible
+      for (int i = 1; i <= 7; i++) {
+        final checkIndex = (dayIndex + i) % 7;
+        if (checkIndex < availableDays.length && availableDays[checkIndex] == true) {
+          nextDay = _getDayName(checkIndex);
+          nextTime = openingTime;
+          break;
+        }
+      }
+    }
+
+    return DaycareOpenStatus(
+      isOpen: false,
+      closingTime: closingTime,
+      nextOpenDay: nextDay,
+      nextOpenTime: nextTime,
+    );
+  }
+
+  static String _getDayName(int index) {
+    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    return index < days.length ? days[index] : '';
+  }
+}
+
 /// Provider qui charge la liste des garderies
 final daycareProvidersListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
@@ -558,18 +644,80 @@ class _DaycareCardState extends State<_DaycareCard> {
                     ),
                   ],
 
-                  // Horaires si pas 24/7
+                  // Statut d'ouverture
                   if (!is24_7) ...[
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 14, color: widget.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.l10n.openFromTo(openingTime, closingTime),
-                          style: TextStyle(fontSize: 13, color: widget.textSecondary),
-                        ),
-                      ],
+                    Builder(
+                      builder: (context) {
+                        final availableDays = widget.daycare['availableDays'] as List<dynamic>? ?? List.filled(7, true);
+                        final status = DaycareOpenStatus.calculate(
+                          is24_7: is24_7,
+                          openingTime: openingTime,
+                          closingTime: closingTime,
+                          availableDays: availableDays,
+                        );
+
+                        if (status.isOpen) {
+                          return Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF4CAF50),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.l10n.openNow,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF4CAF50),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '• ${widget.l10n.closesAt} ${status.closingTime}',
+                                style: TextStyle(fontSize: 12, color: widget.textSecondary),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.red[400],
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.l10n.closedNow,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red[400],
+                                ),
+                              ),
+                              if (status.nextOpenDay != null && status.nextOpenTime != null) ...[
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '• ${widget.l10n.opensAt} ${status.nextOpenDay} ${status.nextOpenTime}',
+                                    style: TextStyle(fontSize: 12, color: widget.textSecondary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+                      },
                     ),
                   ],
 
