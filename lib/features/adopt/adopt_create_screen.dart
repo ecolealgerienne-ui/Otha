@@ -852,40 +852,99 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final conv = _conversations[index];
-                  final otherUser = conv['otherUser'] as Map<String, dynamic>?;
-                  final otherUserId = conv['otherUserId']?.toString() ?? otherUser?['id']?.toString();
-                  final name = otherUser?['displayName']?.toString() ?? otherUser?['name']?.toString() ?? 'Utilisateur';
-                  final avatar = otherUser?['avatarUrl']?.toString();
+                  final otherUserId = conv['otherUserId']?.toString();
+                  final otherPersonName = (conv['otherPersonName'] ?? widget.l10n.adoptAnonymous).toString();
+                  final lastMessage = conv['lastMessage'] as Map<String, dynamic>?;
+                  final lastMessageText = lastMessage != null
+                      ? (lastMessage['content'] ?? '').toString()
+                      : widget.l10n.adoptNoMessage;
+
+                  final post = conv['post'] as Map<String, dynamic>? ?? {};
+                  final images = (post['images'] as List<dynamic>?)
+                      ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
+                      .where((url) => url != null && url.isNotEmpty)
+                      .cast<String>()
+                      .toList() ?? [];
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: widget.isDark ? _darkBg : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
+                      color: widget.isDark ? _darkCard : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: widget.isDark ? _darkCardBorder : Colors.grey[200]!),
                     ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: avatar != null && avatar.isNotEmpty
-                            ? NetworkImage(avatar)
-                            : null,
-                        backgroundColor: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
-                        child: avatar == null || avatar.isEmpty
-                            ? const Icon(Icons.person, color: _rosePrimary)
-                            : null,
-                      ),
-                      title: Text(
-                        name,
-                        style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
-                      ),
-                      trailing: FilledButton(
-                        onPressed: otherUserId != null
-                            ? () => widget.onAdopterSelected(otherUserId)
-                            : null,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _rosePrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        child: Text(widget.l10n.adoptSelectAdopter, style: const TextStyle(fontSize: 12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          // Avatar
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: images.isNotEmpty
+                                ? Image.network(
+                                    images.first,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
+                                      child: const Icon(Icons.person, color: _rosePrimary),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.person, color: _rosePrimary),
+                                  ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Name and last message
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  otherPersonName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  lastMessageText,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Select button
+                          FilledButton(
+                            onPressed: otherUserId != null
+                                ? () => widget.onAdopterSelected(otherUserId)
+                                : null,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _rosePrimary,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Icon(Icons.favorite, size: 18),
+                          ),
+                        ],
                       ),
                     ),
                   );

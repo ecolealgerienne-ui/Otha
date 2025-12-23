@@ -9,6 +9,9 @@ import '../../core/locale_provider.dart';
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
 const _greenSuccess = Color(0xFF4CD964);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 class AdoptConversationScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -232,9 +235,13 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F8F8);
+
     final post = _conversation?['post'] as Map<String, dynamic>? ?? {};
-    final otherPersonName = (_conversation?['otherPersonName'] ?? 'Anonyme').toString();
-    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+    final otherPersonName = (_conversation?['otherPersonName'] ?? l10n.adoptAnonymous).toString();
+    final animalName = (post['animalName'] ?? post['title'] ?? l10n.adoptAnimal).toString();
     final isOwner = _conversation?['isOwner'] == true;
     final isAdopted = post['adoptedAt'] != null;
     final pendingConfirmation = _conversation?['pendingAdoptionConfirmation'] == true;
@@ -246,50 +253,53 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
         .toList() ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // Custom header with animal info
-          _buildHeader(context, animalName, otherPersonName, images),
+          _buildHeader(context, animalName, otherPersonName, images, isDark, l10n),
 
           // Owner action banner (propose adoption)
           if (isOwner && !isAdopted && !pendingConfirmation)
-            _buildAdoptionBanner(otherPersonName),
+            _buildAdoptionBanner(otherPersonName, isDark, l10n),
 
           // Pending confirmation banner
           if (pendingConfirmation)
-            _buildPendingBanner(isOwner),
+            _buildPendingBanner(isOwner, isDark, l10n),
 
           // Adopted banner
           if (isAdopted)
-            _buildAdoptedBanner(),
+            _buildAdoptedBanner(isDark, l10n),
 
           // Messages
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator(color: _rosePrimary))
                 : _error != null
-                    ? _buildErrorState()
-                    : _buildMessagesList(),
+                    ? _buildErrorState(isDark, l10n)
+                    : _buildMessagesList(isDark, l10n),
           ),
 
           // Input bar
-          _buildInputBar(),
+          _buildInputBar(isDark, l10n),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, String animalName, String otherPersonName, List<String> images) {
+  Widget _buildHeader(BuildContext context, String animalName, String otherPersonName, List<String> images, bool isDark, AppLocalizations l10n) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Container(
       padding: EdgeInsets.only(top: topPadding + 8, left: 12, right: 12, bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -300,9 +310,9 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           // Back button
           IconButton(
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : _rosePrimary),
             style: IconButton.styleFrom(
-              backgroundColor: _roseLight,
+              backgroundColor: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
@@ -316,9 +326,9 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
                     width: 44,
                     height: 44,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
+                    errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(isDark),
                   )
-                : _buildPlaceholderAvatar(),
+                : _buildPlaceholderAvatar(isDark),
           ),
           const SizedBox(width: 12),
           // Names
@@ -328,20 +338,21 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
               children: [
                 Text(
                   animalName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Row(
                   children: [
-                    Icon(Icons.person_outline, size: 14, color: Colors.grey[500]),
+                    Icon(Icons.person_outline, size: 14, color: textSecondary),
                     const SizedBox(width: 4),
                     Text(
                       otherPersonName,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 13, color: textSecondary),
                     ),
                   ],
                 ),
@@ -352,29 +363,32 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           IconButton(
             onPressed: _deleteConversation,
             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
-            tooltip: 'Supprimer',
+            tooltip: l10n.delete,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPlaceholderAvatar() {
+  Widget _buildPlaceholderAvatar(bool isDark) {
     return Container(
       width: 44,
       height: 44,
-      color: _roseLight,
+      color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
       child: const Icon(Icons.pets, color: _rosePrimary, size: 24),
     );
   }
 
-  Widget _buildAdoptionBanner(String otherPersonName) {
+  Widget _buildAdoptionBanner(String otherPersonName, bool isDark, AppLocalizations l10n) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_greenSuccess.withOpacity(0.1), _greenSuccess.withOpacity(0.05)],
+          colors: [_greenSuccess.withOpacity(isDark ? 0.2 : 0.1), _greenSuccess.withOpacity(isDark ? 0.1 : 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _greenSuccess.withOpacity(0.3)),
@@ -394,13 +408,13 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Prêt à finaliser ?',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                Text(
+                  l10n.adoptReadyToFinalize,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textPrimary),
                 ),
                 Text(
-                  'Proposez l\'adoption à $otherPersonName',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  '${l10n.adoptProposeAdoptionTo} $otherPersonName',
+                  style: TextStyle(fontSize: 12, color: textSecondary),
                 ),
               ],
             ),
@@ -418,19 +432,21 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('Proposer', style: TextStyle(fontSize: 13)),
+                : Text(l10n.adoptPropose, style: const TextStyle(fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPendingBanner(bool isOwner) {
+  Widget _buildPendingBanner(bool isOwner, bool isDark, AppLocalizations l10n) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange.withOpacity(0.3)),
       ),
@@ -441,9 +457,9 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           Expanded(
             child: Text(
               isOwner
-                  ? 'En attente de confirmation de l\'adoptant...'
-                  : 'Une proposition d\'adoption vous attend !',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ? l10n.adoptWaitingForAdopter
+                  : l10n.adoptAdoptionProposalWaiting,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: textPrimary),
             ),
           ),
         ],
@@ -451,23 +467,23 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     );
   }
 
-  Widget _buildAdoptedBanner() {
+  Widget _buildAdoptedBanner(bool isDark, AppLocalizations l10n) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _greenSuccess.withOpacity(0.1),
+        color: _greenSuccess.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _greenSuccess.withOpacity(0.3)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle, color: _greenSuccess, size: 20),
-          SizedBox(width: 12),
+          const Icon(Icons.check_circle, color: _greenSuccess, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Adoption confirmée !',
-              style: TextStyle(
+              l10n.adoptAdoptionConfirmed,
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: _greenSuccess,
@@ -479,41 +495,47 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(bool isDark, AppLocalizations l10n) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.error_outline, size: 64, color: Colors.red),
           const SizedBox(height: 16),
-          Text('Erreur: $_error'),
+          Text('${l10n.adoptError}: $_error', style: TextStyle(color: textPrimary)),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _loadMessages,
             style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
-            child: const Text('Réessayer'),
+            child: Text(l10n.adoptRetry),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMessagesList() {
+  Widget _buildMessagesList(bool isDark, AppLocalizations l10n) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final textTertiary = isDark ? Colors.grey[500] : Colors.grey[400];
+
     if (_messages.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[300]),
+            Icon(Icons.chat_bubble_outline, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              'Aucun message',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              l10n.adoptNoMessagesInChat,
+              style: TextStyle(fontSize: 16, color: textSecondary),
             ),
             const SizedBox(height: 4),
             Text(
-              'Commencez la conversation !',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              l10n.adoptStartConversation,
+              style: TextStyle(fontSize: 14, color: textTertiary),
             ),
           ],
         ),
@@ -548,18 +570,24 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           isConfirmationMessage: isConfirmationMessage,
           conversationId: widget.conversationId,
           onConfirmationChanged: () => _loadMessages(),
+          isDark: isDark,
         );
       },
     );
   }
 
-  Widget _buildInputBar() {
+  Widget _buildInputBar(bool isDark, AppLocalizations l10n) {
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final inputBgColor = isDark ? _darkBg : const Color(0xFFF5F5F5);
+    final hintColor = isDark ? Colors.grey[500] : Colors.grey[400];
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -576,11 +604,12 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
           Expanded(
             child: TextField(
               controller: _messageController,
+              style: TextStyle(color: textColor),
               decoration: InputDecoration(
-                hintText: 'Votre message...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
+                hintText: l10n.adoptYourMessage,
+                hintStyle: TextStyle(color: hintColor),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F5),
+                fillColor: inputBgColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -628,6 +657,7 @@ class _MessageBubble extends ConsumerStatefulWidget {
   final bool isConfirmationMessage;
   final String conversationId;
   final VoidCallback? onConfirmationChanged;
+  final bool isDark;
 
   const _MessageBubble({
     required this.content,
@@ -638,6 +668,7 @@ class _MessageBubble extends ConsumerStatefulWidget {
     this.isConfirmationMessage = false,
     required this.conversationId,
     this.onConfirmationChanged,
+    this.isDark = false,
   });
 
   @override
@@ -710,6 +741,16 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+    final bubbleColor = widget.isMe
+        ? _rosePrimary
+        : (widget.isDark ? _darkCard : Colors.white);
+    final textColor = widget.isMe
+        ? Colors.white
+        : (widget.isDark ? Colors.white : Colors.black87);
+    final timeColor = widget.isMe
+        ? Colors.white70
+        : (widget.isDark ? Colors.grey[500] : Colors.grey[500]);
+
     return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -719,14 +760,15 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: widget.isMe ? _rosePrimary : Colors.white,
+          color: bubbleColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
             bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
             bottomRight: Radius.circular(widget.isMe ? 4 : 20),
           ),
-          boxShadow: [
+          border: !widget.isMe && widget.isDark ? Border.all(color: _darkCardBorder) : null,
+          boxShadow: widget.isDark ? null : [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
               blurRadius: 5,
@@ -740,7 +782,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
             Text(
               widget.content,
               style: TextStyle(
-                color: widget.isMe ? Colors.white : Colors.black87,
+                color: textColor,
                 fontSize: 15,
               ),
             ),
@@ -750,7 +792,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                 _formatTime(widget.timestamp),
                 style: TextStyle(
                   fontSize: 11,
-                  color: widget.isMe ? Colors.white70 : Colors.grey[500],
+                  color: timeColor,
                 ),
               ),
             ],
