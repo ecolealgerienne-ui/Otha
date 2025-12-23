@@ -257,7 +257,7 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
       body: Column(
         children: [
           // Custom header with animal info
-          _buildHeader(context, animalName, otherPersonName, images, isDark, l10n),
+          _buildHeader(context, animalName, otherPersonName, images, isDark, l10n, isOwner, isAdopted),
 
           // Owner action banner (propose adoption)
           if (isOwner && !isAdopted && !pendingConfirmation)
@@ -287,7 +287,7 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
     );
   }
 
-  Widget _buildHeader(BuildContext context, String animalName, String otherPersonName, List<String> images, bool isDark, AppLocalizations l10n) {
+  Widget _buildHeader(BuildContext context, String animalName, String otherPersonName, List<String> images, bool isDark, AppLocalizations l10n, bool isOwner, bool isAdopted) {
     final topPadding = MediaQuery.of(context).padding.top;
     final cardColor = isDark ? _darkCard : Colors.white;
     final textPrimary = isDark ? Colors.white : Colors.black87;
@@ -359,6 +359,19 @@ class _AdoptConversationScreenState extends ConsumerState<AdoptConversationScree
               ],
             ),
           ),
+          // Adopt button (only for owner when not yet adopted)
+          if (isOwner && !isAdopted)
+            IconButton(
+              onPressed: _proposingAdoption ? null : _proposeAdoption,
+              icon: _proposingAdoption
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _greenSuccess),
+                    )
+                  : const Icon(Icons.favorite, color: _greenSuccess, size: 22),
+              tooltip: l10n.adoptPropose,
+            ),
           // Delete button
           IconButton(
             onPressed: _deleteConversation,
