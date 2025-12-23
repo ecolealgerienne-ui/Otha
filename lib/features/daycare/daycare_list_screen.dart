@@ -279,6 +279,21 @@ class _DaycareListScreenState extends ConsumerState<DaycareListScreen> {
         backgroundColor: bgColor,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? _darkCard : _coralSoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: isDark ? Colors.white : _coral,
+              size: 18,
+            ),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Row(
           children: [
             Container(

@@ -6,19 +6,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../home/home_screen.dart' show myPetsProvider;
 
 // Theme colors
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
-
-/// Provider pour la liste des animaux avec toutes leurs données
-final myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final api = ref.read(apiProvider);
-  final pets = await api.myPets();
-  return pets.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-});
 
 class PetsManagementScreen extends ConsumerStatefulWidget {
   const PetsManagementScreen({super.key});
