@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
-import '../../core/theme_provider.dart';
 
 // Colors
 const _primaryPurple = Color(0xFF6B5BFF);
