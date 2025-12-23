@@ -472,6 +472,46 @@ class AppLocalizations {
       'noPets': 'Aucun animal',
       'addFirstPet': 'Ajoutez votre premier compagnon pour accéder à son carnet de santé',
       'addPet': 'Ajouter un animal',
+      'editPet': 'Modifier',
+      'newAnimal': 'Nouvel animal',
+      'animalNameRequired': 'Nom de votre animal *',
+      'petAge': 'Âge',
+      'petGender': 'Genre',
+      'petWeight': 'Poids',
+      'male': 'Mâle',
+      'female': 'Femelle',
+      'notSpecifiedGender': 'Non spécifié',
+      'petColor': 'Couleur',
+      'petBreed': 'Race',
+      'petBirthDate': 'Date de naissance',
+      'sterilizationDate': 'Date de stérilisation',
+      'microchipNumber': 'N° Puce / Tatouage',
+      'knownAllergies': 'Allergies connues',
+      'basicInfoSection': 'Informations de base',
+      'healthIdSection': 'Santé & Identification',
+      'otherInfoSection': 'Autres informations',
+      'choosePhoto': 'Choisir une photo',
+      'takePhoto': 'Prendre une photo',
+      'useCamera': 'Utiliser la caméra',
+      'chooseFromGallery': 'Choisir dans la galerie',
+      'selectExistingImage': 'Sélectionner une image existante',
+      'deletePhoto': 'Supprimer la photo',
+      'addPhoto': 'Ajouter une photo',
+      'photo': 'Photo',
+      'animalType': 'Type d\'animal',
+      'choose': 'Choisir…',
+      'selectDate': 'Sélectionner',
+      'notProvided': 'Non renseigné',
+      'rabbit': 'Lapin',
+      'nac': 'NAC',
+      'other': 'Autre…',
+      'giveAnimalName': 'Donnez un nom à votre animal',
+      'animalUpdated': 'Animal mis à jour',
+      'animalAdded': 'Animal ajouté',
+      'unableToSave': 'Impossible d\'enregistrer',
+      'weightKg': 'Poids (kg)',
+      'animalGender': 'Genre de l\'animal',
+      'animalAge': 'Âge de l\'animal',
       'dog': 'Chien',
       'cat': 'Chat',
       'bird': 'Oiseau',
@@ -1277,6 +1317,46 @@ class AppLocalizations {
       'noPets': 'No pets',
       'addFirstPet': 'Add your first companion to access their health record',
       'addPet': 'Add a pet',
+      'editPet': 'Edit',
+      'newAnimal': 'New animal',
+      'animalNameRequired': 'Your pet\'s name *',
+      'petAge': 'Age',
+      'petGender': 'Gender',
+      'petWeight': 'Weight',
+      'male': 'Male',
+      'female': 'Female',
+      'notSpecifiedGender': 'Not specified',
+      'petColor': 'Color',
+      'petBreed': 'Breed',
+      'petBirthDate': 'Birth date',
+      'sterilizationDate': 'Sterilization date',
+      'microchipNumber': 'Chip / Tattoo number',
+      'knownAllergies': 'Known allergies',
+      'basicInfoSection': 'Basic information',
+      'healthIdSection': 'Health & Identification',
+      'otherInfoSection': 'Other information',
+      'choosePhoto': 'Choose a photo',
+      'takePhoto': 'Take a photo',
+      'useCamera': 'Use camera',
+      'chooseFromGallery': 'Choose from gallery',
+      'selectExistingImage': 'Select an existing image',
+      'deletePhoto': 'Delete photo',
+      'addPhoto': 'Add a photo',
+      'photo': 'Photo',
+      'animalType': 'Animal type',
+      'choose': 'Choose…',
+      'selectDate': 'Select',
+      'notProvided': 'Not provided',
+      'rabbit': 'Rabbit',
+      'nac': 'Exotic pet',
+      'other': 'Other…',
+      'giveAnimalName': 'Give your pet a name',
+      'animalUpdated': 'Pet updated',
+      'animalAdded': 'Pet added',
+      'unableToSave': 'Unable to save',
+      'weightKg': 'Weight (kg)',
+      'animalGender': 'Pet gender',
+      'animalAge': 'Pet age',
       'dog': 'Dog',
       'cat': 'Cat',
       'bird': 'Bird',
@@ -2082,6 +2162,46 @@ class AppLocalizations {
       'noPets': 'لا توجد حيوانات',
       'addFirstPet': 'أضف رفيقك الأول للوصول إلى سجله الصحي',
       'addPet': 'إضافة حيوان',
+      'editPet': 'تعديل',
+      'newAnimal': 'حيوان جديد',
+      'animalNameRequired': 'اسم حيوانك *',
+      'petAge': 'العمر',
+      'petGender': 'الجنس',
+      'petWeight': 'الوزن',
+      'male': 'ذكر',
+      'female': 'أنثى',
+      'notSpecifiedGender': 'غير محدد',
+      'petColor': 'اللون',
+      'petBreed': 'السلالة',
+      'petBirthDate': 'تاريخ الميلاد',
+      'sterilizationDate': 'تاريخ التعقيم',
+      'microchipNumber': 'رقم الشريحة / الوشم',
+      'knownAllergies': 'الحساسيات المعروفة',
+      'basicInfoSection': 'المعلومات الأساسية',
+      'healthIdSection': 'الصحة والهوية',
+      'otherInfoSection': 'معلومات أخرى',
+      'choosePhoto': 'اختر صورة',
+      'takePhoto': 'التقط صورة',
+      'useCamera': 'استخدم الكاميرا',
+      'chooseFromGallery': 'اختر من المعرض',
+      'selectExistingImage': 'حدد صورة موجودة',
+      'deletePhoto': 'حذف الصورة',
+      'addPhoto': 'أضف صورة',
+      'photo': 'صورة',
+      'animalType': 'نوع الحيوان',
+      'choose': 'اختر…',
+      'selectDate': 'حدد',
+      'notProvided': 'غير مقدم',
+      'rabbit': 'أرنب',
+      'nac': 'حيوان غريب',
+      'other': 'آخر…',
+      'giveAnimalName': 'أعط حيوانك اسماً',
+      'animalUpdated': 'تم تحديث الحيوان',
+      'animalAdded': 'تمت إضافة الحيوان',
+      'unableToSave': 'غير قادر على الحفظ',
+      'weightKg': 'الوزن (كجم)',
+      'animalGender': 'جنس الحيوان',
+      'animalAge': 'عمر الحيوان',
       'dog': 'كلب',
       'cat': 'قطة',
       'bird': 'طائر',
@@ -2810,6 +2930,46 @@ class AppLocalizations {
   String get noPets => _get('noPets');
   String get addFirstPet => _get('addFirstPet');
   String get addPet => _get('addPet');
+  String get editPet => _get('editPet');
+  String get newAnimal => _get('newAnimal');
+  String get animalNameRequired => _get('animalNameRequired');
+  String get petAge => _get('petAge');
+  String get petGender => _get('petGender');
+  String get petWeight => _get('petWeight');
+  String get male => _get('male');
+  String get female => _get('female');
+  String get notSpecifiedGender => _get('notSpecifiedGender');
+  String get petColor => _get('petColor');
+  String get petBreed => _get('petBreed');
+  String get petBirthDate => _get('petBirthDate');
+  String get sterilizationDate => _get('sterilizationDate');
+  String get microchipNumber => _get('microchipNumber');
+  String get knownAllergies => _get('knownAllergies');
+  String get basicInfoSection => _get('basicInfoSection');
+  String get healthIdSection => _get('healthIdSection');
+  String get otherInfoSection => _get('otherInfoSection');
+  String get choosePhoto => _get('choosePhoto');
+  String get takePhoto => _get('takePhoto');
+  String get useCamera => _get('useCamera');
+  String get chooseFromGallery => _get('chooseFromGallery');
+  String get selectExistingImage => _get('selectExistingImage');
+  String get deletePhoto => _get('deletePhoto');
+  String get addPhoto => _get('addPhoto');
+  String get photo => _get('photo');
+  String get animalType => _get('animalType');
+  String get choose => _get('choose');
+  String get selectDate => _get('selectDate');
+  String get notProvided => _get('notProvided');
+  String get rabbit => _get('rabbit');
+  String get nac => _get('nac');
+  String get other => _get('other');
+  String get giveAnimalName => _get('giveAnimalName');
+  String get animalUpdated => _get('animalUpdated');
+  String get animalAdded => _get('animalAdded');
+  String get unableToSave => _get('unableToSave');
+  String get weightKg => _get('weightKg');
+  String get animalGender => _get('animalGender');
+  String get animalAge => _get('animalAge');
   String get dog => _get('dog');
   String get cat => _get('cat');
   String get bird => _get('bird');
