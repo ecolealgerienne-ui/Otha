@@ -344,6 +344,8 @@ class AppLocalizations {
       'careerPublicInfo': 'Informations publiques',
       'careerTitle2': 'Titre de l\'annonce',
       'careerTitleHint': 'Ex: Recherche stage vétérinaire',
+      'careerConversations': 'Mes conversations',
+      'careerNoConversations': 'Aucune conversation',
       // Adopt screens
       'adoptDiscussions': 'Discussions',
       'adoptAdopter': 'Adopter',
@@ -1249,6 +1251,8 @@ class AppLocalizations {
       'careerPublicInfo': 'Public information',
       'careerTitle2': 'Post title',
       'careerTitleHint': 'Ex: Looking for veterinary internship',
+      'careerConversations': 'My conversations',
+      'careerNoConversations': 'No conversations',
       // Adopt screens
       'adoptDiscussions': 'Discussions',
       'adoptAdopter': 'Adopt',
@@ -2154,6 +2158,8 @@ class AppLocalizations {
       'careerPublicInfo': 'معلومات عامة',
       'careerTitle2': 'عنوان الإعلان',
       'careerTitleHint': 'مثال: أبحث عن تدريب بيطري',
+      'careerConversations': 'محادثاتي',
+      'careerNoConversations': 'لا توجد محادثات',
       // Adopt screens
       'adoptDiscussions': 'المحادثات',
       'adoptAdopter': 'تبنّي',
@@ -3110,6 +3116,8 @@ class AppLocalizations {
   String get careerPublicInfo => _get('careerPublicInfo');
   String get careerTitle2 => _get('careerTitle2');
   String get careerTitleHint => _get('careerTitleHint');
+  String get careerConversations => _get('careerConversations');
+  String get careerNoConversations => _get('careerNoConversations');
   // Vet details
   String get chooseService => _get('chooseService');
   String get forWhichAnimal => _get('forWhichAnimal');
