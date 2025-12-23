@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
@@ -9,6 +10,11 @@ import '../../core/locale_provider.dart';
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
 const _greenSuccess = Color(0xFF4CD964);
+
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 final _myPostsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
@@ -22,19 +28,26 @@ class AdoptCreateScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final postsAsync = ref.watch(_myPostsProvider);
     final topPadding = MediaQuery.of(context).padding.top;
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F8F8);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // Header
           Container(
             padding: EdgeInsets.only(top: topPadding + 8, left: 16, right: 16, bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -45,18 +58,18 @@ class AdoptCreateScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _roseLight,
+                    color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.list_alt, color: _rosePrimary, size: 20),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Mes annonces',
+                Text(
+                  l10n.adoptMyAds,
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -72,7 +85,7 @@ class AdoptCreateScreen extends ConsumerWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Créer', style: TextStyle(fontSize: 14)),
+                  label: Text(l10n.adoptCreateButton, style: const TextStyle(fontSize: 14)),
                 ),
               ],
             ),
@@ -89,6 +102,8 @@ class AdoptCreateScreen extends ConsumerWidget {
                         MaterialPageRoute(builder: (_) => const _CreateEditPostScreen()),
                       ).then((_) => ref.invalidate(_myPostsProvider));
                     },
+                    isDark: isDark,
+                    l10n: l10n,
                   );
                 }
 
@@ -106,13 +121,13 @@ class AdoptCreateScreen extends ConsumerWidget {
                       // Stats cards
                       Row(
                         children: [
-                          _StatCard(value: '${posts.length}', label: 'Total', color: Colors.grey),
+                          _StatCard(value: '${posts.length}', label: l10n.adoptTotal, color: Colors.grey, isDark: isDark),
                           const SizedBox(width: 8),
-                          _StatCard(value: '$approved', label: 'Actives', color: _greenSuccess),
+                          _StatCard(value: '$approved', label: l10n.adoptActive, color: _greenSuccess, isDark: isDark),
                           const SizedBox(width: 8),
-                          _StatCard(value: '$pending', label: 'En attente', color: Colors.orange),
+                          _StatCard(value: '$pending', label: l10n.adoptPending, color: Colors.orange, isDark: isDark),
                           const SizedBox(width: 8),
-                          _StatCard(value: '$adopted', label: 'Adoptées', color: _rosePrimary),
+                          _StatCard(value: '$adopted', label: l10n.adoptAdoptedPlural, color: _rosePrimary, isDark: isDark),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -120,13 +135,17 @@ class AdoptCreateScreen extends ConsumerWidget {
                       // Posts list
                       ...posts.map((post) => _PostCard(
                         post: post,
+                        isDark: isDark,
+                        l10n: l10n,
                         onEdit: () {
                           final status = post['status']?.toString() ?? '';
                           if (status == 'ADOPTED' || post['adoptedAt'] != null) {
                             _showDialog(
                               context,
-                              'Modification impossible',
-                              'Cette annonce a déjà été adoptée et ne peut plus être modifiée.',
+                              ref,
+                              l10n.adoptModificationImpossible,
+                              l10n.adoptAlreadyAdopted,
+                              isDark,
                             );
                             return;
                           }
@@ -134,7 +153,8 @@ class AdoptCreateScreen extends ConsumerWidget {
                             MaterialPageRoute(builder: (_) => _CreateEditPostScreen(post: post)),
                           ).then((_) => ref.invalidate(_myPostsProvider));
                         },
-                        onDelete: () => _confirmDelete(context, ref, post),
+                        onDelete: () => _confirmDelete(context, ref, post, isDark, l10n),
+                        onMarkAsAdopted: () => _showAdopterSelection(context, ref, post, isDark, l10n),
                       )),
                       const SizedBox(height: 80),
                     ],
@@ -147,8 +167,8 @@ class AdoptCreateScreen extends ConsumerWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: const BoxDecoration(
-                        color: _roseLight,
+                      decoration: BoxDecoration(
+                        color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                         shape: BoxShape.circle,
                       ),
                       child: const CircularProgressIndicator(color: _rosePrimary),
@@ -159,6 +179,8 @@ class AdoptCreateScreen extends ConsumerWidget {
               error: (err, _) => _ErrorState(
                 error: err.toString(),
                 onRetry: () => ref.invalidate(_myPostsProvider),
+                isDark: isDark,
+                l10n: l10n,
               ),
             ),
           ),
@@ -167,40 +189,86 @@ class AdoptCreateScreen extends ConsumerWidget {
     );
   }
 
-  void _showDialog(BuildContext context, String title, String content) {
+  void _showDialog(BuildContext context, WidgetRef ref, String title, String content, bool isDark) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title),
-        content: Text(content),
+        title: Text(title, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+        content: Text(content, style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[700])),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(ctx),
             style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context).adoptOk),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Map<String, dynamic> post) async {
+  Future<void> _showAdopterSelection(BuildContext context, WidgetRef ref, Map<String, dynamic> post, bool isDark, AppLocalizations l10n) async {
+    final postId = post['id']?.toString();
+    if (postId == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? _darkCard : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AdopterSelectionSheet(
+        postId: postId,
+        postName: post['animalName']?.toString() ?? post['title']?.toString() ?? '',
+        isDark: isDark,
+        l10n: l10n,
+        onAdopterSelected: (adopterId) async {
+          Navigator.pop(ctx);
+          try {
+            final api = ref.read(apiProvider);
+            await api.markAdoptPostAsAdopted(postId, adoptedById: adopterId);
+            ref.invalidate(_myPostsProvider);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.adoptAdoptionConfirmed),
+                  backgroundColor: _greenSuccess,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${l10n.adoptError}: $e'), backgroundColor: Colors.red),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Map<String, dynamic> post, bool isDark, AppLocalizations l10n) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Supprimer l\'annonce'),
-        content: const Text('Cette action est irréversible.'),
+        title: Text(l10n.adoptDeleteAdTitle, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+        content: Text(l10n.adoptDeleteAdDesc, style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[700])),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Annuler', style: TextStyle(color: Colors.grey[600])),
+            child: Text(l10n.cancel, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Supprimer'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -214,7 +282,7 @@ class AdoptCreateScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Annonce supprimée'),
+              content: Text(l10n.adoptAdDeleted),
               backgroundColor: Colors.grey[800],
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -224,7 +292,7 @@ class AdoptCreateScreen extends ConsumerWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+            SnackBar(content: Text('${l10n.adoptError}: $e'), backgroundColor: Colors.red),
           );
         }
       }
@@ -237,8 +305,9 @@ class _StatCard extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
+  final bool isDark;
 
-  const _StatCard({required this.value, required this.label, required this.color});
+  const _StatCard({required this.value, required this.label, required this.color, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -246,9 +315,10 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? _darkCard : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
+          border: isDark ? Border.all(color: _darkCardBorder) : null,
+          boxShadow: isDark ? null : [
             BoxShadow(
               color: Colors.black.withOpacity(0.03),
               blurRadius: 8,
@@ -269,7 +339,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
           ],
@@ -282,13 +352,19 @@ class _StatCard extends StatelessWidget {
 // Post card widget
 class _PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
+  final bool isDark;
+  final AppLocalizations l10n;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onMarkAsAdopted;
 
   const _PostCard({
     required this.post,
+    required this.isDark,
+    required this.l10n,
     required this.onEdit,
     required this.onDelete,
+    required this.onMarkAsAdopted,
   });
 
   @override
@@ -306,14 +382,15 @@ class _PostCard extends StatelessWidget {
     final ageMonths = post['ageMonths'] as int?;
     final adoptedAt = post['adoptedAt'];
     final isAdopted = adoptedAt != null;
+    final isApproved = status == 'APPROVED';
 
     final ageText = ageMonths != null
         ? ageMonths < 12
-            ? '$ageMonths mois'
-            : '${(ageMonths / 12).floor()} an${ageMonths >= 24 ? 's' : ''}'
+            ? '$ageMonths ${l10n.adoptMonths}'
+            : '${(ageMonths / 12).floor()} ${ageMonths >= 24 ? l10n.adoptYears : l10n.adoptYear}'
         : '';
 
-    final speciesLabel = species == 'dog' ? 'Chien' : species == 'cat' ? 'Chat' : species;
+    final speciesLabel = species == 'dog' ? l10n.adoptDog : species == 'cat' ? l10n.adoptCat : species;
 
     // Status badge
     final statusColor = isAdopted
@@ -325,12 +402,12 @@ class _PostCard extends StatelessWidget {
                 : Colors.orange;
 
     final statusText = isAdopted
-        ? 'Adopté'
+        ? l10n.adoptStatusAdopted
         : status == 'APPROVED'
-            ? 'Active'
+            ? l10n.adoptStatusActive
             : status == 'REJECTED'
-                ? 'Refusée'
-                : 'En attente';
+                ? l10n.adoptStatusRejected
+                : l10n.adoptStatusPending;
 
     final statusIcon = isAdopted
         ? Icons.check_circle
@@ -340,12 +417,16 @@ class _PostCard extends StatelessWidget {
                 ? Icons.cancel
                 : Icons.hourglass_top;
 
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        border: isDark ? Border.all(color: _darkCardBorder) : null,
+        boxShadow: isDark ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
@@ -386,7 +467,7 @@ class _PostCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: statusColor,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: isDark ? _darkCard : Colors.white, width: 2),
                         ),
                         child: Icon(statusIcon, size: 12, color: Colors.white),
                       ),
@@ -402,9 +483,10 @@ class _PostCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -413,28 +495,28 @@ class _PostCard extends StatelessWidget {
                       Row(
                         children: [
                           if (speciesLabel.isNotEmpty) ...[
-                            Icon(Icons.pets, size: 12, color: Colors.grey[500]),
+                            Icon(Icons.pets, size: 12, color: textSecondary),
                             const SizedBox(width: 4),
                             Text(
                               speciesLabel,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              style: TextStyle(fontSize: 12, color: textSecondary),
                             ),
                           ],
                           if (ageText.isNotEmpty) ...[
-                            Text(' • ', style: TextStyle(color: Colors.grey[400])),
+                            Text(' • ', style: TextStyle(color: textSecondary)),
                             Text(
                               ageText,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              style: TextStyle(fontSize: 12, color: textSecondary),
                             ),
                           ],
                           if (city.isNotEmpty) ...[
-                            Text(' • ', style: TextStyle(color: Colors.grey[400])),
-                            Icon(Icons.location_on, size: 12, color: Colors.grey[500]),
+                            Text(' • ', style: TextStyle(color: textSecondary)),
+                            Icon(Icons.location_on, size: 12, color: textSecondary),
                             const SizedBox(width: 2),
                             Flexible(
                               child: Text(
                                 city,
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                style: TextStyle(fontSize: 12, color: textSecondary),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -473,17 +555,25 @@ class _PostCard extends StatelessWidget {
                 // Actions
                 Column(
                   children: [
+                    // "Faire adopter" button - only for approved, not adopted posts
+                    if (isApproved && !isAdopted)
+                      IconButton(
+                        onPressed: onMarkAsAdopted,
+                        icon: const Icon(Icons.favorite, color: _rosePrimary, size: 20),
+                        tooltip: l10n.adoptMarkAsAdopted,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     if (!isAdopted)
                       IconButton(
                         onPressed: onEdit,
-                        icon: Icon(Icons.edit_outlined, color: Colors.grey[600], size: 20),
-                        tooltip: 'Modifier',
+                        icon: Icon(Icons.edit_outlined, color: textSecondary, size: 20),
+                        tooltip: l10n.adoptModify,
                         visualDensity: VisualDensity.compact,
                       ),
                     IconButton(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                      tooltip: 'Supprimer',
+                      tooltip: l10n.delete,
                       visualDensity: VisualDensity.compact,
                     ),
                   ],
@@ -501,7 +591,7 @@ class _PostCard extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: _roseLight,
+        color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
         borderRadius: BorderRadius.circular(14),
       ),
       child: const Icon(Icons.pets, color: _rosePrimary, size: 32),
@@ -512,8 +602,10 @@ class _PostCard extends StatelessWidget {
 // Empty state
 class _EmptyState extends StatelessWidget {
   final VoidCallback onCreatePost;
+  final bool isDark;
+  final AppLocalizations l10n;
 
-  const _EmptyState({required this.onCreatePost});
+  const _EmptyState({required this.onCreatePost, required this.isDark, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
@@ -525,25 +617,25 @@ class _EmptyState extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: _roseLight,
+              decoration: BoxDecoration(
+                color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.pets, size: 64, color: _rosePrimary),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Aucune annonce',
+            Text(
+              l10n.adoptNoAdsInList,
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Créez votre première annonce\npour trouver un foyer à un animal',
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              l10n.adoptCreateFirstAd,
+              style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -555,7 +647,7 @@ class _EmptyState extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
               icon: const Icon(Icons.add),
-              label: const Text('Créer une annonce', style: TextStyle(fontSize: 16)),
+              label: Text(l10n.adoptCreateAd, style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -568,8 +660,10 @@ class _EmptyState extends StatelessWidget {
 class _ErrorState extends StatelessWidget {
   final String error;
   final VoidCallback onRetry;
+  final bool isDark;
+  final AppLocalizations l10n;
 
-  const _ErrorState({required this.error, required this.onRetry});
+  const _ErrorState({required this.error, required this.onRetry, required this.isDark, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
@@ -581,21 +675,224 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            const Text(
-              'Erreur de chargement',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.adoptLoadingError,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
             ),
             const SizedBox(height: 8),
-            Text(error, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+            Text(error, textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: _rosePrimary),
               icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
+              label: Text(l10n.adoptRetry),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Adopter selection bottom sheet
+class _AdopterSelectionSheet extends ConsumerStatefulWidget {
+  final String postId;
+  final String postName;
+  final bool isDark;
+  final AppLocalizations l10n;
+  final Function(String adopterId) onAdopterSelected;
+
+  const _AdopterSelectionSheet({
+    required this.postId,
+    required this.postName,
+    required this.isDark,
+    required this.l10n,
+    required this.onAdopterSelected,
+  });
+
+  @override
+  ConsumerState<_AdopterSelectionSheet> createState() => _AdopterSelectionSheetState();
+}
+
+class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> {
+  List<Map<String, dynamic>> _conversations = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    try {
+      final api = ref.read(apiProvider);
+      final conversations = await api.getAdoptPostConversations(widget.postId);
+      if (mounted) {
+        setState(() {
+          _conversations = conversations;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textPrimary = widget.isDark ? Colors.white : Colors.black87;
+    final textSecondary = widget.isDark ? Colors.grey[400] : Colors.grey[600];
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.favorite, color: _rosePrimary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.l10n.adoptChooseAdopter,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      widget.postName,
+                      style: TextStyle(fontSize: 14, color: textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(Icons.close, color: textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Content
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(color: _rosePrimary),
+              ),
+            )
+          else if (_error != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(
+                  '${widget.l10n.adoptLoadingError}: $_error',
+                  style: TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else if (_conversations.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.person_off, size: 48, color: textSecondary),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.l10n.adoptNoInterestedPeople,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.l10n.adoptNoInterestedPeopleDesc,
+                      style: TextStyle(color: textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _conversations.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final conv = _conversations[index];
+                  final otherUser = conv['otherUser'] as Map<String, dynamic>?;
+                  final otherUserId = conv['otherUserId']?.toString() ?? otherUser?['id']?.toString();
+                  final name = otherUser?['displayName']?.toString() ?? otherUser?['name']?.toString() ?? 'Utilisateur';
+                  final avatar = otherUser?['avatarUrl']?.toString();
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: widget.isDark ? _darkBg : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: widget.isDark ? _darkCardBorder : Colors.grey[200]!),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: avatar != null && avatar.isNotEmpty
+                            ? NetworkImage(avatar)
+                            : null,
+                        backgroundColor: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
+                        child: avatar == null || avatar.isEmpty
+                            ? const Icon(Icons.person, color: _rosePrimary)
+                            : null,
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+                      ),
+                      trailing: FilledButton(
+                        onPressed: otherUserId != null
+                            ? () => widget.onAdopterSelected(otherUserId)
+                            : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _rosePrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: Text(widget.l10n.adoptSelectAdopter, style: const TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -692,10 +989,11 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
   void _removeExistingImage(int i) => setState(() => _existingImageUrls.removeAt(i));
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (!_form.currentState!.validate()) return;
     if (_newImages.isEmpty && _existingImageUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ajoutez au moins une photo')),
+        SnackBar(content: Text(l10n.adoptAddPhoto)),
       );
       return;
     }
@@ -753,8 +1051,8 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isEdit
-                ? 'Annonce modifiée - en validation'
-                : 'Annonce créée - en validation'),
+                ? l10n.adoptAdModified
+                : l10n.adoptAdCreated),
             backgroundColor: _greenSuccess,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -765,7 +1063,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${l10n.adoptError}: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -777,19 +1075,26 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
   Widget build(BuildContext context) {
     final isEdit = widget.post != null;
     final topPadding = MediaQuery.of(context).padding.top;
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F8F8);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // Header
           Container(
             padding: EdgeInsets.only(top: topPadding + 8, left: 12, right: 16, bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -799,18 +1104,19 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
               children: [
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : _rosePrimary),
                   style: IconButton.styleFrom(
-                    backgroundColor: _roseLight,
+                    backgroundColor: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  isEdit ? 'Modifier l\'annonce' : 'Nouvelle annonce',
-                  style: const TextStyle(
+                  isEdit ? l10n.adoptEditAd : l10n.adoptNewAd,
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: textPrimary,
                   ),
                 ),
               ],
@@ -825,7 +1131,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   // Photos section
-                  _buildSectionTitle('Photos', Icons.photo_library, required: true),
+                  _buildSectionTitle(l10n.adoptPhotos, Icons.photo_library, required: true, isDark: isDark),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 110,
@@ -836,45 +1142,49 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
                         ..._existingImageUrls.asMap().entries.map((e) => _buildImageTile(
                           imageUrl: e.value,
                           onRemove: () => _removeExistingImage(e.key),
+                          isDark: isDark,
                         )),
                         // New images
                         ..._newImages.asMap().entries.map((e) => _buildImageTile(
                           file: File(e.value.path),
                           onRemove: () => _removeNewImage(e.key),
+                          isDark: isDark,
                         )),
                         // Add button
                         if (_newImages.length + _existingImageUrls.length < 3)
-                          _buildAddImageButton(),
+                          _buildAddImageButton(isDark, l10n),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   // Title
-                  _buildSectionTitle('Informations', Icons.info_outline, required: true),
+                  _buildSectionTitle(l10n.adoptInformations, Icons.info_outline, required: true, isDark: isDark),
                   const SizedBox(height: 12),
                   _buildTextField(
                     controller: _title,
-                    label: 'Titre de l\'annonce',
-                    hint: 'Ex: Chiot adorable cherche famille',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    label: l10n.adoptAdTitle,
+                    hint: l10n.adoptAdTitleHint,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? l10n.adoptRequired : null,
                     maxLength: 140,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
                     controller: _name,
-                    label: 'Nom de l\'animal',
-                    hint: 'Ex: Max',
+                    label: l10n.adoptAnimalName,
+                    hint: l10n.adoptAnimalNameHint,
                     maxLength: 100,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 12),
 
                   // Species & Sex
                   Row(
                     children: [
-                      Expanded(child: _buildSpeciesDropdown()),
+                      Expanded(child: _buildSpeciesDropdown(isDark, l10n)),
                       const SizedBox(width: 12),
-                      Expanded(child: _buildSexDropdown()),
+                      Expanded(child: _buildSexDropdown(isDark, l10n)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -885,16 +1195,18 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
                       Expanded(
                         child: _buildTextField(
                           controller: _age,
-                          label: 'Âge',
-                          hint: 'Ex: 3 mois',
+                          label: l10n.adoptAge,
+                          hint: l10n.adoptAgeHint,
+                          isDark: isDark,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildTextField(
                           controller: _city,
-                          label: 'Ville',
-                          hint: 'Ex: Alger',
+                          label: l10n.adoptCity,
+                          hint: l10n.adoptCityHint,
+                          isDark: isDark,
                         ),
                       ),
                     ],
@@ -904,9 +1216,10 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
                   // Description
                   _buildTextField(
                     controller: _desc,
-                    label: 'Description',
-                    hint: 'Décrivez l\'animal, son caractère...',
+                    label: l10n.adoptDescription,
+                    hint: l10n.adoptDescriptionHint,
                     maxLines: 4,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 32),
 
@@ -925,7 +1238,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
                         : Text(
-                            isEdit ? 'Enregistrer les modifications' : 'Publier l\'annonce',
+                            isEdit ? l10n.adoptSaveChanges : l10n.adoptPublishAd,
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
@@ -939,14 +1252,14 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon, {bool required = false}) {
+  Widget _buildSectionTitle(String title, IconData icon, {bool required = false, bool isDark = false}) {
     return Row(
       children: [
         Icon(icon, size: 18, color: _rosePrimary),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
         ),
         if (required)
           const Text(' *', style: TextStyle(color: Colors.red)),
@@ -961,21 +1274,25 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     String? Function(String?)? validator,
     int? maxLength,
     int maxLines = 1,
+    bool isDark = false,
   }) {
     return TextFormField(
       controller: controller,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
         hintText: hint,
+        hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: isDark ? _darkCard : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -989,61 +1306,71 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     );
   }
 
-  Widget _buildSpeciesDropdown() {
+  Widget _buildSpeciesDropdown(bool isDark, AppLocalizations l10n) {
     return DropdownButtonFormField<String>(
       value: _species,
-      items: const [
-        DropdownMenuItem(value: 'dog', child: Text('Chien')),
-        DropdownMenuItem(value: 'cat', child: Text('Chat')),
-        DropdownMenuItem(value: 'other', child: Text('Autre')),
+      dropdownColor: isDark ? _darkCard : Colors.white,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      items: [
+        DropdownMenuItem(value: 'dog', child: Text(l10n.adoptDog, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+        DropdownMenuItem(value: 'cat', child: Text(l10n.adoptCat, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+        DropdownMenuItem(value: 'other', child: Text(l10n.adoptOther, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
       ],
       onChanged: (v) => setState(() => _species = v ?? 'dog'),
       decoration: InputDecoration(
-        labelText: 'Espèce',
+        labelText: l10n.adoptSpecies,
+        labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: isDark ? _darkCard : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
       ),
     );
   }
 
-  Widget _buildSexDropdown() {
+  Widget _buildSexDropdown(bool isDark, AppLocalizations l10n) {
     return DropdownButtonFormField<String>(
       value: _sex,
-      items: const [
-        DropdownMenuItem(value: 'unknown', child: Text('Inconnu')),
-        DropdownMenuItem(value: 'male', child: Text('Mâle')),
-        DropdownMenuItem(value: 'female', child: Text('Femelle')),
+      dropdownColor: isDark ? _darkCard : Colors.white,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      items: [
+        DropdownMenuItem(value: 'unknown', child: Text(l10n.adoptUnknown, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+        DropdownMenuItem(value: 'male', child: Text(l10n.adoptMale, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+        DropdownMenuItem(value: 'female', child: Text(l10n.adoptFemale, style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
       ],
       onChanged: (v) => setState(() => _sex = v ?? 'unknown'),
       decoration: InputDecoration(
-        labelText: 'Sexe',
+        labelText: l10n.adoptSex,
+        labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: isDark ? _darkCard : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[300]!),
         ),
       ),
     );
   }
 
-  Widget _buildImageTile({String? imageUrl, File? file, required VoidCallback onRemove}) {
+  Widget _buildImageTile({String? imageUrl, File? file, required VoidCallback onRemove, bool isDark = false}) {
     return Container(
       width: 100,
       height: 100,
       margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: isDark ? Border.all(color: _darkCardBorder) : null,
+      ),
       child: Stack(
         children: [
           ClipRRect(
@@ -1072,14 +1399,14 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
     );
   }
 
-  Widget _buildAddImageButton() {
+  Widget _buildAddImageButton(bool isDark, AppLocalizations l10n) {
     return GestureDetector(
       onTap: _pickImage,
       child: Container(
         width: 100,
         height: 100,
         decoration: BoxDecoration(
-          color: _roseLight,
+          color: isDark ? _rosePrimary.withOpacity(0.1) : _roseLight,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: _rosePrimary.withOpacity(0.3), width: 2, style: BorderStyle.solid),
         ),
@@ -1089,7 +1416,7 @@ class _CreateEditPostScreenState extends ConsumerState<_CreateEditPostScreen> {
             Icon(Icons.add_photo_alternate, color: _rosePrimary.withOpacity(0.7), size: 32),
             const SizedBox(height: 4),
             Text(
-              'Ajouter',
+              l10n.adoptAddPhotoButton,
               style: TextStyle(fontSize: 11, color: _rosePrimary.withOpacity(0.7)),
             ),
           ],

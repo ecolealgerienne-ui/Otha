@@ -347,6 +347,9 @@ class AppLocalizations {
       'adoptLoadingError': 'Erreur de chargement',
       'adoptRetry': 'Réessayer',
       'adoptJustNow': 'À l\'instant',
+      'adoptAnimal': 'Animal',
+      'adoptAnonymous': 'Anonyme',
+      'adoptNoMessage': 'Aucun message',
       'adoptMinutes': 'min',
       'adoptHours': 'h',
       'adoptDays': 'j',
@@ -384,6 +387,12 @@ class AppLocalizations {
       'adoptDeleteAdTitle': 'Supprimer l\'annonce',
       'adoptDeleteAdDesc': 'Cette action est irréversible.',
       'adoptAdDeleted': 'Annonce supprimée',
+      'adoptMarkAsAdopted': 'Faire adopter',
+      'adoptChooseAdopter': 'Choisir l\'adoptant',
+      'adoptNoInterestedPeople': 'Aucune personne intéressée',
+      'adoptNoInterestedPeopleDesc': 'Personne n\'a encore manifesté d\'intérêt pour cette annonce.',
+      'adoptSelectAdopter': 'Sélectionner comme adoptant',
+      'adoptLoadingError': 'Erreur de chargement',
       'adoptNoAdsInList': 'Aucune annonce',
       'adoptCreateFirstAd': 'Créez votre première annonce\npour trouver un foyer à un animal',
       'adoptCreateAd': 'Créer une annonce',
@@ -1197,6 +1206,9 @@ class AppLocalizations {
       'adoptLoadingError': 'Loading error',
       'adoptRetry': 'Retry',
       'adoptJustNow': 'Just now',
+      'adoptAnimal': 'Animal',
+      'adoptAnonymous': 'Anonymous',
+      'adoptNoMessage': 'No message',
       'adoptMinutes': 'min',
       'adoptHours': 'h',
       'adoptDays': 'd',
@@ -1234,6 +1246,12 @@ class AppLocalizations {
       'adoptDeleteAdTitle': 'Delete ad',
       'adoptDeleteAdDesc': 'This action is irreversible.',
       'adoptAdDeleted': 'Ad deleted',
+      'adoptMarkAsAdopted': 'Mark as adopted',
+      'adoptChooseAdopter': 'Choose adopter',
+      'adoptNoInterestedPeople': 'No interested people',
+      'adoptNoInterestedPeopleDesc': 'No one has shown interest in this ad yet.',
+      'adoptSelectAdopter': 'Select as adopter',
+      'adoptLoadingError': 'Loading error',
       'adoptNoAdsInList': 'No ads',
       'adoptCreateFirstAd': 'Create your first ad\nto find a home for a pet',
       'adoptCreateAd': 'Create ad',
@@ -2047,6 +2065,9 @@ class AppLocalizations {
       'adoptLoadingError': 'خطأ في التحميل',
       'adoptRetry': 'إعادة المحاولة',
       'adoptJustNow': 'الآن',
+      'adoptAnimal': 'حيوان',
+      'adoptAnonymous': 'مجهول',
+      'adoptNoMessage': 'لا توجد رسالة',
       'adoptMinutes': 'د',
       'adoptHours': 'س',
       'adoptDays': 'ي',
@@ -2084,6 +2105,12 @@ class AppLocalizations {
       'adoptDeleteAdTitle': 'حذف الإعلان',
       'adoptDeleteAdDesc': 'هذا الإجراء لا رجعة فيه.',
       'adoptAdDeleted': 'تم حذف الإعلان',
+      'adoptMarkAsAdopted': 'إتمام التبني',
+      'adoptChooseAdopter': 'اختر المتبني',
+      'adoptNoInterestedPeople': 'لا يوجد أشخاص مهتمين',
+      'adoptNoInterestedPeopleDesc': 'لم يُبدِ أحد اهتمامه بهذا الإعلان بعد.',
+      'adoptSelectAdopter': 'اختر كمتبني',
+      'adoptLoadingError': 'خطأ في التحميل',
       'adoptNoAdsInList': 'لا توجد إعلانات',
       'adoptCreateFirstAd': 'أنشئ إعلانك الأول\nللعثور على منزل لحيوان',
       'adoptCreateAd': 'إنشاء إعلان',
@@ -3409,6 +3436,61 @@ class AppLocalizations {
   String get adoptNoMessagesDesc => _get('adoptNoMessagesDesc');
   String get adoptLoadingError => _get('adoptLoadingError');
   String get adoptRetry => _get('adoptRetry');
+  String get adoptMarkAsAdopted => _get('adoptMarkAsAdopted');
+  String get adoptChooseAdopter => _get('adoptChooseAdopter');
+  String get adoptNoInterestedPeople => _get('adoptNoInterestedPeople');
+  String get adoptNoInterestedPeopleDesc => _get('adoptNoInterestedPeopleDesc');
+  String get adoptSelectAdopter => _get('adoptSelectAdopter');
+  String get adoptMyAds => _get('adoptMyAds');
+  String get adoptCreateButton => _get('adoptCreateButton');
+  String get adoptTotal => _get('adoptTotal');
+  String get adoptActive => _get('adoptActive');
+  String get adoptPending => _get('adoptPending');
+  String get adoptAdoptedPlural => _get('adoptAdoptedPlural');
+  String get adoptModificationImpossible => _get('adoptModificationImpossible');
+  String get adoptAlreadyAdopted => _get('adoptAlreadyAdopted');
+  String get adoptOk => _get('adoptOk');
+  String get adoptDeleteAdTitle => _get('adoptDeleteAdTitle');
+  String get adoptDeleteAdDesc => _get('adoptDeleteAdDesc');
+  String get adoptAdDeleted => _get('adoptAdDeleted');
+  String get adoptNoAdsInList => _get('adoptNoAdsInList');
+  String get adoptCreateFirstAd => _get('adoptCreateFirstAd');
+  String get adoptCreateAd => _get('adoptCreateAd');
+  String get adoptStatusAdopted => _get('adoptStatusAdopted');
+  String get adoptStatusActive => _get('adoptStatusActive');
+  String get adoptStatusRejected => _get('adoptStatusRejected');
+  String get adoptStatusPending => _get('adoptStatusPending');
+  String get adoptModify => _get('adoptModify');
+  String get adoptEditAd => _get('adoptEditAd');
+  String get adoptNewAd => _get('adoptNewAd');
+  String get adoptPhotos => _get('adoptPhotos');
+  String get adoptInformations => _get('adoptInformations');
+  String get adoptRequired => _get('adoptRequired');
+  String get adoptAdTitle => _get('adoptAdTitle');
+  String get adoptAdTitleHint => _get('adoptAdTitleHint');
+  String get adoptAnimalName => _get('adoptAnimalName');
+  String get adoptAnimalNameHint => _get('adoptAnimalNameHint');
+  String get adoptSpecies => _get('adoptSpecies');
+  String get adoptSex => _get('adoptSex');
+  String get adoptAge => _get('adoptAge');
+  String get adoptAgeHint => _get('adoptAgeHint');
+  String get adoptCity => _get('adoptCity');
+  String get adoptCityHint => _get('adoptCityHint');
+  String get adoptDescription => _get('adoptDescription');
+  String get adoptDescriptionHint => _get('adoptDescriptionHint');
+  String get adoptSaveChanges => _get('adoptSaveChanges');
+  String get adoptPublishAd => _get('adoptPublishAd');
+  String get adoptAddPhoto => _get('adoptAddPhoto');
+  String get adoptAdModified => _get('adoptAdModified');
+  String get adoptAdCreated => _get('adoptAdCreated');
+  String get adoptAddPhotoButton => _get('adoptAddPhotoButton');
+  String get adoptUnknown => _get('adoptUnknown');
+  String get adoptAdoptionConfirmed => _get('adoptAdoptionConfirmed');
+  String get adoptJustNow => _get('adoptJustNow');
+  String get adoptAnimal => _get('adoptAnimal');
+  String get adoptAnonymous => _get('adoptAnonymous');
+  String get adoptNoMessage => _get('adoptNoMessage');
+  String get adoptNewBadge => _get('adoptNewBadge');
 
   // Password Reset translations
   String get forgotPasswordTitle => _get('forgotPasswordTitle');

@@ -34,7 +34,12 @@ class _AdoptMainScreenState extends ConsumerState<AdoptMainScreen> {
     final l10n = AppLocalizations.of(context);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
 
+    const rosePrimary = Color(0xFFFF6B6B);
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final unselectedColor = isDark ? Colors.grey[500] : Colors.grey[600];
+
     return Scaffold(
+      backgroundColor: bgColor,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
@@ -49,6 +54,9 @@ class _AdoptMainScreenState extends ConsumerState<AdoptMainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentPage,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        selectedItemColor: rosePrimary,
+        unselectedItemColor: unselectedColor,
         onTap: (index) {
           setState(() => _currentPage = index);
           _pageController.animateToPage(
