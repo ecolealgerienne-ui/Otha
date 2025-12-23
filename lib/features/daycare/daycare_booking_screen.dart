@@ -103,7 +103,18 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? _darkCard : _coralSoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: isDark ? Colors.white : _coral,
+              size: 18,
+            ),
+          ),
           onPressed: () => context.pop(),
         ),
         title: Row(
@@ -140,7 +151,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
         error: (err, _) => _buildError(err.toString(), isDark, l10n),
         data: (pets) {
           if (pets.isEmpty) {
-            return _buildNoPets(context, isDark, l10n);
+            return _buildNoPets(context, ref, isDark, l10n);
           }
 
           return Column(
@@ -645,7 +656,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     );
   }
 
-  Widget _buildNoPets(BuildContext context, bool isDark, AppLocalizations l10n) {
+  Widget _buildNoPets(BuildContext context, WidgetRef ref, bool isDark, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -677,7 +688,10 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: () => context.push('/pets/add'),
+              onPressed: () async {
+                await context.push('/pets/add');
+                ref.invalidate(_userPetsProvider);
+              },
               icon: const Icon(Icons.add_rounded),
               label: Text(l10n.addAnimal),
               style: FilledButton.styleFrom(
