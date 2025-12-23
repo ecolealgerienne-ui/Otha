@@ -11,18 +11,13 @@ const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
-// Refresh key to force reload
-final _careerRefreshKey = StateProvider<int>((ref) => 0);
-
 // Providers
 final _careerFeedProvider = FutureProvider.family<Map<String, dynamic>, String?>((ref, type) async {
-  ref.watch(_careerRefreshKey); // Depend on refresh key
   final api = ref.watch(apiProvider);
   return api.careerFeed(type: type);
 });
 
 final _myCareerPostsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  ref.watch(_careerRefreshKey); // Depend on refresh key
   final api = ref.watch(apiProvider);
   return api.careerMyPosts();
 });
@@ -62,7 +57,8 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
   }
 
   void _refreshData() {
-    ref.read(_careerRefreshKey.notifier).state++;
+    ref.invalidate(_careerFeedProvider);
+    ref.invalidate(_myCareerPostsProvider);
   }
 
   @override
