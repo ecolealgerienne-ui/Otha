@@ -829,6 +829,55 @@ class ApiClient {
     return data;
   }
 
+  // ==================== ADMIN: CAREER ====================
+  async adminCareerList(
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED',
+    type?: 'REQUEST' | 'OFFER',
+    limit = 30
+  ): Promise<{ data: any[]; counts: Record<string, number> }> {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (type) params.set('type', type);
+    params.set('limit', String(limit));
+    const { data } = await this._client.get(`/admin/career/posts?${params.toString()}`);
+    return data;
+  }
+
+  async adminCareerGetPost(postId: string): Promise<any> {
+    const { data } = await this._client.get(`/admin/career/posts/${postId}`);
+    return data;
+  }
+
+  async adminCareerApprove(postId: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/career/posts/${postId}/approve`);
+    return data;
+  }
+
+  async adminCareerReject(postId: string, reasons?: string[], note?: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/career/posts/${postId}/reject`, { reasons, note });
+    return data;
+  }
+
+  async adminCareerArchive(postId: string): Promise<any> {
+    const { data } = await this._client.patch(`/admin/career/posts/${postId}/archive`);
+    return data;
+  }
+
+  async adminCareerApproveAll(): Promise<{ count: number }> {
+    const { data } = await this._client.patch<{ count: number }>('/admin/career/posts/approve-all');
+    return (data as any)?.data || data;
+  }
+
+  async adminCareerGetPostConversations(postId: string): Promise<any[]> {
+    const { data } = await this._client.get(`/admin/career/posts/${postId}/conversations`);
+    return data;
+  }
+
+  async adminCareerGetConversationMessages(conversationId: string): Promise<any> {
+    const { data } = await this._client.get(`/admin/career/conversations/${conversationId}/messages`);
+    return data;
+  }
+
   // ==================== ADMIN: EARNINGS ====================
   async adminHistoryMonthly(providerId: string, months = 12): Promise<MonthlyEarnings[]> {
     const { data } = await this._client.get(

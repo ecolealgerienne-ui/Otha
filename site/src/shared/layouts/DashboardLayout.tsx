@@ -17,6 +17,7 @@ import {
   Flag,
   MessageSquare,
   Percent,
+  FileText,
 } from 'lucide-react';
 import { useAuthStore, useIsAdmin, useIsPro } from '../../store/authStore';
 
@@ -43,6 +44,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { icon: <Briefcase size={20} />, label: 'Demandes Pro', path: '/admin/applications' },
     { icon: <Users size={20} />, label: 'Utilisateurs', path: '/admin/users' },
     { icon: <Heart size={20} />, label: 'Adoptions', path: '/admin/adoptions' },
+    { icon: <FileText size={20} />, label: 'Annonces', path: '/admin/career' },
     { icon: <DollarSign size={20} />, label: 'Gains', path: '/admin/earnings' },
     { icon: <Percent size={20} />, label: 'Commissions', path: '/admin/commissions' },
     { icon: <Flag size={20} />, label: 'Flags', path: '/admin/flags' },
