@@ -5203,10 +5203,10 @@ class _AdoptBoostSection extends StatelessWidget {
               isDark: isDark,
               title: l10n.boost,
               subtitle: l10n.yourCareer,
-              icon: Icons.rocket_launch_rounded,
+              icon: Icons.work_rounded,
               gradient: const [Color(0xFF6B5BFF), Color(0xFF8B7FFF)],
               route: '/career',
-              emoji: '🚀',
+              emoji: '💼',
             ),
           ),
         ],
@@ -5278,7 +5278,7 @@ class _AdoptBoostCardState extends ConsumerState<_AdoptBoostCard> with SingleTic
           child: child,
         ),
         child: Container(
-          height: 130,
+          height: 140,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
