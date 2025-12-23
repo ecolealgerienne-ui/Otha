@@ -840,7 +840,16 @@ class ApiClient {
     if (type) params.set('type', type);
     params.set('limit', String(limit));
     const { data } = await this._client.get(`/admin/career/posts?${params.toString()}`);
-    return data;
+    // Unwrap nested data: response may be { success, data: { data: [...], counts } }
+    const inner = (data as any)?.data ?? data;
+    if (inner?.data && Array.isArray(inner.data)) {
+      return { data: inner.data, counts: inner.counts || {} };
+    }
+    // Direct format: { data: [...], counts: {...} }
+    if (Array.isArray(inner)) {
+      return { data: inner, counts: {} };
+    }
+    return { data: inner?.data || inner || [], counts: inner?.counts || {} };
   }
 
   async adminCareerGetPost(postId: string): Promise<any> {

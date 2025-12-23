@@ -540,6 +540,9 @@ export class CareerService {
             role: true,
           },
         },
+        _count: {
+          select: { conversations: true },
+        },
       },
     });
 
@@ -549,12 +552,12 @@ export class CareerService {
     // Compter par status
     const counts = await this.prisma.careerPost.groupBy({
       by: ['status'],
-      _count: true,
+      _count: { _all: true },
     });
 
     const countMap: Record<string, number> = {};
     for (const c of counts) {
-      countMap[c.status] = c._count;
+      countMap[c.status] = c._count._all;
     }
 
     return {
