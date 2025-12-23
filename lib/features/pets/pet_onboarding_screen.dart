@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../home/home_screen.dart' show myPetsProvider;
 
 // Design constants
 const _coral = Color(0xFFF36C6C);
@@ -641,6 +642,8 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
       if (_isEditMode) {
         Navigator.pop(context, true); // Retourner avec succès
       } else {
+        // Invalidate pets cache to refresh home screen
+        ref.invalidate(myPetsProvider);
         context.go('/home');
       }
     } catch (e) {
