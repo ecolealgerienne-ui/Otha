@@ -9,19 +9,19 @@ export enum CareerTypeDto {
 export class CreateCareerPostDto {
   @ApiProperty({ enum: CareerTypeDto, description: 'Type de post: REQUEST (demande) ou OFFER (offre)' })
   @IsEnum(CareerTypeDto)
-  type: CareerTypeDto;
+  type!: CareerTypeDto;
 
   @ApiProperty({ description: 'Titre de l\'annonce' })
   @IsString()
   @MinLength(5)
   @MaxLength(100)
-  title: string;
+  title!: string;
 
   @ApiProperty({ description: 'Bio publique (visible par tous)' })
   @IsString()
   @MinLength(20)
   @MaxLength(500)
-  publicBio: string;
+  publicBio!: string;
 
   @ApiPropertyOptional({ description: 'Ville' })
   @IsOptional()
