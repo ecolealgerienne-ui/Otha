@@ -5,6 +5,7 @@ import '../../core/api.dart';
 import '../../core/locale_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
+import '../home/home_screen.dart' show myPetsProvider;
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -20,11 +21,6 @@ final _providerDetailsProvider =
 final _servicesProvider =
     FutureProvider.family.autoDispose<List<Map<String, dynamic>>, String>((ref, providerId) async {
   final list = await ref.read(apiProvider).listServices(providerId);
-  return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-});
-
-final _myPetsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final list = await ref.read(apiProvider).myPets();
   return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
@@ -764,7 +760,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
   Widget _buildPetSelector(bool isDark, Color textPrimary, Color? textSecondary, Color cardColor, Color cardBorder, AppLocalizations l10n) {
     return Consumer(
       builder: (context, ref, _) {
-        final petsAsync = ref.watch(_myPetsProvider);
+        final petsAsync = ref.watch(myPetsProvider);
         return petsAsync.when(
           loading: () => LinearProgressIndicator(color: isDark ? _coral : null),
           error: (e, st) => Text('${l10n.error}: $e', style: const TextStyle(color: Colors.red)),

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
+import '../home/home_screen.dart' show myPetsProvider;
 
 // Clean color palette
 const _coral = Color(0xFFF36C6C);
@@ -20,17 +21,6 @@ const _darkCardBorder = Color(0xFF2A2A2A);
 // Commission par défaut (fallback si non définie dans le profil du provider)
 const kDefaultDaycareHourlyCommissionDa = 10;
 const kDefaultDaycareDailyCommissionDa = 100;
-
-/// Provider pour charger les animaux de l'utilisateur
-final _userPetsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final api = ref.read(apiProvider);
-  try {
-    final pets = await api.myPets();
-    return pets.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-  } catch (e) {
-    return [];
-  }
-});
 
 class DaycareBookingScreen extends ConsumerStatefulWidget {
   final String providerId;
@@ -94,7 +84,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     final textPrimary = isDark ? Colors.white : const Color(0xFF1A1A2E);
     final textSecondary = isDark ? Colors.white60 : Colors.black54;
 
-    final petsAsync = ref.watch(_userPetsProvider);
+    final petsAsync = ref.watch(myPetsProvider);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -690,7 +680,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
             FilledButton.icon(
               onPressed: () async {
                 await context.push('/pets/add');
-                ref.invalidate(_userPetsProvider);
+                ref.invalidate(myPetsProvider);
               },
               icon: const Icon(Icons.add_rounded),
               label: Text(l10n.addAnimal),
@@ -847,7 +837,7 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
       final dailyCommission = (daycare['daycareDailyCommissionDa'] ?? kDefaultDaycareDailyCommissionDa) as int;
 
       // Get pet info
-      final petsAsync = ref.read(_userPetsProvider);
+      final petsAsync = ref.read(myPetsProvider);
       final pets = petsAsync.value ?? [];
       final pet = pets.firstWhere((p) => p['id'] == _selectedPetId, orElse: () => {});
       final petName = (pet['name'] ?? l10n.yourAnimal).toString();
