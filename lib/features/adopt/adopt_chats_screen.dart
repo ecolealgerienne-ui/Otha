@@ -8,6 +8,9 @@ import '../../core/locale_provider.dart';
 const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
 const _redDelete = Color(0xFFFF3B5C);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 class AdoptChatsScreen extends ConsumerStatefulWidget {
   const AdoptChatsScreen({super.key});
@@ -114,8 +117,9 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
-    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF8F8F8);
-    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final bgColor = isDark ? _darkBg : const Color(0xFFF8F8F8);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
 
     final topPadding = MediaQuery.of(context).padding.top;
 
@@ -130,7 +134,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
               color: cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -141,7 +145,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _roseLight,
+                    color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.chat_bubble_rounded, color: _rosePrimary, size: 20),
@@ -149,10 +153,10 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                 const SizedBox(width: 12),
                 Text(
                   l10n.adoptMessages,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -185,8 +189,8 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(20),
-                          decoration: const BoxDecoration(
-                            color: _roseLight,
+                          decoration: BoxDecoration(
+                            color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                             shape: BoxShape.circle,
                           ),
                           child: const CircularProgressIndicator(color: _rosePrimary),
@@ -195,12 +199,12 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                     ),
                   )
                 : _error != null
-                    ? _ErrorState(error: _error!, onRetry: _loadData)
+                    ? _ErrorState(error: _error!, onRetry: _loadData, isDark: isDark)
                     : RefreshIndicator(
                         onRefresh: _loadData,
                         color: _rosePrimary,
                         child: _requests.isEmpty && _chats.isEmpty
-                            ? _EmptyState(onRefresh: _loadData)
+                            ? _EmptyState(onRefresh: _loadData, isDark: isDark)
                             : ListView(
                                 padding: EdgeInsets.zero,
                                 children: [
@@ -209,6 +213,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                     _SectionHeader(
                                       title: l10n.adoptNewRequests,
                                       count: _requests.length,
+                                      isDark: isDark,
                                     ),
                                     SizedBox(
                                       height: 175,
@@ -219,6 +224,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                         itemBuilder: (context, index) {
                                           return _RequestCard(
                                             request: _requests[index],
+                                            isDark: isDark,
                                             onAccept: () {
                                               final id = _requests[index]['id']?.toString();
                                               if (id != null) _acceptRequest(id);
@@ -239,6 +245,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                     _SectionHeader(
                                       title: l10n.adoptConversations,
                                       count: _chats.length,
+                                      isDark: isDark,
                                     ),
                                     ListView.builder(
                                       shrinkWrap: true,
@@ -248,6 +255,7 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
                                       itemBuilder: (context, index) {
                                         return _ChatTile(
                                           chat: _chats[index],
+                                          isDark: isDark,
                                           onTap: () {
                                             final id = _chats[index]['id']?.toString();
                                             if (id != null) context.push('/adopt/chat/$id');
@@ -276,8 +284,9 @@ class _AdoptChatsScreenState extends ConsumerState<AdoptChatsScreen> {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final int count;
+  final bool isDark;
 
-  const _SectionHeader({required this.title, required this.count});
+  const _SectionHeader({required this.title, required this.count, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -287,17 +296,17 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: isDark ? _darkCardBorder : Colors.grey[200],
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -305,7 +314,7 @@ class _SectionHeader extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
           ),
@@ -318,21 +327,24 @@ class _SectionHeader extends StatelessWidget {
 // Request card (horizontal scroll)
 class _RequestCard extends StatelessWidget {
   final Map<String, dynamic> request;
+  final bool isDark;
   final VoidCallback onAccept;
   final VoidCallback onReject;
 
   const _RequestCard({
     required this.request,
+    required this.isDark,
     required this.onAccept,
     required this.onReject,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final post = request['post'] as Map<String, dynamic>? ?? {};
     final requester = request['requester'] as Map<String, dynamic>? ?? {};
-    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
-    final requesterName = (requester['anonymousName'] ?? 'Anonyme').toString();
+    final animalName = (post['animalName'] ?? post['title'] ?? l10n.adoptAnimal).toString();
+    final requesterName = (requester['anonymousName'] ?? l10n.adoptAnonymous).toString();
 
     final images = (post['images'] as List<dynamic>?)
         ?.map((e) => (e as Map<String, dynamic>)['url']?.toString())
@@ -344,9 +356,10 @@ class _RequestCard extends StatelessWidget {
       width: 140,
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        border: isDark ? Border.all(color: _darkCardBorder) : null,
+        boxShadow: isDark ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
             blurRadius: 8,
@@ -370,14 +383,14 @@ class _RequestCard extends StatelessWidget {
                         errorBuilder: (_, __, ___) => Container(
                           width: 140,
                           height: 80,
-                          color: _roseLight,
+                          color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                           child: const Icon(Icons.pets, color: _rosePrimary),
                         ),
                       )
                     : Container(
                         width: 140,
                         height: 80,
-                        color: _roseLight,
+                        color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                         child: const Icon(Icons.pets, color: _rosePrimary),
                       ),
               ),
@@ -390,9 +403,9 @@ class _RequestCard extends StatelessWidget {
                     color: _rosePrimary,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'NEW',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.adoptNewBadge,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
@@ -411,9 +424,10 @@ class _RequestCard extends StatelessWidget {
                 children: [
                   Text(
                     animalName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -422,7 +436,7 @@ class _RequestCard extends StatelessWidget {
                     requesterName,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey[600],
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -443,10 +457,10 @@ class _RequestCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: isDark ? Colors.grey[800] : Colors.grey[100],
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.close, size: 16, color: Colors.grey[600]),
+                      child: Icon(Icons.close, size: 16, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                     ),
                   ),
                 ),
@@ -458,7 +472,7 @@ class _RequestCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CD964).withOpacity(0.15),
+                        color: const Color(0xFF4CD964).withOpacity(isDark ? 0.2 : 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.check, size: 16, color: Color(0xFF4CD964)),
@@ -477,11 +491,13 @@ class _RequestCard extends StatelessWidget {
 // Chat tile with swipe to delete
 class _ChatTile extends StatefulWidget {
   final Map<String, dynamic> chat;
+  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _ChatTile({
     required this.chat,
+    required this.isDark,
     required this.onTap,
     required this.onDelete,
   });
@@ -524,14 +540,15 @@ class _ChatTileState extends State<_ChatTile> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final post = widget.chat['post'] as Map<String, dynamic>? ?? {};
-    final otherPersonName = (widget.chat['otherPersonName'] ?? 'Anonyme').toString();
-    final animalName = (post['animalName'] ?? post['title'] ?? 'Animal').toString();
+    final otherPersonName = (widget.chat['otherPersonName'] ?? l10n.adoptAnonymous).toString();
+    final animalName = (post['animalName'] ?? post['title'] ?? l10n.adoptAnimal).toString();
 
     final lastMessage = widget.chat['lastMessage'] as Map<String, dynamic>?;
     final lastMessageText = lastMessage != null
         ? (lastMessage['content'] ?? '').toString()
-        : 'Aucun message';
+        : l10n.adoptNoMessage;
     final lastMessageTime = lastMessage?['sentAt'] as String?;
 
     final images = (post['images'] as List<dynamic>?)
@@ -560,14 +577,14 @@ class _ChatTileState extends State<_ChatTile> {
                     _resetSwipe();
                     widget.onDelete();
                   },
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.delete_outline, color: Colors.white, size: 24),
-                      SizedBox(height: 2),
+                      const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                      const SizedBox(height: 2),
                       Text(
-                        'Supprimer',
-                        style: TextStyle(
+                        l10n.delete,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
@@ -595,9 +612,10 @@ class _ChatTileState extends State<_ChatTile> {
               duration: const Duration(milliseconds: 150),
               transform: Matrix4.translationValues(_dragOffset, 0, 0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: widget.isDark ? _darkCard : Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
+                border: widget.isDark ? Border.all(color: _darkCardBorder) : null,
+                boxShadow: widget.isDark ? null : [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: 8,
@@ -621,14 +639,14 @@ class _ChatTileState extends State<_ChatTile> {
                               errorBuilder: (_, __, ___) => Container(
                                 width: 56,
                                 height: 56,
-                                color: _roseLight,
+                                color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                                 child: const Icon(Icons.pets, color: _rosePrimary),
                               ),
                             )
                           : Container(
                               width: 56,
                               height: 56,
-                              color: _roseLight,
+                              color: widget.isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                               child: const Icon(Icons.pets, color: _rosePrimary),
                             ),
                     ),
@@ -643,9 +661,10 @@ class _ChatTileState extends State<_ChatTile> {
                               Expanded(
                                 child: Text(
                                   animalName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
+                                    color: widget.isDark ? Colors.white : Colors.black87,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -653,10 +672,10 @@ class _ChatTileState extends State<_ChatTile> {
                               ),
                               if (lastMessageTime != null)
                                 Text(
-                                  _formatTime(lastMessageTime),
+                                  _formatTime(lastMessageTime, l10n),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[500],
+                                    color: widget.isDark ? Colors.grey[400] : Colors.grey[500],
                                   ),
                                 ),
                             ],
@@ -664,13 +683,13 @@ class _ChatTileState extends State<_ChatTile> {
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              Icon(Icons.person_outline, size: 12, color: Colors.grey[500]),
+                              Icon(Icons.person_outline, size: 12, color: widget.isDark ? Colors.grey[400] : Colors.grey[500]),
                               const SizedBox(width: 4),
                               Text(
                                 otherPersonName,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -680,7 +699,7 @@ class _ChatTileState extends State<_ChatTile> {
                             lastMessageText,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[500],
+                              color: widget.isDark ? Colors.grey[400] : Colors.grey[500],
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -689,7 +708,7 @@ class _ChatTileState extends State<_ChatTile> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                    Icon(Icons.chevron_right, color: widget.isDark ? Colors.grey[500] : Colors.grey[400], size: 20),
                   ],
                 ),
               ),
@@ -700,13 +719,13 @@ class _ChatTileState extends State<_ChatTile> {
     );
   }
 
-  String _formatTime(String isoString) {
+  String _formatTime(String isoString, AppLocalizations l10n) {
     try {
       final dt = DateTime.parse(isoString).toLocal();
       final now = DateTime.now();
       final diff = now.difference(dt);
 
-      if (diff.inMinutes < 1) return 'À l\'instant';
+      if (diff.inMinutes < 1) return l10n.adoptJustNow;
       if (diff.inMinutes < 60) return '${diff.inMinutes}min';
       if (diff.inHours < 24) return '${diff.inHours}h';
       if (diff.inDays < 7) return '${diff.inDays}j';
@@ -720,8 +739,9 @@ class _ChatTileState extends State<_ChatTile> {
 // Empty state
 class _EmptyState extends ConsumerWidget {
   final VoidCallback onRefresh;
+  final bool isDark;
 
-  const _EmptyState({required this.onRefresh});
+  const _EmptyState({required this.onRefresh, required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -736,8 +756,8 @@ class _EmptyState extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: _roseLight,
+                decoration: BoxDecoration(
+                  color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.chat_bubble_outline, size: 56, color: _rosePrimary),
@@ -745,16 +765,16 @@ class _EmptyState extends ConsumerWidget {
               const SizedBox(height: 24),
               Text(
                 l10n.adoptNoMessages,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 l10n.adoptNoMessagesDesc,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -780,8 +800,9 @@ class _EmptyState extends ConsumerWidget {
 class _ErrorState extends ConsumerWidget {
   final String error;
   final VoidCallback onRetry;
+  final bool isDark;
 
-  const _ErrorState({required this.error, required this.onRetry});
+  const _ErrorState({required this.error, required this.onRetry, required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -797,13 +818,13 @@ class _ErrorState extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               l10n.adoptLoadingError,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
             ),
             const SizedBox(height: 8),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

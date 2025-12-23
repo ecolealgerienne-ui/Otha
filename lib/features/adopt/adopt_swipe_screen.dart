@@ -9,6 +9,8 @@ const _rosePrimary = Color(0xFFFF6B6B);
 const _roseLight = Color(0xFFFFE8E8);
 const _greenLike = Color(0xFF4CD964);
 const _redNope = Color(0xFFFF3B5C);
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
 
 final _quotasProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final api = ref.read(apiProvider);
@@ -149,10 +151,10 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _roseLight,
+                        color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new, color: _rosePrimary, size: 18),
+                      child: Icon(Icons.arrow_back_ios_new, color: isDark ? Colors.white : _rosePrimary, size: 18),
                     ),
                   ),
                 ),
@@ -191,7 +193,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: _roseLight,
+                        color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -232,7 +234,7 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: _roseLight,
+                            color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                             shape: BoxShape.circle,
                           ),
                           child: const CircularProgressIndicator(color: _rosePrimary),
@@ -240,13 +242,13 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
                         const SizedBox(height: 20),
                         Text(
                           l10n.adoptSearching,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 16),
                         ),
                       ],
                     ),
                   )
                 : _posts.isEmpty
-                    ? _EmptyState(onRefresh: _reset)
+                    ? _EmptyState(onRefresh: _reset, isDark: isDark)
                     : _SwipeCards(
                         posts: _posts,
                         currentIndex: _currentIndex,
@@ -286,7 +288,8 @@ class _AdoptSwipeScreenState extends ConsumerState<AdoptSwipeScreen> {
 // Empty state widget
 class _EmptyState extends ConsumerWidget {
   final VoidCallback onRefresh;
-  const _EmptyState({required this.onRefresh});
+  final bool isDark;
+  const _EmptyState({required this.onRefresh, required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -300,8 +303,8 @@ class _EmptyState extends ConsumerWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: _roseLight,
+              decoration: BoxDecoration(
+                color: isDark ? _rosePrimary.withOpacity(0.2) : _roseLight,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.pets, size: 64, color: _rosePrimary),
@@ -309,16 +312,16 @@ class _EmptyState extends ConsumerWidget {
             const SizedBox(height: 24),
             Text(
               l10n.adoptNoAdsTitle,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               l10n.adoptNoAdsDesc,
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -453,8 +456,9 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> with SingleTickerProvi
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     if (widget.currentIndex >= widget.posts.length) {
-      return _EmptyState(onRefresh: widget.onSwipeComplete);
+      return _EmptyState(onRefresh: widget.onSwipeComplete, isDark: isDark);
     }
 
     final post = widget.posts[widget.currentIndex];
@@ -596,7 +600,7 @@ class _SwipeCardsState extends ConsumerState<_SwipeCards> with SingleTickerProvi
 }
 
 // Action button widget
-class _ActionButton extends StatelessWidget {
+class _ActionButton extends ConsumerWidget {
   final IconData icon;
   final Color color;
   final double size;
@@ -612,7 +616,8 @@ class _ActionButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -623,11 +628,11 @@ class _ActionButton extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: color.withOpacity(0.3), width: 2),
+            color: isDark ? _darkCard : Colors.white,
+            border: Border.all(color: color.withOpacity(isDark ? 0.5 : 0.3), width: 2),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.2),
+                color: color.withOpacity(isDark ? 0.3 : 0.2),
                 blurRadius: 12,
                 spreadRadius: 2,
               ),
