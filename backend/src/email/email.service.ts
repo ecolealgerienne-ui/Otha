@@ -1,11 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
+  private isConfigured = false;
 
   constructor(private config: ConfigService) {
     const smtpUser = this.config.get<string>('SMTP_USER');
@@ -13,16 +14,19 @@ export class EmailService {
     const smtpHost = this.config.get<string>('SMTP_HOST', 'smtp.gmail.com');
     const smtpPort = this.config.get<number>('SMTP_PORT', 587);
 
-    this.logger.log(`📧 SMTP Config: host=${smtpHost}, port=${smtpPort}, user=${smtpUser ? smtpUser.substring(0, 5) + '***' : 'NOT SET'}`);
+    this.logger.log(`📧 SMTP Config: host=${smtpHost}, port=${smtpPort}, user=${smtpUser ? smtpUser.substring(0, 5) + '***' : 'NOT SET'}, pass=${smtpPass ? '***SET***' : 'NOT SET'}`);
 
     if (!smtpUser || !smtpPass) {
-      this.logger.warn('⚠️ SMTP credentials not configured! Email sending will fail.');
+      this.logger.error('❌ SMTP credentials NOT configured! Set SMTP_USER and SMTP_PASS environment variables.');
+      this.logger.error('   For Gmail, use an App Password: https://myaccount.google.com/apppasswords');
+    } else {
+      this.isConfigured = true;
     }
 
     this.transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: false,
+      secure: smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -30,11 +34,40 @@ export class EmailService {
     });
   }
 
+  async onModuleInit() {
+    if (!this.isConfigured) {
+      this.logger.warn('⚠️ Skipping SMTP verification - credentials not configured');
+      return;
+    }
+
+    try {
+      this.logger.log('🔄 Testing SMTP connection...');
+      await this.transporter.verify();
+      this.logger.log('✅ SMTP connection verified successfully!');
+    } catch (error: any) {
+      this.logger.error('❌ SMTP connection failed!');
+      this.logger.error(`   Error: ${error.message}`);
+      if (error.code === 'EAUTH') {
+        this.logger.error('   → Authentication failed. Check your SMTP_USER and SMTP_PASS.');
+        this.logger.error('   → For Gmail: Enable 2FA and create an App Password at https://myaccount.google.com/apppasswords');
+      } else if (error.code === 'ESOCKET' || error.code === 'ECONNECTION') {
+        this.logger.error('   → Connection failed. Check SMTP_HOST and SMTP_PORT.');
+      }
+    }
+  }
+
   async sendPasswordResetCode(email: string, code: string, firstName?: string): Promise<boolean> {
     const name = firstName || 'Utilisateur';
 
+    if (!this.isConfigured) {
+      this.logger.error(`❌ Cannot send email to ${email} - SMTP not configured!`);
+      return false;
+    }
+
+    this.logger.log(`📤 Attempting to send password reset email to: ${email}`);
+
     try {
-      await this.transporter.sendMail({
+      const info = await this.transporter.sendMail({
         from: `"Vegece" <${this.config.get<string>('SMTP_USER')}>`,
         to: email,
         subject: 'Réinitialisation de votre mot de passe - Vegece',
@@ -77,13 +110,17 @@ export class EmailService {
         text: `Bonjour ${name},\n\nVotre code de réinitialisation Vegece est: ${code}\n\nCe code est valable pendant 15 minutes.\n\nSi vous n'avez pas demandé cette réinitialisation, ignorez cet email.`,
       });
 
-      this.logger.log(`✅ Password reset email sent to ${email}`);
+      this.logger.log(`✅ Password reset email sent successfully!`);
+      this.logger.log(`   → To: ${email}`);
+      this.logger.log(`   → MessageId: ${info.messageId}`);
+      this.logger.log(`   → Response: ${info.response}`);
       return true;
     } catch (error: any) {
       this.logger.error(`❌ Failed to send password reset email to ${email}`);
-      this.logger.error(`Error: ${error.message || error}`);
-      if (error.code) this.logger.error(`SMTP Error Code: ${error.code}`);
-      if (error.response) this.logger.error(`SMTP Response: ${error.response}`);
+      this.logger.error(`   Error: ${error.message || error}`);
+      if (error.code) this.logger.error(`   SMTP Error Code: ${error.code}`);
+      if (error.response) this.logger.error(`   SMTP Response: ${error.response}`);
+      if (error.responseCode) this.logger.error(`   Response Code: ${error.responseCode}`);
       return false;
     }
   }
