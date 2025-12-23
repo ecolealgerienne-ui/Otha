@@ -854,10 +854,15 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                   final conv = _conversations[index];
                   final otherUserId = conv['otherUserId']?.toString();
                   final otherPersonName = (conv['otherPersonName'] ?? widget.l10n.adoptAnonymous).toString();
-                  final lastMessage = conv['lastMessage'] as Map<String, dynamic>?;
-                  final lastMessageText = lastMessage != null
-                      ? (lastMessage['content'] ?? '').toString()
-                      : widget.l10n.adoptNoMessage;
+                  final lastMessageRaw = conv['lastMessage'];
+                  String lastMessageText;
+                  if (lastMessageRaw is Map<String, dynamic>) {
+                    lastMessageText = (lastMessageRaw['content'] ?? '').toString();
+                  } else if (lastMessageRaw is String) {
+                    lastMessageText = lastMessageRaw;
+                  } else {
+                    lastMessageText = widget.l10n.adoptNoMessage;
+                  }
 
                   final post = conv['post'] as Map<String, dynamic>? ?? {};
                   final images = (post['images'] as List<dynamic>?)
