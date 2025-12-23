@@ -429,7 +429,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   icon: Icons.pets,
                   title: tr.myPets,
                   subtitle: tr.manageMyPets,
-                  onTap: () => context.push('/pets/manage'),
+                  onTap: () => context.push('/pets'),
                   isDark: isDark,
                 ),
                 const SizedBox(height: 10),

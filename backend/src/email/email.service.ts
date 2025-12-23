@@ -76,34 +76,71 @@ export class EmailService implements OnModuleInit {
           <html>
           <head>
             <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
-              .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-              .logo { text-align: center; margin-bottom: 30px; }
-              .logo h1 { color: #4CAF50; margin: 0; font-size: 32px; }
-              .code { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; font-size: 36px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; letter-spacing: 8px; margin: 30px 0; }
-              .message { color: #333; font-size: 16px; line-height: 1.6; }
-              .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-top: 20px; color: #856404; font-size: 14px; }
-              .footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; }
-            </style>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Réinitialisation de mot de passe</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="logo">
-                <h1>🐾 Vegece</h1>
-              </div>
-              <p class="message">Bonjour <strong>${name}</strong>,</p>
-              <p class="message">Vous avez demandé à réinitialiser votre mot de passe. Voici votre code de vérification :</p>
-              <div class="code">${code}</div>
-              <p class="message">Ce code est valable pendant <strong>15 minutes</strong>.</p>
-              <div class="warning">
-                ⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre compte reste sécurisé.
-              </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Vegece - Tous droits réservés</p>
-                <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-              </div>
-            </div>
+          <body style="margin: 0; padding: 0; background-color: #0b0b0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0b0b0b; padding: 40px 20px;">
+              <tr>
+                <td align="center">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background: linear-gradient(145deg, #151515 0%, #0f0f0f 100%); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+
+                    <!-- Header with gradient accent -->
+                    <tr>
+                      <td style="padding: 50px 40px 30px 40px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                        <div style="font-size: 42px; margin-bottom: 15px;">🐾</div>
+                        <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 4px; color: #fcfcfc;">VEGECE</h1>
+                      </td>
+                    </tr>
+
+                    <!-- Main content -->
+                    <tr>
+                      <td style="padding: 40px;">
+                        <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.7; color: #fcfcfc;">
+                          Bonjour <strong style="color: #F2968F;">${name}</strong>,
+                        </p>
+                        <p style="margin: 0 0 35px 0; font-size: 15px; line-height: 1.7; color: rgba(252, 252, 252, 0.7);">
+                          Vous avez demandé à réinitialiser votre mot de passe. Utilisez le code ci-dessous pour continuer :
+                        </p>
+
+                        <!-- Code box -->
+                        <div style="background: linear-gradient(135deg, #F2968F 0%, #FB676D 100%); border-radius: 16px; padding: 30px; text-align: center; margin: 0 0 35px 0; box-shadow: 0 10px 40px rgba(242, 150, 143, 0.3);">
+                          <p style="margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: rgba(255, 255, 255, 0.8);">Votre code de vérification</p>
+                          <p style="margin: 0; font-size: 40px; font-weight: 700; letter-spacing: 12px; color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);">${code}</p>
+                        </div>
+
+                        <!-- Timer info -->
+                        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 16px 20px; margin: 0 0 30px 0;">
+                          <p style="margin: 0; font-size: 14px; color: rgba(252, 252, 252, 0.6); text-align: center;">
+                            ⏱️ Ce code expire dans <strong style="color: #F2968F;">15 minutes</strong>
+                          </p>
+                        </div>
+
+                        <!-- Security notice -->
+                        <div style="background: rgba(251, 103, 109, 0.08); border: 1px solid rgba(251, 103, 109, 0.15); border-radius: 12px; padding: 18px 20px;">
+                          <p style="margin: 0; font-size: 13px; line-height: 1.6; color: rgba(252, 252, 252, 0.6);">
+                            🔒 Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email. Votre compte reste sécurisé.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding: 30px 40px 40px 40px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                        <p style="margin: 0 0 8px 0; font-size: 12px; color: rgba(252, 252, 252, 0.3); text-align: center;">
+                          © ${new Date().getFullYear()} Vegece — Tous droits réservés
+                        </p>
+                        <p style="margin: 0; font-size: 11px; color: rgba(252, 252, 252, 0.2); text-align: center;">
+                          Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+                        </p>
+                      </td>
+                    </tr>
+
+                  </table>
+                </td>
+              </tr>
+            </table>
           </body>
           </html>
         `,
@@ -138,36 +175,64 @@ export class EmailService implements OnModuleInit {
           <html>
           <head>
             <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
-              .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-              .logo { text-align: center; margin-bottom: 30px; }
-              .logo h1 { color: #4CAF50; margin: 0; font-size: 32px; }
-              .success { background: #d4edda; border: 1px solid #28a745; border-radius: 8px; padding: 20px; margin: 20px 0; color: #155724; text-align: center; }
-              .success-icon { font-size: 48px; margin-bottom: 10px; }
-              .message { color: #333; font-size: 16px; line-height: 1.6; }
-              .warning { background: #f8d7da; border: 1px solid #dc3545; border-radius: 8px; padding: 15px; margin-top: 20px; color: #721c24; font-size: 14px; }
-              .footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; }
-            </style>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Mot de passe modifié</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="logo">
-                <h1>🐾 Vegece</h1>
-              </div>
-              <div class="success">
-                <div class="success-icon">✅</div>
-                <strong>Mot de passe modifié avec succès</strong>
-              </div>
-              <p class="message">Bonjour <strong>${name}</strong>,</p>
-              <p class="message">Votre mot de passe Vegece a été modifié avec succès.</p>
-              <div class="warning">
-                ⚠️ Si vous n'êtes pas à l'origine de cette modification, contactez-nous immédiatement à contact@vegece.com
-              </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Vegece - Tous droits réservés</p>
-              </div>
-            </div>
+          <body style="margin: 0; padding: 0; background-color: #0b0b0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0b0b0b; padding: 40px 20px;">
+              <tr>
+                <td align="center">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background: linear-gradient(145deg, #151515 0%, #0f0f0f 100%); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+
+                    <!-- Header with gradient accent -->
+                    <tr>
+                      <td style="padding: 50px 40px 30px 40px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                        <div style="font-size: 42px; margin-bottom: 15px;">🐾</div>
+                        <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 4px; color: #fcfcfc;">VEGECE</h1>
+                      </td>
+                    </tr>
+
+                    <!-- Main content -->
+                    <tr>
+                      <td style="padding: 40px;">
+                        <!-- Success badge -->
+                        <div style="background: linear-gradient(135deg, rgba(72, 187, 120, 0.15) 0%, rgba(72, 187, 120, 0.05) 100%); border: 1px solid rgba(72, 187, 120, 0.2); border-radius: 16px; padding: 25px; text-align: center; margin: 0 0 35px 0;">
+                          <div style="font-size: 48px; margin-bottom: 12px;">✓</div>
+                          <p style="margin: 0; font-size: 18px; font-weight: 600; color: #48bb78;">Mot de passe modifié</p>
+                        </div>
+
+                        <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.7; color: #fcfcfc;">
+                          Bonjour <strong style="color: #F2968F;">${name}</strong>,
+                        </p>
+                        <p style="margin: 0 0 30px 0; font-size: 15px; line-height: 1.7; color: rgba(252, 252, 252, 0.7);">
+                          Votre mot de passe Vegece a été modifié avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
+                        </p>
+
+                        <!-- Security warning -->
+                        <div style="background: rgba(251, 103, 109, 0.08); border: 1px solid rgba(251, 103, 109, 0.15); border-radius: 12px; padding: 18px 20px;">
+                          <p style="margin: 0; font-size: 13px; line-height: 1.6; color: rgba(252, 252, 252, 0.6);">
+                            ⚠️ Si vous n'êtes pas à l'origine de cette modification, contactez-nous immédiatement à <strong style="color: #F2968F;">contact@vegece.com</strong>
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding: 30px 40px 40px 40px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                        <p style="margin: 0 0 8px 0; font-size: 12px; color: rgba(252, 252, 252, 0.3); text-align: center;">
+                          © ${new Date().getFullYear()} Vegece — Tous droits réservés
+                        </p>
+                        <p style="margin: 0; font-size: 11px; color: rgba(252, 252, 252, 0.2); text-align: center;">
+                          Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+                        </p>
+                      </td>
+                    </tr>
+
+                  </table>
+                </td>
+              </tr>
+            </table>
           </body>
           </html>
         `,

@@ -210,10 +210,18 @@ class _DaycareDetailScreenState extends ConsumerState<DaycareDetailScreen> {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.5) : Colors.white.withOpacity(0.9),
+                  color: isDark ? _darkCard.withOpacity(0.9) : Colors.white.withOpacity(0.9),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? _darkCardBorder : Colors.grey.withOpacity(0.2),
+                    width: 1,
+                  ),
                 ),
-                child: Icon(Icons.arrow_back, color: isDark ? Colors.white : const Color(0xFF2D2D2D)),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+                  size: 18,
+                ),
               ),
               onPressed: () => Navigator.pop(context),
             ),

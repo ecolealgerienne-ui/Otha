@@ -719,20 +719,53 @@ class _DaycareBookingScreenState extends ConsumerState<DaycareBookingScreen> {
     );
   }
 
+  /// Trouve le prochain jour disponible à partir d'une date donnée
+  DateTime _findNextAvailableDate(DateTime fromDate, List<dynamic> availableDays) {
+    DateTime checkDate = fromDate;
+
+    // Chercher dans les 30 prochains jours
+    for (int i = 0; i < 30; i++) {
+      final weekday = checkDate.weekday; // 1 = Monday, 7 = Sunday
+      final dayIndex = weekday - 1; // 0 = Monday, 6 = Sunday
+
+      if (dayIndex < availableDays.length && availableDays[dayIndex] == true) {
+        return checkDate;
+      }
+      checkDate = checkDate.add(const Duration(days: 1));
+    }
+
+    // Fallback: retourner la date originale si aucun jour disponible trouvé
+    return fromDate;
+  }
+
   Future<void> _pickDate(BuildContext context, {required bool isStart, required List<dynamic> availableDays}) async {
     final isDark = ref.read(themeProvider) == AppThemeMode.dark;
     final now = DateTime.now();
 
+    // Trouver le prochain jour disponible pour l'initialDate
+    DateTime baseDate;
+    if (isStart) {
+      baseDate = _startDate ?? now;
+    } else {
+      baseDate = _endDate ?? _startDate ?? now;
+    }
+
+    final firstDate = isStart ? now : (_startDate ?? now);
+    final initialDate = _findNextAvailableDate(
+      baseDate.isBefore(firstDate) ? firstDate : baseDate,
+      availableDays,
+    );
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? (_startDate ?? now) : (_endDate ?? _startDate ?? now),
-      firstDate: isStart ? now : (_startDate ?? now),
+      initialDate: initialDate,
+      firstDate: firstDate,
       lastDate: DateTime(now.year + 1),
       selectableDayPredicate: (DateTime date) {
-        final weekday = date.weekday == 7 ? 0 : date.weekday;
-        final adjustedWeekday = weekday == 0 ? 6 : weekday - 1;
-        if (adjustedWeekday >= availableDays.length) return true;
-        return availableDays[adjustedWeekday] == true;
+        final weekday = date.weekday; // 1 = Monday, 7 = Sunday
+        final dayIndex = weekday - 1; // 0 = Monday, 6 = Sunday
+        if (dayIndex >= availableDays.length) return true;
+        return availableDays[dayIndex] == true;
       },
       builder: (context, child) {
         return Theme(
