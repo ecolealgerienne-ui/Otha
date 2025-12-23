@@ -7,13 +7,24 @@ import {
   Query,
   Req,
   UseGuards,
+  Injectable,
+  CanActivate,
+  ExecutionContext,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CareerService } from './career.service';
 import { RejectCareerPostDto } from './dto/reject-post.dto';
-import { AdminOnlyGuard } from '../auth/admin.guard';
 import { CareerStatus, CareerType } from '@prisma/client';
+
+@Injectable()
+class AdminOnlyGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    const role = req?.user?.role;
+    return role === 'ADMIN' || role === 'admin';
+  }
+}
 
 @ApiTags('CareerAdmin')
 @ApiBearerAuth()
