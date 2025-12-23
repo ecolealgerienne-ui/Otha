@@ -5205,7 +5205,7 @@ class _AdoptBoostSection extends StatelessWidget {
               subtitle: l10n.yourCareer,
               icon: Icons.rocket_launch_rounded,
               gradient: const [Color(0xFF6B5BFF), Color(0xFF8B7FFF)],
-              route: '/internships',
+              route: '/career',
               emoji: '🚀',
             ),
           ),
@@ -5387,7 +5387,7 @@ class _VethubRow extends ConsumerWidget {
 
     final cards = [
       ('https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800', l10n.adoptChangeLife, '/adopt'),
-      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', l10n.boostCareer, '/internships'),
+      ('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800', l10n.boostCareer, '/career'),
     ];
 
     final labelBg = isDark ? const Color(0xFF1A1A1A).withOpacity(0.9) : Colors.white.withOpacity(0.9);
