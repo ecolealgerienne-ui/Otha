@@ -852,8 +852,32 @@ class _AdopterSelectionSheetState extends ConsumerState<_AdopterSelectionSheet> 
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final conv = _conversations[index];
-                  final otherUserId = conv['otherUserId']?.toString();
-                  final otherPersonName = (conv['otherPersonName'] ?? widget.l10n.adoptAnonymous).toString();
+
+                  // Try multiple possible field names for user ID
+                  final requester = conv['requester'] as Map<String, dynamic>?;
+                  final user = conv['user'] as Map<String, dynamic>?;
+                  final otherUser = conv['otherUser'] as Map<String, dynamic>?;
+                  final otherUserId = conv['otherUserId']?.toString()
+                      ?? conv['requesterId']?.toString()
+                      ?? conv['userId']?.toString()
+                      ?? requester?['id']?.toString()
+                      ?? user?['id']?.toString()
+                      ?? otherUser?['id']?.toString()
+                      ?? conv['id']?.toString(); // Fallback to conversation ID
+
+                  // Try multiple possible field names for name
+                  final otherPersonName = (
+                      conv['otherPersonName']
+                      ?? conv['requesterName']
+                      ?? requester?['anonymousName']
+                      ?? requester?['displayName']
+                      ?? user?['anonymousName']
+                      ?? user?['displayName']
+                      ?? otherUser?['anonymousName']
+                      ?? otherUser?['displayName']
+                      ?? widget.l10n.adoptAnonymous
+                  ).toString();
+
                   final lastMessageRaw = conv['lastMessage'];
                   String lastMessageText;
                   if (lastMessageRaw is Map<String, dynamic>) {
