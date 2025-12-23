@@ -473,6 +473,10 @@ class AppLocalizations {
       'addFirstPet': 'Ajoutez votre premier compagnon pour accéder à son carnet de santé',
       'addPet': 'Ajouter un animal',
       'editPet': 'Modifier',
+      'deletePet': 'Supprimer l\'animal',
+      'confirmDeletePet': 'Êtes-vous sûr de vouloir supprimer',
+      'deleteWarning': 'Cette action est irréversible.',
+      'petDeleted': 'Animal supprimé',
       'newAnimal': 'Nouvel animal',
       'animalNameRequired': 'Nom de votre animal *',
       'petAge': 'Âge',
@@ -1318,6 +1322,10 @@ class AppLocalizations {
       'addFirstPet': 'Add your first companion to access their health record',
       'addPet': 'Add a pet',
       'editPet': 'Edit',
+      'deletePet': 'Delete pet',
+      'confirmDeletePet': 'Are you sure you want to delete',
+      'deleteWarning': 'This action is irreversible.',
+      'petDeleted': 'Pet deleted',
       'newAnimal': 'New animal',
       'animalNameRequired': 'Your pet\'s name *',
       'petAge': 'Age',
@@ -2163,6 +2171,10 @@ class AppLocalizations {
       'addFirstPet': 'أضف رفيقك الأول للوصول إلى سجله الصحي',
       'addPet': 'إضافة حيوان',
       'editPet': 'تعديل',
+      'deletePet': 'حذف الحيوان',
+      'confirmDeletePet': 'هل أنت متأكد من حذف',
+      'deleteWarning': 'هذا الإجراء لا رجعة فيه.',
+      'petDeleted': 'تم حذف الحيوان',
       'newAnimal': 'حيوان جديد',
       'animalNameRequired': 'اسم حيوانك *',
       'petAge': 'العمر',
@@ -2931,6 +2943,10 @@ class AppLocalizations {
   String get addFirstPet => _get('addFirstPet');
   String get addPet => _get('addPet');
   String get editPet => _get('editPet');
+  String get deletePet => _get('deletePet');
+  String get confirmDeletePet => _get('confirmDeletePet');
+  String get deleteWarning => _get('deleteWarning');
+  String get petDeleted => _get('petDeleted');
   String get newAnimal => _get('newAnimal');
   String get animalNameRequired => _get('animalNameRequired');
   String get petAge => _get('petAge');
