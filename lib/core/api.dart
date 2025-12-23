@@ -3669,4 +3669,110 @@ final hay = [
     final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
     return (data['count'] as int?) ?? 0;
   }
+
+  // ===========================================
+  // CAREER (Stages/Emplois)
+  // ===========================================
+
+  /// Feed carrière avec filtres
+  Future<Map<String, dynamic>> careerFeed({
+    String? type,
+    String? city,
+    String? domain,
+    String? cursor,
+    int? limit,
+  }) async {
+    await ensureAuth();
+    final queryParams = <String, dynamic>{};
+    if (type != null) queryParams['type'] = type;
+    if (city != null) queryParams['city'] = city;
+    if (domain != null) queryParams['domain'] = domain;
+    if (cursor != null) queryParams['cursor'] = cursor;
+    if (limit != null) queryParams['limit'] = limit;
+
+    final res = await _authRetry(() async => await _dio.get(
+      '/career/feed',
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Récupérer un post carrière
+  Future<Map<String, dynamic>> careerGetPost(String id) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/career/posts/$id'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Mes posts carrière
+  Future<List<Map<String, dynamic>>> careerMyPosts({String? type}) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get(
+      '/career/my/posts',
+      queryParameters: type != null ? {'type': type} : null,
+    ));
+    final list = _unwrap<List<dynamic>>(res.data, map: (d) => (d as List).cast<dynamic>());
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Créer un post carrière
+  Future<Map<String, dynamic>> careerCreatePost(Map<String, dynamic> data) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post('/career/posts', data: data));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Modifier un post carrière
+  Future<Map<String, dynamic>> careerUpdatePost(String id, Map<String, dynamic> data) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.patch('/career/posts/$id', data: data));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Supprimer un post carrière
+  Future<void> careerDeletePost(String id) async {
+    await ensureAuth();
+    await _authRetry(() async => await _dio.delete('/career/posts/$id'));
+  }
+
+  /// Mes conversations carrière
+  Future<List<Map<String, dynamic>>> careerMyConversations() async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/career/my/conversations'));
+    final data = (res.data is Map && res.data['data'] != null) ? res.data['data'] : res.data;
+    if (data is List) {
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  /// Contacter un post (démarrer conversation)
+  Future<Map<String, dynamic>> careerContactPost(String postId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post('/career/posts/$postId/contact'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Récupérer les messages d'une conversation carrière
+  Future<Map<String, dynamic>> careerGetConversationMessages(String conversationId) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.get('/career/conversations/$conversationId/messages'));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Envoyer un message carrière
+  Future<Map<String, dynamic>> careerSendMessage(String conversationId, String content) async {
+    await ensureAuth();
+    final res = await _authRetry(() async => await _dio.post(
+      '/career/conversations/$conversationId/messages',
+      data: {'content': content},
+    ));
+    return _unwrap<Map<String, dynamic>>(res.data);
+  }
+
+  /// Masquer une conversation carrière
+  Future<void> careerHideConversation(String conversationId) async {
+    await ensureAuth();
+    await _authRetry(() async => await _dio.post('/career/conversations/$conversationId/hide'));
+  }
 }
