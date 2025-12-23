@@ -11,13 +11,18 @@ const _darkBg = Color(0xFF121212);
 const _darkCard = Color(0xFF1E1E1E);
 const _darkCardBorder = Color(0xFF2A2A2A);
 
+// Refresh key to force reload
+final _careerRefreshKey = StateProvider<int>((ref) => 0);
+
 // Providers
 final _careerFeedProvider = FutureProvider.family<Map<String, dynamic>, String?>((ref, type) async {
+  ref.watch(_careerRefreshKey); // Depend on refresh key
   final api = ref.watch(apiProvider);
   return api.careerFeed(type: type);
 });
 
 final _myCareerPostsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(_careerRefreshKey); // Depend on refresh key
   final api = ref.watch(apiProvider);
   return api.careerMyPosts();
 });
@@ -29,23 +34,40 @@ class CareerScreen extends ConsumerStatefulWidget {
   ConsumerState<CareerScreen> createState() => _CareerScreenState();
 }
 
-class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerProviderStateMixin {
+class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   String _searchCity = '';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
       }
     });
+    // Refresh on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshData();
+    }
+  }
+
+  void _refreshData() {
+    ref.read(_careerRefreshKey.notifier).state++;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
@@ -127,7 +149,10 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/career/create'),
+        onPressed: () async {
+          await context.push('/career/create');
+          _refreshData();
+        },
         backgroundColor: _primaryPurple,
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
@@ -196,7 +221,10 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
             ),
           ),
           IconButton(
-            onPressed: () => context.push('/career/conversations'),
+            onPressed: () async {
+              await context.push('/career/conversations');
+              _refreshData();
+            },
             icon: Icon(Icons.chat_bubble_outline, color: textSecondary),
           ),
         ],
@@ -223,7 +251,7 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
             Text('Erreur: $e', style: TextStyle(color: textSecondary)),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () => ref.invalidate(_careerFeedProvider),
+              onPressed: () => _refreshData(),
               child: const Text('Réessayer'),
             ),
           ],
@@ -258,7 +286,7 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
 
         return RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(_careerFeedProvider);
+            _refreshData();
           },
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -272,7 +300,10 @@ class _CareerScreenState extends ConsumerState<CareerScreen> with SingleTickerPr
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
                 l10n: l10n,
-                onTap: () => context.push('/career/${post['id']}'),
+                onTap: () async {
+                  await context.push('/career/${post['id']}');
+                  _refreshData();
+                },
               );
             },
           ),
@@ -289,7 +320,7 @@ class _CareerCard extends StatelessWidget {
   final Color textPrimary;
   final Color? textSecondary;
   final AppLocalizations l10n;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap;
 
   const _CareerCard({
     required this.post,
@@ -319,7 +350,7 @@ class _CareerCard extends StatelessWidget {
         side: BorderSide(color: isDark ? _darkCardBorder : Colors.grey[200]!),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => onTap(),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
