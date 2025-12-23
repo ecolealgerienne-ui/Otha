@@ -486,6 +486,7 @@ class AppLocalizations {
       'female': 'Femelle',
       'notSpecifiedGender': 'Non spécifié',
       'petColor': 'Couleur',
+      'petCity': 'Ville',
       'petBreed': 'Race',
       'petBirthDate': 'Date de naissance',
       'sterilizationDate': 'Date de stérilisation',
@@ -1335,6 +1336,7 @@ class AppLocalizations {
       'female': 'Female',
       'notSpecifiedGender': 'Not specified',
       'petColor': 'Color',
+      'petCity': 'City',
       'petBreed': 'Breed',
       'petBirthDate': 'Birth date',
       'sterilizationDate': 'Sterilization date',
@@ -2184,6 +2186,7 @@ class AppLocalizations {
       'female': 'أنثى',
       'notSpecifiedGender': 'غير محدد',
       'petColor': 'اللون',
+      'petCity': 'المدينة',
       'petBreed': 'السلالة',
       'petBirthDate': 'تاريخ الميلاد',
       'sterilizationDate': 'تاريخ التعقيم',
@@ -2956,6 +2959,7 @@ class AppLocalizations {
   String get female => _get('female');
   String get notSpecifiedGender => _get('notSpecifiedGender');
   String get petColor => _get('petColor');
+  String get petCity => _get('petCity');
   String get petBreed => _get('petBreed');
   String get petBirthDate => _get('petBirthDate');
   String get sterilizationDate => _get('sterilizationDate');
@@ -2964,21 +2968,16 @@ class AppLocalizations {
   String get basicInfoSection => _get('basicInfoSection');
   String get healthIdSection => _get('healthIdSection');
   String get otherInfoSection => _get('otherInfoSection');
-  String get choosePhoto => _get('choosePhoto');
   String get takePhoto => _get('takePhoto');
   String get useCamera => _get('useCamera');
   String get chooseFromGallery => _get('chooseFromGallery');
   String get selectExistingImage => _get('selectExistingImage');
   String get deletePhoto => _get('deletePhoto');
-  String get addPhoto => _get('addPhoto');
   String get photo => _get('photo');
   String get animalType => _get('animalType');
   String get choose => _get('choose');
-  String get selectDate => _get('selectDate');
-  String get notProvided => _get('notProvided');
   String get rabbit => _get('rabbit');
   String get nac => _get('nac');
-  String get other => _get('other');
   String get giveAnimalName => _get('giveAnimalName');
   String get animalUpdated => _get('animalUpdated');
   String get animalAdded => _get('animalAdded');

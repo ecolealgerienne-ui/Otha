@@ -960,9 +960,9 @@ class _PetOnboardingScreenState extends ConsumerState<PetOnboardingScreen> {
                       children: [
                         _infoPanelTile(
                           icon: Icons.location_city_outlined,
-                          title: l10n.city,
+                          title: l10n.petCity,
                           controller: _city,
-                          hint: l10n.city,
+                          hint: l10n.petCity,
                           isDark: isDark,
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
