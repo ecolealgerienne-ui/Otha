@@ -56,6 +56,22 @@ enum AdoptRequestStatus {
   REJECTED  // Refusé par le propriétaire
 }
 
+// =========================
+// Carrière (Stages/Emplois)
+// =========================
+
+enum CareerStatus {
+  PENDING   // En attente de validation admin
+  APPROVED  // Approuvé et visible
+  REJECTED  // Rejeté par admin
+  ARCHIVED  // Archivé
+}
+
+enum CareerType {
+  REQUEST   // Demande (client cherche stage/emploi)
+  OFFER     // Offre (pro propose emploi)
+}
+
 // Système de confiance utilisateur (anti-troll)
 enum TrustStatus {
   NEW        // Nouveau user - 1 RDV test max, peut annuler > 12h avant
@@ -129,6 +145,11 @@ model User {
   supportTickets        SupportTicket[]   @relation("TicketUser")
   supportTicketsAssigned SupportTicket[]  @relation("TicketAssignee")
   supportMessages       SupportMessage[]
+
+  // Carrière (Stages/Emplois)
+  careerPosts         CareerPost[]         @relation("CareerPosts")
+  careerConversations CareerConversation[] @relation("CareerConversations")
+  careerMessages      CareerMessage[]      @relation("CareerMessages")
 
   @@index([email])
   @@index([city])
@@ -721,6 +742,100 @@ model AdoptMessage {
 
   content String @db.Text
   readAt  DateTime? // Quand le destinataire l'a lu
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+// =========================
+// Carrière (Stages/Emplois)
+// =========================
+
+model CareerPost {
+  id        String       @id @default(cuid())
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  status    CareerStatus @default(PENDING)
+  type      CareerType
+
+  // Infos publiques (visibles par tous)
+  title     String       // Titre de l'annonce
+  publicBio String @db.Text // Bio courte visible publiquement
+  city      String?      // Ville
+  domain    String?      // Domaine (vétérinaire, ASV, etc.)
+  duration  String?      // Durée (3 mois, CDI, CDD, etc.)
+
+  // Infos privées (visibles par pros uniquement pour REQUEST)
+  fullName    String?    // Nom complet
+  email       String?    // Email de contact
+  phone       String?    // Téléphone
+  detailedBio String? @db.Text // Bio détaillée
+  cvImageUrl  String?    // URL de l'image du CV (PNG)
+
+  // Pour les offres (OFFER)
+  salary       String?   // Salaire/rémunération
+  requirements String? @db.Text // Prérequis
+
+  // Auteur
+  createdById String
+  createdBy   User @relation("CareerPosts", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Modération
+  moderationNote String?
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  archivedAt     DateTime?
+
+  // Conversations
+  conversations CareerConversation[]
+
+  @@unique([createdById, type]) // 1 annonce par type par user
+  @@index([status, type, createdAt])
+  @@index([city])
+  @@index([type, status])
+}
+
+model CareerConversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Annonce concernée
+  postId String
+  post   CareerPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Participant (le candidat pour OFFER, ou le pro intéressé pour REQUEST)
+  participantId String
+  participant   User @relation("CareerConversations", fields: [participantId], references: [id], onDelete: Cascade)
+
+  // Noms anonymes (pour les clients entre eux)
+  participantAnonymousName String?
+
+  // Messages
+  messages CareerMessage[]
+
+  // Masquage
+  hiddenByOwner       Boolean @default(false)
+  hiddenByParticipant Boolean @default(false)
+
+  @@unique([postId, participantId])
+  @@index([postId])
+  @@index([participantId])
+}
+
+model CareerMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   CareerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Auteur
+  senderId String
+  sender   User @relation("CareerMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  content String @db.Text
+  readAt  DateTime?
 
   @@index([conversationId, createdAt])
   @@index([senderId])

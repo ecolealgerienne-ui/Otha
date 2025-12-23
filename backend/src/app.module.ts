@@ -25,6 +25,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { MapsModule } from './maps/maps.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { AdoptModule } from './adopt/adopt.module';
+import { CareerModule } from './career/career.module';
 import { PetshopModule } from './petshop/petshop.module';
 import { DaycareModule } from './daycare/daycare.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -88,6 +89,7 @@ import { SupportModule } from './support/support.module';
     MapsModule,
     EarningsModule,
     AdoptModule,
+    CareerModule,
     PetshopModule,
     DaycareModule,
     NotificationsModule,
