@@ -1049,6 +1049,56 @@ class AppLocalizations {
       'passwordsNotMatch': 'Les mots de passe ne correspondent pas',
       'passwordChangeError': 'Erreur lors du changement de mot de passe',
       'sendCodeError': 'Erreur lors de l\'envoi du code',
+      // Petshop Shop Management
+      'shopManagement': 'Ma boutique',
+      'myShop': 'Ma boutique',
+      'shopInfo': 'Informations boutique',
+      'shopNameHint': 'Nom de votre boutique',
+      'openingHours': 'Horaires d\'ouverture',
+      'openingHoursHint': 'Définissez vos jours et heures d\'ouverture',
+      'monday': 'Lundi',
+      'tuesday': 'Mardi',
+      'wednesday': 'Mercredi',
+      'thursday': 'Jeudi',
+      'friday': 'Vendredi',
+      'saturday': 'Samedi',
+      'sunday': 'Dimanche',
+      'closed': 'Fermé',
+      'deliveryOptions': 'Options de livraison',
+      'deliveryOptionsHint': 'Comment les clients reçoivent leurs commandes',
+      'pickupInStore': 'Retrait en boutique',
+      'pickupInStoreHint': 'Les clients viennent chercher leur commande',
+      'homeDelivery': 'Livraison à domicile',
+      'homeDeliveryHint': 'Commandes livrées via un service de livraison',
+      'deliveryWarning': 'Activez au moins une option pour que les clients puissent commander',
+      'description': 'Description',
+      'descriptionHint': 'Visible par les clients sur votre page',
+      'descriptionPlaceholder': 'Décrivez votre boutique...',
+      'profileUpdated': 'Profil mis à jour',
+      'approved': 'Approuvé',
+      'pending': 'En attente',
+      // Petshop Product
+      'newProduct': 'Nouveau produit',
+      'editProduct': 'Modifier le produit',
+      'productTitle': 'Titre du produit',
+      'productTitleHint': 'Nom du produit',
+      'productDescription': 'Description',
+      'productDescriptionHint': 'Décrivez votre produit...',
+      'productPrice': 'Prix (DA)',
+      'productStock': 'Stock',
+      'productCategory': 'Catégorie',
+      'productCategoryHint': 'Ex: Nourriture, Accessoires...',
+      'productActive': 'Produit actif',
+      'productActiveHint': 'Visible pour les clients',
+      'productImages': 'Photos du produit',
+      'addImage': 'Ajouter',
+      'productCreated': 'Produit créé',
+      'productUpdated': 'Produit mis à jour',
+      'productDeleted': 'Produit supprimé',
+      'deleteProduct': 'Supprimer le produit',
+      'deleteProductConfirm': 'Cette action est irréversible. Confirmez-vous la suppression ?',
+      'titleRequired': 'Le titre est requis',
+      'priceRequired': 'Le prix est requis',
     },
     'en': {
       'appName': 'Vegece',
@@ -1956,6 +2006,56 @@ class AppLocalizations {
       'passwordsNotMatch': 'Passwords do not match',
       'passwordChangeError': 'Error changing password',
       'sendCodeError': 'Error sending code',
+      // Petshop Shop Management
+      'shopManagement': 'My shop',
+      'myShop': 'My shop',
+      'shopInfo': 'Shop information',
+      'shopNameHint': 'Your shop name',
+      'openingHours': 'Opening hours',
+      'openingHoursHint': 'Set your opening days and hours',
+      'monday': 'Monday',
+      'tuesday': 'Tuesday',
+      'wednesday': 'Wednesday',
+      'thursday': 'Thursday',
+      'friday': 'Friday',
+      'saturday': 'Saturday',
+      'sunday': 'Sunday',
+      'closed': 'Closed',
+      'deliveryOptions': 'Delivery options',
+      'deliveryOptionsHint': 'How customers receive their orders',
+      'pickupInStore': 'In-store pickup',
+      'pickupInStoreHint': 'Customers pick up their order',
+      'homeDelivery': 'Home delivery',
+      'homeDeliveryHint': 'Orders delivered via delivery service',
+      'deliveryWarning': 'Enable at least one option for customers to order',
+      'description': 'Description',
+      'descriptionHint': 'Visible to customers on your page',
+      'descriptionPlaceholder': 'Describe your shop...',
+      'profileUpdated': 'Profile updated',
+      'approved': 'Approved',
+      'pending': 'Pending',
+      // Petshop Product
+      'newProduct': 'New product',
+      'editProduct': 'Edit product',
+      'productTitle': 'Product title',
+      'productTitleHint': 'Product name',
+      'productDescription': 'Description',
+      'productDescriptionHint': 'Describe your product...',
+      'productPrice': 'Price (DA)',
+      'productStock': 'Stock',
+      'productCategory': 'Category',
+      'productCategoryHint': 'E.g.: Food, Accessories...',
+      'productActive': 'Active product',
+      'productActiveHint': 'Visible to customers',
+      'productImages': 'Product photos',
+      'addImage': 'Add',
+      'productCreated': 'Product created',
+      'productUpdated': 'Product updated',
+      'productDeleted': 'Product deleted',
+      'deleteProduct': 'Delete product',
+      'deleteProductConfirm': 'This action is irreversible. Confirm deletion?',
+      'titleRequired': 'Title is required',
+      'priceRequired': 'Price is required',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -2863,6 +2963,56 @@ class AppLocalizations {
       'passwordsNotMatch': 'كلمات المرور غير متطابقة',
       'passwordChangeError': 'خطأ في تغيير كلمة المرور',
       'sendCodeError': 'خطأ في إرسال الرمز',
+      // Petshop Shop Management
+      'shopManagement': 'متجري',
+      'myShop': 'متجري',
+      'shopInfo': 'معلومات المتجر',
+      'shopNameHint': 'اسم متجرك',
+      'openingHours': 'ساعات العمل',
+      'openingHoursHint': 'حدد أيام وساعات العمل',
+      'monday': 'الإثنين',
+      'tuesday': 'الثلاثاء',
+      'wednesday': 'الأربعاء',
+      'thursday': 'الخميس',
+      'friday': 'الجمعة',
+      'saturday': 'السبت',
+      'sunday': 'الأحد',
+      'closed': 'مغلق',
+      'deliveryOptions': 'خيارات التوصيل',
+      'deliveryOptionsHint': 'كيف يستلم العملاء طلباتهم',
+      'pickupInStore': 'استلام من المتجر',
+      'pickupInStoreHint': 'العملاء يستلمون طلباتهم من المتجر',
+      'homeDelivery': 'توصيل منزلي',
+      'homeDeliveryHint': 'الطلبات تُسلم عبر خدمة التوصيل',
+      'deliveryWarning': 'فعّل خياراً واحداً على الأقل ليتمكن العملاء من الطلب',
+      'description': 'الوصف',
+      'descriptionHint': 'مرئي للعملاء على صفحتك',
+      'descriptionPlaceholder': 'صف متجرك...',
+      'profileUpdated': 'تم تحديث الملف الشخصي',
+      'approved': 'معتمد',
+      'pending': 'قيد الانتظار',
+      // Petshop Product
+      'newProduct': 'منتج جديد',
+      'editProduct': 'تعديل المنتج',
+      'productTitle': 'عنوان المنتج',
+      'productTitleHint': 'اسم المنتج',
+      'productDescription': 'الوصف',
+      'productDescriptionHint': 'صف منتجك...',
+      'productPrice': 'السعر (دج)',
+      'productStock': 'المخزون',
+      'productCategory': 'الفئة',
+      'productCategoryHint': 'مثال: طعام، إكسسوارات...',
+      'productActive': 'منتج نشط',
+      'productActiveHint': 'مرئي للعملاء',
+      'productImages': 'صور المنتج',
+      'addImage': 'إضافة',
+      'productCreated': 'تم إنشاء المنتج',
+      'productUpdated': 'تم تحديث المنتج',
+      'productDeleted': 'تم حذف المنتج',
+      'deleteProduct': 'حذف المنتج',
+      'deleteProductConfirm': 'هذا الإجراء لا يمكن التراجع عنه. هل تؤكد الحذف؟',
+      'titleRequired': 'العنوان مطلوب',
+      'priceRequired': 'السعر مطلوب',
     },
   };
 
@@ -3724,6 +3874,56 @@ class AppLocalizations {
   String get passwordsNotMatch => _get('passwordsNotMatch');
   String get passwordChangeError => _get('passwordChangeError');
   String get sendCodeError => _get('sendCodeError');
+
+  // Petshop Shop Management
+  String get shopManagement => _get('shopManagement');
+  String get myShop => _get('myShop');
+  String get shopInfo => _get('shopInfo');
+  String get shopNameHint => _get('shopNameHint');
+  String get openingHours => _get('openingHours');
+  String get openingHoursHint => _get('openingHoursHint');
+  String get monday => _get('monday');
+  String get tuesday => _get('tuesday');
+  String get wednesday => _get('wednesday');
+  String get thursday => _get('thursday');
+  String get friday => _get('friday');
+  String get saturday => _get('saturday');
+  String get sunday => _get('sunday');
+  String get closed => _get('closed');
+  String get deliveryOptions => _get('deliveryOptions');
+  String get deliveryOptionsHint => _get('deliveryOptionsHint');
+  String get pickupInStore => _get('pickupInStore');
+  String get pickupInStoreHint => _get('pickupInStoreHint');
+  String get homeDelivery => _get('homeDelivery');
+  String get homeDeliveryHint => _get('homeDeliveryHint');
+  String get deliveryWarning => _get('deliveryWarning');
+  String get description => _get('description');
+  String get descriptionHint => _get('descriptionHint');
+  String get descriptionPlaceholder => _get('descriptionPlaceholder');
+  String get profileUpdated => _get('profileUpdated');
+  String get approved => _get('approved');
+  // Petshop Product
+  String get newProduct => _get('newProduct');
+  String get editProduct => _get('editProduct');
+  String get productTitle => _get('productTitle');
+  String get productTitleHint => _get('productTitleHint');
+  String get productDescription => _get('productDescription');
+  String get productDescriptionHint => _get('productDescriptionHint');
+  String get productPrice => _get('productPrice');
+  String get productStock => _get('productStock');
+  String get productCategory => _get('productCategory');
+  String get productCategoryHint => _get('productCategoryHint');
+  String get productActive => _get('productActive');
+  String get productActiveHint => _get('productActiveHint');
+  String get productImages => _get('productImages');
+  String get addImage => _get('addImage');
+  String get productCreated => _get('productCreated');
+  String get productUpdated => _get('productUpdated');
+  String get productDeleted => _get('productDeleted');
+  String get deleteProduct => _get('deleteProduct');
+  String get deleteProductConfirm => _get('deleteProductConfirm');
+  String get titleRequired => _get('titleRequired');
+  String get priceRequired => _get('priceRequired');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

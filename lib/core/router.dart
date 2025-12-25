@@ -71,6 +71,7 @@ import '../features/petshop/user_orders_screen.dart';
 import '../features/petshop/order_confirmation_screen.dart';
 import '../features/petshop/user_order_detail_screen.dart';
 import '../features/petshop/petshop_settings_screen.dart';
+import '../features/petshop/petshop_shop_screen.dart';
 import '../features/petshop/petshop_availability_screen.dart';
 import '../features/daycare/daycare_home_screen.dart';
 import '../features/daycare/daycare_settings_screen.dart';
@@ -715,6 +716,10 @@ GoRoute(path: '/admin/adopt/conversations', builder: (_, __) => const AdminAdopt
       GoRoute(
         path: '/petshop/settings',
         builder: (ctx, st) => const PetshopSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/petshop/shop',
+        builder: (ctx, st) => const PetshopShopScreen(),
       ),
       GoRoute(
         path: '/petshop/availability',
