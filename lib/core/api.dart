@@ -3401,6 +3401,39 @@ final hay = [
     };
   }
 
+  /// Update delivery options for the current provider
+  Future<void> updateDeliveryOptions({
+    required bool deliveryEnabled,
+    required bool pickupEnabled,
+    int? deliveryFeeDa,
+    int? freeDeliveryAboveDa,
+  }) async {
+    await ensureAuth();
+    final body = {
+      'deliveryEnabled': deliveryEnabled,
+      'pickupEnabled': pickupEnabled,
+      if (deliveryFeeDa != null) 'deliveryFeeDa': deliveryFeeDa,
+      if (freeDeliveryAboveDa != null) 'freeDeliveryAboveDa': freeDeliveryAboveDa,
+    };
+    final paths = <String>[
+      '/petshop/my/delivery',
+      '/providers/my/delivery',
+    ];
+    DioException? last;
+    for (final path in paths) {
+      try {
+        await _authRetry(() async => await _dio.patch(path, data: body));
+        return;
+      } on DioException catch (e) {
+        last = e;
+        final code = e.response?.statusCode ?? 0;
+        if (code == 404) continue;
+        rethrow;
+      }
+    }
+    throw Exception(_extractMessage(last?.response?.data));
+  }
+
   /// Créer une commande (client)
   Future<Map<String, dynamic>> createPetshopOrder({
     required String providerId,

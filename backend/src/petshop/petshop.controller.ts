@@ -83,6 +83,22 @@ export class PetshopController {
   ) {
     return this.petshop.updateOrderStatus(user.id, id, dto.status);
   }
+
+  // ========= Delivery Options =========
+
+  @Patch('delivery')
+  async updateDeliveryOptions(
+    @ReqUser() user: { id: string },
+    @Body()
+    dto: {
+      deliveryEnabled?: boolean;
+      pickupEnabled?: boolean;
+      deliveryFeeDa?: number;
+      freeDeliveryAboveDa?: number;
+    },
+  ) {
+    return this.petshop.updateDeliveryOptions(user.id, dto);
+  }
 }
 
 // Routes alternatives pour compatibilité avec /providers/me/products
@@ -146,6 +162,20 @@ export class ProvidersPetshopController {
     @Body() dto: UpdateOrderStatusDto,
   ) {
     return this.petshop.updateOrderStatus(user.id, id, dto.status);
+  }
+
+  @Patch('delivery')
+  async updateDeliveryOptions(
+    @ReqUser() user: { id: string },
+    @Body()
+    dto: {
+      deliveryEnabled?: boolean;
+      pickupEnabled?: boolean;
+      deliveryFeeDa?: number;
+      freeDeliveryAboveDa?: number;
+    },
+  ) {
+    return this.petshop.updateDeliveryOptions(user.id, dto);
   }
 }
 

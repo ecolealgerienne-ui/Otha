@@ -3,11 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import 'cart_provider.dart' show kPetshopCommissionDa;
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
+
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 final petshopOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -33,13 +39,21 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(petshopOrdersProvider);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Theme(
-      data: _themed(context),
+      data: _themed(context, isDark),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
+        backgroundColor: bgColor,
         appBar: AppBar(
           title: const Text('Mes commandes'),
+          backgroundColor: cardColor,
+          foregroundColor: textPrimary,
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -60,6 +74,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                       label: 'Toutes',
                       selected: _filterStatus == 'ALL',
                       onTap: () => setState(() => _filterStatus = 'ALL'),
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
@@ -67,6 +82,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                       selected: _filterStatus == 'PENDING',
                       onTap: () => setState(() => _filterStatus = 'PENDING'),
                       color: Colors.orange,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
@@ -74,6 +90,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                       selected: _filterStatus == 'CONFIRMED',
                       onTap: () => setState(() => _filterStatus = 'CONFIRMED'),
                       color: Colors.blue,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
@@ -81,6 +98,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                       selected: _filterStatus == 'DELIVERED',
                       onTap: () => setState(() => _filterStatus = 'DELIVERED'),
                       color: Colors.green,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
@@ -88,6 +106,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                       selected: _filterStatus == 'CANCELLED',
                       onTap: () => setState(() => _filterStatus = 'CANCELLED'),
                       color: Colors.red,
+                      isDark: isDark,
                     ),
                   ],
                 ),
@@ -97,8 +116,10 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
             // Orders list
             Expanded(
               child: ordersAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Erreur: $e')),
+                loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
+                error: (e, _) => Center(
+                  child: Text('Erreur: $e', style: TextStyle(color: textPrimary)),
+                ),
                 data: (orders) {
                   final filtered = _filterStatus == 'ALL'
                       ? orders
@@ -119,10 +140,11 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                   });
 
                   if (filtered.isEmpty) {
-                    return _EmptyState(filter: _filterStatus);
+                    return _EmptyState(filter: _filterStatus, isDark: isDark);
                   }
 
                   return RefreshIndicator(
+                    color: _coral,
                     onRefresh: () async {
                       ref.invalidate(petshopOrdersProvider);
                     },
@@ -142,6 +164,7 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
                           });
                         },
                         onStatusUpdate: () => ref.invalidate(petshopOrdersProvider),
+                        isDark: isDark,
                       ),
                     ),
                   );
@@ -154,21 +177,21 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
     );
   }
 
-  ThemeData _themed(BuildContext context) {
+  ThemeData _themed(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
     return theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         primary: _coral,
-        surface: Colors.white,
+        surface: isDark ? _darkCard : Colors.white,
         onPrimary: Colors.white,
       ),
       appBarTheme: theme.appBarTheme.copyWith(
-        backgroundColor: Colors.white,
-        foregroundColor: _ink,
+        backgroundColor: isDark ? _darkCard : Colors.white,
+        foregroundColor: isDark ? Colors.white : _ink,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
-          color: _ink,
+        titleTextStyle: TextStyle(
+          color: isDark ? Colors.white : _ink,
           fontWeight: FontWeight.w800,
           fontSize: 18,
         ),
@@ -191,12 +214,14 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color? color;
+  final bool isDark;
 
   const _FilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
     this.color,
+    required this.isDark,
   });
 
   @override
@@ -208,10 +233,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? chipColor : Colors.white,
+          color: selected ? chipColor : (isDark ? _darkCard : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? chipColor : Colors.grey.shade300,
+            color: selected ? chipColor : (isDark ? _darkCardBorder : Colors.grey.shade300),
           ),
           boxShadow: selected
               ? [BoxShadow(color: chipColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
@@ -220,7 +245,7 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.grey.shade700,
+            color: selected ? Colors.white : (isDark ? Colors.grey[300] : Colors.grey.shade700),
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
@@ -232,7 +257,8 @@ class _FilterChip extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final String filter;
-  const _EmptyState({required this.filter});
+  final bool isDark;
+  const _EmptyState({required this.filter, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +294,7 @@ class _EmptyState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _coralSoft,
+              color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 48, color: _coral),
@@ -276,17 +302,17 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: _ink,
+              color: isDark ? Colors.white : _ink,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Les nouvelles commandes apparaitront ici',
             style: TextStyle(
-              color: Colors.grey.shade600,
+              color: isDark ? Colors.grey[400] : Colors.grey.shade600,
               fontSize: 13,
             ),
           ),
@@ -301,12 +327,14 @@ class _OrderCard extends ConsumerWidget {
   final bool isExpanded;
   final VoidCallback onToggle;
   final VoidCallback onStatusUpdate;
+  final bool isDark;
 
   const _OrderCard({
     required this.order,
     required this.isExpanded,
     required this.onToggle,
     required this.onStatusUpdate,
+    required this.isDark,
   });
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
@@ -319,6 +347,7 @@ class _OrderCard extends ConsumerWidget {
     final createdAt = order['createdAt'] ?? order['created_at'];
     final items = order['items'] as List? ?? [];
     final deliveryAddress = (order['deliveryAddress'] ?? '').toString();
+    final deliveryMode = (order['deliveryMode'] ?? 'pickup').toString();
     final notes = (order['notes'] ?? '').toString();
     final phone = (order['phone'] ?? '').toString();
 
@@ -346,14 +375,19 @@ class _OrderCard extends ConsumerWidget {
 
     final statusInfo = _getStatusInfo(status);
 
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
-        ],
+        border: Border.all(color: isDark ? _darkCardBorder : Colors.transparent),
+        boxShadow: isDark
+            ? null
+            : const [BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -372,7 +406,7 @@ class _OrderCard extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: statusInfo.color.withOpacity(0.1),
+                          color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(statusInfo.icon, color: statusInfo.color, size: 20),
@@ -384,9 +418,10 @@ class _OrderCard extends ConsumerWidget {
                           children: [
                             Text(
                               '#${id.length > 8 ? id.substring(0, 8) : id}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
+                                color: textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -395,7 +430,7 @@ class _OrderCard extends ConsumerWidget {
                               Text(
                                 userName,
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                  color: textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
@@ -405,7 +440,7 @@ class _OrderCard extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.shade100,
+                                    color: isDark ? Colors.orange.withOpacity(0.2) : Colors.orange.shade100,
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(color: Colors.orange.shade300),
                                   ),
@@ -457,7 +492,7 @@ class _OrderCard extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: statusInfo.color.withOpacity(0.1),
+                              color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -474,7 +509,7 @@ class _OrderCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Icon(
                         isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.grey.shade400,
+                        color: isDark ? Colors.grey[500] : Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -482,20 +517,50 @@ class _OrderCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                        Icon(Icons.access_time, size: 14, color: textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('dd MMM yyyy - HH:mm', 'fr_FR').format(date),
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: textSecondary,
                             fontSize: 12,
                           ),
                         ),
                         const Spacer(),
+                        // Delivery mode badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? (deliveryMode == 'delivery' ? Colors.blue.withOpacity(0.15) : Colors.purple.withOpacity(0.15))
+                                : (deliveryMode == 'delivery' ? Colors.blue.shade50 : Colors.purple.shade50),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                deliveryMode == 'delivery' ? Icons.local_shipping_rounded : Icons.store_rounded,
+                                size: 12,
+                                color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                deliveryMode == 'delivery' ? 'Livraison' : 'Retrait',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           '${items.length} article${items.length > 1 ? 's' : ''}',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -509,16 +574,16 @@ class _OrderCard extends ConsumerWidget {
 
           // Expanded content
           if (isExpanded) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: isDark ? _darkCardBorder : Colors.grey.shade200),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Items
-                  const Text(
+                  Text(
                     'Articles',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
                   ),
                   const SizedBox(height: 8),
                   ...items.map((item) {
@@ -534,7 +599,7 @@ class _OrderCard extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _coralSoft,
+                              color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -550,16 +615,17 @@ class _OrderCard extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               itemTitle,
-                              style: const TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 13, color: textPrimary),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Text(
                             _da(price * qty),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
+                              color: textPrimary,
                             ),
                           ),
                         ],
@@ -569,19 +635,19 @@ class _OrderCard extends ConsumerWidget {
 
                   if (deliveryAddress.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Adresse de livraison',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
+                        Icon(Icons.location_on_outlined, size: 16, color: textSecondary),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             deliveryAddress,
-                            style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                            style: TextStyle(color: textSecondary, fontSize: 13),
                           ),
                         ),
                       ],
@@ -592,11 +658,11 @@ class _OrderCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.phone_outlined, size: 16, color: Colors.grey.shade600),
+                        Icon(Icons.phone_outlined, size: 16, color: textSecondary),
                         const SizedBox(width: 6),
                         Text(
                           userPhone,
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                          style: TextStyle(color: textSecondary, fontSize: 13),
                         ),
                       ],
                     ),
@@ -604,22 +670,22 @@ class _OrderCard extends ConsumerWidget {
 
                   if (notes.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Note du client',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: isDark ? _darkCardBorder : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         notes,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: textSecondary,
                           fontSize: 13,
                           fontStyle: FontStyle.italic,
                         ),
