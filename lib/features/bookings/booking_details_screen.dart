@@ -106,14 +106,23 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     return 'Service';
   }
 
-  num? _servicePrice(Map<String, dynamic> m) {
+  /// Calcule le prix total (prix du service + commission)
+  num? _totalPrice(Map<String, dynamic> m) {
+    // Récupérer le prix de base du service
+    num? basePrice;
     final s = m['service'];
     if (s is Map) {
       final p = s['price'];
-      if (p is num) return p;
-      if (p is String) return num.tryParse(p);
+      if (p is num) basePrice = p;
+      else if (p is String) basePrice = num.tryParse(p);
     }
-    return null;
+    if (basePrice == null) return null;
+
+    // Récupérer la commission (stockée sur le booking)
+    final commissionDa = (m['commissionDa'] as num?)?.toInt() ?? 0;
+
+    // Retourner le total
+    return basePrice + commissionDa;
   }
 
   Map<String, dynamic> _providerMap(Map<String, dynamic> m) {
@@ -365,7 +374,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     final provLight = _providerMap(_m);
     final providerName = _providerName(provLight);
     final service = _serviceName(_m);
-    final price = _servicePrice(_m);
+    final price = _totalPrice(_m);
 
     return PopScope(
       canPop: false,
