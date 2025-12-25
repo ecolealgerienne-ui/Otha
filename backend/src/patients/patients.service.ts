@@ -12,7 +12,8 @@ export class PatientsService {
 
     const where: Prisma.BookingWhereInput = {
       providerId: prov.id,
-      status: { in: ['CONFIRMED', 'COMPLETED'] as any },
+      // ✅ Patients visibles uniquement après RDV terminé (scan QR/OTP)
+      status: 'COMPLETED',
       ...(q && q.trim()
         ? {
             user: {

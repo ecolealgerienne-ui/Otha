@@ -211,6 +211,13 @@ export class BookingsController {
       const ok = await this.availability.isSlotFree(service.providerId, when, service.durationMin);
       if (!ok) throw new BadRequestException('Slot not available');
 
+      // ✅ Récupérer la commission du provider
+      const provider = await tx.providerProfile.findUnique({
+        where: { id: service.providerId },
+        select: { vetCommissionDa: true },
+      });
+      const commissionDa = provider?.vetCommissionDa ?? 100; // Défaut: 100 DA
+
       // Générer un code de référence unique (avec retry si collision)
       let referenceCode = generateReferenceCode();
       let attempts = 0;
@@ -230,6 +237,7 @@ export class BookingsController {
           status: 'PENDING',
           petIds, // IDs des animaux concernés
           referenceCode, // Code de référence unique (ex: VGC-A2B3C4)
+          commissionDa, // ✅ Commission du provider au moment de la réservation
         },
       });
     }, { isolationLevel: 'Serializable' });

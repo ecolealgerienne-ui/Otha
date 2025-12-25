@@ -286,14 +286,16 @@ final completedBookingsForRangeProvider = FutureProvider.autoDispose
     if ((m['status'] ?? '').toString() != 'COMPLETED') continue;
 
     final svc = Map<String, dynamic>.from((m['service'] ?? const {}) as Map);
-    final price = _asInt(svc['price'] ?? svc['priceCents']);
+    final basePrice = _asInt(svc['price'] ?? svc['priceCents']);
+    final commissionDa = _asInt(m['commissionDa'] ?? 0);
+    final totalPrice = basePrice + commissionDa;
     final title = (svc['title'] ?? 'Service').toString();
 
     final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
     out.add({
       'scheduledAt': iso,
       'serviceTitle': title,
-      'totalPriceDa': price,
+      'totalPriceDa': totalPrice,
     });
   }
   out.sort((a, b) {
@@ -318,13 +320,15 @@ final completedBookingsAllTimeProvider =
     final m = Map<String, dynamic>.from(raw as Map);
     if ((m['status'] ?? '').toString() != 'COMPLETED') continue;
     final svc = Map<String, dynamic>.from((m['service'] ?? const {}) as Map);
-    final price = _asInt(svc['price'] ?? svc['priceCents']);
+    final basePrice = _asInt(svc['price'] ?? svc['priceCents']);
+    final commissionDa = _asInt(m['commissionDa'] ?? 0);
+    final totalPrice = basePrice + commissionDa;
     final title = (svc['title'] ?? 'Service').toString();
     final iso = (m['scheduledAt'] ?? m['scheduled_at'] ?? '').toString();
     out.add({
       'scheduledAt': iso,
       'serviceTitle': title,
-      'totalPriceDa': price,
+      'totalPriceDa': totalPrice,
     });
   }
   out.sort((a, b) {

@@ -31,14 +31,8 @@ String petLabel(Map<String, dynamic>? p) {
 }
 
 bool _isVisibleStatus(String s) {
-  // On ne montre les patients qu'à partir de CONFIRMED (ou terminés)
-  switch (s.toUpperCase()) {
-    case 'CONFIRMED':
-    case 'COMPLETED':
-      return true;
-    default:
-      return false;
-  }
+  // ✅ On ne montre les patients qu'après RDV terminé (scan QR/OTP)
+  return s.toUpperCase() == 'COMPLETED';
 }
 
 /// ---------- Source: tous les bookings du pro (fenêtre ouverte) ----------
@@ -57,7 +51,7 @@ class _PatientRow {
   final String name;         // calculé via displayName || first/last || email
   final String phone;        // dernier phone connu
   final String lastPet;      // étiquette du dernier animal vu (ex: "Chien (Moka)")
-  final int visits;          // nb de RDV (CONFIRMED/COMPLETED)
+  final int visits;          // nb de RDV COMPLETED
   final DateTime? lastAt;    // dernière visite
 
   const _PatientRow({

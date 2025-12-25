@@ -13,7 +13,7 @@ import { PatientsService } from './patients.service';
 export class PatientsController {
   constructor(private readonly svc: PatientsService) {}
 
-  // Liste les clients d'un PRO ayant au moins 1 RDV CONFIRMED/COMPLETED
+  // Liste les clients d'un PRO ayant au moins 1 RDV COMPLETED (après scan QR/OTP)
   @Get('provider')
   list(@Req() req: any, @Query('q') q?: string) {
     return this.svc.listPatientsForProvider(req.user.sub, q);

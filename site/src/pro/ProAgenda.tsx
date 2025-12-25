@@ -505,15 +505,17 @@ export function ProAgenda() {
                   </div>
                 )}
 
-                {/* Price */}
+                {/* Price (base + commission) */}
                 {selectedBooking.service?.price != null && (
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-emerald-100 rounded-lg">
                       <DollarSign size={20} className="text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Prix</p>
-                      <p className="font-medium">{selectedBooking.service.price} DA</p>
+                      <p className="text-sm text-gray-500">Prix total</p>
+                      <p className="font-medium">
+                        {(selectedBooking.service.price + (selectedBooking.commissionDa || 0))} DA
+                      </p>
                     </div>
                   </div>
                 )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Check, X, Clock, CheckCircle, XCircle, Archive, CheckCheck, ChevronDown, ChevronUp,
   MapPin, User, Mail, Phone, Briefcase, FileText, MessageSquare, DollarSign, Calendar,
-  Building, Eye, Send
+  Building, Eye
 } from 'lucide-react';
 import { Card, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';

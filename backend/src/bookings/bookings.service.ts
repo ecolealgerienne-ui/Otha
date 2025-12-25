@@ -62,6 +62,7 @@ export class BookingsService {
         scheduledAt: true,
         providerId: true, // ✅ important pour activer "Modifier"
         petIds: true, // ✅ IDs des animaux associés au RDV
+        commissionDa: true, // ✅ Commission pour calculer le prix total
         provider: {
           select: {
             id: true,
@@ -106,6 +107,7 @@ export class BookingsService {
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
         providerId: b.providerId, // ✅ top-level direct
+        commissionDa: b.commissionDa ?? 0, // ✅ Commission pour affichage prix total
         petIds: b.petIds || [], // ✅ Liste des IDs d'animaux
         pet: bookingPets[0] || null, // ✅ Premier animal (rétro-compatibilité)
         pets: bookingPets, // ✅ Tous les animaux
@@ -287,6 +289,7 @@ export class BookingsService {
         status: true,
         scheduledAt: true,
         petIds: true, // ✅ IDs des animaux du booking
+        commissionDa: true, // ✅ Commission pour calculer le prix total
         service: { select: { id: true, title: true, price: true } },
         user: {
           select: {
@@ -354,6 +357,7 @@ export class BookingsService {
         status: b.status,
         scheduledAt: b.scheduledAt.toISOString(),
         petIds: b.petIds || [], // ✅ Liste des IDs des animaux
+        commissionDa: b.commissionDa ?? 0, // ✅ Commission pour affichage prix total
         service: { id: b.service.id, title: b.service.title, price },
         user: {
           id: b.user.id,
