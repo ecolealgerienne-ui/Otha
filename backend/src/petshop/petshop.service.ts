@@ -325,7 +325,7 @@ export class PetshopService {
     // Verify provider exists and is a petshop
     const provider = await this.prisma.providerProfile.findUnique({
       where: { id: providerId },
-      select: { id: true, specialties: true, isApproved: true },
+      select: { id: true, specialties: true, isApproved: true, petshopCommissionPercent: true },
     });
 
     if (!provider) {
@@ -341,6 +341,9 @@ export class PetshopService {
       throw new BadRequestException('Provider is not a petshop');
     }
 
+    // Get commission percentage (default 5%)
+    const commissionPercent = provider.petshopCommissionPercent ?? 5;
+
     // Fetch all products and verify they belong to this provider
     const productIds = items.map(i => i.productId);
     const products = await this.prisma.product.findMany({
@@ -355,9 +358,9 @@ export class PetshopService {
       throw new BadRequestException('One or more products not found or not available');
     }
 
-    // Build order items and calculate total
+    // Build order items and calculate subtotal
     const orderItems: { productId: string; quantity: number; priceDa: number }[] = [];
-    let totalDa = 0;
+    let subtotalDa = 0;
 
     for (const item of items) {
       const product = products.find(p => p.id === item.productId);
@@ -371,7 +374,7 @@ export class PetshopService {
       }
 
       const itemTotal = product.priceDa * item.quantity;
-      totalDa += itemTotal;
+      subtotalDa += itemTotal;
 
       orderItems.push({
         productId: item.productId,
@@ -380,6 +383,10 @@ export class PetshopService {
       });
     }
 
+    // Calculate commission based on percentage of subtotal
+    const commissionDa = Math.round(subtotalDa * commissionPercent / 100);
+    const totalDa = subtotalDa + commissionDa;
+
     // Create order with items in a transaction
     const order = await this.prisma.$transaction(async (tx) => {
       // Create order
@@ -387,6 +394,8 @@ export class PetshopService {
         data: {
           userId,
           providerId,
+          subtotalDa,
+          commissionDa,
           totalDa,
           status: 'PENDING',
           phone: options?.phone,

@@ -5,24 +5,28 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../core/api.dart';
-import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 import '../../core/location_provider.dart';
 
+// ═══════════════════════════════════════════════════════════════
+// COULEURS
+// ═══════════════════════════════════════════════════════════════
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
-const _ink = Color(0xFF222222);
+const _ink = Color(0xFF1F2328);
+
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
 
 /// Provider qui charge la liste des animaleries autour du centre
 final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiProvider);
-
-  // Utilise le provider GPS centralisé
   final center = ref.watch(currentCoordsProvider);
 
-  // Récupérer tous les providers et filtrer pour petshop
   final raw = await api.nearby(
     lat: center.lat,
     lng: center.lng,
@@ -31,7 +35,6 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
     status: 'approved',
   );
 
-  // Filtrer pour ne garder que les petshops
   final rows = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   final petshops = rows.where((m) {
     final specialties = m['specialties'];
@@ -42,7 +45,6 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
     return false;
   }).toList();
 
-  // Normalisation
   double? _toDouble(dynamic v) {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
@@ -68,7 +70,6 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
     final bio = (m['bio'] ?? '').toString();
     final address = (m['address'] ?? '').toString();
 
-    // Extract categories from specialties if available
     final specialties = m['specialties'] as Map?;
     final categories = <String>[];
     if (specialties != null) {
@@ -87,9 +88,6 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
-    // DEBUG: Print avatar info
-    print('DEBUG Petshop $name: avatarUrl from API = ${m['avatarUrl']}, photoUrl = ${m['photoUrl']}, final = $avatarUrl');
-
     return <String, dynamic>{
       'id': id,
       'displayName': name,
@@ -101,27 +99,22 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
     };
   }).toList();
 
-  // Dédoublonnage
   final seen = <String>{};
   final unique = <Map<String, dynamic>>[];
   for (final m in mapped) {
     final id = (m['id'] as String?) ?? '';
-    final key = id.isNotEmpty
-        ? 'id:$id'
-        : 'na:${(m['displayName'] ?? '').toString().toLowerCase()}';
+    final key = id.isNotEmpty ? 'id:$id' : 'na:${(m['displayName'] ?? '').toString().toLowerCase()}';
     if (seen.add(key)) unique.add(m);
   }
 
-  // Tri: distance si dispo, sinon nom
   unique.sort((a, b) {
     final da = a['distanceKm'] as double?;
     final db = b['distanceKm'] as double?;
     if (da != null && db != null) return da.compareTo(db);
     if (da != null) return -1;
     if (db != null) return 1;
-    final na = (a['displayName'] ?? '').toString().toLowerCase();
-    final nb = (b['displayName'] ?? '').toString().toLowerCase();
-    return na.compareTo(nb);
+    return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+        (b['displayName'] ?? '').toString().toLowerCase());
   });
 
   return unique;
@@ -136,6 +129,7 @@ class PetshopListScreen extends ConsumerStatefulWidget {
 
 class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
   String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -145,9 +139,14 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   List<Map<String, dynamic>> _filterShops(List<Map<String, dynamic>> shops) {
     return shops.where((shop) {
-      // Search filter
       if (_searchQuery.isNotEmpty) {
         final name = (shop['displayName'] ?? '').toString().toLowerCase();
         final address = (shop['address'] ?? '').toString().toLowerCase();
@@ -162,198 +161,309 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
     final async = ref.watch(_petshopsProvider);
 
-    return Theme(
-      data: _themed(context),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Custom header
-              _buildHeader(context),
+    // Theme colors
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade200;
 
-              // Content
-              Expanded(
-                child: async.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: _coral)),
-                  error: (e, _) => Center(child: Text('Erreur: $e')),
-                  data: (rows) {
-                    final filtered = _filterShops(rows);
-                    if (filtered.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return RefreshIndicator(
-                      color: _coral,
-                      onRefresh: () async => ref.invalidate(_petshopsProvider),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final m = filtered[i];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _PetshopCard(
-                              id: (m['id'] ?? '').toString(),
-                              name: (m['displayName'] ?? 'Animalerie').toString(),
-                              distanceKm: m['distanceKm'] as double?,
-                              bio: (m['bio'] ?? '').toString(),
-                              address: (m['address'] ?? '').toString(),
-                              categories: (m['categories'] as List<String>?) ?? [],
-                              avatarUrl: (m['avatarUrl'] ?? '').toString(),
-                            ),
-                          );
-                        },
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header avec gradient
+            _buildHeader(context, isDark, l10n, textPrimary, textSecondary, cardColor, borderColor),
+
+            // Content
+            Expanded(
+              child: async.when(
+                loading: () => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: _coral),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.loading,
+                        style: TextStyle(color: textSecondary),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
+                error: (e, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.red.withOpacity(0.2) : Colors.red.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.error,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          '$e',
+                          style: TextStyle(color: textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => ref.invalidate(_petshopsProvider),
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Réessayer'),
+                        style: FilledButton.styleFrom(backgroundColor: _coral),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (rows) {
+                  final filtered = _filterShops(rows);
+                  if (filtered.isEmpty) {
+                    return _buildEmptyState(isDark, l10n, textPrimary, textSecondary);
+                  }
+                  return RefreshIndicator(
+                    color: _coral,
+                    backgroundColor: cardColor,
+                    onRefresh: () async => ref.invalidate(_petshopsProvider),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final m = filtered[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _PetshopCard(
+                            id: (m['id'] ?? '').toString(),
+                            name: (m['displayName'] ?? 'Animalerie').toString(),
+                            distanceKm: m['distanceKm'] as double?,
+                            bio: (m['bio'] ?? '').toString(),
+                            address: (m['address'] ?? '').toString(),
+                            categories: (m['categories'] as List<String>?) ?? [],
+                            avatarUrl: (m['avatarUrl'] ?? '').toString(),
+                            isDark: isDark,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+    bool isDark,
+    AppLocalizations l10n,
+    Color textPrimary,
+    Color? textSecondary,
+    Color cardColor,
+    Color borderColor,
+  ) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
-        ],
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [_darkCard, _darkBg]
+              : [_coralSoft, Colors.white],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        border: Border(
+          bottom: BorderSide(color: borderColor, width: 1),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Back button and title
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => context.pop(),
-                icon: const Icon(Icons.arrow_back),
-                style: IconButton.styleFrom(
-                  backgroundColor: _coralSoft,
-                  foregroundColor: _coral,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Back button and title row
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: _coral,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.storefront_rounded, color: _coral, size: 24),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.petshop,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.petshopDescription,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: () => ref.invalidate(_petshopsProvider),
+                    icon: const Icon(Icons.refresh_rounded),
+                    color: _coral,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Search bar
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? _darkCardBorder : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
+                boxShadow: isDark ? null : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                style: TextStyle(color: textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher une animalerie...',
+                  hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search_rounded, color: isDark ? Colors.grey[400] : Colors.grey),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear_rounded, color: isDark ? Colors.grey[400] : Colors.grey),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  border: InputBorder.none,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Animaleries',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
-                    ),
-                    Text(
-                      'Trouvez tout pour vos animaux',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark, AppLocalizations l10n, Color textPrimary, Color? textSecondary) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                shape: BoxShape.circle,
               ),
-              IconButton(
-                onPressed: () => ref.invalidate(_petshopsProvider),
-                icon: const Icon(Icons.refresh),
-                style: IconButton.styleFrom(
-                  backgroundColor: _coralSoft,
+              child: const Icon(Icons.storefront_rounded, size: 56, color: _coral),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              _searchQuery.isNotEmpty ? 'Aucun résultat' : 'Aucune animalerie',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'Essayez avec d\'autres termes de recherche'
+                  : 'Aucune animalerie disponible pour le moment',
+              style: TextStyle(
+                color: textSecondary,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                icon: const Icon(Icons.clear_rounded, size: 18),
+                label: const Text('Effacer la recherche'),
+                style: OutlinedButton.styleFrom(
                   foregroundColor: _coral,
+                  side: const BorderSide(color: _coral, width: 1.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-
-          // Search bar
-          TextField(
-            onChanged: (v) => setState(() => _searchQuery = v),
-            decoration: InputDecoration(
-              hintText: 'Rechercher une animalerie...',
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: const Color(0xFFF7F8FA),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _coral, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: _coralSoft,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.storefront, size: 48, color: _coral),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Aucune animalerie trouvee',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'Essayez avec d\'autres termes'
-                : 'Aucune animalerie disponible pour le moment',
-            style: TextStyle(color: Colors.grey.shade600),
-            textAlign: TextAlign.center,
-          ),
-          if (_searchQuery.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: () => setState(() => _searchQuery = ''),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _coral,
-                side: const BorderSide(color: _coral),
-              ),
-              child: const Text('Effacer la recherche'),
-            ),
           ],
-        ],
+        ),
       ),
-    );
-  }
-
-  ThemeData _themed(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.copyWith(
-      colorScheme: theme.colorScheme.copyWith(
-        primary: _coral,
-      ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: _coral),
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PETSHOP CARD
+// ═══════════════════════════════════════════════════════════════
 
 class _PetshopCard extends StatelessWidget {
   const _PetshopCard({
@@ -361,6 +471,7 @@ class _PetshopCard extends StatelessWidget {
     required this.name,
     required this.bio,
     required this.address,
+    required this.isDark,
     this.distanceKm,
     this.categories = const [],
     this.avatarUrl = '',
@@ -373,194 +484,246 @@ class _PetshopCard extends StatelessWidget {
   final double? distanceKm;
   final List<String> categories;
   final String avatarUrl;
+  final bool isDark;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
     final inits = parts.take(2).map((e) => e[0]).join().toUpperCase();
-    return inits.isEmpty ? 'SH' : inits;
+    return inits.isEmpty ? 'PS' : inits;
   }
 
   @override
   Widget build(BuildContext context) {
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade100;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: cardColor,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () => context.push('/explore/petshop/$id'),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor),
+            boxShadow: isDark ? null : [
               BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              )
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar avec image ou initiales
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: _coralSoft,
-                      borderRadius: BorderRadius.circular(12),
-                      image: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
-                          ? DecorationImage(
-                              image: NetworkImage(avatarUrl),
-                              fit: BoxFit.cover,
+              // Header avec avatar
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [_coral.withOpacity(0.15), Colors.transparent]
+                        : [_coralSoft.withOpacity(0.5), Colors.transparent],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? _coral.withOpacity(0.3) : _coral.withOpacity(0.2),
+                          width: 2,
+                        ),
+                        image: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                            ? DecorationImage(
+                                image: NetworkImage(avatarUrl),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: avatarUrl.isEmpty || !avatarUrl.startsWith('http')
+                          ? Center(
+                              child: Text(
+                                _initials(name),
+                                style: const TextStyle(
+                                  color: _coral,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 22,
+                                ),
+                              ),
                             )
                           : null,
                     ),
-                    child: avatarUrl.isEmpty || !avatarUrl.startsWith('http')
-                        ? Center(
-                            child: Text(
-                              _initials(name),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (address.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_rounded,
+                                    size: 14,
+                                    color: isDark ? Colors.grey[500] : Colors.grey[400]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: TextStyle(
+                                      color: textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (distanceKm != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _coral,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.near_me_rounded, size: 12, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${distanceKm!.toStringAsFixed(1)} km',
                               style: const TextStyle(
-                                color: _coral,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: _ink,
-                          ),
+                          ],
                         ),
-                        if (address.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  address,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Bio
+              if (bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    bio,
+                    style: TextStyle(
+                      color: textSecondary,
+                      fontSize: 13,
+                      height: 1.4,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (distanceKm != null) ...[
-                    const SizedBox(width: 8),
+                ),
+
+              // Bottom action row
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Status badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: _coralSoft,
-                        borderRadius: BorderRadius.circular(8),
+                        color: isDark
+                            ? Colors.green.withOpacity(0.15)
+                            : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.near_me, size: 12, color: _coral),
-                          const SizedBox(width: 4),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            '${distanceKm!.toStringAsFixed(1)} km',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: _coral,
+                            'Ouvert',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.green[300] : Colors.green[700],
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const Spacer(),
+                    // CTA Button
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_coral, Color(0xFFFF8A8A)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _coral.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Voir produits',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                        ],
+                      ),
+                    ),
                   ],
-                ],
-              ),
-              if (bio.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  bio,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-              const SizedBox(height: 12),
-              // Bottom row with action
-              Row(
-                children: [
-                  // Shop icon indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.store, size: 14, color: Colors.green.shade700),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Ouvert',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // View products button
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _coral,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Voir produits',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward, size: 14, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

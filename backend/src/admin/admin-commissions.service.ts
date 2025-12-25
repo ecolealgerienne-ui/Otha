@@ -5,6 +5,7 @@ export interface CommissionData {
   vetCommissionDa: number;
   daycareHourlyCommissionDa: number;
   daycareDailyCommissionDa: number;
+  petshopCommissionPercent: number;
 }
 
 export type ProviderKind = 'vet' | 'daycare' | 'petshop';
@@ -19,6 +20,7 @@ export interface ProviderCommission {
   vetCommissionDa: number;
   daycareHourlyCommissionDa: number;
   daycareDailyCommissionDa: number;
+  petshopCommissionPercent: number;
 }
 
 @Injectable()
@@ -77,6 +79,7 @@ export class AdminCommissionsService {
         vetCommissionDa: p.vetCommissionDa,
         daycareHourlyCommissionDa: p.daycareHourlyCommissionDa,
         daycareDailyCommissionDa: p.daycareDailyCommissionDa,
+        petshopCommissionPercent: p.petshopCommissionPercent,
       };
     });
   }
@@ -117,6 +120,7 @@ export class AdminCommissionsService {
       vetCommissionDa: provider.vetCommissionDa,
       daycareHourlyCommissionDa: provider.daycareHourlyCommissionDa,
       daycareDailyCommissionDa: provider.daycareDailyCommissionDa,
+      petshopCommissionPercent: provider.petshopCommissionPercent,
     };
   }
 
@@ -146,6 +150,10 @@ export class AdminCommissionsService {
     }
     if (data.daycareDailyCommissionDa !== undefined) {
       updateData.daycareDailyCommissionDa = Math.max(0, Math.floor(data.daycareDailyCommissionDa));
+    }
+    if (data.petshopCommissionPercent !== undefined) {
+      // Limit percentage between 0 and 100
+      updateData.petshopCommissionPercent = Math.max(0, Math.min(100, Math.floor(data.petshopCommissionPercent)));
     }
 
     const updated = await this.prisma.providerProfile.update({
@@ -177,6 +185,7 @@ export class AdminCommissionsService {
       vetCommissionDa: updated.vetCommissionDa,
       daycareHourlyCommissionDa: updated.daycareHourlyCommissionDa,
       daycareDailyCommissionDa: updated.daycareDailyCommissionDa,
+      petshopCommissionPercent: updated.petshopCommissionPercent,
     };
   }
 
@@ -188,6 +197,7 @@ export class AdminCommissionsService {
       vetCommissionDa: 100,
       daycareHourlyCommissionDa: 10,
       daycareDailyCommissionDa: 100,
+      petshopCommissionPercent: 5,
     });
   }
 }
