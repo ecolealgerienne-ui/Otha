@@ -970,6 +970,10 @@ export class BookingsService {
   /**
    * PRO confirme le booking (après scan QR ou manuellement)
    * @param method - 'QR_SCAN' | 'SIMPLE' | 'AUTO' (défaut: AUTO)
+   *
+   * ⚠️ IMPORTANT:
+   * - 'SIMPLE' / 'AUTO' = Pro accepte le RDV → status = CONFIRMED (patient PAS visible)
+   * - 'QR_SCAN' = Pro valide la visite → status = COMPLETED (patient visible)
    */
   async proConfirmBooking(userId: string, bookingId: string, method: string = 'AUTO') {
     const prov = await this.prisma.providerProfile.findUnique({
@@ -984,57 +988,65 @@ export class BookingsService {
     });
     if (!b) throw new NotFoundException('Booking not found');
 
+    // ✅ Déterminer le statut selon la méthode
+    // - QR_SCAN = validation réelle → COMPLETED
+    // - SIMPLE / AUTO = simple acceptation → CONFIRMED
+    const isValidation = method === 'QR_SCAN';
+    const newStatus = isValidation ? 'COMPLETED' : 'CONFIRMED';
+
     // ✅ Marquer comme confirmé par le pro avec la méthode de confirmation
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
         proConfirmedAt: new Date(),
-        status: 'COMPLETED',
+        status: newStatus,
         confirmationMethod: method, // 'QR_SCAN', 'SIMPLE', 'AUTO', etc.
       },
     });
 
-    // ✅ Créer la commission
-    const gross = Number((b.service.price as Prisma.Decimal).toNumber());
-    const commission = await this.getProviderVetCommission(prov.id);
-    const net = Math.max(gross - commission, 0);
+    // ✅ Créer la commission SEULEMENT si validation (QR_SCAN)
+    if (isValidation) {
+      const gross = Number((b.service.price as Prisma.Decimal).toNumber());
+      const commission = await this.getProviderVetCommission(prov.id);
+      const net = Math.max(gross - commission, 0);
 
-    await this.prisma.providerEarning.upsert({
-      where: { bookingId: b.id },
-      update: {},
-      create: {
-        providerId: prov.id,
-        bookingId: b.id,
-        serviceId: b.serviceId,
-        grossPriceDa: gross,
-        commissionDa: commission,
-        netToProviderDa: net,
-      },
-    });
-
-    // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
-    await this.verifyUserIfNeeded(b.userId);
-
-    // 🏥 NOUVEAU: Créer automatiquement un acte médical pour chaque animal
-    const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
-    const petIds = Array.isArray(b.petIds) ? b.petIds : [];
-
-    for (const petId of petIds) {
-      await this.prisma.medicalRecord.create({
-        data: {
-          petId: petId,
-          type: 'VET_VISIT',
-          title: `Visite vétérinaire - ${b.service.title}`,
-          description: `Rendez-vous confirmé chez ${providerName}`,
-          date: b.scheduledAt,
-          vetId: prov.id,
-          vetName: providerName,
-          providerType: 'VET',
+      await this.prisma.providerEarning.upsert({
+        where: { bookingId: b.id },
+        update: {},
+        create: {
+          providerId: prov.id,
           bookingId: b.id,
-          durationMinutes: b.service.durationMin || 30,
-          notes: `Service: ${b.service.title}\nDurée: ${b.service.durationMin || 30} minutes`,
+          serviceId: b.serviceId,
+          grossPriceDa: gross,
+          commissionDa: commission,
+          netToProviderDa: net,
         },
       });
+
+      // ✅ TRUST SYSTEM: Vérifier l'utilisateur (NEW → VERIFIED)
+      await this.verifyUserIfNeeded(b.userId);
+
+      // 🏥 Créer automatiquement un acte médical pour chaque animal
+      const providerName = `${prov.user.firstName || ''} ${prov.user.lastName || ''}`.trim() || prov.displayName || 'Vétérinaire';
+      const petIds = Array.isArray(b.petIds) ? b.petIds : [];
+
+      for (const petId of petIds) {
+        await this.prisma.medicalRecord.create({
+          data: {
+            petId: petId,
+            type: 'VET_VISIT',
+            title: `Visite vétérinaire - ${b.service.title}`,
+            description: `Rendez-vous validé chez ${providerName}`,
+            date: b.scheduledAt,
+            vetId: prov.id,
+            vetName: providerName,
+            providerType: 'VET',
+            bookingId: b.id,
+            durationMinutes: b.service.durationMin || 30,
+            notes: `Service: ${b.service.title}\nDurée: ${b.service.durationMin || 30} minutes`,
+          },
+        });
+      }
     }
 
     return { success: true };

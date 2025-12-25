@@ -34,7 +34,11 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   String? _resolvedProviderId;
   bool _resolvingPid = false;
 
-  Map<String, dynamic> get _m => widget.booking;
+  // Booking data (peut être mis à jour si on fetch les données fraîches)
+  late Map<String, dynamic> _bookingData;
+  bool _loadingBooking = false;
+
+  Map<String, dynamic> get _m => _bookingData;
 
   String? get _bookingId {
     final id = (_m['id'] ?? '').toString();
@@ -81,7 +85,46 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tryResolveProviderId());
+    _bookingData = Map<String, dynamic>.from(widget.booking);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryResolveProviderId();
+      _fetchFreshDataIfNeeded();
+    });
+  }
+
+  /// Vérifie si les données sont complètes, sinon fetch les données fraîches
+  Future<void> _fetchFreshDataIfNeeded() async {
+    // Vérifier si on a les données critiques (service.price et commissionDa)
+    final s = _m['service'];
+    final hasPrice = s is Map && (s['price'] is num || (s['price'] is String && num.tryParse(s['price']) != null));
+    final hasCommission = _m['commissionDa'] is num;
+
+    // Si on a déjà les données, pas besoin de fetch
+    if (hasPrice && hasCommission) return;
+
+    // Sinon, on récupère les données fraîches
+    final bookingId = _bookingId;
+    if (bookingId == null) return;
+
+    setState(() => _loadingBooking = true);
+    try {
+      final api = ref.read(apiProvider);
+      final bookings = await api.myBookings();
+
+      // Trouver le booking correspondant
+      for (final b in bookings) {
+        if (b is Map && (b['id'] ?? '').toString() == bookingId) {
+          setState(() {
+            _bookingData = Map<String, dynamic>.from(b);
+          });
+          break;
+        }
+      }
+    } catch (_) {
+      // Ignore les erreurs, on garde les données existantes
+    } finally {
+      if (mounted) setState(() => _loadingBooking = false);
+    }
   }
 
   String _norm(String s) {
@@ -431,7 +474,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (_loadingProv || _resolvingPid)
+          if (_loadingProv || _resolvingPid || _loadingBooking)
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: SizedBox(
