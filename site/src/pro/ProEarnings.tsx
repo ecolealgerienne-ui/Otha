@@ -181,10 +181,14 @@ export function ProEarnings() {
       .sort((a, b) => parseNaiveLocal(b.scheduledAt).getTime() - parseNaiveLocal(a.scheduledAt).getTime());
   }, [bookings, selectedMonth]);
 
-  // Calculate revenue for selected month
+  // Calculate revenue for selected month (base + commission = what client pays)
   const monthRevenue = useMemo(() => {
-    return monthBookings.reduce((sum, b) => sum + (b.service?.price || 0), 0);
-  }, [monthBookings]);
+    return monthBookings.reduce((sum, b) => {
+      const basePrice = b.service?.price || 0;
+      const commission = b.commissionDa || commissionDa;
+      return sum + basePrice + commission;
+    }, 0);
+  }, [monthBookings, commissionDa]);
 
   if (loading) {
     return (
@@ -281,8 +285,10 @@ export function ProEarnings() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">{formatDa(b.service?.price || 0)}</p>
-                      <p className="text-xs text-orange-600">-{formatDa(commissionDa)}</p>
+                      <p className="font-semibold text-gray-900">
+                        {formatDa((b.service?.price || 0) + (b.commissionDa || commissionDa))}
+                      </p>
+                      <p className="text-xs text-orange-600">-{formatDa(b.commissionDa || commissionDa)}</p>
                     </div>
                   </div>
                 ))}

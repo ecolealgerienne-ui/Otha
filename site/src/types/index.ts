@@ -118,6 +118,7 @@ export interface Booking {
   confirmedAt?: string;
   completedAt?: string;
   cancelledAt?: string;
+  commissionDa?: number; // Commission du provider au moment de la réservation
   user?: User;
   provider?: ProviderProfile;
   service?: Service;
