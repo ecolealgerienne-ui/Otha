@@ -16,6 +16,7 @@ interface ProviderCommission {
   vetCommissionDa: number;
   daycareHourlyCommissionDa: number;
   daycareDailyCommissionDa: number;
+  petshopCommissionPercent: number;
 }
 
 const kindLabels: Record<ProviderKind, { label: string; color: string; bgColor: string; icon: typeof Stethoscope }> = {
@@ -33,6 +34,7 @@ export function AdminCommissions() {
     vetCommissionDa: 100,
     daycareHourlyCommissionDa: 10,
     daycareDailyCommissionDa: 100,
+    petshopCommissionPercent: 5,
   });
   const [saving, setSaving] = useState(false);
   const [showApprovedOnly, setShowApprovedOnly] = useState(true);
@@ -61,6 +63,7 @@ export function AdminCommissions() {
       vetCommissionDa: provider.vetCommissionDa,
       daycareHourlyCommissionDa: provider.daycareHourlyCommissionDa,
       daycareDailyCommissionDa: provider.daycareDailyCommissionDa,
+      petshopCommissionPercent: provider.petshopCommissionPercent,
     });
   };
 
@@ -78,8 +81,9 @@ export function AdminCommissions() {
       } else if (provider.kind === 'daycare') {
         commissionData.daycareHourlyCommissionDa = editForm.daycareHourlyCommissionDa;
         commissionData.daycareDailyCommissionDa = editForm.daycareDailyCommissionDa;
+      } else if (provider.kind === 'petshop') {
+        commissionData.petshopCommissionPercent = editForm.petshopCommissionPercent;
       }
-      // petshop: nothing for now
 
       await api.adminUpdateCommission(provider.providerId, commissionData);
       await fetchCommissions();
@@ -122,6 +126,7 @@ export function AdminCommissions() {
   const isCustomCommission = (p: ProviderCommission) => {
     if (p.kind === 'vet') return p.vetCommissionDa !== 100;
     if (p.kind === 'daycare') return p.daycareHourlyCommissionDa !== 10 || p.daycareDailyCommissionDa !== 100;
+    if (p.kind === 'petshop') return p.petshopCommissionPercent !== 5;
     return false;
   };
 
@@ -361,8 +366,37 @@ export function AdminCommissions() {
                           )}
 
                           {provider.kind === 'petshop' && (
-                            <div className="text-center text-gray-400 text-sm italic">
-                              À définir
+                            <div className="text-center">
+                              {isEditing ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <Input
+                                    type="number"
+                                    value={editForm.petshopCommissionPercent}
+                                    onChange={(e) =>
+                                      setEditForm({
+                                        ...editForm,
+                                        petshopCommissionPercent: parseInt(e.target.value) || 0,
+                                      })
+                                    }
+                                    className="w-20 text-center"
+                                    min={0}
+                                    max={100}
+                                  />
+                                  <span className="text-sm text-gray-500">%</span>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className={`font-medium ${isCustom ? 'text-amber-600' : 'text-gray-900'}`}>
+                                    {provider.petshopCommissionPercent}%
+                                  </span>
+                                  <p className="text-xs text-gray-400">du panier</p>
+                                  {isCustom && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 mt-1">
+                                      Personnalisée
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>
@@ -370,48 +404,44 @@ export function AdminCommissions() {
                         {/* Actions */}
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-center gap-2">
-                            {provider.kind !== 'petshop' && (
+                            {isEditing ? (
                               <>
-                                {isEditing ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleSave(provider)}
-                                      disabled={saving}
-                                      className="bg-green-500 hover:bg-green-600 text-white"
-                                    >
-                                      <Save className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={handleCancel}
-                                      disabled={saving}
-                                    >
-                                      Annuler
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => handleEdit(provider)}
-                                    >
-                                      Modifier
-                                    </Button>
-                                    {isCustom && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleReset(provider.providerId)}
-                                        title="Réinitialiser"
-                                        className="text-gray-500 hover:text-gray-700"
-                                      >
-                                        <RotateCcw className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                  </>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSave(provider)}
+                                  disabled={saving}
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                  <Save className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={handleCancel}
+                                  disabled={saving}
+                                >
+                                  Annuler
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => handleEdit(provider)}
+                                >
+                                  Modifier
+                                </Button>
+                                {isCustom && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleReset(provider.providerId)}
+                                    title="Réinitialiser"
+                                    className="text-gray-500 hover:text-gray-700"
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                  </Button>
                                 )}
                               </>
                             )}
@@ -432,7 +462,7 @@ export function AdminCommissions() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• <strong>Vétérinaire:</strong> Commission fixe prélevée par RDV confirmé (défaut: 100 DA)</li>
             <li>• <strong>Garderie:</strong> Commission par heure (défaut: 10 DA/h) ou par jour (défaut: 100 DA/jour)</li>
-            <li>• <strong>Petshop:</strong> Commissions à définir ultérieurement</li>
+            <li>• <strong>Petshop:</strong> Commission en % du panier (défaut: 5%)</li>
             <li>• Les commissions personnalisées sont marquées en orange</li>
           </ul>
         </Card>

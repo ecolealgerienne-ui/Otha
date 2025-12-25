@@ -6,6 +6,7 @@ import {
   PetshopController,
   ProvidersPetshopController,
   PublicPetshopController,
+  PetshopPublicController,
   CustomerOrderController,
   PetshopOrderController,
 } from './petshop.controller';
@@ -16,6 +17,7 @@ import {
     PetshopController,
     ProvidersPetshopController,
     PublicPetshopController,
+    PetshopPublicController,
     CustomerOrderController,
     PetshopOrderController,
   ],

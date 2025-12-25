@@ -38,4 +38,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Delivery mode: "delivery" or "pickup"', default: 'pickup' })
+  @IsOptional()
+  @IsString()
+  deliveryMode?: 'delivery' | 'pickup';
 }

@@ -83,6 +83,22 @@ export class PetshopController {
   ) {
     return this.petshop.updateOrderStatus(user.id, id, dto.status);
   }
+
+  // ========= Delivery Options =========
+
+  @Patch('delivery')
+  async updateDeliveryOptions(
+    @ReqUser() user: { id: string },
+    @Body()
+    dto: {
+      deliveryEnabled?: boolean;
+      pickupEnabled?: boolean;
+      deliveryFeeDa?: number;
+      freeDeliveryAboveDa?: number;
+    },
+  ) {
+    return this.petshop.updateDeliveryOptions(user.id, dto);
+  }
 }
 
 // Routes alternatives pour compatibilité avec /providers/me/products
@@ -147,6 +163,20 @@ export class ProvidersPetshopController {
   ) {
     return this.petshop.updateOrderStatus(user.id, id, dto.status);
   }
+
+  @Patch('delivery')
+  async updateDeliveryOptions(
+    @ReqUser() user: { id: string },
+    @Body()
+    dto: {
+      deliveryEnabled?: boolean;
+      pickupEnabled?: boolean;
+      deliveryFeeDa?: number;
+      freeDeliveryAboveDa?: number;
+    },
+  ) {
+    return this.petshop.updateDeliveryOptions(user.id, dto);
+  }
 }
 
 // ========= Public endpoints (pas d'auth requise) =========
@@ -159,6 +189,23 @@ export class PublicPetshopController {
   @Get('products')
   async listPublicProducts(@Param('id') providerId: string) {
     return this.petshop.listPublicProducts(providerId);
+  }
+
+  @Get('delivery')
+  async getDeliveryOptions(@Param('id') providerId: string) {
+    return this.petshop.getDeliveryOptions(providerId);
+  }
+}
+
+// Endpoint also accessible via /petshop/providers/:id/delivery
+@ApiTags('petshop')
+@Controller({ path: 'petshop/providers/:id', version: '1' })
+export class PetshopPublicController {
+  constructor(private readonly petshop: PetshopService) {}
+
+  @Get('delivery')
+  async getDeliveryOptions(@Param('id') providerId: string) {
+    return this.petshop.getDeliveryOptions(providerId);
   }
 }
 
@@ -180,6 +227,7 @@ export class CustomerOrderController {
       phone: dto.phone,
       deliveryAddress: dto.deliveryAddress,
       notes: dto.notes,
+      deliveryMode: dto.deliveryMode,
     });
   }
 
@@ -218,6 +266,7 @@ export class PetshopOrderController {
       phone: dto.phone,
       deliveryAddress: dto.deliveryAddress,
       notes: dto.notes,
+      deliveryMode: dto.deliveryMode,
     });
   }
 }

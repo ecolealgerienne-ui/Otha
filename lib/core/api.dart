@@ -3373,6 +3373,67 @@ final hay = [
     throw Exception(_extractMessage(last?.response?.data));
   }
 
+  /// Get delivery options for a petshop provider
+  Future<Map<String, dynamic>> getDeliveryOptions(String providerId) async {
+    await ensureAuth();
+    final paths = <String>[
+      '/petshop/providers/$providerId/delivery',
+      '/providers/$providerId/delivery',
+    ];
+    DioException? last;
+    for (final path in paths) {
+      try {
+        final res = await _authRetry(() async => await _dio.get(path));
+        return _unwrap<Map<String, dynamic>>(res.data);
+      } on DioException catch (e) {
+        last = e;
+        final code = e.response?.statusCode ?? 0;
+        if (code == 404) continue;
+        rethrow;
+      }
+    }
+    // Return defaults if not found
+    return {
+      'deliveryEnabled': false,
+      'pickupEnabled': true,
+      'deliveryFeeDa': null,
+      'freeDeliveryAboveDa': null,
+    };
+  }
+
+  /// Update delivery options for the current provider
+  Future<void> updateDeliveryOptions({
+    required bool deliveryEnabled,
+    required bool pickupEnabled,
+    int? deliveryFeeDa,
+    int? freeDeliveryAboveDa,
+  }) async {
+    await ensureAuth();
+    final body = {
+      'deliveryEnabled': deliveryEnabled,
+      'pickupEnabled': pickupEnabled,
+      if (deliveryFeeDa != null) 'deliveryFeeDa': deliveryFeeDa,
+      if (freeDeliveryAboveDa != null) 'freeDeliveryAboveDa': freeDeliveryAboveDa,
+    };
+    final paths = <String>[
+      '/petshop/my/delivery',
+      '/providers/my/delivery',
+    ];
+    DioException? last;
+    for (final path in paths) {
+      try {
+        await _authRetry(() async => await _dio.patch(path, data: body));
+        return;
+      } on DioException catch (e) {
+        last = e;
+        final code = e.response?.statusCode ?? 0;
+        if (code == 404) continue;
+        rethrow;
+      }
+    }
+    throw Exception(_extractMessage(last?.response?.data));
+  }
+
   /// Créer une commande (client)
   Future<Map<String, dynamic>> createPetshopOrder({
     required String providerId,
@@ -3380,6 +3441,7 @@ final hay = [
     String? deliveryAddress,
     String? notes,
     String? phone,
+    String? deliveryMode, // 'delivery' or 'pickup'
     int? totalDa, // Not used - calculated server-side
   }) async {
     await ensureAuth();
@@ -3389,6 +3451,7 @@ final hay = [
       if (phone != null && phone.isNotEmpty) 'phone': phone,
       if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (deliveryMode != null) 'deliveryMode': deliveryMode,
     };
     final paths = <String>[
       '/petshop/orders',

@@ -178,6 +178,13 @@ model ProviderProfile {
   vetCommissionDa          Int @default(100)  // Commission par RDV confirmé (vétérinaire)
   daycareHourlyCommissionDa Int @default(10)  // Commission par heure (garderie)
   daycareDailyCommissionDa  Int @default(100) // Commission par jour (garderie)
+  petshopCommissionPercent  Int @default(5)   // Commission en % du total panier (petshop)
+
+  // Options de livraison/retrait (petshop)
+  deliveryEnabled       Boolean @default(false)  // Livraison activée
+  pickupEnabled         Boolean @default(true)   // Retrait sur place activé
+  deliveryFeeDa         Int?                     // Frais de livraison en DA
+  freeDeliveryAboveDa   Int?                     // Livraison gratuite au-dessus de ce montant
 
   // Documents vétérinaires (carte AVN)
   avnCardFront    String?   // URL de la carte AVN recto
@@ -928,7 +935,11 @@ model Order {
   userId          String      // Client qui a passé la commande
   providerId      String      // Animalerie
   status          OrderStatus @default(PENDING)
-  totalDa         Int         // Total en dinars algériens
+  subtotalDa      Int         // Sous-total produits (sans commission)
+  commissionDa    Int         // Commission prélevée (% du subtotal)
+  deliveryFeeDa   Int         @default(0) // Frais de livraison
+  totalDa         Int         // Total payé par le client (subtotal + commission + deliveryFee)
+  deliveryMode    String      @default("pickup") // 'delivery' ou 'pickup'
   phone           String?     // Numéro de téléphone du client
   deliveryAddress String?     // Adresse de livraison
   notes           String?     // Notes/instructions du client

@@ -7,28 +7,33 @@ import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
+import '../../core/locale_provider.dart';
 import 'cart_provider.dart' show kPetshopCommissionDa;
 
-/// ========================= THEME PETSHOP (vert) =========================
+/// ========================= THEME PETSHOP (coral) =========================
 class _PetshopColors {
   static const ink = Color(0xFF1F2328);
-  static const primary = Color(0xFF2E7D32); // Vert
-  static const primarySoft = Color(0xFFE8F5E9);
-  static const coral = Color(0xFFF36C6C);
+  static const primary = Color(0xFFF36C6C); // Coral
+  static const primarySoft = Color(0xFFFFEEF0);
+
+  // Dark mode colors
+  static const darkBg = Color(0xFF121212);
+  static const darkCard = Color(0xFF1E1E1E);
+  static const darkCardBorder = Color(0xFF2A2A2A);
 }
 
-ThemeData _petshopTheme(BuildContext context) {
+ThemeData _petshopTheme(BuildContext context, bool isDark) {
   final base = Theme.of(context);
   return base.copyWith(
     colorScheme: base.colorScheme.copyWith(
       primary: _PetshopColors.primary,
       secondary: _PetshopColors.primary,
       onPrimary: Colors.white,
-      surface: Colors.white,
+      surface: isDark ? _PetshopColors.darkCard : Colors.white,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: _PetshopColors.ink,
+    appBarTheme: AppBarTheme(
+      backgroundColor: isDark ? _PetshopColors.darkCard : Colors.white,
+      foregroundColor: isDark ? Colors.white : _PetshopColors.ink,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
     ),
@@ -49,7 +54,7 @@ ThemeData _petshopTheme(BuildContext context) {
       ),
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: _PetshopColors.primary),
-    dividerColor: _PetshopColors.primarySoft,
+    dividerColor: isDark ? _PetshopColors.darkCardBorder : _PetshopColors.primarySoft,
   );
 }
 
@@ -176,7 +181,8 @@ class PetshopHomeScreen extends ConsumerStatefulWidget {
 class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
   @override
   Widget build(BuildContext context) {
-    const bgSoft = Color(0xFFF7F8FA);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final bgColor = isDark ? _PetshopColors.darkBg : const Color(0xFFF7F8FA);
 
     final state = ref.watch(sessionProvider);
     final user = state.user ?? {};
@@ -201,11 +207,12 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
     final ordersAsync = ref.watch(myPetshopOrdersProvider);
 
     return Theme(
-      data: _petshopTheme(context),
+      data: _petshopTheme(context, isDark),
       child: Scaffold(
-        backgroundColor: bgSoft,
+        backgroundColor: bgColor,
         body: SafeArea(
           child: RefreshIndicator(
+            color: _PetshopColors.primary,
             onRefresh: () async {
               ref.invalidate(myPetshopProfileProvider);
               ref.invalidate(myProductsProvider);
@@ -221,6 +228,7 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                   child: _Header(
                     shopName: shopName,
                     onAvatarTap: () => context.push('/petshop/settings'),
+                    isDark: isDark,
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
@@ -237,6 +245,7 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                         return _PendingOrdersBanner(
                           orders: pending,
                           onTap: () => context.push('/petshop/orders'),
+                          isDark: isDark,
                         );
                       },
                     ),
@@ -246,7 +255,7 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                 // Actions rapides (4 max)
-                const SliverToBoxAdapter(child: _ActionGrid()),
+                SliverToBoxAdapter(child: _ActionGrid(isDark: isDark)),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
@@ -255,9 +264,9 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: ledgerAsync.when(
-                      loading: () => const _CommissionCard.loading(),
-                      error: (e, _) => _SectionCard(child: Text('Erreur: $e')),
-                      data: (ledger) => _CommissionCard(ledger: ledger),
+                      loading: () => _CommissionCard.loading(isDark: isDark),
+                      error: (e, _) => _SectionCard(isDark: isDark, child: Text('Erreur: $e')),
+                      data: (ledger) => _CommissionCard(ledger: ledger, isDark: isDark),
                     ),
                   ),
                 ),
@@ -271,6 +280,7 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                     child: _QuickStats(
                       productsAsync: productsAsync,
                       ordersAsync: ordersAsync,
+                      isDark: isDark,
                     ),
                   ),
                 ),
@@ -282,9 +292,9 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: ordersAsync.when(
-                      loading: () => const _LoadingCard(text: 'Chargement des commandes...'),
-                      error: (e, _) => _SectionCard(child: Text('Erreur: $e')),
-                      data: (orders) => _RecentOrders(orders: orders),
+                      loading: () => _LoadingCard(text: 'Chargement des commandes...', isDark: isDark),
+                      error: (e, _) => _SectionCard(isDark: isDark, child: Text('Erreur: $e')),
+                      data: (orders) => _RecentOrders(orders: orders, isDark: isDark),
                     ),
                   ),
                 ),
@@ -310,7 +320,8 @@ class _PetshopHomeScreenState extends ConsumerState<PetshopHomeScreen> {
 class _Header extends StatelessWidget {
   final String shopName;
   final VoidCallback? onAvatarTap;
-  const _Header({required this.shopName, this.onAvatarTap});
+  final bool isDark;
+  const _Header({required this.shopName, this.onAvatarTap, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -319,13 +330,17 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_PetshopColors.primary, Color(0xFF4CAF50)],
+          colors: [_PetshopColors.primary, Color(0xFFFF8A8A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 16, offset: Offset(0, 8)),
+        boxShadow: [
+          BoxShadow(
+            color: _PetshopColors.primary.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Row(
@@ -374,18 +389,20 @@ class _Header extends StatelessWidget {
 
 class _SectionCard extends StatelessWidget {
   final Widget child;
-  const _SectionCard({required this.child});
+  final bool isDark;
+  const _SectionCard({required this.child, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? _PetshopColors.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
-        ],
+        border: Border.all(color: isDark ? _PetshopColors.darkCardBorder : Colors.transparent),
+        boxShadow: isDark
+            ? null
+            : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
       ),
       child: child,
     );
@@ -394,20 +411,28 @@ class _SectionCard extends StatelessWidget {
 
 class _LoadingCard extends StatelessWidget {
   final String text;
-  const _LoadingCard({required this.text});
+  final bool isDark;
+  const _LoadingCard({required this.text, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
+      isDark: isDark,
       child: Row(
         children: [
           const SizedBox(
             height: 18,
             width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(strokeWidth: 2, color: _PetshopColors.primary),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            ),
+          ),
         ],
       ),
     );
@@ -417,7 +442,8 @@ class _LoadingCard extends StatelessWidget {
 class _PendingOrdersBanner extends StatelessWidget {
   final List<Map<String, dynamic>> orders;
   final VoidCallback onTap;
-  const _PendingOrdersBanner({required this.orders, required this.onTap});
+  final bool isDark;
+  const _PendingOrdersBanner({required this.orders, required this.onTap, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +455,7 @@ class _PendingOrdersBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
+          color: isDark ? Colors.orange.withOpacity(0.15) : Colors.orange.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.orange.withOpacity(0.3)),
         ),
@@ -451,10 +477,20 @@ class _PendingOrdersBanner extends StatelessWidget {
                 children: [
                   Text(
                     '$count commande${count > 1 ? 's' : ''} en attente',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text('Appuyez pour traiter', style: TextStyle(fontSize: 12)),
+                  Text(
+                    'Appuyez pour traiter',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : Colors.black54,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -472,7 +508,8 @@ class _PendingOrdersBanner extends StatelessWidget {
 }
 
 class _ActionGrid extends StatelessWidget {
-  const _ActionGrid();
+  final bool isDark;
+  const _ActionGrid({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +530,7 @@ class _ActionGrid extends StatelessWidget {
           mainAxisSpacing: 14,
         ),
         itemCount: items.length,
-        itemBuilder: (_, i) => _ActionCard(item: items[i]),
+        itemBuilder: (_, i) => _ActionCard(item: items[i], isDark: isDark),
       ),
     );
   }
@@ -509,7 +546,8 @@ class _Action {
 
 class _ActionCard extends StatefulWidget {
   final _Action item;
-  const _ActionCard({required this.item});
+  final bool isDark;
+  const _ActionCard({required this.item, required this.isDark});
 
   @override
   State<_ActionCard> createState() => _ActionCardState();
@@ -541,9 +579,15 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
         borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            color: it.color.withOpacity(.08),
+            color: widget.isDark
+                ? it.color.withOpacity(.12)
+                : it.color.withOpacity(.08),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: it.color.withOpacity(.16)),
+            border: Border.all(
+              color: widget.isDark
+                  ? it.color.withOpacity(.25)
+                  : it.color.withOpacity(.16),
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -559,7 +603,11 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
                   it.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: widget.isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
               ],
             ),
@@ -572,22 +620,24 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
 
 class _CommissionCard extends StatelessWidget {
   final _PetshopLedger? ledger;
-  const _CommissionCard({required this.ledger});
-  const _CommissionCard.loading() : ledger = null;
+  final bool isDark;
+  const _CommissionCard({required this.ledger, required this.isDark});
+  const _CommissionCard.loading({required this.isDark}) : ledger = null;
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
   Widget build(BuildContext context) {
     if (ledger == null) {
-      return const _SectionCard(
-        child: SizedBox(
+      return _SectionCard(
+        isDark: isDark,
+        child: const SizedBox(
           height: 48,
           child: Center(
             child: SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(strokeWidth: 2, color: _PetshopColors.primary),
             ),
           ),
         ),
@@ -600,7 +650,11 @@ class _CommissionCard extends StatelessWidget {
         .format(now)
         .replaceFirstMapped(RegExp(r'^\w'), (m) => m.group(0)!.toUpperCase());
 
+    final textPrimary = isDark ? Colors.white : Colors.black;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.black.withOpacity(.65);
+
     return _SectionCard(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -611,28 +665,28 @@ class _CommissionCard extends StatelessWidget {
                 height: 44,
                 width: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0E5),
+                  color: isDark ? _PetshopColors.primary.withOpacity(0.15) : const Color(0xFFFFF0E5),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.payments_outlined, color: Color(0xFFFB8C00)),
+                child: Icon(Icons.payments_outlined, color: isDark ? _PetshopColors.primary : const Color(0xFFFB8C00)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Commission du mois',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       monthLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.black.withOpacity(.65)),
+                      style: TextStyle(color: textSecondary),
                     ),
                   ],
                 ),
@@ -644,12 +698,12 @@ class _CommissionCard extends StatelessWidget {
           // Montant à payer
           Text(
             _da(l.netDue),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: textPrimary),
           ),
           const SizedBox(height: 4),
           Text(
             '${l.ordersCount} commande${l.ordersCount > 1 ? 's' : ''} livrée${l.ordersCount > 1 ? 's' : ''}',
-            style: TextStyle(color: Colors.black.withOpacity(.6)),
+            style: TextStyle(color: textSecondary),
           ),
           const SizedBox(height: 12),
 
@@ -673,9 +727,9 @@ class _CommissionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? _PetshopColors.darkCardBorder : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _PetshopColors.primarySoft),
+          border: Border.all(color: isDark ? _PetshopColors.darkCardBorder : _PetshopColors.primarySoft),
         ),
         child: Row(
           children: [
@@ -686,7 +740,7 @@ class _CommissionCard extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.black.withOpacity(.70)),
+                style: TextStyle(color: isDark ? Colors.grey[400] : Colors.black.withOpacity(.70)),
               ),
             ),
             const SizedBox(width: 8),
@@ -694,7 +748,7 @@ class _CommissionCard extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w800, color: isDark ? Colors.white : Colors.black),
             ),
           ],
         ),
@@ -706,7 +760,8 @@ class _CommissionCard extends StatelessWidget {
 class _QuickStats extends StatelessWidget {
   final AsyncValue<List<Map<String, dynamic>>> productsAsync;
   final AsyncValue<List<Map<String, dynamic>>> ordersAsync;
-  const _QuickStats({required this.productsAsync, required this.ordersAsync});
+  final bool isDark;
+  const _QuickStats({required this.productsAsync, required this.ordersAsync, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -720,12 +775,17 @@ class _QuickStats extends StatelessWidget {
     }).length;
 
     return _SectionCard(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Apercu rapide',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -736,6 +796,7 @@ class _QuickStats extends StatelessWidget {
                   label: 'Produits actifs',
                   value: '$activeProducts',
                   color: Colors.blue,
+                  isDark: isDark,
                 ),
               ),
               const SizedBox(width: 8),
@@ -745,6 +806,7 @@ class _QuickStats extends StatelessWidget {
                   label: 'Stock faible',
                   value: '$lowStock',
                   color: lowStock > 0 ? Colors.orange : Colors.green,
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -758,6 +820,7 @@ class _QuickStats extends StatelessWidget {
                   label: 'Total commandes',
                   value: '${orders.length}',
                   color: Colors.purple,
+                  isDark: isDark,
                 ),
               ),
               const SizedBox(width: 8),
@@ -770,6 +833,7 @@ class _QuickStats extends StatelessWidget {
                     return s == 'DELIVERED' || s == 'COMPLETED';
                   }).length}',
                   color: Colors.green,
+                  isDark: isDark,
                 ),
               ),
             ],
@@ -785,11 +849,13 @@ class _StatPill extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isDark;
   const _StatPill({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    required this.isDark,
   });
 
   @override
@@ -797,9 +863,9 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withOpacity(isDark ? 0.3 : 0.2)),
       ),
       child: Row(
         children: [
@@ -821,7 +887,7 @@ class _StatPill extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.black.withOpacity(0.6),
+                    color: isDark ? Colors.grey[400] : Colors.black.withOpacity(0.6),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -837,23 +903,28 @@ class _StatPill extends StatelessWidget {
 
 class _RecentOrders extends StatelessWidget {
   final List<Map<String, dynamic>> orders;
-  const _RecentOrders({required this.orders});
+  final bool isDark;
+  const _RecentOrders({required this.orders, required this.isDark});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.black.withOpacity(0.6);
+
     if (orders.isEmpty) {
       return _SectionCard(
+        isDark: isDark,
         child: Column(
           children: [
-            const Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey),
+            Icon(Icons.receipt_long_outlined, size: 48, color: isDark ? Colors.grey[600] : Colors.grey),
             const SizedBox(height: 12),
-            const Text('Aucune commande'),
+            Text('Aucune commande', style: TextStyle(color: textPrimary)),
             const SizedBox(height: 8),
             Text(
               'Les commandes de vos clients apparaitront ici',
-              style: TextStyle(color: Colors.black.withOpacity(0.6)),
+              style: TextStyle(color: textSecondary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -874,14 +945,15 @@ class _RecentOrders extends StatelessWidget {
     final recent = sorted.take(5).toList();
 
     return _SectionCard(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 'Commandes recentes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textPrimary),
               ),
               const Spacer(),
               TextButton(
@@ -916,7 +988,7 @@ class _RecentOrders extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: isDark ? _PetshopColors.darkCardBorder : Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -929,14 +1001,14 @@ class _RecentOrders extends StatelessWidget {
                       children: [
                         Text(
                           userName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
                         ),
                         if (date != null)
                           Text(
                             DateFormat('dd/MM HH:mm').format(date.toLocal()),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black.withOpacity(0.5),
+                              color: textSecondary,
                             ),
                           ),
                       ],
@@ -947,7 +1019,7 @@ class _RecentOrders extends StatelessWidget {
                     children: [
                       Text(
                         _da(baseTotal),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: TextStyle(fontWeight: FontWeight.w800, color: textPrimary),
                       ),
                       if (commissionDa > 0)
                         Text(
@@ -1008,7 +1080,7 @@ class _RecentOrders extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color, size: 20),
@@ -1054,7 +1126,7 @@ class _RecentOrders extends StatelessWidget {
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(isDark ? 0.2 : 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
