@@ -316,7 +316,12 @@ export class PetshopService {
     userId: string,
     providerId: string,
     items: { productId: string; quantity: number }[],
-    options?: { phone?: string; deliveryAddress?: string; notes?: string }
+    options?: {
+      phone?: string;
+      deliveryAddress?: string;
+      notes?: string;
+      deliveryMode?: 'delivery' | 'pickup';
+    }
   ) {
     if (!items || items.length === 0) {
       throw new BadRequestException('Order must contain at least one item');
@@ -325,7 +330,16 @@ export class PetshopService {
     // Verify provider exists and is a petshop
     const provider = await this.prisma.providerProfile.findUnique({
       where: { id: providerId },
-      select: { id: true, specialties: true, isApproved: true, petshopCommissionPercent: true },
+      select: {
+        id: true,
+        specialties: true,
+        isApproved: true,
+        petshopCommissionPercent: true,
+        deliveryEnabled: true,
+        pickupEnabled: true,
+        deliveryFeeDa: true,
+        freeDeliveryAboveDa: true,
+      },
     });
 
     if (!provider) {
@@ -385,7 +399,30 @@ export class PetshopService {
 
     // Calculate commission based on percentage of subtotal
     const commissionDa = Math.round(subtotalDa * commissionPercent / 100);
-    const totalDa = subtotalDa + commissionDa;
+
+    // Determine delivery mode and fees
+    const deliveryMode = options?.deliveryMode || 'pickup';
+
+    // Validate delivery mode
+    if (deliveryMode === 'delivery' && !provider.deliveryEnabled) {
+      throw new BadRequestException('Delivery is not available for this shop');
+    }
+    if (deliveryMode === 'pickup' && !provider.pickupEnabled) {
+      throw new BadRequestException('Pickup is not available for this shop');
+    }
+
+    // Calculate delivery fee
+    let deliveryFeeDa = 0;
+    if (deliveryMode === 'delivery') {
+      // Check if free delivery applies
+      if (provider.freeDeliveryAboveDa && subtotalDa >= provider.freeDeliveryAboveDa) {
+        deliveryFeeDa = 0;
+      } else {
+        deliveryFeeDa = provider.deliveryFeeDa || 0;
+      }
+    }
+
+    const totalDa = subtotalDa + commissionDa + deliveryFeeDa;
 
     // Create order with items in a transaction
     const order = await this.prisma.$transaction(async (tx) => {
@@ -396,7 +433,9 @@ export class PetshopService {
           providerId,
           subtotalDa,
           commissionDa,
+          deliveryFeeDa,
           totalDa,
+          deliveryMode,
           status: 'PENDING',
           phone: options?.phone,
           deliveryAddress: options?.deliveryAddress,
@@ -503,6 +542,79 @@ export class PetshopService {
         active: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get delivery options for a petshop provider
+   */
+  async getDeliveryOptions(providerId: string) {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: {
+        id: true,
+        deliveryEnabled: true,
+        pickupEnabled: true,
+        deliveryFeeDa: true,
+        freeDeliveryAboveDa: true,
+        specialties: true,
+        isApproved: true,
+      },
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    const kind = (provider.specialties as any)?.kind;
+    if (kind !== 'petshop') {
+      throw new BadRequestException('This provider is not a petshop');
+    }
+
+    return {
+      deliveryEnabled: provider.deliveryEnabled,
+      pickupEnabled: provider.pickupEnabled,
+      deliveryFeeDa: provider.deliveryFeeDa,
+      freeDeliveryAboveDa: provider.freeDeliveryAboveDa,
+    };
+  }
+
+  /**
+   * Update delivery options for petshop provider (pro side)
+   */
+  async updateDeliveryOptions(
+    userId: string,
+    options: {
+      deliveryEnabled?: boolean;
+      pickupEnabled?: boolean;
+      deliveryFeeDa?: number | null;
+      freeDeliveryAboveDa?: number | null;
+    }
+  ) {
+    const providerId = await this.getProviderIdForUser(userId);
+
+    // At least one option must be enabled
+    const deliveryEnabled = options.deliveryEnabled ?? true;
+    const pickupEnabled = options.pickupEnabled ?? true;
+
+    if (!deliveryEnabled && !pickupEnabled) {
+      throw new BadRequestException('Au moins une option (livraison ou retrait) doit être activée');
+    }
+
+    return this.prisma.providerProfile.update({
+      where: { id: providerId },
+      data: {
+        deliveryEnabled: options.deliveryEnabled,
+        pickupEnabled: options.pickupEnabled,
+        deliveryFeeDa: options.deliveryFeeDa,
+        freeDeliveryAboveDa: options.freeDeliveryAboveDa,
+      },
+      select: {
+        deliveryEnabled: true,
+        pickupEnabled: true,
+        deliveryFeeDa: true,
+        freeDeliveryAboveDa: true,
+      },
     });
   }
 }

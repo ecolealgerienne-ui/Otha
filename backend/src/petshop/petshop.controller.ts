@@ -160,6 +160,23 @@ export class PublicPetshopController {
   async listPublicProducts(@Param('id') providerId: string) {
     return this.petshop.listPublicProducts(providerId);
   }
+
+  @Get('delivery')
+  async getDeliveryOptions(@Param('id') providerId: string) {
+    return this.petshop.getDeliveryOptions(providerId);
+  }
+}
+
+// Endpoint also accessible via /petshop/providers/:id/delivery
+@ApiTags('petshop')
+@Controller({ path: 'petshop/providers/:id', version: '1' })
+export class PetshopPublicController {
+  constructor(private readonly petshop: PetshopService) {}
+
+  @Get('delivery')
+  async getDeliveryOptions(@Param('id') providerId: string) {
+    return this.petshop.getDeliveryOptions(providerId);
+  }
 }
 
 // ========= Customer Order Creation (auth requise) =========
@@ -180,6 +197,7 @@ export class CustomerOrderController {
       phone: dto.phone,
       deliveryAddress: dto.deliveryAddress,
       notes: dto.notes,
+      deliveryMode: dto.deliveryMode,
     });
   }
 
@@ -218,6 +236,7 @@ export class PetshopOrderController {
       phone: dto.phone,
       deliveryAddress: dto.deliveryAddress,
       notes: dto.notes,
+      deliveryMode: dto.deliveryMode,
     });
   }
 }

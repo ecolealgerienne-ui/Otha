@@ -88,6 +88,18 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
+    // Delivery options
+    final deliveryEnabled = m['deliveryEnabled'] == true;
+    final pickupEnabled = m['pickupEnabled'] != false; // Default true
+    final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt();
+    final freeDeliveryAboveDa = (m['freeDeliveryAboveDa'] as num?)?.toInt();
+
+    // Calculate open/close status based on current time and day
+    // Simple logic: assume open 9:00-19:00 every day for now
+    final now = DateTime.now();
+    final hour = now.hour;
+    final isOpen = hour >= 9 && hour < 19;
+
     return <String, dynamic>{
       'id': id,
       'displayName': name,
@@ -96,6 +108,11 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
       'distanceKm': dKm,
       'categories': categories,
       'avatarUrl': avatarUrl,
+      'deliveryEnabled': deliveryEnabled,
+      'pickupEnabled': pickupEnabled,
+      'deliveryFeeDa': deliveryFeeDa,
+      'freeDeliveryAboveDa': freeDeliveryAboveDa,
+      'isOpen': isOpen,
     };
   }).toList();
 
@@ -260,6 +277,11 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
                             address: (m['address'] ?? '').toString(),
                             categories: (m['categories'] as List<String>?) ?? [],
                             avatarUrl: (m['avatarUrl'] ?? '').toString(),
+                            deliveryEnabled: m['deliveryEnabled'] == true,
+                            pickupEnabled: m['pickupEnabled'] != false,
+                            deliveryFeeDa: m['deliveryFeeDa'] as int?,
+                            freeDeliveryAboveDa: m['freeDeliveryAboveDa'] as int?,
+                            isOpen: m['isOpen'] == true,
                             isDark: isDark,
                           ),
                         );
@@ -475,6 +497,11 @@ class _PetshopCard extends StatelessWidget {
     this.distanceKm,
     this.categories = const [],
     this.avatarUrl = '',
+    this.deliveryEnabled = false,
+    this.pickupEnabled = true,
+    this.deliveryFeeDa,
+    this.freeDeliveryAboveDa,
+    this.isOpen = true,
   });
 
   final String id;
@@ -485,6 +512,11 @@ class _PetshopCard extends StatelessWidget {
   final List<String> categories;
   final String avatarUrl;
   final bool isDark;
+  final bool deliveryEnabled;
+  final bool pickupEnabled;
+  final int? deliveryFeeDa;
+  final int? freeDeliveryAboveDa;
+  final bool isOpen;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -652,18 +684,49 @@ class _PetshopCard extends StatelessWidget {
                   ),
                 ),
 
+              // Delivery/Pickup badges
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (deliveryEnabled)
+                      _OptionBadge(
+                        icon: Icons.local_shipping_rounded,
+                        label: deliveryFeeDa != null && deliveryFeeDa! > 0
+                            ? 'Livraison $deliveryFeeDa DA'
+                            : 'Livraison',
+                        color: Colors.blue,
+                        isDark: isDark,
+                        subLabel: freeDeliveryAboveDa != null
+                            ? 'Gratuite dès $freeDeliveryAboveDa DA'
+                            : null,
+                      ),
+                    if (pickupEnabled)
+                      _OptionBadge(
+                        icon: Icons.store_rounded,
+                        label: 'Retrait sur place',
+                        color: Colors.purple,
+                        isDark: isDark,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // Bottom action row
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Row(
                   children: [
-                    // Status badge
+                    // Status badge (open/closed)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.green.withOpacity(0.15)
-                            : Colors.green.shade50,
+                        color: isOpen
+                            ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green.shade50)
+                            : (isDark ? Colors.red.withOpacity(0.15) : Colors.red.shade50),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
@@ -672,18 +735,20 @@ class _PetshopCard extends StatelessWidget {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
+                            decoration: BoxDecoration(
+                              color: isOpen ? Colors.green : Colors.red,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Ouvert',
+                            isOpen ? 'Ouvert' : 'Fermé',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.green[300] : Colors.green[700],
+                              color: isOpen
+                                  ? (isDark ? Colors.green[300] : Colors.green[700])
+                                  : (isDark ? Colors.red[300] : Colors.red[700]),
                             ),
                           ),
                         ],
@@ -728,6 +793,69 @@ class _PetshopCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OPTION BADGE (Delivery/Pickup)
+// ═══════════════════════════════════════════════════════════════
+
+class _OptionBadge extends StatelessWidget {
+  const _OptionBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+    this.subLabel,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  final String? subLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? color.withOpacity(0.3) : color.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isDark ? color.withOpacity(0.8) : color),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? color.withOpacity(0.9) : color.withOpacity(0.8),
+                ),
+              ),
+              if (subLabel != null)
+                Text(
+                  subLabel!,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
