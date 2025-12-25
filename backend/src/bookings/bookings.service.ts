@@ -988,10 +988,13 @@ export class BookingsService {
     });
     if (!b) throw new NotFoundException('Booking not found');
 
-    // ✅ Déterminer le statut selon la méthode
+    // ✅ Déterminer le statut selon la méthode ET le statut actuel
     // - QR_SCAN = validation réelle → COMPLETED
-    // - SIMPLE / AUTO = simple acceptation → CONFIRMED
-    const isValidation = method === 'QR_SCAN';
+    // - Si déjà CONFIRMED et pro re-confirme (simple clic) → COMPLETED (valide la visite)
+    // - Si PENDING et SIMPLE/AUTO → CONFIRMED (simple acceptation)
+    const isQrScan = method === 'QR_SCAN';
+    const alreadyConfirmed = b.status === 'CONFIRMED';
+    const isValidation = isQrScan || alreadyConfirmed;
     const newStatus = isValidation ? 'COMPLETED' : 'CONFIRMED';
 
     // ✅ Marquer comme confirmé par le pro avec la méthode de confirmation
