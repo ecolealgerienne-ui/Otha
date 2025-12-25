@@ -3897,11 +3897,10 @@ class AppLocalizations {
   String get homeDelivery => _get('homeDelivery');
   String get homeDeliveryHint => _get('homeDeliveryHint');
   String get deliveryWarning => _get('deliveryWarning');
-  String get description => _get('description');
   String get descriptionHint => _get('descriptionHint');
   String get descriptionPlaceholder => _get('descriptionPlaceholder');
   String get profileUpdated => _get('profileUpdated');
-  String get approved => _get('approved');
+  String get pending => _get('pending');
   // Petshop Product
   String get newProduct => _get('newProduct');
   String get editProduct => _get('editProduct');

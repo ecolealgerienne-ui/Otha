@@ -50,9 +50,14 @@ class _PetshopSettingsScreenState extends ConsumerState<PetshopSettingsScreen> {
       // Load provider info
       try {
         final raw = await api.myProvider();
-        final p = (raw is Map && raw.containsKey('data'))
-            ? (raw['data'] as Map<String, dynamic>? ?? {})
-            : (raw as Map<String, dynamic>? ?? {});
+        Map<String, dynamic> p = {};
+        if (raw is Map<String, dynamic>) {
+          if (raw.containsKey('data') && raw['data'] is Map<String, dynamic>) {
+            p = raw['data'] as Map<String, dynamic>;
+          } else {
+            p = raw;
+          }
+        }
         _providerId = (p['id'] ?? '').toString().isEmpty ? null : (p['id'] ?? '').toString();
         _avatarUrl = (p['avatarUrl'] ?? p['photoUrl'] ?? _me['photoUrl'] ?? '').toString();
       } catch (_) {}
