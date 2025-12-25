@@ -48,7 +48,20 @@ export function AdminCommissions() {
     setLoading(true);
     try {
       const data = await api.adminGetCommissions(undefined, showApprovedOnly ? true : undefined);
-      setProviders(Array.isArray(data) ? data : []);
+      // Map data and ensure all fields have defaults
+      const mapped = (Array.isArray(data) ? data : []).map((p: any) => ({
+        providerId: p.providerId || '',
+        userId: p.userId || '',
+        displayName: p.displayName || '',
+        email: p.email || '',
+        isApproved: p.isApproved ?? false,
+        kind: p.kind || 'vet',
+        vetCommissionDa: p.vetCommissionDa ?? 100,
+        daycareHourlyCommissionDa: p.daycareHourlyCommissionDa ?? 10,
+        daycareDailyCommissionDa: p.daycareDailyCommissionDa ?? 100,
+        petshopCommissionPercent: p.petshopCommissionPercent ?? 5,
+      }));
+      setProviders(mapped);
     } catch (error) {
       console.error('Error fetching commissions:', error);
       setProviders([]);
