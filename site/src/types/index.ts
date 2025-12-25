@@ -142,10 +142,15 @@ export interface DaycareBooking {
   providerId: string;
   petId: string;
   scheduledDate: string;
+  startDate?: string;
+  endDate?: string;
   dropOffTime?: string;
   pickupTime?: string;
   status: DaycareStatus;
   notes?: string;
+  priceDa?: number;       // Prix de base
+  commissionDa?: number;  // Commission
+  totalDa?: number;       // Total (base + commission)
   lateFee?: number;
   user?: User;
   provider?: ProviderProfile;
