@@ -1054,6 +1054,8 @@ class AppLocalizations {
       'myShop': 'Ma boutique',
       'shopInfo': 'Informations boutique',
       'shopNameHint': 'Nom de votre boutique',
+      'city': 'Ville',
+      'cityHint': 'Ex: Alger, Oran, Constantine...',
       'openingHours': 'Horaires d\'ouverture',
       'openingHoursHint': 'Définissez vos jours et heures d\'ouverture',
       'monday': 'Lundi',
@@ -2011,6 +2013,8 @@ class AppLocalizations {
       'myShop': 'My shop',
       'shopInfo': 'Shop information',
       'shopNameHint': 'Your shop name',
+      'city': 'City',
+      'cityHint': 'E.g.: Algiers, Oran, Constantine...',
       'openingHours': 'Opening hours',
       'openingHoursHint': 'Set your opening days and hours',
       'monday': 'Monday',
@@ -2968,6 +2972,8 @@ class AppLocalizations {
       'myShop': 'متجري',
       'shopInfo': 'معلومات المتجر',
       'shopNameHint': 'اسم متجرك',
+      'city': 'المدينة',
+      'cityHint': 'مثال: الجزائر، وهران، قسنطينة...',
       'openingHours': 'ساعات العمل',
       'openingHoursHint': 'حدد أيام وساعات العمل',
       'monday': 'الإثنين',
@@ -3880,6 +3886,8 @@ class AppLocalizations {
   String get myShop => _get('myShop');
   String get shopInfo => _get('shopInfo');
   String get shopNameHint => _get('shopNameHint');
+  String get city => _get('city');
+  String get cityHint => _get('cityHint');
   String get openingHours => _get('openingHours');
   String get openingHoursHint => _get('openingHoursHint');
   String get monday => _get('monday');

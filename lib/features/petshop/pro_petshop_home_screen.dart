@@ -517,7 +517,6 @@ class _ActionGrid extends StatelessWidget {
       _Action('Produits', Icons.inventory_2, '/petshop/products', const Color(0xFF3A86FF)),
       _Action('Commandes', Icons.receipt_long, '/petshop/orders', const Color(0xFFFF6D00)),
       _Action('Ma boutique', Icons.storefront, '/petshop/shop', const Color(0xFF8338EC)),
-      _Action('Parametres', Icons.settings, '/petshop/settings', const Color(0xFF6B7280)),
     ];
 
     return Padding(

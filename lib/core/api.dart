@@ -3416,8 +3416,8 @@ final hay = [
       if (freeDeliveryAboveDa != null) 'freeDeliveryAboveDa': freeDeliveryAboveDa,
     };
     final paths = <String>[
-      '/petshop/my/delivery',
-      '/providers/my/delivery',
+      '/petshop/me/delivery',
+      '/providers/me/delivery',
     ];
     DioException? last;
     for (final path in paths) {

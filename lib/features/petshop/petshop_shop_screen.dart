@@ -591,13 +591,13 @@ class _PetshopShopScreenState extends ConsumerState<PetshopShopScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Address
-          Text(tr.address, style: TextStyle(fontWeight: FontWeight.w600, color: textSecondary, fontSize: 13)),
+          // City
+          Text(tr.city, style: TextStyle(fontWeight: FontWeight.w600, color: textSecondary, fontSize: 13)),
           const SizedBox(height: 6),
           TextField(
             controller: _address,
             style: TextStyle(color: textPrimary),
-            decoration: _inputDecoration(isDark, tr.addressHint),
+            decoration: _inputDecoration(isDark, tr.cityHint),
           ),
         ],
       ),
