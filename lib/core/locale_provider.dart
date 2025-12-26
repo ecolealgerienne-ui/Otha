@@ -1101,6 +1101,102 @@ class AppLocalizations {
       'deleteProductConfirm': 'Cette action est irréversible. Confirmez-vous la suppression ?',
       'titleRequired': 'Le titre est requis',
       'priceRequired': 'Le prix est requis',
+      // Petshop User Pages
+      'petshopSearchHint': 'Rechercher une animalerie...',
+      'petshopNoResult': 'Aucun résultat',
+      'petshopNoShops': 'Aucune animalerie',
+      'petshopTryOtherSearch': 'Essayez avec d\'autres termes de recherche',
+      'petshopNoShopsAvailable': 'Aucune animalerie disponible pour le moment',
+      'petshopClearSearch': 'Effacer la recherche',
+      'petshopViewProducts': 'Voir produits',
+      'petshopOpen': 'Ouvert',
+      'petshopClosed': 'Fermé',
+      'petshopClosedUntil': 'Fermé · Ouvre à',
+      'petshopDelivery': 'Livraison',
+      'petshopPickup': 'Retrait sur place',
+      'petshopFreeDeliveryFrom': 'Gratuite dès',
+      'petshopSearchProduct': 'Rechercher un produit...',
+      'petshopNoProduct': 'Aucun produit trouvé',
+      'petshopTryModifySearch': 'Essayez de modifier votre recherche',
+      'petshopAll': 'Tous',
+      'petshopOutOfStock': 'Rupture',
+      'petshopAddedToCart': 'ajouté au panier',
+      'petshopMyCart': 'Mon panier',
+      'petshopClear': 'Vider',
+      'petshopOrder': 'Commander',
+      'petshopArticle': 'article',
+      'petshopArticles': 'articles',
+      'petshopModify': 'Modifier',
+      // Checkout
+      'petshopFinalizeOrder': 'Finaliser la commande',
+      'petshopEmptyCart': 'Votre panier est vide',
+      'petshopAddProductsToOrder': 'Ajoutez des produits pour commander',
+      'petshopBackToProducts': 'Retour aux produits',
+      'petshopInfoFromProfile': 'Informations préremplies depuis votre profil',
+      'petshopReceptionMode': 'Mode de réception',
+      'petshopPickupOption': 'Retrait sur place',
+      'petshopPickupHint': 'Récupérez votre commande en boutique',
+      'petshopDeliveryOption': 'Livraison à domicile',
+      'petshopFreeDelivery': 'Livraison gratuite!',
+      'petshopFree': 'Gratuit',
+      'petshopFreeDeliveryInfo': 'Livraison gratuite dès',
+      'petshopPurchase': 'd\'achat!',
+      'petshopPhoneNumber': 'Numéro de téléphone',
+      'petshopPhoneRequired': 'Le numéro de téléphone est requis',
+      'petshopInvalidPhone': 'Numéro invalide',
+      'petshopDeliveryAddress': 'Adresse de livraison',
+      'petshopAddressHint': 'Numéro, rue, quartier, wilaya...',
+      'petshopAddressRequired': 'L\'adresse est requise',
+      'petshopAddressTooShort': 'Adresse trop courte',
+      'petshopDeliveryInstructions': 'Instructions de livraison',
+      'petshopSellerNotes': 'Notes pour le vendeur',
+      'petshopOptional': 'Optionnel',
+      'petshopDeliveryExample': 'Ex: Sonner 2 fois, code porte 1234...',
+      'petshopPickupExample': 'Ex: Je passerai vers 14h...',
+      'petshopSummary': 'Récapitulatif',
+      'petshopSubtotal': 'Sous-total',
+      'petshopDeliveryFee': 'Frais de livraison',
+      'petshopDeliveryFeeToDiscuss': 'À discuter avec le magasin',
+      'petshopServiceFee': 'Frais de service',
+      'petshopTotal': 'Total',
+      'petshopTotalToPay': 'Total à payer',
+      'petshopConfirm': 'Confirmer',
+      // Order Confirmation
+      'petshopOrderConfirmed': 'Commande confirmée !',
+      'petshopOrderSentSuccess': 'Votre commande a été envoyée avec succès.',
+      'petshopSellerWillContact': 'Le vendeur vous contactera pour la livraison.',
+      'petshopDeliveryFeeNote': '(+ frais de livraison à convenir avec le vendeur)',
+      'petshopViewMyOrder': 'Voir ma commande',
+      'petshopBackToHome': 'Retourner à l\'accueil',
+      // Order Detail
+      'petshopMyOrder': 'Ma commande',
+      'petshopOrderNotFound': 'Commande introuvable',
+      'petshopOrderedOn': 'Commandée le',
+      'petshopSeller': 'Vendeur',
+      'petshopOrderItems': 'Articles',
+      'petshopDeliveryInfo': 'Livraison',
+      'petshopPickupInfo': 'Retrait',
+      'petshopReadyForPickup': 'Prête à récupérer',
+      'petshopGoToStore': 'Itinéraire',
+      'petshopConfirmReception': 'Confirmer la réception',
+      'petshopCancelOrder': 'Annuler la commande',
+      'petshopConfirmReceptionQuestion': 'Confirmer la réception ?',
+      'petshopReceivedOrder': 'Avez-vous bien reçu votre commande ?',
+      'petshopNo': 'Non',
+      'petshopYesReceived': 'Oui, j\'ai reçu',
+      'petshopCancelOrderQuestion': 'Annuler la commande ?',
+      'petshopCancelIrreversible': 'Cette action est irréversible.',
+      'petshopYesCancel': 'Oui, annuler',
+      'petshopReceptionConfirmed': 'Réception confirmée !',
+      'petshopOrderCancelled': 'Commande annulée',
+      'petshopOrderDelivered': 'Commande livrée',
+      // Order Status
+      'petshopStatusPending': 'En attente',
+      'petshopStatusConfirmed': 'Confirmée',
+      'petshopStatusPreparing': 'En préparation',
+      'petshopStatusReady': 'Prête',
+      'petshopStatusDelivered': 'Livrée',
+      'petshopStatusCancelled': 'Annulée',
     },
     'en': {
       'appName': 'Vegece',
@@ -2060,6 +2156,102 @@ class AppLocalizations {
       'deleteProductConfirm': 'This action is irreversible. Confirm deletion?',
       'titleRequired': 'Title is required',
       'priceRequired': 'Price is required',
+      // Petshop User Pages
+      'petshopSearchHint': 'Search pet shops...',
+      'petshopNoResult': 'No results',
+      'petshopNoShops': 'No pet shops',
+      'petshopTryOtherSearch': 'Try different search terms',
+      'petshopNoShopsAvailable': 'No pet shops available at the moment',
+      'petshopClearSearch': 'Clear search',
+      'petshopViewProducts': 'View products',
+      'petshopOpen': 'Open',
+      'petshopClosed': 'Closed',
+      'petshopClosedUntil': 'Closed · Opens at',
+      'petshopDelivery': 'Delivery',
+      'petshopPickup': 'In-store pickup',
+      'petshopFreeDeliveryFrom': 'Free from',
+      'petshopSearchProduct': 'Search for a product...',
+      'petshopNoProduct': 'No products found',
+      'petshopTryModifySearch': 'Try modifying your search',
+      'petshopAll': 'All',
+      'petshopOutOfStock': 'Out of stock',
+      'petshopAddedToCart': 'added to cart',
+      'petshopMyCart': 'My cart',
+      'petshopClear': 'Clear',
+      'petshopOrder': 'Order',
+      'petshopArticle': 'item',
+      'petshopArticles': 'items',
+      'petshopModify': 'Edit',
+      // Checkout
+      'petshopFinalizeOrder': 'Finalize order',
+      'petshopEmptyCart': 'Your cart is empty',
+      'petshopAddProductsToOrder': 'Add products to order',
+      'petshopBackToProducts': 'Back to products',
+      'petshopInfoFromProfile': 'Information pre-filled from your profile',
+      'petshopReceptionMode': 'Reception mode',
+      'petshopPickupOption': 'In-store pickup',
+      'petshopPickupHint': 'Pick up your order at the store',
+      'petshopDeliveryOption': 'Home delivery',
+      'petshopFreeDelivery': 'Free delivery!',
+      'petshopFree': 'Free',
+      'petshopFreeDeliveryInfo': 'Free delivery from',
+      'petshopPurchase': 'purchase!',
+      'petshopPhoneNumber': 'Phone number',
+      'petshopPhoneRequired': 'Phone number is required',
+      'petshopInvalidPhone': 'Invalid number',
+      'petshopDeliveryAddress': 'Delivery address',
+      'petshopAddressHint': 'Number, street, neighborhood, state...',
+      'petshopAddressRequired': 'Address is required',
+      'petshopAddressTooShort': 'Address too short',
+      'petshopDeliveryInstructions': 'Delivery instructions',
+      'petshopSellerNotes': 'Notes for seller',
+      'petshopOptional': 'Optional',
+      'petshopDeliveryExample': 'Ex: Ring twice, door code 1234...',
+      'petshopPickupExample': 'Ex: I\'ll come around 2pm...',
+      'petshopSummary': 'Summary',
+      'petshopSubtotal': 'Subtotal',
+      'petshopDeliveryFee': 'Delivery fee',
+      'petshopDeliveryFeeToDiscuss': 'To discuss with the store',
+      'petshopServiceFee': 'Service fee',
+      'petshopTotal': 'Total',
+      'petshopTotalToPay': 'Total to pay',
+      'petshopConfirm': 'Confirm',
+      // Order Confirmation
+      'petshopOrderConfirmed': 'Order confirmed!',
+      'petshopOrderSentSuccess': 'Your order has been sent successfully.',
+      'petshopSellerWillContact': 'The seller will contact you for delivery.',
+      'petshopDeliveryFeeNote': '(+ delivery fee to agree with the seller)',
+      'petshopViewMyOrder': 'View my order',
+      'petshopBackToHome': 'Back to home',
+      // Order Detail
+      'petshopMyOrder': 'My order',
+      'petshopOrderNotFound': 'Order not found',
+      'petshopOrderedOn': 'Ordered on',
+      'petshopSeller': 'Seller',
+      'petshopOrderItems': 'Items',
+      'petshopDeliveryInfo': 'Delivery',
+      'petshopPickupInfo': 'Pickup',
+      'petshopReadyForPickup': 'Ready for pickup',
+      'petshopGoToStore': 'Directions',
+      'petshopConfirmReception': 'Confirm reception',
+      'petshopCancelOrder': 'Cancel order',
+      'petshopConfirmReceptionQuestion': 'Confirm reception?',
+      'petshopReceivedOrder': 'Have you received your order?',
+      'petshopNo': 'No',
+      'petshopYesReceived': 'Yes, I received it',
+      'petshopCancelOrderQuestion': 'Cancel order?',
+      'petshopCancelIrreversible': 'This action is irreversible.',
+      'petshopYesCancel': 'Yes, cancel',
+      'petshopReceptionConfirmed': 'Reception confirmed!',
+      'petshopOrderCancelled': 'Order cancelled',
+      'petshopOrderDelivered': 'Order delivered',
+      // Order Status
+      'petshopStatusPending': 'Pending',
+      'petshopStatusConfirmed': 'Confirmed',
+      'petshopStatusPreparing': 'Preparing',
+      'petshopStatusReady': 'Ready',
+      'petshopStatusDelivered': 'Delivered',
+      'petshopStatusCancelled': 'Cancelled',
     },
     'ar': {
       'appName': 'فيجيس',
@@ -3019,6 +3211,102 @@ class AppLocalizations {
       'deleteProductConfirm': 'هذا الإجراء لا يمكن التراجع عنه. هل تؤكد الحذف؟',
       'titleRequired': 'العنوان مطلوب',
       'priceRequired': 'السعر مطلوب',
+      // Petshop User Pages
+      'petshopSearchHint': 'البحث عن متجر حيوانات...',
+      'petshopNoResult': 'لا توجد نتائج',
+      'petshopNoShops': 'لا توجد متاجر حيوانات',
+      'petshopTryOtherSearch': 'جرب مصطلحات بحث أخرى',
+      'petshopNoShopsAvailable': 'لا توجد متاجر حيوانات متاحة حاليًا',
+      'petshopClearSearch': 'مسح البحث',
+      'petshopViewProducts': 'عرض المنتجات',
+      'petshopOpen': 'مفتوح',
+      'petshopClosed': 'مغلق',
+      'petshopClosedUntil': 'مغلق · يفتح في',
+      'petshopDelivery': 'توصيل',
+      'petshopPickup': 'استلام من المتجر',
+      'petshopFreeDeliveryFrom': 'توصيل مجاني من',
+      'petshopSearchProduct': 'البحث عن منتج...',
+      'petshopNoProduct': 'لم يتم العثور على منتجات',
+      'petshopTryModifySearch': 'حاول تعديل بحثك',
+      'petshopAll': 'الكل',
+      'petshopOutOfStock': 'نفذ المخزون',
+      'petshopAddedToCart': 'أُضيف إلى السلة',
+      'petshopMyCart': 'سلتي',
+      'petshopClear': 'إفراغ',
+      'petshopOrder': 'طلب',
+      'petshopArticle': 'منتج',
+      'petshopArticles': 'منتجات',
+      'petshopModify': 'تعديل',
+      // Checkout
+      'petshopFinalizeOrder': 'إتمام الطلب',
+      'petshopEmptyCart': 'سلتك فارغة',
+      'petshopAddProductsToOrder': 'أضف منتجات للطلب',
+      'petshopBackToProducts': 'العودة إلى المنتجات',
+      'petshopInfoFromProfile': 'معلومات معبأة مسبقًا من ملفك الشخصي',
+      'petshopReceptionMode': 'طريقة الاستلام',
+      'petshopPickupOption': 'استلام من المتجر',
+      'petshopPickupHint': 'استلم طلبك من المتجر',
+      'petshopDeliveryOption': 'توصيل للمنزل',
+      'petshopFreeDelivery': 'توصيل مجاني!',
+      'petshopFree': 'مجاني',
+      'petshopFreeDeliveryInfo': 'توصيل مجاني من',
+      'petshopPurchase': 'شراء!',
+      'petshopPhoneNumber': 'رقم الهاتف',
+      'petshopPhoneRequired': 'رقم الهاتف مطلوب',
+      'petshopInvalidPhone': 'رقم غير صالح',
+      'petshopDeliveryAddress': 'عنوان التوصيل',
+      'petshopAddressHint': 'الرقم، الشارع، الحي، الولاية...',
+      'petshopAddressRequired': 'العنوان مطلوب',
+      'petshopAddressTooShort': 'العنوان قصير جدًا',
+      'petshopDeliveryInstructions': 'تعليمات التوصيل',
+      'petshopSellerNotes': 'ملاحظات للبائع',
+      'petshopOptional': 'اختياري',
+      'petshopDeliveryExample': 'مثال: اطرق مرتين، رمز الباب 1234...',
+      'petshopPickupExample': 'مثال: سأمر حوالي الساعة 2 مساءً...',
+      'petshopSummary': 'ملخص',
+      'petshopSubtotal': 'المجموع الفرعي',
+      'petshopDeliveryFee': 'رسوم التوصيل',
+      'petshopDeliveryFeeToDiscuss': 'للاتفاق مع المتجر',
+      'petshopServiceFee': 'رسوم الخدمة',
+      'petshopTotal': 'المجموع',
+      'petshopTotalToPay': 'المبلغ الإجمالي',
+      'petshopConfirm': 'تأكيد',
+      // Order Confirmation
+      'petshopOrderConfirmed': 'تم تأكيد الطلب!',
+      'petshopOrderSentSuccess': 'تم إرسال طلبك بنجاح.',
+      'petshopSellerWillContact': 'سيتواصل معك البائع للتوصيل.',
+      'petshopDeliveryFeeNote': '(+ رسوم التوصيل للاتفاق مع البائع)',
+      'petshopViewMyOrder': 'عرض طلبي',
+      'petshopBackToHome': 'العودة للرئيسية',
+      // Order Detail
+      'petshopMyOrder': 'طلبي',
+      'petshopOrderNotFound': 'الطلب غير موجود',
+      'petshopOrderedOn': 'تم الطلب في',
+      'petshopSeller': 'البائع',
+      'petshopOrderItems': 'المنتجات',
+      'petshopDeliveryInfo': 'التوصيل',
+      'petshopPickupInfo': 'الاستلام',
+      'petshopReadyForPickup': 'جاهز للاستلام',
+      'petshopGoToStore': 'الاتجاهات',
+      'petshopConfirmReception': 'تأكيد الاستلام',
+      'petshopCancelOrder': 'إلغاء الطلب',
+      'petshopConfirmReceptionQuestion': 'تأكيد الاستلام؟',
+      'petshopReceivedOrder': 'هل استلمت طلبك؟',
+      'petshopNo': 'لا',
+      'petshopYesReceived': 'نعم، استلمته',
+      'petshopCancelOrderQuestion': 'إلغاء الطلب؟',
+      'petshopCancelIrreversible': 'هذا الإجراء لا يمكن التراجع عنه.',
+      'petshopYesCancel': 'نعم، إلغاء',
+      'petshopReceptionConfirmed': 'تم تأكيد الاستلام!',
+      'petshopOrderCancelled': 'تم إلغاء الطلب',
+      'petshopOrderDelivered': 'تم توصيل الطلب',
+      // Order Status
+      'petshopStatusPending': 'قيد الانتظار',
+      'petshopStatusConfirmed': 'مؤكد',
+      'petshopStatusPreparing': 'قيد التحضير',
+      'petshopStatusReady': 'جاهز',
+      'petshopStatusDelivered': 'تم التوصيل',
+      'petshopStatusCancelled': 'ملغي',
     },
   };
 
@@ -3931,6 +4219,98 @@ class AppLocalizations {
   String get deleteProductConfirm => _get('deleteProductConfirm');
   String get titleRequired => _get('titleRequired');
   String get priceRequired => _get('priceRequired');
+  // Petshop User Pages
+  String get petshopSearchHint => _get('petshopSearchHint');
+  String get petshopNoResult => _get('petshopNoResult');
+  String get petshopNoShops => _get('petshopNoShops');
+  String get petshopTryOtherSearch => _get('petshopTryOtherSearch');
+  String get petshopNoShopsAvailable => _get('petshopNoShopsAvailable');
+  String get petshopClearSearch => _get('petshopClearSearch');
+  String get petshopViewProducts => _get('petshopViewProducts');
+  String get petshopOpen => _get('petshopOpen');
+  String get petshopClosed => _get('petshopClosed');
+  String get petshopClosedUntil => _get('petshopClosedUntil');
+  String get petshopDelivery => _get('petshopDelivery');
+  String get petshopPickup => _get('petshopPickup');
+  String get petshopFreeDeliveryFrom => _get('petshopFreeDeliveryFrom');
+  String get petshopSearchProduct => _get('petshopSearchProduct');
+  String get petshopNoProduct => _get('petshopNoProduct');
+  String get petshopTryModifySearch => _get('petshopTryModifySearch');
+  String get petshopAll => _get('petshopAll');
+  String get petshopOutOfStock => _get('petshopOutOfStock');
+  String get petshopAddedToCart => _get('petshopAddedToCart');
+  String get petshopMyCart => _get('petshopMyCart');
+  String get petshopClear => _get('petshopClear');
+  String get petshopOrder => _get('petshopOrder');
+  String get petshopArticle => _get('petshopArticle');
+  String get petshopArticles => _get('petshopArticles');
+  String get petshopModify => _get('petshopModify');
+  String get petshopFinalizeOrder => _get('petshopFinalizeOrder');
+  String get petshopEmptyCart => _get('petshopEmptyCart');
+  String get petshopAddProductsToOrder => _get('petshopAddProductsToOrder');
+  String get petshopBackToProducts => _get('petshopBackToProducts');
+  String get petshopInfoFromProfile => _get('petshopInfoFromProfile');
+  String get petshopReceptionMode => _get('petshopReceptionMode');
+  String get petshopPickupOption => _get('petshopPickupOption');
+  String get petshopPickupHint => _get('petshopPickupHint');
+  String get petshopDeliveryOption => _get('petshopDeliveryOption');
+  String get petshopFreeDelivery => _get('petshopFreeDelivery');
+  String get petshopFree => _get('petshopFree');
+  String get petshopFreeDeliveryInfo => _get('petshopFreeDeliveryInfo');
+  String get petshopPurchase => _get('petshopPurchase');
+  String get petshopPhoneNumber => _get('petshopPhoneNumber');
+  String get petshopPhoneRequired => _get('petshopPhoneRequired');
+  String get petshopInvalidPhone => _get('petshopInvalidPhone');
+  String get petshopDeliveryAddress => _get('petshopDeliveryAddress');
+  String get petshopAddressHint => _get('petshopAddressHint');
+  String get petshopAddressRequired => _get('petshopAddressRequired');
+  String get petshopAddressTooShort => _get('petshopAddressTooShort');
+  String get petshopDeliveryInstructions => _get('petshopDeliveryInstructions');
+  String get petshopSellerNotes => _get('petshopSellerNotes');
+  String get petshopOptional => _get('petshopOptional');
+  String get petshopDeliveryExample => _get('petshopDeliveryExample');
+  String get petshopPickupExample => _get('petshopPickupExample');
+  String get petshopSummary => _get('petshopSummary');
+  String get petshopSubtotal => _get('petshopSubtotal');
+  String get petshopDeliveryFee => _get('petshopDeliveryFee');
+  String get petshopDeliveryFeeToDiscuss => _get('petshopDeliveryFeeToDiscuss');
+  String get petshopServiceFee => _get('petshopServiceFee');
+  String get petshopTotal => _get('petshopTotal');
+  String get petshopTotalToPay => _get('petshopTotalToPay');
+  String get petshopConfirm => _get('petshopConfirm');
+  String get petshopOrderConfirmed => _get('petshopOrderConfirmed');
+  String get petshopOrderSentSuccess => _get('petshopOrderSentSuccess');
+  String get petshopSellerWillContact => _get('petshopSellerWillContact');
+  String get petshopDeliveryFeeNote => _get('petshopDeliveryFeeNote');
+  String get petshopViewMyOrder => _get('petshopViewMyOrder');
+  String get petshopBackToHome => _get('petshopBackToHome');
+  String get petshopMyOrder => _get('petshopMyOrder');
+  String get petshopOrderNotFound => _get('petshopOrderNotFound');
+  String get petshopOrderedOn => _get('petshopOrderedOn');
+  String get petshopSeller => _get('petshopSeller');
+  String get petshopOrderItems => _get('petshopOrderItems');
+  String get petshopDeliveryInfo => _get('petshopDeliveryInfo');
+  String get petshopPickupInfo => _get('petshopPickupInfo');
+  String get petshopReadyForPickup => _get('petshopReadyForPickup');
+  String get petshopGoToStore => _get('petshopGoToStore');
+  String get petshopConfirmReception => _get('petshopConfirmReception');
+  String get petshopCancelOrder => _get('petshopCancelOrder');
+  String get petshopConfirmReceptionQuestion => _get('petshopConfirmReceptionQuestion');
+  String get petshopReceivedOrder => _get('petshopReceivedOrder');
+  String get petshopNo => _get('petshopNo');
+  String get petshopYesReceived => _get('petshopYesReceived');
+  String get petshopCancelOrderQuestion => _get('petshopCancelOrderQuestion');
+  String get petshopCancelIrreversible => _get('petshopCancelIrreversible');
+  String get petshopYesCancel => _get('petshopYesCancel');
+  String get petshopReceptionConfirmed => _get('petshopReceptionConfirmed');
+  String get petshopOrderCancelled => _get('petshopOrderCancelled');
+  String get petshopOrderDelivered => _get('petshopOrderDelivered');
+  String get petshopStatusPending => _get('petshopStatusPending');
+  String get petshopStatusConfirmed => _get('petshopStatusConfirmed');
+  String get petshopStatusPreparing => _get('petshopStatusPreparing');
+  String get petshopStatusReady => _get('petshopStatusReady');
+  String get petshopStatusDelivered => _get('petshopStatusDelivered');
+  String get petshopStatusCancelled => _get('petshopStatusCancelled');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

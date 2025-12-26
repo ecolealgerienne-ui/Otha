@@ -282,7 +282,9 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
                             deliveryFeeDa: m['deliveryFeeDa'] as int?,
                             freeDeliveryAboveDa: m['freeDeliveryAboveDa'] as int?,
                             isOpen: m['isOpen'] == true,
+                            openingHour: m['openingHour'] as int? ?? 9,
                             isDark: isDark,
+                            l10n: l10n,
                           ),
                         );
                       },
@@ -402,7 +404,7 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
                 onChanged: (v) => setState(() => _searchQuery = v),
                 style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'Rechercher une animalerie...',
+                  hintText: l10n.petshopSearchHint,
                   hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400]),
                   prefixIcon: Icon(Icons.search_rounded, color: isDark ? Colors.grey[400] : Colors.grey),
                   suffixIcon: _searchQuery.isNotEmpty
@@ -442,7 +444,7 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
             ),
             const SizedBox(height: 28),
             Text(
-              _searchQuery.isNotEmpty ? 'Aucun résultat' : 'Aucune animalerie',
+              _searchQuery.isNotEmpty ? l10n.petshopNoResult : l10n.petshopNoShops,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -452,8 +454,8 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
             const SizedBox(height: 10),
             Text(
               _searchQuery.isNotEmpty
-                  ? 'Essayez avec d\'autres termes de recherche'
-                  : 'Aucune animalerie disponible pour le moment',
+                  ? l10n.petshopTryOtherSearch
+                  : l10n.petshopNoShopsAvailable,
               style: TextStyle(
                 color: textSecondary,
                 fontSize: 14,
@@ -468,7 +470,7 @@ class _PetshopListScreenState extends ConsumerState<PetshopListScreen> {
                   setState(() => _searchQuery = '');
                 },
                 icon: const Icon(Icons.clear_rounded, size: 18),
-                label: const Text('Effacer la recherche'),
+                label: Text(l10n.petshopClearSearch),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _coral,
                   side: const BorderSide(color: _coral, width: 1.5),
@@ -494,6 +496,7 @@ class _PetshopCard extends StatelessWidget {
     required this.bio,
     required this.address,
     required this.isDark,
+    required this.l10n,
     this.distanceKm,
     this.categories = const [],
     this.avatarUrl = '',
@@ -502,6 +505,7 @@ class _PetshopCard extends StatelessWidget {
     this.deliveryFeeDa,
     this.freeDeliveryAboveDa,
     this.isOpen = true,
+    this.openingHour = 9,
   });
 
   final String id;
@@ -517,6 +521,8 @@ class _PetshopCard extends StatelessWidget {
   final int? deliveryFeeDa;
   final int? freeDeliveryAboveDa;
   final bool isOpen;
+  final int openingHour;
+  final AppLocalizations l10n;
 
   String _initials(String s) {
     final parts = s.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty);
@@ -568,10 +574,10 @@ class _PetshopCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar
+                    // Avatar - slightly bigger
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
                         color: isDark ? _coral.withOpacity(0.2) : _coralSoft,
                         borderRadius: BorderRadius.circular(16),
@@ -695,18 +701,18 @@ class _PetshopCard extends StatelessWidget {
                       _OptionBadge(
                         icon: Icons.local_shipping_rounded,
                         label: deliveryFeeDa != null && deliveryFeeDa! > 0
-                            ? 'Livraison $deliveryFeeDa DA'
-                            : 'Livraison',
+                            ? '${l10n.petshopDelivery} $deliveryFeeDa DA'
+                            : l10n.petshopDelivery,
                         color: Colors.blue,
                         isDark: isDark,
                         subLabel: freeDeliveryAboveDa != null
-                            ? 'Gratuite dès $freeDeliveryAboveDa DA'
+                            ? '${l10n.petshopFreeDeliveryFrom} $freeDeliveryAboveDa DA'
                             : null,
                       ),
                     if (pickupEnabled)
                       _OptionBadge(
                         icon: Icons.store_rounded,
-                        label: 'Retrait sur place',
+                        label: l10n.petshopPickup,
                         color: Colors.purple,
                         isDark: isDark,
                       ),
@@ -720,13 +726,13 @@ class _PetshopCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Row(
                   children: [
-                    // Status badge (open/closed)
+                    // Status badge (open/closed) with opening hours
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: isOpen
                             ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green.shade50)
-                            : (isDark ? Colors.red.withOpacity(0.15) : Colors.red.shade50),
+                            : (isDark ? Colors.orange.withOpacity(0.15) : Colors.orange.shade50),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
@@ -736,19 +742,21 @@ class _PetshopCard extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: isOpen ? Colors.green : Colors.red,
+                              color: isOpen ? Colors.green : Colors.orange,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            isOpen ? 'Ouvert' : 'Fermé',
+                            isOpen
+                                ? l10n.petshopOpen
+                                : '${l10n.petshopClosedUntil} ${openingHour}h',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: isOpen
                                   ? (isDark ? Colors.green[300] : Colors.green[700])
-                                  : (isDark ? Colors.red[300] : Colors.red[700]),
+                                  : (isDark ? Colors.orange[300] : Colors.orange[700]),
                             ),
                           ),
                         ],
@@ -771,19 +779,19 @@ class _PetshopCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Voir produits',
-                            style: TextStyle(
+                            l10n.petshopViewProducts,
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
                         ],
                       ),
                     ),

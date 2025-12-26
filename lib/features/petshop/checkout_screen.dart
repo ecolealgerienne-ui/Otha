@@ -227,6 +227,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
 
     // Theme colors
     final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
@@ -240,14 +241,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Scaffold(
         backgroundColor: bgColor,
         appBar: AppBar(
-          title: const Text('Finaliser la commande'),
+          title: Text(l10n.petshopFinalizeOrder),
           backgroundColor: cardColor,
           foregroundColor: textPrimary,
         ),
         body: _loadingProfile
             ? const Center(child: CircularProgressIndicator(color: _coral))
             : cart.isEmpty
-                ? _buildEmptyCart(isDark, textPrimary, textSecondary)
+                ? _buildEmptyCart(isDark, textPrimary, textSecondary, l10n)
                 : Form(
                 key: _formKey,
                 child: Column(
@@ -406,7 +407,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           const SizedBox(height: 16),
 
                           // Order summary
-                          _buildOrderSummary(cart, isDark, cardColor, textPrimary, textSecondary),
+                          _buildOrderSummary(cart, isDark, cardColor, textPrimary, textSecondary, l10n),
                         ],
                       ),
                     ),
@@ -662,7 +663,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildEmptyCart(bool isDark, Color textPrimary, Color? textSecondary) {
+  Widget _buildEmptyCart(bool isDark, Color textPrimary, Color? textSecondary, AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -677,7 +678,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Votre panier est vide',
+            l10n.petshopEmptyCart,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -686,7 +687,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Ajoutez des produits pour commander',
+            l10n.petshopAddProductsToOrder,
             style: TextStyle(color: textSecondary),
           ),
           const SizedBox(height: 24),
@@ -696,7 +697,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               foregroundColor: _coral,
               side: const BorderSide(color: _coral),
             ),
-            child: const Text('Retour aux produits'),
+            child: Text(l10n.petshopBackToProducts),
           ),
         ],
       ),
@@ -781,7 +782,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildOrderSummary(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary) {
+  Widget _buildOrderSummary(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, AppLocalizations l10n) {
     final deliveryFee = _calculateDeliveryFee(cart.subtotalDa);
     final totalWithDelivery = cart.subtotalDa + deliveryFee;
 
@@ -810,7 +811,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Recapitulatif',
+                l10n.petshopSummary,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -861,18 +862,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           Divider(height: 24, color: isDark ? _darkCardBorder : Colors.grey.shade200),
 
           // Subtotal
-          _buildSummaryRow('Sous-total', _da(cart.subtotalDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+          _buildSummaryRow(l10n.petshopSubtotal, _da(cart.subtotalDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
           const SizedBox(height: 8),
 
-          // Delivery fee row
+          // Delivery fee row - always shows "to discuss with store" when no fee set
           if (_deliveryMode == 'delivery')
             _buildSummaryRow(
-              'Frais de livraison',
-              deliveryFee == 0 ? 'GRATUIT' : _da(deliveryFee),
+              l10n.petshopDeliveryFee,
+              _deliveryFeeDa != null && _deliveryFeeDa! > 0
+                  ? (deliveryFee == 0 ? l10n.petshopFree : _da(deliveryFee))
+                  : l10n.petshopDeliveryFeeToDiscuss,
               isDark: isDark,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
-              valueColor: deliveryFee == 0 ? Colors.green : null,
+              valueColor: _deliveryFeeDa != null && _deliveryFeeDa! > 0 && deliveryFee == 0 ? Colors.green : Colors.orange,
             ),
 
           if (_deliveryMode == 'delivery')
@@ -888,7 +891,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                _deliveryMode == 'delivery' ? 'Livraison a domicile' : 'Retrait sur place',
+                _deliveryMode == 'delivery' ? l10n.petshopDeliveryOption : l10n.petshopPickupOption,
                 style: TextStyle(
                   color: textSecondary,
                   fontSize: 12,
@@ -900,7 +903,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           Divider(height: 24, color: isDark ? _darkCardBorder : Colors.grey.shade200),
 
           // Total
-          _buildSummaryRow('Total', _da(totalWithDelivery), isBold: true, isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+          _buildSummaryRow(l10n.petshopTotal, _da(totalWithDelivery), isBold: true, isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
         ],
       ),
     );
