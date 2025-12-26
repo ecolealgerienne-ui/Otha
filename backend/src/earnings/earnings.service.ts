@@ -405,4 +405,202 @@ export class EarningsService {
       months,
     };
   }
+
+  // ==================== DAYCARE EARNINGS ====================
+
+  /**
+   * Get daycare commission for a provider
+   */
+  private async getProviderDaycareCommission(providerId: string): Promise<{ hourly: number; daily: number }> {
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+      select: { daycareHourlyCommissionDa: true, daycareDailyCommissionDa: true },
+    });
+    return {
+      hourly: provider?.daycareHourlyCommissionDa ?? 10,
+      daily: provider?.daycareDailyCommissionDa ?? 100,
+    };
+  }
+
+  /**
+   * Count daycare bookings by status for a given month
+   */
+  private async daycareCountsFor(providerId: string, ym: string): Promise<{ PENDING: number; CONFIRMED: number; COMPLETED: number; CANCELLED: number }> {
+    const { from, to } = monthStartEndUtc(ym);
+    const rows = await this.prisma.daycareBooking.groupBy({
+      by: ['status'],
+      where: { providerId, startTime: { gte: from, lt: to } },
+      _count: { _all: true },
+    });
+
+    const out = { PENDING: 0, CONFIRMED: 0, COMPLETED: 0, CANCELLED: 0 };
+    for (const r of rows) out[r.status as keyof typeof out] = r._count._all;
+    return out;
+  }
+
+  /**
+   * Get total commission from completed daycare bookings for a given month
+   */
+  private async daycareCommissionFor(providerId: string, ym: string): Promise<{ bookingCount: number; totalCommission: number; totalRevenue: number }> {
+    const { from, to } = monthStartEndUtc(ym);
+    const commission = await this.getProviderDaycareCommission(providerId);
+
+    const bookings = await this.prisma.daycareBooking.findMany({
+      where: {
+        providerId,
+        status: 'COMPLETED',
+        startTime: { gte: from, lt: to },
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+        priceDa: true,
+        bookingType: true,
+      },
+    });
+
+    let totalCommission = 0;
+    let totalRevenue = 0;
+
+    for (const b of bookings) {
+      totalRevenue += b.priceDa || 0;
+
+      // Calculate commission based on booking type
+      if (b.bookingType === 'DAILY') {
+        // For daily bookings, calculate number of days
+        const days = b.startTime && b.endTime
+          ? Math.max(1, Math.ceil((b.endTime.getTime() - b.startTime.getTime()) / (1000 * 60 * 60 * 24)))
+          : 1;
+        totalCommission += days * commission.daily;
+      } else {
+        // For hourly bookings, calculate number of hours
+        const hours = b.startTime && b.endTime
+          ? Math.max(1, Math.ceil((b.endTime.getTime() - b.startTime.getTime()) / (1000 * 60 * 60)))
+          : 1;
+        totalCommission += hours * commission.hourly;
+      }
+    }
+
+    return {
+      bookingCount: bookings.length,
+      totalCommission,
+      totalRevenue,
+    };
+  }
+
+  /**
+   * Get daycare earnings row for a specific month
+   */
+  async daycareMonthRow(providerId: string, ymRaw: string) {
+    const ym = canonYm(ymRaw);
+    const counts = await this.daycareCountsFor(providerId, ym);
+    const { bookingCount, totalCommission, totalRevenue } = await this.daycareCommissionFor(providerId, ym);
+
+    // Get collected amount (using 'daycare-' prefix)
+    const collectedDa = await this.collectedOverlay(`daycare-${providerId}`, ym, totalCommission);
+
+    const netDa = Math.max(totalCommission - collectedDa, 0);
+
+    return {
+      month: ym,
+      bookingCount,
+      totalRevenue,
+      totalCommission,
+      dueDa: totalCommission,
+      collectedDa,
+      netDa,
+      collected: collectedDa >= totalCommission && totalCommission > 0,
+      ...counts,
+    };
+  }
+
+  /**
+   * Get daycare earnings history for last N months
+   */
+  async daycareHistoryMonthly(providerId: string, months: number) {
+    const now = new Date();
+    const curYm = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    const y = +curYm.slice(0, 4);
+    const m = +curYm.slice(5, 7);
+
+    const yms: string[] = [];
+    for (let i = 0; i < Math.max(1, months); i++) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      yms.push(`${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`);
+    }
+
+    const rows = await Promise.all(yms.map(ym => this.daycareMonthRow(providerId, ym)));
+    return rows;
+  }
+
+  /**
+   * Collect daycare commission for a month
+   */
+  async daycareCollectMonth(providerId: string, ymRaw: string, note?: string, customAmount?: number) {
+    const ym = canonYm(ymRaw);
+    const row = await this.daycareMonthRow(providerId, ym);
+
+    const amountToCollect = customAmount !== undefined
+      ? Math.min(Math.max(0, customAmount), row.dueDa)
+      : row.dueDa;
+
+    const collectionId = `daycare-${providerId}`;
+
+    await this.prisma.adminCollection.upsert({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+      update: { amountDa: amountToCollect, note },
+      create: { providerId: collectionId, month: ym, amountDa: amountToCollect, note },
+    });
+
+    return this.daycareMonthRow(providerId, ym);
+  }
+
+  /**
+   * Global daycare stats across all daycare providers
+   */
+  async daycareGlobalStats(months = 12) {
+    const providers = await this.prisma.providerProfile.findMany({
+      where: {
+        isApproved: true,
+        specialties: { path: ['kind'], equals: 'daycare' },
+      },
+      select: { id: true },
+    });
+
+    const now = new Date();
+    const curYm = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    const y = +curYm.slice(0, 4);
+    const m = +curYm.slice(5, 7);
+
+    const yms: string[] = [];
+    for (let i = 0; i < Math.max(1, months); i++) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      yms.push(`${d.getUTCFullYear()}-${(d.getUTCMonth() + 1).toString().padStart(2, '0')}`);
+    }
+
+    let totalCommissionGenerated = 0;
+    let totalCollected = 0;
+    let totalBookings = 0;
+    let totalRevenue = 0;
+
+    for (const provider of providers) {
+      for (const ym of yms) {
+        const row = await this.daycareMonthRow(provider.id, ym);
+        totalBookings += row.bookingCount;
+        totalCommissionGenerated += row.totalCommission;
+        totalRevenue += row.totalRevenue;
+        totalCollected += row.collectedDa;
+      }
+    }
+
+    return {
+      totalProviders: providers.length,
+      totalBookings,
+      totalRevenue,
+      totalCommissionGenerated,
+      totalCollected,
+      totalRemaining: totalCommissionGenerated - totalCollected,
+      months,
+    };
+  }
 }

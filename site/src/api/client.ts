@@ -926,6 +926,58 @@ class ApiClient {
     return result || { totalProviders: 0, totalBookings: 0, totalCommissionGenerated: 0, totalCollected: 0, totalRemaining: 0, months };
   }
 
+  // ==================== ADMIN PETSHOP EARNINGS ====================
+  async adminPetshopHistoryMonthly(providerId: string, months = 12): Promise<any[]> {
+    const { data } = await this._client.get(
+      `/earnings/admin/petshop/history-monthly?providerId=${providerId}&months=${months}`
+    );
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
+  }
+
+  async adminPetshopCollectMonth(providerId: string, month: string, note?: string, amount?: number): Promise<void> {
+    await this._client.post('/earnings/admin/petshop/collect-month', { providerId, month, note, amount });
+  }
+
+  async adminPetshopGlobalStats(months = 12): Promise<{
+    totalProviders: number;
+    totalOrders: number;
+    totalRevenue: number;
+    totalCommissionGenerated: number;
+    totalCollected: number;
+    totalRemaining: number;
+  }> {
+    const { data } = await this._client.get(`/earnings/admin/petshop/global-stats?months=${months}`);
+    const result = data?.data || data;
+    return result || { totalProviders: 0, totalOrders: 0, totalRevenue: 0, totalCommissionGenerated: 0, totalCollected: 0, totalRemaining: 0 };
+  }
+
+  // ==================== ADMIN DAYCARE EARNINGS ====================
+  async adminDaycareHistoryMonthly(providerId: string, months = 12): Promise<any[]> {
+    const { data } = await this._client.get(
+      `/earnings/admin/daycare/history-monthly?providerId=${providerId}&months=${months}`
+    );
+    const result = data?.data || data;
+    return Array.isArray(result) ? result : [];
+  }
+
+  async adminDaycareCollectMonth(providerId: string, month: string, note?: string, amount?: number): Promise<void> {
+    await this._client.post('/earnings/admin/daycare/collect-month', { providerId, month, note, amount });
+  }
+
+  async adminDaycareGlobalStats(months = 12): Promise<{
+    totalProviders: number;
+    totalBookings: number;
+    totalRevenue: number;
+    totalCommissionGenerated: number;
+    totalCollected: number;
+    totalRemaining: number;
+  }> {
+    const { data } = await this._client.get(`/earnings/admin/daycare/global-stats?months=${months}`);
+    const result = data?.data || data;
+    return result || { totalProviders: 0, totalBookings: 0, totalRevenue: 0, totalCommissionGenerated: 0, totalCollected: 0, totalRemaining: 0 };
+  }
+
   async adminTraceabilityStats(from: string, to: string): Promise<{
     totalBookings: number;
     totalAmount: number;
@@ -1197,6 +1249,7 @@ class ApiClient {
     vetCommissionDa?: number;
     daycareHourlyCommissionDa?: number;
     daycareDailyCommissionDa?: number;
+    petshopCommissionPercent?: number;
   }): Promise<any> {
     const { data } = await this._client.patch(`/admin/commissions/${providerId}`, commission);
     return data?.data || data;
