@@ -123,8 +123,31 @@ class _PetshopLedger {
 }
 
 final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) async {
-  final orders = await ref.watch(myPetshopOrdersProvider.future);
+  final api = ref.watch(apiProvider);
 
+  // Fetch current month earnings from backend (includes collected amount)
+  final data = await api.myPetshopCurrentMonth();
+
+  if (data != null) {
+    final ym = data['month'] ?? '';
+    final ordersCount = _asInt(data['bookingCount'] ?? data['orderCount'] ?? 0);
+    final totalRevenue = _asInt(data['totalAmount'] ?? data['totalRevenue'] ?? 0);
+    final commissionDue = _asInt(data['totalCommission'] ?? data['dueDa'] ?? 0);
+    final commissionPaid = _asInt(data['collectedAmount'] ?? data['collectedDa'] ?? 0);
+    final netDue = _asInt(data['netAmount'] ?? data['netDa'] ?? (commissionDue - commissionPaid));
+
+    return _PetshopLedger(
+      ym: ym,
+      ordersCount: ordersCount,
+      totalRevenue: totalRevenue,
+      commissionDue: commissionDue,
+      commissionPaid: commissionPaid,
+      netDue: netDue,
+    );
+  }
+
+  // Fallback: calculate locally if API fails
+  final orders = await ref.watch(myPetshopOrdersProvider.future);
   final nowUtc = DateTime.now().toUtc();
   final ymNow = '${nowUtc.year}-${nowUtc.month.toString().padLeft(2, '0')}';
 
@@ -146,7 +169,6 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
     if (orderYm == ymNow) {
       ordersThisMonth++;
       revenueThisMonth += _asInt(order['subtotalDa'] ?? order['totalDa'] ?? order['total'] ?? 0);
-      // Commission is calculated by backend (% of subtotal)
       commissionThisMonth += _asInt(order['commissionDa'] ?? 0);
     }
   }
@@ -156,7 +178,7 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
     ordersCount: ordersThisMonth,
     totalRevenue: revenueThisMonth,
     commissionDue: commissionThisMonth,
-    commissionPaid: 0, // TODO: Connect to backend payment tracking
+    commissionPaid: 0,
     netDue: commissionThisMonth,
   );
 });
@@ -707,6 +729,8 @@ class _CommissionCard extends StatelessWidget {
             children: [
               _miniPill(Icons.monetization_on, 'Revenus', _da(l.totalRevenue)),
               _miniPill(Icons.receipt, 'Commission', _da(l.commissionDue)),
+              if (l.commissionPaid > 0)
+                _miniPill(Icons.check_circle, 'Payé', _da(l.commissionPaid)),
             ],
           ),
         ],

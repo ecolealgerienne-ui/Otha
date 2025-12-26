@@ -182,4 +182,48 @@ export class EarningsController {
     if (!me || !month) return {};
     return this.earnings.earningsForMonth(me.id, month);
   }
+
+  // ---------- PRO PETSHOP (ME) ----------
+  @UseGuards(JwtAuthGuard)
+  @Get('me/petshop/current-month')
+  async myPetshopCurrentMonth(@Req() req: any) {
+    const userId = req.user?.sub ?? req.user?.id;
+    const me = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!me) return null;
+    const now = new Date();
+    const ym = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    return this.earnings.petshopMonthRow(me.id, ym);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/petshop/history-monthly')
+  async myPetshopHistoryMonthly(@Req() req: any, @Query('months') months = '12') {
+    const userId = req.user?.sub ?? req.user?.id;
+    const me = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!me) return [];
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.petshopHistoryMonthly(me.id, m);
+  }
+
+  // ---------- PRO DAYCARE (ME) ----------
+  @UseGuards(JwtAuthGuard)
+  @Get('me/daycare/current-month')
+  async myDaycareCurrentMonth(@Req() req: any) {
+    const userId = req.user?.sub ?? req.user?.id;
+    const me = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!me) return null;
+    const now = new Date();
+    const ym = `${now.getUTCFullYear()}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    return this.earnings.daycareMonthRow(me.id, ym);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/daycare/history-monthly')
+  async myDaycareHistoryMonthly(@Req() req: any, @Query('months') months = '12') {
+    const userId = req.user?.sub ?? req.user?.id;
+    const me = await this.prisma.providerProfile.findFirst({ where: { userId } });
+    if (!me) return [];
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.daycareHistoryMonthly(me.id, m);
+  }
 }
