@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X, AlertTriangle } from 'lucide-react';
+import { DollarSign, TrendingUp, Calendar, Search, Plus, Minus, X, AlertTriangle, Stethoscope, Home, ShoppingBag } from 'lucide-react';
 import { Card, Input, Button } from '../shared/components';
 import { DashboardLayout } from '../shared/layouts/DashboardLayout';
 import api from '../api/client';
 import type { ProviderProfile, MonthlyEarnings } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+type ProviderKind = 'vet' | 'petshop' | 'daycare';
+
+const kindConfig: Record<ProviderKind, { label: string; icon: typeof Stethoscope; color: string; bgColor: string }> = {
+  vet: { label: 'Vétérinaires', icon: Stethoscope, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  petshop: { label: 'Petshops', icon: ShoppingBag, color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  daycare: { label: 'Garderies', icon: Home, color: 'text-green-600', bgColor: 'bg-green-100' },
+};
 
 interface CollectionModalData {
   month: string;
@@ -21,9 +29,12 @@ export function AdminEarnings() {
   const [earnings, setEarnings] = useState<MonthlyEarnings[]>([]);
   const [loading, setLoading] = useState(true);
   const [earningsLoading, setEarningsLoading] = useState(false);
+  const [selectedKind, setSelectedKind] = useState<ProviderKind>('vet');
   const [globalStats, setGlobalStats] = useState<{
     totalProviders: number;
     totalBookings: number;
+    totalOrders?: number;
+    totalRevenue?: number;
     totalCommissionGenerated: number;
     totalCollected: number;
     totalRemaining: number;
@@ -44,19 +55,29 @@ export function AdminEarnings() {
   useEffect(() => {
     fetchProviders();
     fetchGlobalStats();
-  }, []);
+  }, [selectedKind]);
 
   async function fetchProviders() {
     setLoading(true);
+    setSelectedProvider(null);
+    setEarnings([]);
     try {
       // Use lowercase status like Flutter app
       const data = await api.listProviderApplications('approved', 100);
       // Ensure data is always an array
-      const providersList = Array.isArray(data) ? data : [];
-      setProviders(providersList);
+      const allProviders = Array.isArray(data) ? data : [];
 
-      // Précharger les mois impayés pour tous les providers
-      fetchAllUnpaidMonths(providersList);
+      // Filter by selected kind
+      const filteredProviders = allProviders.filter((p: ProviderProfile) => {
+        const spec = p.specialties as any;
+        const kind = (spec?.kind ?? 'vet').toString().toLowerCase();
+        return kind === selectedKind;
+      });
+
+      setProviders(filteredProviders);
+
+      // Précharger les mois impayés pour les providers filtrés
+      fetchAllUnpaidMonths(filteredProviders);
     } catch (error) {
       console.error('Error fetching providers:', error);
       setProviders([]);
@@ -72,7 +93,14 @@ export function AdminEarnings() {
     await Promise.all(
       providersList.map(async (provider) => {
         try {
-          const data = await api.adminHistoryMonthly(provider.id, 12);
+          let data: any[];
+          if (selectedKind === 'petshop') {
+            data = await api.adminPetshopHistoryMonthly(provider.id, 12);
+          } else if (selectedKind === 'daycare') {
+            data = await api.adminDaycareHistoryMonthly(provider.id, 12);
+          } else {
+            data = await api.adminHistoryMonthly(provider.id, 12);
+          }
           const earningsData = Array.isArray(data) ? data : [];
 
           const unpaidCount = earningsData.filter((e: MonthlyEarnings & { collectedAmount?: number }) => {
@@ -93,7 +121,14 @@ export function AdminEarnings() {
 
   async function fetchGlobalStats() {
     try {
-      const data = await api.adminGlobalStats(12);
+      let data: any;
+      if (selectedKind === 'petshop') {
+        data = await api.adminPetshopGlobalStats(12);
+      } else if (selectedKind === 'daycare') {
+        data = await api.adminDaycareGlobalStats(12);
+      } else {
+        data = await api.adminGlobalStats(12);
+      }
       setGlobalStats(data);
     } catch (error) {
       console.error('Error fetching global stats:', error);
@@ -103,7 +138,14 @@ export function AdminEarnings() {
   async function fetchProviderEarnings(providerId: string) {
     setEarningsLoading(true);
     try {
-      const data = await api.adminHistoryMonthly(providerId, 12);
+      let data: any[];
+      if (selectedKind === 'petshop') {
+        data = await api.adminPetshopHistoryMonthly(providerId, 12);
+      } else if (selectedKind === 'daycare') {
+        data = await api.adminDaycareHistoryMonthly(providerId, 12);
+      } else {
+        data = await api.adminHistoryMonthly(providerId, 12);
+      }
       // Ensure data is always an array
       const earningsData = Array.isArray(data) ? data : [];
       setEarnings(earningsData);
@@ -177,7 +219,13 @@ export function AdminEarnings() {
   async function handleCollectAll(month: string) {
     if (!selectedProvider) return;
     try {
-      await api.adminCollectMonth(selectedProvider.id, month);
+      if (selectedKind === 'petshop') {
+        await api.adminPetshopCollectMonth(selectedProvider.id, month);
+      } else if (selectedKind === 'daycare') {
+        await api.adminDaycareCollectMonth(selectedProvider.id, month);
+      } else {
+        await api.adminCollectMonth(selectedProvider.id, month);
+      }
       fetchProviderEarnings(selectedProvider.id);
       fetchGlobalStats(); // Rafraîchir les totaux globaux
     } catch (error) {
@@ -207,12 +255,37 @@ export function AdminEarnings() {
     }).format(amount);
   };
 
+  const KindIcon = kindConfig[selectedKind].icon;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gains & Commissions</h1>
           <p className="text-gray-600 mt-1">Gérez les revenus des professionnels</p>
+        </div>
+
+        {/* Kind tabs */}
+        <div className="flex gap-2 flex-wrap">
+          {(Object.keys(kindConfig) as ProviderKind[]).map((kind) => {
+            const config = kindConfig[kind];
+            const Icon = config.icon;
+            const isActive = selectedKind === kind;
+            return (
+              <button
+                key={kind}
+                onClick={() => setSelectedKind(kind)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  isActive
+                    ? `${config.bgColor} ${config.color} ring-2 ring-offset-1`
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {config.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Stats globales */}
@@ -246,12 +319,16 @@ export function AdminEarnings() {
               </div>
             </Card>
             <Card className="flex items-center space-x-4">
-              <div className="p-3 rounded-lg bg-purple-100">
-                <Calendar className="w-6 h-6 text-purple-600" />
+              <div className={`p-3 rounded-lg ${kindConfig[selectedKind].bgColor}`}>
+                <KindIcon className={`w-6 h-6 ${kindConfig[selectedKind].color}`} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total réservations</p>
-                <p className="text-xl font-bold text-gray-900">{globalStats.totalBookings}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedKind === 'petshop' ? 'Commandes' : 'Réservations'}
+                </p>
+                <p className="text-xl font-bold text-gray-900">
+                  {selectedKind === 'petshop' ? (globalStats.totalOrders ?? 0) : globalStats.totalBookings}
+                </p>
               </div>
             </Card>
           </div>

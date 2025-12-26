@@ -65,6 +65,62 @@ export class EarningsController {
     return this.earnings.globalStats(m);
   }
 
+  // ---------- ADMIN PETSHOP ----------
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/petshop/history-monthly')
+  async adminPetshopHistoryMonthly(
+    @Query('months') months = '12',
+    @Query('providerId') providerId?: string,
+  ) {
+    if (!providerId) return [];
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.petshopHistoryMonthly(providerId, m);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/petshop/collect-month')
+  async adminPetshopCollectMonth(@Body() dto: { providerId: string; month: string; note?: string; amount?: number }) {
+    return this.earnings.petshopCollectMonth(dto.providerId, dto.month, dto.note, dto.amount);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/petshop/global-stats')
+  async adminPetshopGlobalStats(@Query('months') months = '12') {
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.petshopGlobalStats(m);
+  }
+
+  // ---------- ADMIN DAYCARE ----------
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/daycare/history-monthly')
+  async adminDaycareHistoryMonthly(
+    @Query('months') months = '12',
+    @Query('providerId') providerId?: string,
+  ) {
+    if (!providerId) return [];
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.daycareHistoryMonthly(providerId, m);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/daycare/collect-month')
+  async adminDaycareCollectMonth(@Body() dto: { providerId: string; month: string; note?: string; amount?: number }) {
+    return this.earnings.daycareCollectMonth(dto.providerId, dto.month, dto.note, dto.amount);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('admin/daycare/global-stats')
+  async adminDaycareGlobalStats(@Query('months') months = '12') {
+    const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
+    return this.earnings.daycareGlobalStats(m);
+  }
+
   // ---------- PRO (ME) ----------
   @UseGuards(JwtAuthGuard)
   @Get('me/history-monthly')
