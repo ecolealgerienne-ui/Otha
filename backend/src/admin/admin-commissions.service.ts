@@ -131,6 +131,8 @@ export class AdminCommissionsService {
     providerId: string,
     data: Partial<CommissionData>,
   ): Promise<ProviderCommission> {
+    console.log('[CommissionUpdate] Input data:', JSON.stringify(data));
+
     // Vérifier que le provider existe
     const existing = await this.prisma.providerProfile.findUnique({
       where: { id: providerId },
@@ -139,6 +141,8 @@ export class AdminCommissionsService {
     if (!existing) {
       throw new NotFoundException(`Provider ${providerId} not found`);
     }
+
+    console.log('[CommissionUpdate] Existing petshopCommissionPercent:', existing.petshopCommissionPercent);
 
     // Préparer les données à mettre à jour (seulement les champs fournis)
     const updateData: any = {};
@@ -156,6 +160,8 @@ export class AdminCommissionsService {
       updateData.petshopCommissionPercent = Math.max(0, Math.min(100, Math.floor(data.petshopCommissionPercent)));
     }
 
+    console.log('[CommissionUpdate] Update data:', JSON.stringify(updateData));
+
     const updated = await this.prisma.providerProfile.update({
       where: { id: providerId },
       data: updateData,
@@ -170,6 +176,8 @@ export class AdminCommissionsService {
         },
       },
     });
+
+    console.log('[CommissionUpdate] After update petshopCommissionPercent:', updated.petshopCommissionPercent);
 
     const specialties = updated.specialties as any;
     const rawKind = (specialties?.kind ?? '').toString().toLowerCase();
