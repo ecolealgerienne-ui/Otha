@@ -357,8 +357,6 @@ class UserOrderDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _openMapsItinerary(WidgetRef ref, Map<String, dynamic>? provider, dynamic lat, dynamic lng, String address, String name) async {
-    Uri url;
-
     // First try mapsUrl from provider (this is the stored Google Maps URL)
     String? mapsUrl = _getMapsUrl(provider);
 
@@ -381,32 +379,31 @@ class UserOrderDetailScreen extends ConsumerWidget {
       }
     }
 
-    if (mapsUrl != null && mapsUrl.isNotEmpty) {
-      url = Uri.parse(mapsUrl);
-    }
-    // Fallback to coordinates if available
-    else if (lat != null && lng != null) {
-      final latitude = lat is num ? lat.toDouble() : double.tryParse(lat.toString()) ?? 0;
-      final longitude = lng is num ? lng.toDouble() : double.tryParse(lng.toString()) ?? 0;
-      if (latitude != 0 && longitude != 0) {
-        url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
-      } else {
-        // Fallback to address search
-        final query = Uri.encodeComponent('$name $address');
-        url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    try {
+      // Use mapsUrl directly if available
+      if (mapsUrl != null && mapsUrl.isNotEmpty) {
+        final uri = Uri.parse(mapsUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
       }
-    } else if (address.isNotEmpty) {
-      // Use address search
-      final query = Uri.encodeComponent('$name $address');
-      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    } else {
-      // Search by name only
-      final query = Uri.encodeComponent(name);
-      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    }
 
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      // Fallback to coordinates if available
+      if (lat != null && lng != null) {
+        final latitude = lat is num ? lat.toDouble() : double.tryParse(lat.toString()) ?? 0;
+        final longitude = lng is num ? lng.toDouble() : double.tryParse(lng.toString()) ?? 0;
+        if (latitude != 0 && longitude != 0) {
+          final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      }
+
+      // Fallback to address/name search
+      final q = Uri.encodeComponent([name, address].where((e) => e.trim().isNotEmpty).join(' '));
+      final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$q');
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Failed to open maps: $e');
     }
   }
 
