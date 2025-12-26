@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import '../../core/api.dart';
 import '../../core/session_controller.dart';
 import '../../core/locale_provider.dart';
-import 'cart_provider.dart' show kPetshopCommissionDa;
 
 /// ========================= THEME PETSHOP (coral) =========================
 class _PetshopColors {
@@ -131,7 +130,7 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
 
   int ordersThisMonth = 0;
   int revenueThisMonth = 0;
-  int itemsThisMonth = 0;
+  int commissionThisMonth = 0;
 
   for (final order in orders) {
     final status = (order['status'] ?? '').toString().toUpperCase();
@@ -146,26 +145,19 @@ final petshopLedgerProvider = FutureProvider.autoDispose<_PetshopLedger>((ref) a
     final orderYm = '${date.year}-${date.month.toString().padLeft(2, '0')}';
     if (orderYm == ymNow) {
       ordersThisMonth++;
-      revenueThisMonth += _asInt(order['totalDa'] ?? order['total'] ?? 0);
-
-      // Count items for commission calculation
-      final items = order['items'] as List? ?? [];
-      for (final item in items) {
-        itemsThisMonth += _asInt(item['quantity'] ?? 1);
-      }
+      revenueThisMonth += _asInt(order['subtotalDa'] ?? order['totalDa'] ?? order['total'] ?? 0);
+      // Commission is calculated by backend (% of subtotal)
+      commissionThisMonth += _asInt(order['commissionDa'] ?? 0);
     }
   }
-
-  // Commission is per item, not per order
-  final commissionDue = itemsThisMonth * kPetshopCommissionDa;
 
   return _PetshopLedger(
     ym: ymNow,
     ordersCount: ordersThisMonth,
     totalRevenue: revenueThisMonth,
-    commissionDue: commissionDue,
+    commissionDue: commissionThisMonth,
     commissionPaid: 0, // TODO: Connect to backend payment tracking
-    netDue: commissionDue,
+    netDue: commissionThisMonth,
   );
 });
 
@@ -966,19 +958,12 @@ class _RecentOrders extends StatelessWidget {
           const SizedBox(height: 8),
           ...recent.map((order) {
             final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-            final baseTotal = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+            final totalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+            final commissionDa = _asInt(order['commissionDa'] ?? 0);
             final createdAt = order['createdAt'] ?? order['created_at'];
             final user = order['user'] as Map<String, dynamic>?;
             // Show only firstName for clients
             final userName = (user?['firstName'] ?? 'Client').toString();
-
-            // Calculate commission based on items
-            final items = order['items'] as List? ?? [];
-            int totalItemQty = 0;
-            for (final item in items) {
-              totalItemQty += _asInt(item['quantity'] ?? 1);
-            }
-            final commissionDa = totalItemQty * kPetshopCommissionDa;
 
             DateTime? date;
             if (createdAt != null) {
@@ -1019,7 +1004,7 @@ class _RecentOrders extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _da(baseTotal),
+                        _da(totalDa),
                         style: TextStyle(fontWeight: FontWeight.w800, color: textPrimary),
                       ),
                       if (commissionDa > 0)

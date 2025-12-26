@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
-import 'cart_provider.dart'; // For kPetshopCommissionDa
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -56,16 +55,11 @@ class UserOrderDetailScreen extends ConsumerWidget {
           final createdAt = order['createdAt'] ?? order['created_at'];
           final items = (order['items'] as List?) ?? [];
 
-          // Calculate total item count for commission
-          int totalItemCount = 0;
-          for (final item in items) {
-            totalItemCount += _asInt(item['quantity'] ?? 1);
-          }
-
-          // Backend totalDa is product prices only, add commission per item for display
-          final baseTotalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
-          final commissionDa = totalItemCount * kPetshopCommissionDa;
-          final totalDa = baseTotalDa + commissionDa;
+          // Backend calculates commission as % of subtotal
+          final subtotalDa = _asInt(order['subtotalDa'] ?? 0);
+          final commissionDa = _asInt(order['commissionDa'] ?? 0);
+          final deliveryFeeDa = _asInt(order['deliveryFeeDa'] ?? 0);
+          final totalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
           final provider = order['provider'] as Map<String, dynamic>?;
           final shopName = provider?['displayName'] ?? 'Animalerie';
           final phone = (order['phone'] ?? '').toString();
@@ -107,7 +101,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                 // Total with breakdown
-                _buildTotalCard(baseTotalDa, commissionDa, totalDa),
+                _buildTotalCard(subtotalDa, commissionDa, deliveryFeeDa, totalDa),
                 const SizedBox(height: 24),
 
                 // Action buttons based on status
@@ -234,8 +228,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
             final title = product?['title'] ?? 'Produit';
             final quantity = _asInt(item['quantity'] ?? 1);
             final priceDa = _asInt(item['priceDa'] ?? 0);
-            // Add commission per item for user display
-            final priceWithCommission = (priceDa + kPetshopCommissionDa) * quantity;
+            final itemTotal = priceDa * quantity;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -260,7 +253,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Text(_da(priceWithCommission), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_da(itemTotal), style: const TextStyle(fontWeight: FontWeight.w700)),
                 ],
               ),
             );
@@ -325,7 +318,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTotalCard(int baseTotalDa, int commissionDa, int totalDa) {
+  Widget _buildTotalCard(int subtotalDa, int commissionDa, int deliveryFeeDa, int totalDa) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -334,21 +327,43 @@ class UserOrderDetailScreen extends ConsumerWidget {
         border: Border.all(color: _coral.withOpacity(0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              Icon(Icons.receipt_long, size: 20, color: _coral),
+              SizedBox(width: 8),
+              Text('Récapitulatif', style: TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPriceRow('Sous-total', _da(subtotalDa)),
+          const SizedBox(height: 6),
+          _buildPriceRow('Frais de service', _da(commissionDa)),
+          if (deliveryFeeDa > 0) ...[
+            const SizedBox(height: 6),
+            _buildPriceRow('Frais de livraison', _da(deliveryFeeDa)),
+          ],
+          const Divider(height: 20, color: _coral),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text(_da(totalDa), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _coral)),
+              const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(_da(totalDa), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _coral)),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '(+ frais de livraison a convenir avec le vendeur)',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontStyle: FontStyle.italic),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade800)),
+      ],
     );
   }
 

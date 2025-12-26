@@ -19,7 +19,6 @@ import '../../core/locale_provider.dart';
 import '../../core/location_provider.dart';
 // 👇 pour le bouton "Modifier" (pending)
 import '../bookings/booking_confirmation_popup.dart';
-import '../petshop/cart_provider.dart' show kPetshopCommissionDa;
 import '../adopt/adoption_pet_creation_dialog.dart';
 
 // ⛔️ Ne pas afficher Annuler/Modifier dans la bannière PENDING du Home
@@ -4037,22 +4036,12 @@ class _ActiveOrdersBanner extends ConsumerWidget {
         return Column(
           children: orders.map((order) {
             final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-            final baseTotalDa = _asInt(order['totalDa'] ?? 0);
+            final totalDa = _asInt(order['totalDa'] ?? 0);
             final orderId = (order['id'] ?? '').toString();
             final provider = order['provider'] as Map<String, dynamic>?;
             final shopName = provider?['displayName'] ?? 'Animalerie';
             final items = (order['items'] as List?) ?? [];
             final itemCount = items.length;
-
-            // Calculate total item quantity for commission
-            int totalItemQty = 0;
-            for (final item in items) {
-              totalItemQty += _asInt(item['quantity'] ?? 1);
-            }
-
-            // Add commission per item
-            final commissionDa = totalItemQty * kPetshopCommissionDa;
-            final totalDa = baseTotalDa + commissionDa;
 
             final isPending = status == 'PENDING';
             final statusText = isPending ? 'En attente' : 'Confirmee';

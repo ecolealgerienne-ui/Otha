@@ -112,7 +112,7 @@ class _PetshopCheckoutScreenState extends ConsumerState<PetshopCheckoutScreen> {
                             style: TextStyle(fontSize: 16),
                           ),
                           Text(
-                            _da(cart.totalDa),
+                            _da(cart.subtotalDa),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -147,14 +147,14 @@ class _PetshopCheckoutScreenState extends ConsumerState<PetshopCheckoutScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Total',
+                            'Sous-total',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           Text(
-                            _da(cart.totalDa),
+                            _da(cart.subtotalDa),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -165,7 +165,7 @@ class _PetshopCheckoutScreenState extends ConsumerState<PetshopCheckoutScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '+ frais de livraison',
+                        '+ frais de service et livraison',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.black.withOpacity(0.5),
