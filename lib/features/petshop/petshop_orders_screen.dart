@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
 import '../../core/locale_provider.dart';
-import 'cart_provider.dart' show kPetshopCommissionDa;
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
@@ -343,7 +342,6 @@ class _OrderCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final id = (order['id'] ?? '').toString();
     final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
-    final baseTotal = _asInt(order['totalDa'] ?? order['total'] ?? 0);
     final createdAt = order['createdAt'] ?? order['created_at'];
     final items = order['items'] as List? ?? [];
     final deliveryAddress = (order['deliveryAddress'] ?? '').toString();
@@ -351,12 +349,14 @@ class _OrderCard extends ConsumerWidget {
     final notes = (order['notes'] ?? '').toString();
     final phone = (order['phone'] ?? '').toString();
 
-    // Calculate commission based on item quantities
-    int totalItemQty = 0;
-    for (final item in items) {
-      totalItemQty += _asInt(item['quantity'] ?? 1);
-    }
-    final commissionDa = totalItemQty * kPetshopCommissionDa;
+    // Montants depuis le backend (calculés correctement avec le %)
+    final subtotalDa = _asInt(order['subtotalDa'] ?? 0);
+    final commissionDa = _asInt(order['commissionDa'] ?? 0);
+    final deliveryFeeDa = _asInt(order['deliveryFeeDa'] ?? 0);
+    final totalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
+
+    // Calculer le % de commission pour l'affichage (approximatif)
+    final commissionPercent = subtotalDa > 0 ? (commissionDa * 100 / subtotalDa).round() : 5;
 
     DateTime? date;
     if (createdAt != null) {
@@ -470,7 +470,7 @@ class _OrderCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            _da(baseTotal),
+                            _da(totalDa),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
@@ -480,7 +480,7 @@ class _OrderCard extends ConsumerWidget {
                           if (commissionDa > 0) ...[
                             const SizedBox(height: 2),
                             Text(
-                              '+${_da(commissionDa)} com.',
+                              '$commissionPercent% = ${_da(commissionDa)}',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.green.shade700,
@@ -633,26 +633,94 @@ class _OrderCard extends ConsumerWidget {
                     );
                   }),
 
-                  if (deliveryAddress.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Adresse de livraison',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
+                  // Récapitulatif des montants
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? _darkCardBorder.withOpacity(0.5) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? _darkCardBorder : Colors.grey.shade200,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                    child: Column(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 16, color: textSecondary),
-                        const SizedBox(width: 6),
+                        _PriceRow(label: 'Sous-total', value: _da(subtotalDa), isDark: isDark),
+                        const SizedBox(height: 6),
+                        _PriceRow(
+                          label: 'Commission ($commissionPercent%)',
+                          value: _da(commissionDa),
+                          isDark: isDark,
+                          valueColor: Colors.green.shade700,
+                        ),
+                        if (deliveryFeeDa > 0) ...[
+                          const SizedBox(height: 6),
+                          _PriceRow(
+                            label: 'Frais de livraison',
+                            value: _da(deliveryFeeDa),
+                            isDark: isDark,
+                          ),
+                        ],
+                        Divider(height: 16, color: isDark ? _darkCardBorder : Colors.grey.shade300),
+                        _PriceRow(
+                          label: 'Total',
+                          value: _da(totalDa),
+                          isDark: isDark,
+                          isBold: true,
+                          valueColor: _coral,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Mode de livraison/retrait
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: deliveryMode == 'delivery'
+                          ? (isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50)
+                          : (isDark ? Colors.purple.withOpacity(0.1) : Colors.purple.shade50),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: deliveryMode == 'delivery' ? Colors.blue.shade200 : Colors.purple.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          deliveryMode == 'delivery' ? Icons.local_shipping_rounded : Icons.store_rounded,
+                          color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            deliveryAddress,
-                            style: TextStyle(color: textSecondary, fontSize: 13),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                deliveryMode == 'delivery' ? 'Livraison à domicile' : 'Retrait en boutique',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: deliveryMode == 'delivery' ? Colors.blue.shade700 : Colors.purple.shade700,
+                                ),
+                              ),
+                              if (deliveryMode == 'delivery' && deliveryAddress.isNotEmpty)
+                                Text(
+                                  deliveryAddress,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
 
                   if (userPhone.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -721,11 +789,15 @@ class _OrderCard extends ConsumerWidget {
                               status == 'PENDING' ? 'CONFIRMED' : 'DELIVERED',
                             ),
                             icon: Icon(
-                              status == 'PENDING' ? Icons.check : Icons.local_shipping,
+                              status == 'PENDING'
+                                  ? Icons.check
+                                  : (deliveryMode == 'delivery' ? Icons.local_shipping : Icons.shopping_bag),
                               size: 18,
                             ),
                             label: Text(
-                              status == 'PENDING' ? 'Confirmer' : 'Marquer livree',
+                              status == 'PENDING'
+                                  ? 'Confirmer la commande'
+                                  : (deliveryMode == 'delivery' ? 'Marquer livrée' : 'Prêt - Récupéré'),
                             ),
                           ),
                         ),
@@ -795,4 +867,48 @@ int _asInt(dynamic v) {
   if (v is num) return v.toInt();
   if (v is String) return int.tryParse(v) ?? 0;
   return 0;
+}
+
+class _PriceRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isDark;
+  final bool isBold;
+  final Color? valueColor;
+
+  const _PriceRow({
+    required this.label,
+    required this.value,
+    required this.isDark,
+    this.isBold = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : _ink;
+    final secondaryColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isBold ? 14 : 13,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: isBold ? textColor : secondaryColor,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 15 : 13,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ?? (isBold ? textColor : secondaryColor),
+          ),
+        ),
+      ],
+    );
+  }
 }
