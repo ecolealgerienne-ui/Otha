@@ -36,6 +36,32 @@ class _PetshopProductsScreenState extends ConsumerState<PetshopProductsScreen> {
   String _filter = 'all'; // 'all', 'active', 'inactive', 'low_stock'
 
   @override
+  void initState() {
+    super.initState();
+    // Refresh on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(petshopProductsProvider);
+    });
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(petshopProductsProvider);
+  }
+
+  Future<void> _goToNewProduct() async {
+    await context.push('/petshop/products/new');
+    // Refresh when coming back
+    _refresh();
+  }
+
+  Future<void> _goToEditProduct(Map<String, dynamic> product) async {
+    final id = (product['id'] ?? '').toString();
+    await context.push('/petshop/products/$id');
+    // Refresh when coming back
+    _refresh();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(petshopProductsProvider);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
@@ -55,9 +81,14 @@ class _PetshopProductsScreenState extends ConsumerState<PetshopProductsScreen> {
           foregroundColor: textPrimary,
           actions: [
             IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Actualiser',
+              onPressed: _refresh,
+            ),
+            IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'Ajouter un produit',
-              onPressed: () => context.push('/petshop/products/new'),
+              onPressed: _goToNewProduct,
             ),
           ],
         ),
@@ -164,16 +195,14 @@ class _PetshopProductsScreenState extends ConsumerState<PetshopProductsScreen> {
                     return _EmptyState(
                       hasProducts: products.isNotEmpty,
                       filter: _filter,
-                      onAdd: () => context.push('/petshop/products/new'),
+                      onAdd: _goToNewProduct,
                       isDark: isDark,
                     );
                   }
 
                   return RefreshIndicator(
                     color: _coral,
-                    onRefresh: () async {
-                      ref.invalidate(petshopProductsProvider);
-                    },
+                    onRefresh: _refresh,
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: filtered.length,
@@ -181,6 +210,7 @@ class _PetshopProductsScreenState extends ConsumerState<PetshopProductsScreen> {
                         product: filtered[i],
                         onToggleVisibility: () => _toggleVisibility(filtered[i]),
                         onDelete: () => _deleteProduct(filtered[i]),
+                        onEdit: () => _goToEditProduct(filtered[i]),
                         isDark: isDark,
                       ),
                     ),
@@ -192,7 +222,7 @@ class _PetshopProductsScreenState extends ConsumerState<PetshopProductsScreen> {
         ),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: _coral,
-          onPressed: () => context.push('/petshop/products/new'),
+          onPressed: _goToNewProduct,
           icon: const Icon(Icons.add),
           label: const Text('Nouveau'),
         ),
@@ -443,12 +473,14 @@ class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final VoidCallback onToggleVisibility;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
   final bool isDark;
 
   const _ProductCard({
     required this.product,
     required this.onToggleVisibility,
     required this.onDelete,
+    required this.onEdit,
     required this.isDark,
   });
 
@@ -500,7 +532,7 @@ class _ProductCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => context.push('/petshop/products/${product['id']}'),
+            onTap: onEdit,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(12),
