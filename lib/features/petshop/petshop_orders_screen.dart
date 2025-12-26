@@ -36,6 +36,15 @@ class _PetshopOrdersScreenState extends ConsumerState<PetshopOrdersScreen> {
   String? _expandedOrderId;
 
   @override
+  void initState() {
+    super.initState();
+    // Refresh on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(petshopOrdersProvider);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(petshopOrdersProvider);
     final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
