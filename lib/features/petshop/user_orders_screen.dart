@@ -244,11 +244,17 @@ class _UserOrdersScreenState extends ConsumerState<UserOrdersScreen> {
   ) {
     final status = (order['status'] ?? 'PENDING').toString().toUpperCase();
     final createdAt = order['createdAt'] ?? order['created_at'];
-    final totalDa = order['totalDa'] ?? order['total_da'] ?? 0;
     final items = (order['items'] ?? []) as List;
     final provider = order['provider'] as Map<String, dynamic>?;
     final providerName = provider?['displayName'] ?? 'Boutique';
     final deliveryMode = (order['deliveryMode'] ?? 'pickup').toString();
+    final deliveryAddress = (order['deliveryAddress'] ?? '').toString();
+
+    // Montants depuis le backend
+    final subtotalDa = _asInt(order['subtotalDa'] ?? 0);
+    final commissionDa = _asInt(order['commissionDa'] ?? 0);
+    final deliveryFeeDa = _asInt(order['deliveryFeeDa'] ?? 0);
+    final totalDa = _asInt(order['totalDa'] ?? order['total_da'] ?? 0);
 
     DateTime? date;
     if (createdAt != null) {
@@ -267,147 +273,298 @@ class _UserOrdersScreenState extends ConsumerState<UserOrdersScreen> {
             ? null
             : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // TODO: Navigate to order details
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        collapsedShape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        iconColor: textSecondary,
+        collapsedIconColor: textSecondary,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.storefront, color: _coral, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    providerName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (date != null)
+                    Text(
+                      _formatDate(date),
+                      style: TextStyle(
+                        color: textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            children: [
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusInfo.icon, size: 12, color: statusInfo.color),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusInfo.label,
+                      style: TextStyle(
+                        color: statusInfo.color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Delivery mode badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? (deliveryMode == 'delivery' ? Colors.blue.withOpacity(0.15) : Colors.purple.withOpacity(0.15))
+                      : (deliveryMode == 'delivery' ? Colors.blue.shade50 : Colors.purple.shade50),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      deliveryMode == 'delivery' ? Icons.local_shipping_rounded : Icons.store_rounded,
+                      size: 12,
+                      color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      deliveryMode == 'delivery' ? 'Livraison' : 'Retrait',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _da(totalDa),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: _coral,
+                ),
+              ),
+            ],
+          ),
+        ),
+        children: [
+          // Articles
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? _darkCardBorder.withOpacity(0.5) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with store name and status
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.storefront, color: _coral, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            providerName,
-                            style: TextStyle(
+                Text(
+                  'Articles (${items.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...items.map((item) {
+                  final product = item['product'] as Map<String, dynamic>?;
+                  final itemTitle = (product?['title'] ?? item['title'] ?? 'Produit').toString();
+                  final qty = _asInt(item['quantity'] ?? 1);
+                  final price = _asInt(item['priceDa'] ?? item['price'] ?? 0);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${qty}x',
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: textPrimary,
+                              fontSize: 11,
+                              color: _coral,
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            itemTitle,
+                            style: TextStyle(fontSize: 12, color: textPrimary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (date != null)
-                            Text(
-                              _formatDate(date),
-                              style: TextStyle(
-                                color: textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusInfo.color.withOpacity(isDark ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(statusInfo.icon, size: 14, color: statusInfo.color),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusInfo.label,
-                            style: TextStyle(
-                              color: statusInfo.color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        ),
+                        Text(
+                          _da(price * qty),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: textPrimary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Delivery mode badge
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? (deliveryMode == 'delivery' ? Colors.blue.withOpacity(0.15) : Colors.purple.withOpacity(0.15))
-                            : (deliveryMode == 'delivery' ? Colors.blue.shade50 : Colors.purple.shade50),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            deliveryMode == 'delivery' ? Icons.local_shipping_rounded : Icons.store_rounded,
-                            size: 14,
-                            color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            deliveryMode == 'delivery' ? 'Livraison' : 'Retrait',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${items.length} article${items.length > 1 ? 's' : ''}',
-                      style: TextStyle(color: textSecondary, fontSize: 12),
-                    ),
-                  ],
-                ),
-
-                Divider(height: 24, color: isDark ? _darkCardBorder : Colors.grey.shade200),
-
-                // Total
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total',
-                      style: TextStyle(color: textSecondary, fontSize: 14),
-                    ),
-                    Text(
-                      _da(totalDa is int ? totalDa : int.tryParse(totalDa.toString()) ?? 0),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: _coral,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                }),
               ],
             ),
           ),
-        ),
+
+          const SizedBox(height: 12),
+
+          // Récapitulatif des montants
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? _darkCardBorder.withOpacity(0.5) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                _buildPriceRow('Sous-total', _da(subtotalDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+                if (commissionDa > 0) ...[
+                  const SizedBox(height: 6),
+                  _buildPriceRow('Frais de service', _da(commissionDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+                ],
+                if (deliveryFeeDa > 0) ...[
+                  const SizedBox(height: 6),
+                  _buildPriceRow('Frais de livraison', _da(deliveryFeeDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+                ],
+                Divider(height: 16, color: isDark ? _darkCardBorder : Colors.grey.shade300),
+                _buildPriceRow('Total', _da(totalDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary, isBold: true, valueColor: _coral),
+              ],
+            ),
+          ),
+
+          // Adresse de livraison
+          if (deliveryMode == 'delivery' && deliveryAddress.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on_rounded, color: Colors.blue.shade400, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Adresse de livraison',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          deliveryAddress,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.grey[300] : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
+  }
+
+  Widget _buildPriceRow(
+    String label,
+    String value, {
+    required bool isDark,
+    required Color textPrimary,
+    Color? textSecondary,
+    bool isBold = false,
+    Color? valueColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isBold ? 13 : 12,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: isBold ? textPrimary : textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 14 : 12,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ?? (isBold ? textPrimary : textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
   }
 
   _StatusInfo _getStatusInfo(String status, bool isDark) {

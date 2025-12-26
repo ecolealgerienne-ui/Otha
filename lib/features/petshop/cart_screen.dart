@@ -407,20 +407,26 @@ class CartScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
               _buildSummaryRow(
-                'Sous-total',
+                'Sous-total produits',
                 '${cart.subtotalDa} DA',
                 isDark: isDark,
                 textPrimary: textPrimary,
                 textSecondary: textSecondary,
               ),
-              const SizedBox(height: 12),
-              _buildSummaryRow(
-                'Frais de service',
-                '${cart.commissionDa} DA',
-                isDark: isDark,
-                textPrimary: textPrimary,
-                textSecondary: textSecondary,
-                info: 'Commission Vegece',
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Frais de service ajoutés à la commande',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -430,7 +436,7 @@ class CartScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total',
+                    'Sous-total',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
@@ -444,7 +450,7 @@ class CartScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      '${cart.totalDa} DA',
+                      '${cart.subtotalDa} DA',
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
@@ -699,7 +705,7 @@ class CartScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total à payer',
+                    'Sous-total',
                     style: TextStyle(
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
                       fontSize: 13,
@@ -707,7 +713,7 @@ class CartScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${cart.totalDa} DA',
+                    '${cart.subtotalDa} DA',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
