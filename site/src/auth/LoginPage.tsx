@@ -26,11 +26,18 @@ export function LoginPage() {
     setError(null);
     try {
       await login(data.email, data.password);
-      // Get user from store after login
-      const user = useAuthStore.getState().user;
+      // Get user and provider from store after login
+      const { user, provider, logout } = useAuthStore.getState();
       if (user?.role === 'ADMIN') {
         navigate('/admin');
       } else if (user?.role === 'PRO') {
+        // Check provider kind - block daycare and petshop
+        const providerKind = (provider?.specialties as { kind?: string })?.kind?.toLowerCase();
+        if (providerKind === 'daycare' || providerKind === 'petshop') {
+          logout();
+          setError('Accès non autorisé. Les garderies et petshops doivent utiliser l\'application mobile.');
+          return;
+        }
         navigate('/pro');
       } else {
         setError('Accès non autorisé. Ce portail est réservé aux administrateurs et professionnels.');
