@@ -39,8 +39,18 @@ export function ProServices() {
   async function fetchProviderCommission() {
     try {
       const provider = await api.myProvider();
-      if (provider && typeof provider.vetCommissionDa === 'number') {
-        setCommissionDa(provider.vetCommissionDa);
+      if (provider) {
+        // Gérer plusieurs formats possibles (number, string, null)
+        const commission = provider.vetCommissionDa;
+        if (typeof commission === 'number' && commission > 0) {
+          setCommissionDa(commission);
+        } else if (typeof commission === 'string') {
+          const parsed = parseInt(commission, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            setCommissionDa(parsed);
+          }
+        }
+        // Si null/undefined/0, on garde le défaut de 100
       }
     } catch (error) {
       console.error('Error fetching provider commission:', error);
