@@ -478,7 +478,7 @@ export class AdminFlagsService {
 
       // Vérifier le montant collecté
       const collection = await this.prisma.adminCollection.findUnique({
-        where: { providerId_month: { providerId, month } },
+        where: { providerId_month_kind: { providerId, month, kind: 'vet' } },
       });
 
       const collectedDa = collection ? Math.min(collection.amountDa, dueDa) : 0;

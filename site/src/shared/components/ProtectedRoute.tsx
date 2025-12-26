@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const location = useLocation();
-  const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const { user, provider, isAuthenticated, isLoading, fetchUser, logout } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
 
   console.log('ProtectedRoute render:', { isAuthenticated, isLoading, hasChecked, user: user?.email, path: location.pathname });
@@ -52,6 +52,15 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     } else if (user.role === 'PRO') {
       return <Navigate to="/pro" replace />;
     } else {
+      return <Navigate to="/login" replace />;
+    }
+  }
+
+  // Block daycare and petshop providers - they must use the mobile app
+  if (user?.role === 'PRO' && provider) {
+    const providerKind = (provider.specialties as { kind?: string })?.kind?.toLowerCase();
+    if (providerKind === 'daycare' || providerKind === 'petshop') {
+      logout();
       return <Navigate to="/login" replace />;
     }
   }

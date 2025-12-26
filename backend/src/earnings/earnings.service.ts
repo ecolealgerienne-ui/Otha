@@ -307,13 +307,19 @@ export class EarningsService {
 
     return {
       month: ym,
+      // Match frontend MonthlyEarnings interface
+      bookingCount: orderCount,
+      totalAmount: totalRevenue,
+      totalCommission,
+      netAmount: netDa,
+      collected: collectedDa >= totalCommission && totalCommission > 0,
+      collectedAmount: collectedDa,
+      // Legacy fields
       orderCount,
       totalRevenue,
-      totalCommission,
       dueDa: totalCommission,
       collectedDa,
       netDa,
-      collected: collectedDa >= totalCommission && totalCommission > 0,
       ...counts,
     };
   }
@@ -560,13 +566,18 @@ export class EarningsService {
 
     return {
       month: ym,
+      // Match frontend MonthlyEarnings interface
       bookingCount,
-      totalRevenue,
+      totalAmount: totalRevenue,
       totalCommission,
+      netAmount: netDa,
+      collected: collectedDa >= totalCommission && totalCommission > 0,
+      collectedAmount: collectedDa,
+      // Legacy fields
+      totalRevenue,
       dueDa: totalCommission,
       collectedDa,
       netDa,
-      collected: collectedDa >= totalCommission && totalCommission > 0,
       ...counts,
     };
   }
