@@ -43,6 +43,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _providerPickupEnabled = true;
   int? _deliveryFeeDa;
   int? _freeDeliveryAboveDa;
+  int _commissionPercent = 5; // Default 5%, will be loaded from provider
 
   @override
   void initState() {
@@ -100,6 +101,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           _providerPickupEnabled = deliveryOptions['pickupEnabled'] != false;
           _deliveryFeeDa = deliveryOptions['deliveryFeeDa'] as int?;
           _freeDeliveryAboveDa = deliveryOptions['freeDeliveryAboveDa'] as int?;
+          // Load commission percent from provider (default 5%)
+          _commissionPercent = (deliveryOptions['commissionPercent'] as num?)?.toInt() ?? 5;
 
           // Set default mode based on available options
           if (!_providerPickupEnabled && _providerDeliveryEnabled) {
@@ -784,12 +787,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  /// Commission rate (10%)
-  static const double _commissionRate = 0.10;
-
-  /// Calculate commission based on subtotal
+  /// Calculate commission based on subtotal using provider's commission rate
   int _calculateCommission(int subtotalDa) {
-    return (subtotalDa * _commissionRate).round();
+    return (subtotalDa * _commissionPercent / 100).round();
   }
 
   Widget _buildOrderSummary(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, AppLocalizations l10n) {
