@@ -88,16 +88,35 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
-    // Delivery options - check multiple field names for backend compatibility
-    final deliveryEnabled = m['deliveryEnabled'] == true ||
-                            m['delivery_enabled'] == true ||
-                            m['enableDelivery'] == true ||
-                            (m['deliveryEnabled']?.toString().toLowerCase() == 'true');
-    final pickupEnabled = m['pickupEnabled'] != false &&
-                          m['pickup_enabled'] != false; // Default true
-    final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt() ??
+    // Delivery options - check in specialties first (petshop settings), then root level
+    // Backend stores petshop delivery settings in specialties
+    final bool deliveryEnabled;
+    final bool pickupEnabled;
+
+    if (specialties != null) {
+      // Check in specialties (where petshop-specific settings are stored)
+      deliveryEnabled = specialties['deliveryEnabled'] == true ||
+                        specialties['delivery_enabled'] == true ||
+                        specialties['enableDelivery'] == true;
+      // pickupEnabled: check if explicitly set to false
+      final pickupVal = specialties['pickupEnabled'] ?? specialties['pickup_enabled'] ?? specialties['enablePickup'];
+      pickupEnabled = pickupVal != false; // Only false if explicitly false
+    } else {
+      // Fallback to root level
+      deliveryEnabled = m['deliveryEnabled'] == true ||
+                        m['delivery_enabled'] == true ||
+                        m['enableDelivery'] == true;
+      final pickupVal = m['pickupEnabled'] ?? m['pickup_enabled'];
+      pickupEnabled = pickupVal != false;
+    }
+
+    final deliveryFeeDa = (specialties?['deliveryFeeDa'] as num?)?.toInt() ??
+                          (specialties?['delivery_fee_da'] as num?)?.toInt() ??
+                          (m['deliveryFeeDa'] as num?)?.toInt() ??
                           (m['delivery_fee_da'] as num?)?.toInt();
-    final freeDeliveryAboveDa = (m['freeDeliveryAboveDa'] as num?)?.toInt() ??
+    final freeDeliveryAboveDa = (specialties?['freeDeliveryAboveDa'] as num?)?.toInt() ??
+                                 (specialties?['free_delivery_above_da'] as num?)?.toInt() ??
+                                 (m['freeDeliveryAboveDa'] as num?)?.toInt() ??
                                  (m['free_delivery_above_da'] as num?)?.toInt();
 
     // Calculate open/close status based on current time and day
