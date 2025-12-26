@@ -577,6 +577,15 @@ class _CartSummaryBar extends ConsumerWidget {
   }
 
   void _showCartModal(BuildContext context, WidgetRef ref) {
+    final isDark = ref.read(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    // Theme colors
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade200;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -584,6 +593,12 @@ class _CartSummaryBar extends ConsumerWidget {
       builder: (ctx) => Consumer(
         builder: (context, ref, child) {
           final cart = ref.watch(cartProvider);
+          final currentIsDark = ref.watch(themeProvider) == AppThemeMode.dark;
+
+          // Theme colors (re-read in case theme changed)
+          final modalCardColor = currentIsDark ? _darkCard : Colors.white;
+          final modalTextPrimary = currentIsDark ? Colors.white : _ink;
+          final modalBorderColor = currentIsDark ? _darkCardBorder : Colors.grey.shade200;
 
           // Close modal if cart becomes empty
           if (cart.isEmpty) {
@@ -596,11 +611,11 @@ class _CartSummaryBar extends ConsumerWidget {
 
           return Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: modalCardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -608,33 +623,50 @@ class _CartSummaryBar extends ConsumerWidget {
                 // Handle
                 Container(
                   margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
+                  width: 48,
+                  height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+                    color: modalBorderColor,
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      const Text(
-                        'Mon panier',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: currentIsDark ? _coral.withOpacity(0.15) : _coralSoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.shopping_bag, color: _coral, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        l10n.petshopMyCart,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: modalTextPrimary,
+                        ),
                       ),
                       const Spacer(),
-                      TextButton(
+                      TextButton.icon(
                         onPressed: () {
                           ref.read(cartProvider.notifier).clear();
                           Navigator.pop(ctx);
                         },
-                        child: const Text('Vider', style: TextStyle(color: Colors.red)),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: Text(l10n.petshopClear),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                Divider(height: 1, color: modalBorderColor),
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
@@ -642,19 +674,19 @@ class _CartSummaryBar extends ConsumerWidget {
                     itemCount: cart.items.length,
                     itemBuilder: (_, i) {
                       final item = cart.items[i];
-                      return _CartItemTile(item: item);
+                      return _CartItemTile(item: item, isDark: currentIsDark, l10n: l10n);
                     },
                   ),
                 ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                Divider(height: 1, color: modalBorderColor),
+                Container(
+                  padding: const EdgeInsets.all(20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text(l10n.petshopSubtotal, style: TextStyle(fontWeight: FontWeight.w600, color: modalTextPrimary)),
                       Text(_da(cart.subtotalDa),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: _coral)),
                     ],
                   ),
                 ),
@@ -669,35 +701,42 @@ class _CartSummaryBar extends ConsumerWidget {
 
 class _CartItemTile extends ConsumerWidget {
   final CartItem item;
-  const _CartItemTile({required this.item});
+  final bool isDark;
+  final AppLocalizations l10n;
+  const _CartItemTile({required this.item, required this.isDark, required this.l10n});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cardColor = isDark ? _darkCardBorder : Colors.grey.shade50;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? _darkCardBorder : Colors.transparent),
       ),
       child: Row(
         children: [
-          // Image
+          // Image - bigger
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: item.imageUrl != null && item.imageUrl!.startsWith('http')
                 ? Image.network(
                     item.imageUrl!,
-                    width: 50,
-                    height: 50,
+                    width: 60,
+                    height: 60,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _placeholder(),
                   )
                 : _placeholder(),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           // Info
           Expanded(
             child: Column(
@@ -705,52 +744,55 @@ class _CartItemTile extends ConsumerWidget {
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  maxLines: 1,
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: textPrimary),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   _da(item.priceDa),
-                  style: const TextStyle(color: _coral, fontWeight: FontWeight.w700, fontSize: 12),
+                  style: const TextStyle(color: _coral, fontWeight: FontWeight.w700, fontSize: 14),
                 ),
               ],
             ),
           ),
-          // Quantity controls
+          // Quantity controls - bigger buttons
           Row(
             children: [
               InkWell(
                 onTap: () => ref.read(cartProvider.notifier).decrementQuantity(item.productId),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(6),
+                    color: isDark ? _darkCard : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? _darkCardBorder : Colors.transparent),
                   ),
                   child: Icon(
                     item.quantity == 1 ? Icons.delete_outline : Icons.remove,
-                    size: 16,
-                    color: item.quantity == 1 ? Colors.red : _ink,
+                    size: 18,
+                    color: item.quantity == 1 ? Colors.red : textPrimary,
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   '${item.quantity}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: textPrimary),
                 ),
               ),
               InkWell(
                 onTap: () => ref.read(cartProvider.notifier).incrementQuantity(item.productId),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: _coral,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.add, size: 16, color: Colors.white),
+                  child: const Icon(Icons.add, size: 18, color: Colors.white),
                 ),
               ),
             ],

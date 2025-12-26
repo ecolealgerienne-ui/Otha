@@ -799,10 +799,10 @@ final activeOrdersProvider =
   final api = ref.read(apiProvider);
   try {
     final orders = await api.myClientOrders();
-    // Filter for active orders (PENDING or CONFIRMED)
+    // Filter for active orders (PENDING, CONFIRMED, or READY)
     return orders.where((o) {
       final status = (o['status'] ?? '').toString().toUpperCase();
-      return status == 'PENDING' || status == 'CONFIRMED';
+      return status == 'PENDING' || status == 'CONFIRMED' || status == 'READY';
     }).toList();
   } catch (_) {
     return [];
@@ -4022,9 +4022,21 @@ class _ActiveOrdersBanner extends ConsumerWidget {
     return 0;
   }
 
+  String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(activeOrdersProvider);
+    final themeMode = ref.watch(themeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    // Theme colors
+    const coral = Color(0xFFF36C6C);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? const Color(0xFF2A2A2A) : Colors.transparent;
 
     return async.when(
       loading: () => const SizedBox.shrink(),
@@ -4039,66 +4051,158 @@ class _ActiveOrdersBanner extends ConsumerWidget {
             final totalDa = _asInt(order['totalDa'] ?? 0);
             final orderId = (order['id'] ?? '').toString();
             final provider = order['provider'] as Map<String, dynamic>?;
-            final shopName = provider?['displayName'] ?? 'Animalerie';
+            final shopName = provider?['displayName'] ?? l10n.petshop;
             final items = (order['items'] as List?) ?? [];
             final itemCount = items.length;
+            final deliveryMode = (order['deliveryMode'] ?? 'pickup').toString();
 
             final isPending = status == 'PENDING';
-            final statusText = isPending ? 'En attente' : 'Confirmee';
-            final statusColor = isPending ? const Color(0xFFFFA000) : const Color(0xFF22C55E);
-            final statusIcon = isPending ? Icons.hourglass_empty : Icons.thumb_up;
+            final isReady = status == 'READY';
+            final statusText = isPending
+                ? l10n.petshopStatusPending
+                : (isReady ? l10n.petshopStatusReady : l10n.petshopStatusConfirmed);
+            final statusColor = isPending
+                ? const Color(0xFFFFA000)
+                : (isReady ? const Color(0xFF0EA5E9) : const Color(0xFF22C55E));
+            final statusIcon = isPending
+                ? Icons.hourglass_empty
+                : (isReady ? Icons.inventory_2_rounded : Icons.thumb_up_rounded);
 
             return Padding(
               padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-                ),
+              child: Material(
+                color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () => context.push('/petshop/order/$orderId'),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF36C6C), // rose saumon
-                          borderRadius: BorderRadius.circular(10),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                      boxShadow: isDark ? null : const [
+                        BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6)),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        // Icon container with status color ring
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: coral.withOpacity(isDark ? 0.2 : 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: coral.withOpacity(0.3), width: 1.5),
+                          ),
+                          child: const Icon(Icons.shopping_bag_rounded, color: coral, size: 24),
                         ),
-                        child: const Icon(Icons.shopping_bag, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Commande $shopName',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Icon(statusIcon, size: 14, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$statusText • $itemCount article${itemCount > 1 ? 's' : ''} • $totalDa DA',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Shop name
+                              Text(
+                                shopName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: textPrimary,
                                 ),
-                              ],
-                            ),
-                          ],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              // Status badge + info
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withOpacity(isDark ? 0.2 : 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(statusIcon, size: 12, color: statusColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          statusText,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: statusColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Delivery mode badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (deliveryMode == 'delivery' ? Colors.blue : Colors.purple)
+                                          .withOpacity(isDark ? 0.2 : 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          deliveryMode == 'delivery'
+                                              ? Icons.local_shipping_rounded
+                                              : Icons.store_rounded,
+                                          size: 10,
+                                          color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          deliveryMode == 'delivery'
+                                              ? l10n.petshopDelivery
+                                              : l10n.petshopPickup,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: deliveryMode == 'delivery' ? Colors.blue : Colors.purple,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              // Items count + total
+                              Text(
+                                '$itemCount ${itemCount > 1 ? l10n.petshopArticles : l10n.petshopArticle} • ${_da(totalDa)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios, size: 16),
-                    ],
+                        const SizedBox(width: 8),
+                        // Arrow with circle background
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: coral.withOpacity(isDark ? 0.15 : 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: coral,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
