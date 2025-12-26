@@ -111,8 +111,8 @@ class UserOrderDetailScreen extends ConsumerWidget {
                 if (isReadyForPickup)
                   const SizedBox(height: 16),
 
-                // Shop info with itinerary button
-                _buildShopCard(provider, shopName, shopAddress, shopLat, shopLng, isDark, cardColor, textPrimary, textSecondary, borderColor, l10n),
+                // Shop info with itinerary button (only when confirmed)
+                _buildShopCard(ref, provider, shopName, shopAddress, shopLat, shopLng, status, isDark, cardColor, textPrimary, textSecondary, borderColor, l10n),
                 const SizedBox(height: 16),
 
                 // Order items with images
@@ -284,7 +284,10 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildShopCard(Map<String, dynamic>? provider, String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
+  Widget _buildShopCard(WidgetRef ref, Map<String, dynamic>? provider, String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, String status, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
+    // Only show itinerary button when order is confirmed (not PENDING)
+    final showItinerary = status != 'PENDING';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -303,18 +306,19 @@ class UserOrderDetailScreen extends ConsumerWidget {
               Expanded(
                 child: Text(l10n.petshopSeller, style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
               ),
-              // Itinerary button with coral icon - always visible
-              GestureDetector(
-                onTap: () => _openMapsItinerary(provider, shopLat, shopLng, shopAddress, shopName),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
-                    borderRadius: BorderRadius.circular(10),
+              // Itinerary button with coral icon - only when confirmed
+              if (showItinerary)
+                GestureDetector(
+                  onTap: () => _openMapsItinerary(ref, provider, shopLat, shopLng, shopAddress, shopName),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.directions, size: 20, color: _coral),
                   ),
-                  child: const Icon(Icons.directions, size: 20, color: _coral),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -352,11 +356,31 @@ class UserOrderDetailScreen extends ConsumerWidget {
     return u2.startsWith('http') ? u2 : null;
   }
 
-  Future<void> _openMapsItinerary(Map<String, dynamic>? provider, dynamic lat, dynamic lng, String address, String name) async {
+  Future<void> _openMapsItinerary(WidgetRef ref, Map<String, dynamic>? provider, dynamic lat, dynamic lng, String address, String name) async {
     Uri url;
 
     // First try mapsUrl from provider (this is the stored Google Maps URL)
-    final mapsUrl = _getMapsUrl(provider);
+    String? mapsUrl = _getMapsUrl(provider);
+
+    // If no mapsUrl, try to load the full provider details
+    if ((mapsUrl == null || mapsUrl.isEmpty) && provider != null) {
+      final providerId = (provider['id'] ?? provider['providerId'] ?? '').toString();
+      if (providerId.isNotEmpty) {
+        try {
+          final api = ref.read(apiProvider);
+          final fullProvider = await api.providerDetails(providerId);
+          mapsUrl = _getMapsUrl(fullProvider);
+          // Also try to get coordinates from full provider
+          if (mapsUrl == null && lat == null) {
+            lat = fullProvider['lat'] ?? fullProvider['latitude'];
+            lng = fullProvider['lng'] ?? fullProvider['longitude'];
+          }
+        } catch (_) {
+          // Ignore errors, continue with fallbacks
+        }
+      }
+    }
+
     if (mapsUrl != null && mapsUrl.isNotEmpty) {
       url = Uri.parse(mapsUrl);
     }
