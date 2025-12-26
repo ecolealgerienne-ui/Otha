@@ -429,12 +429,15 @@ export class EarningsService {
     const { from, to } = monthStartEndUtc(ym);
     const rows = await this.prisma.daycareBooking.groupBy({
       by: ['status'],
-      where: { providerId, startTime: { gte: from, lt: to } },
+      where: { providerId, startDate: { gte: from, lt: to } },
       _count: { _all: true },
     });
 
     const out = { PENDING: 0, CONFIRMED: 0, COMPLETED: 0, CANCELLED: 0 };
-    for (const r of rows) out[r.status as keyof typeof out] = r._count._all;
+    for (const r of rows) {
+      const count = (r._count as { _all: number })._all;
+      out[r.status as keyof typeof out] = count;
+    }
     return out;
   }
 
@@ -443,19 +446,17 @@ export class EarningsService {
    */
   private async daycareCommissionFor(providerId: string, ym: string): Promise<{ bookingCount: number; totalCommission: number; totalRevenue: number }> {
     const { from, to } = monthStartEndUtc(ym);
-    const commission = await this.getProviderDaycareCommission(providerId);
 
     const bookings = await this.prisma.daycareBooking.findMany({
       where: {
         providerId,
         status: 'COMPLETED',
-        startTime: { gte: from, lt: to },
+        startDate: { gte: from, lt: to },
       },
       select: {
-        startTime: true,
-        endTime: true,
         priceDa: true,
-        bookingType: true,
+        commissionDa: true,
+        totalDa: true,
       },
     });
 
@@ -463,22 +464,9 @@ export class EarningsService {
     let totalRevenue = 0;
 
     for (const b of bookings) {
-      totalRevenue += b.priceDa || 0;
-
-      // Calculate commission based on booking type
-      if (b.bookingType === 'DAILY') {
-        // For daily bookings, calculate number of days
-        const days = b.startTime && b.endTime
-          ? Math.max(1, Math.ceil((b.endTime.getTime() - b.startTime.getTime()) / (1000 * 60 * 60 * 24)))
-          : 1;
-        totalCommission += days * commission.daily;
-      } else {
-        // For hourly bookings, calculate number of hours
-        const hours = b.startTime && b.endTime
-          ? Math.max(1, Math.ceil((b.endTime.getTime() - b.startTime.getTime()) / (1000 * 60 * 60)))
-          : 1;
-        totalCommission += hours * commission.hourly;
-      }
+      totalRevenue += b.totalDa || b.priceDa || 0;
+      // Use stored commissionDa directly (100 DA default per booking)
+      totalCommission += b.commissionDa || 100;
     }
 
     return {
