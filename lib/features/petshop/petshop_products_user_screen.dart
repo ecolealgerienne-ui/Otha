@@ -5,14 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api.dart';
+import '../../core/locale_provider.dart';
 import 'cart_provider.dart';
 
 const _coral = Color(0xFFF36C6C);
 const _coralSoft = Color(0xFFFFEEF0);
 const _ink = Color(0xFF222222);
 
-/// Commission par défaut pour petshop (statique pour l'instant - sera personnalisable plus tard)
-const int kDefaultPetshopCommissionDa = 100;
+// Dark mode colors
+const _darkBg = Color(0xFF121212);
+const _darkCard = Color(0xFF1E1E1E);
+const _darkCardBorder = Color(0xFF2A2A2A);
+
+// Note: Commission is calculated by backend as % of subtotal, not added per item
 
 /// Provider pour les details d'une animalerie
 final _petshopProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
@@ -55,14 +60,23 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
     final petshopAsync = ref.watch(_petshopProvider(widget.providerId));
     final productsAsync = ref.watch(_petshopProductsProvider(widget.providerId));
     final cart = ref.watch(cartProvider);
+    final isDark = ref.watch(themeProvider) == AppThemeMode.dark;
+    final l10n = AppLocalizations.of(context);
+
+    // Theme colors
+    final bgColor = isDark ? _darkBg : const Color(0xFFF7F8FA);
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade200;
 
     return Theme(
-      data: _themed(context),
+      data: _themed(context, isDark),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7F8FA),
+        backgroundColor: bgColor,
         body: petshopAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erreur: $e')),
+          loading: () => Center(child: CircularProgressIndicator(color: _coral)),
+          error: (e, _) => Center(child: Text('${l10n.error}: $e', style: TextStyle(color: textPrimary))),
           data: (petshop) {
             final name = (petshop['displayName'] ?? 'Animalerie').toString();
             final address = (petshop['address'] ?? '').toString();
@@ -101,11 +115,11 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                           ),
                         ),
                       ),
-                    // Custom App Bar with shop info
+                    // Custom App Bar with shop info - compact design
                     SliverAppBar(
-                      expandedHeight: 220,
+                      expandedHeight: 160,
                       pinned: true,
-                      backgroundColor: _coral,
+                      backgroundColor: isDark ? _darkCard : _coral,
                       foregroundColor: Colors.white,
                       surfaceTintColor: Colors.transparent,
                       title: Text(
@@ -119,35 +133,27 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                         collapseMode: CollapseMode.parallax,
                         background: Container(
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [_coral, Color(0xFFFF8A80)],
+                            gradient: LinearGradient(
+                              colors: isDark
+                                  ? [_darkCard, _darkBg]
+                                  : [_coral, const Color(0xFFFF8A80)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            image: hasAvatar
-                                ? DecorationImage(
-                                    image: NetworkImage(avatarUrl),
-                                    fit: BoxFit.cover,
-                                    colorFilter: ColorFilter.mode(
-                                      _coral.withOpacity(0.3),
-                                      BlendMode.srcOver,
-                                    ),
-                                  )
-                                : null,
                           ),
                           child: SafeArea(
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(16, 56, 16, 12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Row(
                                     children: [
-                                      // Avatar circle
+                                      // Compact avatar
                                       CircleAvatar(
-                                        radius: 36,
-                                        backgroundColor: Colors.white,
+                                        radius: 28,
+                                        backgroundColor: isDark ? _darkCardBorder : Colors.white,
                                         backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
                                         child: !hasAvatar
                                             ? Text(
@@ -155,12 +161,12 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                                 style: const TextStyle(
                                                   color: _coral,
                                                   fontWeight: FontWeight.w800,
-                                                  fontSize: 28,
+                                                  fontSize: 22,
                                                 ),
                                               )
                                             : null,
                                       ),
-                                      const SizedBox(width: 14),
+                                      const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,7 +176,7 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontWeight: FontWeight.w800,
-                                                fontSize: 22,
+                                                fontSize: 18,
                                                 shadows: [
                                                   Shadow(
                                                     color: Colors.black38,
@@ -180,24 +186,18 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                               ),
                                             ),
                                             if (address.isNotEmpty) ...[
-                                              const SizedBox(height: 4),
+                                              const SizedBox(height: 2),
                                               Row(
                                                 children: [
                                                   const Icon(Icons.location_on,
-                                                      size: 14, color: Colors.white70),
+                                                      size: 12, color: Colors.white70),
                                                   const SizedBox(width: 4),
                                                   Expanded(
                                                     child: Text(
                                                       address,
                                                       style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 12,
-                                                        shadows: [
-                                                          Shadow(
-                                                            color: Colors.black38,
-                                                            blurRadius: 2,
-                                                          ),
-                                                        ],
+                                                        color: Colors.white70,
+                                                        fontSize: 11,
                                                       ),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
@@ -237,19 +237,21 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                       ),
                     ),
 
-                    // Search bar
+                    // Search bar with dark mode
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: TextField(
                           controller: _searchController,
                           onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                          style: TextStyle(color: textPrimary),
                           decoration: InputDecoration(
-                            hintText: 'Rechercher un produit...',
-                            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                            hintText: l10n.petshopSearchProduct,
+                            hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400]),
+                            prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[400] : Colors.grey),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear),
+                                    icon: Icon(Icons.clear, color: isDark ? Colors.grey[400] : Colors.grey),
                                     onPressed: () {
                                       _searchController.clear();
                                       setState(() => _searchQuery = '');
@@ -257,10 +259,18 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                   )
                                 : null,
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: isDark ? _darkCard : Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: _coral, width: 2),
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
@@ -268,13 +278,13 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                       ),
                     ),
 
-                    // Category filters
+                    // Category filters with dark mode
                     SliverToBoxAdapter(
                       child: productsAsync.when(
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                         data: (products) {
-                          final categories = <String>{'Tous'};
+                          final categories = <String>{l10n.petshopAll};
                           for (final p in products) {
                             final cat = (p['category'] ?? '').toString();
                             if (cat.isNotEmpty) categories.add(cat);
@@ -290,23 +300,23 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                               separatorBuilder: (_, __) => const SizedBox(width: 8),
                               itemBuilder: (_, i) {
                                 final cat = categories.elementAt(i);
-                                final selected = cat == _selectedCategory;
+                                final selected = cat == _selectedCategory || (i == 0 && _selectedCategory == 'Tous');
                                 return InkWell(
                                   onTap: () => setState(() => _selectedCategory = cat),
                                   borderRadius: BorderRadius.circular(20),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: selected ? _coral : Colors.white,
+                                      color: selected ? _coral : (isDark ? _darkCard : Colors.white),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: selected ? _coral : Colors.grey.shade300,
+                                        color: selected ? _coral : borderColor,
                                       ),
                                     ),
                                     child: Text(
                                       cat,
                                       style: TextStyle(
-                                        color: selected ? Colors.white : Colors.grey.shade700,
+                                        color: selected ? Colors.white : (isDark ? Colors.grey[300] : Colors.grey.shade700),
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
                                       ),
@@ -324,16 +334,16 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
 
                     // Products grid
                     productsAsync.when(
-                      loading: () => const SliverToBoxAdapter(
+                      loading: () => SliverToBoxAdapter(
                         child: Center(
                           child: Padding(
-                            padding: EdgeInsets.all(48),
-                            child: CircularProgressIndicator(),
+                            padding: const EdgeInsets.all(48),
+                            child: CircularProgressIndicator(color: _coral),
                           ),
                         ),
                       ),
                       error: (e, _) => SliverToBoxAdapter(
-                        child: Center(child: Text('Erreur: $e')),
+                        child: Center(child: Text('${l10n.error}: $e', style: TextStyle(color: textPrimary))),
                       ),
                       data: (products) {
                         // Filter products
@@ -346,7 +356,9 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                               title.contains(_searchQuery) ||
                               desc.contains(_searchQuery);
                           final matchesCategory =
-                              _selectedCategory == 'Tous' || cat == _selectedCategory;
+                              _selectedCategory == 'Tous' ||
+                              _selectedCategory == l10n.petshopAll ||
+                              cat == _selectedCategory;
 
                           return matchesSearch && matchesCategory;
                         }).toList();
@@ -360,24 +372,25 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(20),
-                                      decoration: const BoxDecoration(
-                                        color: _coralSoft,
+                                      decoration: BoxDecoration(
+                                        color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(Icons.search_off, size: 48, color: _coral),
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text(
-                                      'Aucun produit trouve',
+                                    Text(
+                                      l10n.petshopNoProduct,
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
+                                        color: textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Essayez de modifier votre recherche',
-                                      style: TextStyle(color: Colors.grey.shade600),
+                                      l10n.petshopTryModifySearch,
+                                      style: TextStyle(color: textSecondary),
                                     ),
                                   ],
                                 ),
@@ -401,6 +414,8 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                                   product: filtered[index],
                                   providerId: widget.providerId,
                                   preview: widget.preview,
+                                  isDark: isDark,
+                                  l10n: l10n,
                                 );
                               },
                               childCount: filtered.length,
@@ -418,7 +433,7 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: _CartSummaryBar(cart: cart),
+                    child: _CartSummaryBar(cart: cart, isDark: isDark, l10n: l10n),
                   ),
               ],
             );
@@ -428,12 +443,12 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
     );
   }
 
-  ThemeData _themed(BuildContext context) {
+  ThemeData _themed(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
     return theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         primary: _coral,
-        surface: Colors.white,
+        surface: isDark ? _darkCard : Colors.white,
         onPrimary: Colors.white,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: _coral),
@@ -443,19 +458,27 @@ class _PetshopProductsUserScreenState extends ConsumerState<PetshopProductsUserS
 
 class _CartSummaryBar extends ConsumerWidget {
   final CartState cart;
-  const _CartSummaryBar({required this.cart});
+  final bool isDark;
+  final AppLocalizations l10n;
+  const _CartSummaryBar({required this.cart, required this.isDark, required this.l10n});
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade200;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
+        border: Border(top: BorderSide(color: borderColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -476,7 +499,7 @@ class _CartSummaryBar extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _coralSoft,
+                          color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -496,9 +519,9 @@ class _CartSummaryBar extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'article${cart.itemCount > 1 ? 's' : ''}',
+                        cart.itemCount > 1 ? l10n.petshopArticles : l10n.petshopArticle,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -507,14 +530,14 @@ class _CartSummaryBar extends ConsumerWidget {
                       InkWell(
                         onTap: () => _showCartModal(context, ref),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: borderColor),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            'Modifier',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          child: Text(
+                            l10n.petshopModify,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
                           ),
                         ),
                       ),
@@ -523,10 +546,10 @@ class _CartSummaryBar extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     _da(cart.subtotalDa),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 20,
-                      color: _ink,
+                      color: textPrimary,
                     ),
                   ),
                 ],
@@ -542,8 +565,8 @@ class _CartSummaryBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.shopping_cart_checkout, size: 20),
-              label: const Text(
-                'Commander',
+              label: Text(
+                l10n.petshopOrder,
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               ),
             ),
@@ -751,7 +774,15 @@ class _ProductCard extends ConsumerWidget {
   final Map<String, dynamic> product;
   final String providerId;
   final bool preview;
-  const _ProductCard({required this.product, required this.providerId, this.preview = false});
+  final bool isDark;
+  final AppLocalizations l10n;
+  const _ProductCard({
+    required this.product,
+    required this.providerId,
+    required this.isDark,
+    required this.l10n,
+    this.preview = false,
+  });
 
   String _da(int v) => '${NumberFormat.decimalPattern("fr_FR").format(v)} DA';
 
@@ -760,15 +791,20 @@ class _ProductCard extends ConsumerWidget {
     final title = (product['title'] ?? '').toString();
     final description = (product['description'] ?? '').toString();
     final productId = (product['id'] ?? '').toString();
-    final basePrice = _asInt(product['priceDa'] ?? product['price'] ?? 0);
-    // Le prix affiché inclut la commission
-    final price = basePrice + kDefaultPetshopCommissionDa;
+    // Display base price - commission is applied at checkout
+    final price = _asInt(product['priceDa'] ?? product['price'] ?? 0);
     final stock = _asInt(product['stock'] ?? 0);
     final imageUrls = product['imageUrls'] as List?;
     final imageUrl =
         imageUrls != null && imageUrls.isNotEmpty ? imageUrls.first.toString() : null;
 
     final inStock = stock > 0 || stock == 0 && product['stock'] == null;
+
+    // Theme colors
+    final cardColor = isDark ? _darkCard : Colors.white;
+    final textPrimary = isDark ? Colors.white : _ink;
+    final textSecondary = isDark ? Colors.grey[400] : Colors.grey[600];
+    final borderColor = isDark ? _darkCardBorder : Colors.grey.shade200;
 
     // Check if already in cart
     final cart = ref.watch(cartProvider);
@@ -790,7 +826,7 @@ class _ProductCard extends ConsumerWidget {
             children: [
               const Icon(Icons.check_circle, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text('$title ajoute')),
+              Expanded(child: Text('$title ${l10n.petshopAddedToCart}')),
             ],
           ),
           duration: const Duration(seconds: 1),
@@ -803,9 +839,10 @@ class _ProductCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        border: Border.all(color: borderColor),
+        boxShadow: isDark ? null : const [
           BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
@@ -836,10 +873,10 @@ class _ProductCard extends ConsumerWidget {
                         color: Colors.black.withOpacity(0.5),
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Rupture',
-                          style: TextStyle(
+                          l10n.petshopOutOfStock,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                           ),
@@ -881,9 +918,10 @@ class _ProductCard extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
+                      color: textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -893,7 +931,7 @@ class _ProductCard extends ConsumerWidget {
                     Text(
                       description,
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: textSecondary,
                         fontSize: 10,
                       ),
                       maxLines: 2,
@@ -916,12 +954,12 @@ class _ProductCard extends ConsumerWidget {
                       if (!preview)
                         InkWell(
                           onTap: inStock ? addToCart : null,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: inStock ? _coral : Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(8),
+                              color: inStock ? _coral : (isDark ? Colors.grey[700] : Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
                               inCart ? Icons.add : Icons.add_shopping_cart,
@@ -943,7 +981,7 @@ class _ProductCard extends ConsumerWidget {
 
   Widget _imagePlaceholder() {
     return Container(
-      color: _coralSoft,
+      color: isDark ? _darkCardBorder : _coralSoft,
       child: const Center(
         child: Icon(Icons.inventory_2, size: 40, color: _coral),
       ),
