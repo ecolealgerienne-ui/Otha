@@ -87,6 +87,27 @@ export class EarningsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @Post('admin/petshop/uncollect-month')
+  async adminPetshopUncollectMonth(@Body() dto: { providerId: string; month: string }) {
+    return this.earnings.petshopUncollectMonth(dto.providerId, dto.month);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/petshop/add-collection')
+  async adminPetshopAddCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.petshopAddCollection(dto.providerId, dto.month, dto.amount, dto.note);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/petshop/subtract-collection')
+  async adminPetshopSubtractCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.petshopSubtractCollection(dto.providerId, dto.month, dto.amount, dto.note);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Get('admin/petshop/global-stats')
   async adminPetshopGlobalStats(@Query('months') months = '12') {
     const m = Math.max(1, Math.min(120, parseInt(months, 10) || 12));
@@ -111,6 +132,27 @@ export class EarningsController {
   @Post('admin/daycare/collect-month')
   async adminDaycareCollectMonth(@Body() dto: { providerId: string; month: string; note?: string; amount?: number }) {
     return this.earnings.daycareCollectMonth(dto.providerId, dto.month, dto.note, dto.amount);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/daycare/uncollect-month')
+  async adminDaycareUncollectMonth(@Body() dto: { providerId: string; month: string }) {
+    return this.earnings.daycareUncollectMonth(dto.providerId, dto.month);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/daycare/add-collection')
+  async adminDaycareAddCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.daycareAddCollection(dto.providerId, dto.month, dto.amount, dto.note);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/daycare/subtract-collection')
+  async adminDaycareSubtractCollection(@Body() dto: { providerId: string; month: string; amount: number; note?: string }) {
+    return this.earnings.daycareSubtractCollection(dto.providerId, dto.month, dto.amount, dto.note);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
