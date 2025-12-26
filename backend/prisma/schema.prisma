@@ -872,15 +872,16 @@ model ProviderEarning {
 model AdminCollection {
   id          String   @id @default(cuid())
   providerId  String
-  month       String // 'YYYY-MM'
+  month       String   // 'YYYY-MM'
+  kind        String   @default("vet") // 'vet', 'petshop', 'daycare'
   amountDa    Int
   collectedAt DateTime @default(now())
   note        String?
 
   provider ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  @@unique([providerId, month])
-  @@index([providerId, month])
+  @@unique([providerId, month, kind])
+  @@index([providerId, month, kind])
 }
 
 // Flag admin pour signaler les comptes/RDV suspects
