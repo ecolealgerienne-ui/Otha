@@ -153,6 +153,11 @@ export class ProvidersService {
         vetCommissionDa: true,
         daycareHourlyCommissionDa: true,
         daycareDailyCommissionDa: true,
+        // Petshop delivery options
+        deliveryEnabled: true,
+        pickupEnabled: true,
+        deliveryFeeDa: true,
+        freeDeliveryAboveDa: true,
         // Inclure les services actifs
         services: {
           where: { archivedAt: null },
@@ -247,6 +252,11 @@ export class ProvidersService {
           vetCommissionDa: (p as any).vetCommissionDa,
           daycareHourlyCommissionDa: (p as any).daycareHourlyCommissionDa,
           daycareDailyCommissionDa: (p as any).daycareDailyCommissionDa,
+          // Petshop delivery options
+          deliveryEnabled: (p as any).deliveryEnabled,
+          pickupEnabled: (p as any).pickupEnabled,
+          deliveryFeeDa: (p as any).deliveryFeeDa,
+          freeDeliveryAboveDa: (p as any).freeDeliveryAboveDa,
           ...(distance_km !== undefined ? { distance_km } : {}),
         };
       })
