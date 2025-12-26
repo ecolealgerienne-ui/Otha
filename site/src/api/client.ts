@@ -187,8 +187,8 @@ class ApiClient {
   // ==================== PROVIDER (PRO) ====================
   async myProvider(): Promise<ProviderProfile | null> {
     try {
-      const { data } = await this._client.get<ProviderProfile>('/providers/me');
-      return data;
+      const { data } = await this._client.get<{ success: boolean; data: ProviderProfile }>('/providers/me');
+      return data?.data ?? data ?? null;
     } catch {
       return null;
     }
