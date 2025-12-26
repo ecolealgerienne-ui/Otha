@@ -2472,7 +2472,23 @@ Future<Map<String, dynamic>> myEarnings({required String month}) async {
       : <String, dynamic>{};
 }
 
+// -------- PRO PETSHOP: current month earnings --------
+Future<Map<String, dynamic>?> myPetshopCurrentMonth() async {
+  await ensureAuth();
+  final r = await _authRetry(() async => await _dio.get('/earnings/me/petshop/current-month'));
+  final payload = (r.data is Map) ? (r.data['data'] ?? r.data) : r.data;
+  if (payload == null) return null;
+  return (payload is Map) ? Map<String, dynamic>.from(payload) : null;
+}
 
+// -------- PRO DAYCARE: current month earnings --------
+Future<Map<String, dynamic>?> myDaycareCurrentMonth() async {
+  await ensureAuth();
+  final r = await _authRetry(() async => await _dio.get('/earnings/me/daycare/current-month'));
+  final payload = (r.data is Map) ? (r.data['data'] ?? r.data) : r.data;
+  if (payload == null) return null;
+  return (payload is Map) ? Map<String, dynamic>.from(payload) : null;
+}
 
 // ============================ ADMIN (via /earnings) ============================
 
