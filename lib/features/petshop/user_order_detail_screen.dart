@@ -79,10 +79,11 @@ class UserOrderDetailScreen extends ConsumerWidget {
           final deliveryFeeDa = _asInt(order['deliveryFeeDa'] ?? 0);
           final totalDa = _asInt(order['totalDa'] ?? order['total'] ?? 0);
           final provider = order['provider'] as Map<String, dynamic>?;
-          final shopName = provider?['displayName'] ?? 'Animalerie';
+          final shopName = provider?['displayName'] ?? provider?['name'] ?? 'Animalerie';
           final shopAddress = (provider?['address'] ?? '').toString();
-          final shopLat = provider?['lat'];
-          final shopLng = provider?['lng'];
+          // Check multiple field names for lat/lng
+          final shopLat = provider?['lat'] ?? provider?['latitude'];
+          final shopLng = provider?['lng'] ?? provider?['longitude'];
           final phone = (order['phone'] ?? '').toString();
           final address = (order['deliveryAddress'] ?? '').toString();
           final notes = (order['notes'] ?? '').toString();
@@ -129,7 +130,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
 
                 // Action buttons based on status
-                _buildActionButtons(context, ref, order, status, deliveryMode, shopLat, shopLng, isDark, l10n),
+                _buildActionButtons(context, ref, order, status, deliveryMode, shopLat, shopLng, shopAddress, shopName, isDark, l10n),
                 const SizedBox(height: 16),
 
                 // Return to home
@@ -284,6 +285,11 @@ class UserOrderDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildShopCard(String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
+    // Check if we have coordinates or at least an address for directions
+    final hasCoords = shopLat != null && shopLng != null;
+    final hasAddress = shopAddress.isNotEmpty;
+    final canShowDirections = hasCoords || hasAddress;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -299,7 +305,22 @@ class UserOrderDetailScreen extends ConsumerWidget {
             children: [
               Icon(Icons.storefront, size: 20, color: _coral),
               const SizedBox(width: 8),
-              Text(l10n.petshopSeller, style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
+              Expanded(
+                child: Text(l10n.petshopSeller, style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
+              ),
+              // Itinerary button inline with title
+              if (canShowDirections)
+                TextButton.icon(
+                  onPressed: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
+                  icon: const Icon(Icons.directions, size: 16),
+                  label: Text(l10n.petshopGoToStore),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -316,33 +337,35 @@ class UserOrderDetailScreen extends ConsumerWidget {
               ],
             ),
           ],
-          // Itinerary button
-          if (shopLat != null && shopLng != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _openMapsItinerary(shopLat, shopLng),
-                icon: const Icon(Icons.directions, size: 18),
-                label: Text(l10n.petshopGoToStore),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                  side: const BorderSide(color: Colors.blue),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Future<void> _openMapsItinerary(dynamic lat, dynamic lng) async {
-    final latitude = lat is num ? lat.toDouble() : double.tryParse(lat.toString()) ?? 0;
-    final longitude = lng is num ? lng.toDouble() : double.tryParse(lng.toString()) ?? 0;
-    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+  Future<void> _openMapsItinerary(dynamic lat, dynamic lng, String address, String name) async {
+    Uri url;
+
+    // Prefer coordinates if available
+    if (lat != null && lng != null) {
+      final latitude = lat is num ? lat.toDouble() : double.tryParse(lat.toString()) ?? 0;
+      final longitude = lng is num ? lng.toDouble() : double.tryParse(lng.toString()) ?? 0;
+      if (latitude != 0 && longitude != 0) {
+        url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+      } else {
+        // Fallback to address search
+        final query = Uri.encodeComponent('$name $address');
+        url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+      }
+    } else if (address.isNotEmpty) {
+      // Use address search
+      final query = Uri.encodeComponent('$name $address');
+      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    } else {
+      // Search by name only
+      final query = Uri.encodeComponent(name);
+      url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    }
+
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
@@ -529,8 +552,11 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, Map<String, dynamic> order, String status, String deliveryMode, dynamic shopLat, dynamic shopLng, bool isDark, AppLocalizations l10n) {
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref, Map<String, dynamic> order, String status, String deliveryMode, dynamic shopLat, dynamic shopLng, String shopAddress, String shopName, bool isDark, AppLocalizations l10n) {
     final id = (order['id'] ?? '').toString();
+    final hasCoords = shopLat != null && shopLng != null;
+    final hasAddress = shopAddress.isNotEmpty;
+    final canShowDirections = hasCoords || hasAddress;
 
     // Different actions based on status
     if (status == 'PENDING') {
@@ -551,12 +577,12 @@ class UserOrderDetailScreen extends ConsumerWidget {
     } else if (status == 'CONFIRMED' || status == 'READY') {
       return Column(
         children: [
-          // Itinerary button for pickup orders
-          if (deliveryMode == 'pickup' && shopLat != null && shopLng != null)
+          // Itinerary button for pickup orders - show if we have coords OR address
+          if (deliveryMode == 'pickup' && canShowDirections)
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => _openMapsItinerary(shopLat, shopLng),
+                onPressed: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
                 icon: const Icon(Icons.directions),
                 label: Text(l10n.petshopGoToStore),
                 style: FilledButton.styleFrom(
@@ -566,7 +592,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          if (deliveryMode == 'pickup' && shopLat != null && shopLng != null)
+          if (deliveryMode == 'pickup' && canShowDirections)
             const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
