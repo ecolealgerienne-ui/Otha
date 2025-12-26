@@ -784,9 +784,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  /// Commission rate (10%)
+  static const double _commissionRate = 0.10;
+
+  /// Calculate commission based on subtotal
+  int _calculateCommission(int subtotalDa) {
+    return (subtotalDa * _commissionRate).round();
+  }
+
   Widget _buildOrderSummary(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, AppLocalizations l10n) {
     final deliveryFee = _calculateDeliveryFee(cart.subtotalDa);
-    final totalWithDelivery = cart.subtotalDa + deliveryFee;
+    final commissionDa = _calculateCommission(cart.subtotalDa);
+    final totalWithDelivery = cart.subtotalDa + commissionDa + deliveryFee;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -867,6 +876,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           _buildSummaryRow(l10n.petshopSubtotal, _da(cart.subtotalDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
           const SizedBox(height: 8),
 
+          // Commission / Service fee
+          _buildSummaryRow(l10n.petshopServiceFee, _da(commissionDa), isDark: isDark, textPrimary: textPrimary, textSecondary: textSecondary),
+          const SizedBox(height: 8),
+
           // Delivery fee row - always shows "to discuss with store" when no fee set
           if (_deliveryMode == 'delivery')
             _buildSummaryRow(
@@ -945,7 +958,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildBottomBar(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
     final deliveryFee = _calculateDeliveryFee(cart.subtotalDa);
-    final totalWithDelivery = cart.subtotalDa + deliveryFee;
+    final commissionDa = _calculateCommission(cart.subtotalDa);
+    final totalWithDelivery = cart.subtotalDa + commissionDa + deliveryFee;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),

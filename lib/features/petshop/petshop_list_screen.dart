@@ -88,28 +88,43 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
-    // Delivery options - check root level first (where backend stores them), then specialties as fallback
-    // Backend stores petshop delivery settings directly on provider: p['deliveryEnabled'], p['pickupEnabled']
-    final bool deliveryEnabled;
-    final bool pickupEnabled;
+    // Delivery options - check both root level and specialties with all naming conventions
+    // Backend may store as deliveryEnabled, delivery_enabled, pickupEnabled, pickup_enabled
+    bool deliveryEnabled = false;
+    bool pickupEnabled = true; // Default to true
 
-    // Check root level first (this is where the backend stores it)
-    final rootDelivery = m['deliveryEnabled'];
-    final rootPickup = m['pickupEnabled'];
+    // Helper to get boolean value from any source
+    bool? getBool(dynamic val) {
+      if (val == true) return true;
+      if (val == false) return false;
+      if (val == 'true') return true;
+      if (val == 'false') return false;
+      return null;
+    }
 
-    if (rootDelivery != null || rootPickup != null) {
-      // Use root level values
-      deliveryEnabled = rootDelivery == true;
-      pickupEnabled = rootPickup != false; // Default true unless explicitly false
-    } else if (specialties != null) {
-      // Fallback to specialties
-      deliveryEnabled = specialties['deliveryEnabled'] == true;
-      final pickupVal = specialties['pickupEnabled'];
-      pickupEnabled = pickupVal != false;
-    } else {
-      // Defaults
-      deliveryEnabled = false;
-      pickupEnabled = true;
+    // Check root level (camelCase and snake_case)
+    final rootDelivery = getBool(m['deliveryEnabled']) ?? getBool(m['delivery_enabled']);
+    final rootPickup = getBool(m['pickupEnabled']) ?? getBool(m['pickup_enabled']);
+
+    // Check specialties (camelCase and snake_case)
+    final specDelivery = specialties != null
+        ? (getBool(specialties['deliveryEnabled']) ?? getBool(specialties['delivery_enabled']))
+        : null;
+    final specPickup = specialties != null
+        ? (getBool(specialties['pickupEnabled']) ?? getBool(specialties['pickup_enabled']))
+        : null;
+
+    // Use root values first, then specialties
+    if (rootDelivery != null) {
+      deliveryEnabled = rootDelivery;
+    } else if (specDelivery != null) {
+      deliveryEnabled = specDelivery;
+    }
+
+    if (rootPickup != null) {
+      pickupEnabled = rootPickup;
+    } else if (specPickup != null) {
+      pickupEnabled = specPickup;
     }
 
     final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt() ??

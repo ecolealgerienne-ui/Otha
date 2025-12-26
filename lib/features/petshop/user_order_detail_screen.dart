@@ -112,7 +112,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                 // Shop info with itinerary button
-                _buildShopCard(shopName, shopAddress, shopLat, shopLng, isDark, cardColor, textPrimary, textSecondary, borderColor, l10n),
+                _buildShopCard(provider, shopName, shopAddress, shopLat, shopLng, isDark, cardColor, textPrimary, textSecondary, borderColor, l10n),
                 const SizedBox(height: 16),
 
                 // Order items with images
@@ -284,7 +284,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildShopCard(String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
+  Widget _buildShopCard(Map<String, dynamic>? provider, String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -305,7 +305,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
               ),
               // Itinerary button with coral icon - always visible
               GestureDetector(
-                onTap: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
+                onTap: () => _openMapsItinerary(provider, shopLat, shopLng, shopAddress, shopName),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -336,11 +336,32 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openMapsItinerary(dynamic lat, dynamic lng, String address, String name) async {
+  /// Get mapsUrl from provider (checks specialties and root level)
+  String? _getMapsUrl(Map<String, dynamic>? provider) {
+    if (provider == null) return null;
+
+    // Check specialties first
+    final sp = provider['specialties'];
+    if (sp is Map) {
+      final u = (sp['mapsUrl'] ?? sp['maps_url'] ?? '').toString().trim();
+      if (u.startsWith('http')) return u;
+    }
+
+    // Check root level
+    final u2 = (provider['mapsUrl'] ?? provider['maps_url'] ?? '').toString().trim();
+    return u2.startsWith('http') ? u2 : null;
+  }
+
+  Future<void> _openMapsItinerary(Map<String, dynamic>? provider, dynamic lat, dynamic lng, String address, String name) async {
     Uri url;
 
-    // Prefer coordinates if available
-    if (lat != null && lng != null) {
+    // First try mapsUrl from provider (this is the stored Google Maps URL)
+    final mapsUrl = _getMapsUrl(provider);
+    if (mapsUrl != null && mapsUrl.isNotEmpty) {
+      url = Uri.parse(mapsUrl);
+    }
+    // Fallback to coordinates if available
+    else if (lat != null && lng != null) {
       final latitude = lat is num ? lat.toDouble() : double.tryParse(lat.toString()) ?? 0;
       final longitude = lng is num ? lng.toDouble() : double.tryParse(lng.toString()) ?? 0;
       if (latitude != 0 && longitude != 0) {
