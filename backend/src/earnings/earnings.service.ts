@@ -50,9 +50,9 @@ export class EarningsService {
     return out;
   }
 
-  private async collectedOverlay(providerId: string, ym: string, dueDa: number): Promise<number> {
+  private async collectedOverlay(providerId: string, ym: string, dueDa: number, kind: string = 'vet'): Promise<number> {
     const rec = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
     if (!rec) return 0;
     return Math.min(rec.amountDa, dueDa);
@@ -119,6 +119,7 @@ export class EarningsService {
   async collectMonth(providerId: string, ymRaw: string, note?: string, customAmount?: number) {
     const ym = canonYm(ymRaw);
     const row = await this.monthRow(providerId, ym);
+    const kind = 'vet';
 
     // Si un montant personnalisé est fourni, l'utiliser (limité au maximum dû)
     const amountToCollect = customAmount !== undefined
@@ -126,9 +127,9 @@ export class EarningsService {
       : row.dueDa;
 
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: amountToCollect, note },
-      create: { providerId, month: ym, amountDa: amountToCollect, note },
+      create: { providerId, month: ym, kind, amountDa: amountToCollect, note },
     });
     // Retourner la ligne normalisée recalculée
     return this.monthRow(providerId, ym);
@@ -138,9 +139,10 @@ export class EarningsService {
   async addToCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
     const row = await this.monthRow(providerId, ym);
+    const kind = 'vet';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     const currentAmount = existing?.amountDa ?? 0;
@@ -148,9 +150,9 @@ export class EarningsService {
     const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
 
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: newAmount, note: note || existing?.note },
-      create: { providerId, month: ym, amountDa: newAmount, note },
+      create: { providerId, month: ym, kind, amountDa: newAmount, note },
     });
 
     return this.monthRow(providerId, ym);
@@ -159,9 +161,10 @@ export class EarningsService {
   // Retirer un montant de la collecte
   async subtractFromCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
+    const kind = 'vet';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     if (!existing) {
@@ -173,11 +176,11 @@ export class EarningsService {
     if (newAmount === 0) {
       // Si le montant devient 0, supprimer l'enregistrement
       await this.prisma.adminCollection.delete({
-        where: { providerId_month: { providerId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
       });
     } else {
       await this.prisma.adminCollection.update({
-        where: { providerId_month: { providerId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
         data: { amountDa: newAmount, note: note || existing.note },
       });
     }
@@ -187,8 +190,9 @@ export class EarningsService {
 
   async uncollectMonth(providerId: string, ymRaw: string) {
     const ym = canonYm(ymRaw);
+    const kind = 'vet';
     await this.prisma.adminCollection.deleteMany({
-      where: { providerId, month: ym },
+      where: { providerId, month: ym, kind },
     });
     return this.monthRow(providerId, ym);
   }
@@ -296,8 +300,8 @@ export class EarningsService {
     const counts = await this.petshopCountsFor(providerId, ym);
     const { orderCount, totalCommission, totalRevenue } = await this.petshopCommissionFor(providerId, ym);
 
-    // Get collected amount (using same AdminCollection table with 'petshop-' prefix)
-    const collectedDa = await this.collectedOverlay(`petshop-${providerId}`, ym, totalCommission);
+    // Get collected amount using kind: 'petshop'
+    const collectedDa = await this.collectedOverlay(providerId, ym, totalCommission, 'petshop');
 
     const netDa = Math.max(totalCommission - collectedDa, 0);
 
@@ -339,18 +343,16 @@ export class EarningsService {
   async petshopCollectMonth(providerId: string, ymRaw: string, note?: string, customAmount?: number) {
     const ym = canonYm(ymRaw);
     const row = await this.petshopMonthRow(providerId, ym);
+    const kind = 'petshop';
 
     const amountToCollect = customAmount !== undefined
       ? Math.min(Math.max(0, customAmount), row.dueDa)
       : row.dueDa;
 
-    // Use 'petshop-' prefix to differentiate from vet collections
-    const collectionId = `petshop-${providerId}`;
-
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: amountToCollect, note },
-      create: { providerId: collectionId, month: ym, amountDa: amountToCollect, note },
+      create: { providerId, month: ym, kind, amountDa: amountToCollect, note },
     });
 
     return this.petshopMonthRow(providerId, ym);
@@ -362,19 +364,19 @@ export class EarningsService {
   async petshopAddCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
     const row = await this.petshopMonthRow(providerId, ym);
-    const collectionId = `petshop-${providerId}`;
+    const kind = 'petshop';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     const currentAmount = existing?.amountDa ?? 0;
     const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
 
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: newAmount, note: note || existing?.note },
-      create: { providerId: collectionId, month: ym, amountDa: newAmount, note },
+      create: { providerId, month: ym, kind, amountDa: newAmount, note },
     });
 
     return this.petshopMonthRow(providerId, ym);
@@ -385,10 +387,10 @@ export class EarningsService {
    */
   async petshopSubtractCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
-    const collectionId = `petshop-${providerId}`;
+    const kind = 'petshop';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     if (!existing) {
@@ -399,11 +401,11 @@ export class EarningsService {
 
     if (newAmount === 0) {
       await this.prisma.adminCollection.delete({
-        where: { providerId_month: { providerId: collectionId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
       });
     } else {
       await this.prisma.adminCollection.update({
-        where: { providerId_month: { providerId: collectionId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
         data: { amountDa: newAmount, note: note || existing.note },
       });
     }
@@ -416,9 +418,9 @@ export class EarningsService {
    */
   async petshopUncollectMonth(providerId: string, ymRaw: string) {
     const ym = canonYm(ymRaw);
-    const collectionId = `petshop-${providerId}`;
+    const kind = 'petshop';
     await this.prisma.adminCollection.deleteMany({
-      where: { providerId: collectionId, month: ym },
+      where: { providerId, month: ym, kind },
     });
     return this.petshopMonthRow(providerId, ym);
   }
@@ -551,8 +553,8 @@ export class EarningsService {
     const counts = await this.daycareCountsFor(providerId, ym);
     const { bookingCount, totalCommission, totalRevenue } = await this.daycareCommissionFor(providerId, ym);
 
-    // Get collected amount (using 'daycare-' prefix)
-    const collectedDa = await this.collectedOverlay(`daycare-${providerId}`, ym, totalCommission);
+    // Get collected amount using kind: 'daycare'
+    const collectedDa = await this.collectedOverlay(providerId, ym, totalCommission, 'daycare');
 
     const netDa = Math.max(totalCommission - collectedDa, 0);
 
@@ -594,17 +596,16 @@ export class EarningsService {
   async daycareCollectMonth(providerId: string, ymRaw: string, note?: string, customAmount?: number) {
     const ym = canonYm(ymRaw);
     const row = await this.daycareMonthRow(providerId, ym);
+    const kind = 'daycare';
 
     const amountToCollect = customAmount !== undefined
       ? Math.min(Math.max(0, customAmount), row.dueDa)
       : row.dueDa;
 
-    const collectionId = `daycare-${providerId}`;
-
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: amountToCollect, note },
-      create: { providerId: collectionId, month: ym, amountDa: amountToCollect, note },
+      create: { providerId, month: ym, kind, amountDa: amountToCollect, note },
     });
 
     return this.daycareMonthRow(providerId, ym);
@@ -616,19 +617,19 @@ export class EarningsService {
   async daycareAddCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
     const row = await this.daycareMonthRow(providerId, ym);
-    const collectionId = `daycare-${providerId}`;
+    const kind = 'daycare';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     const currentAmount = existing?.amountDa ?? 0;
     const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
 
     await this.prisma.adminCollection.upsert({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
       update: { amountDa: newAmount, note: note || existing?.note },
-      create: { providerId: collectionId, month: ym, amountDa: newAmount, note },
+      create: { providerId, month: ym, kind, amountDa: newAmount, note },
     });
 
     return this.daycareMonthRow(providerId, ym);
@@ -639,10 +640,10 @@ export class EarningsService {
    */
   async daycareSubtractCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
     const ym = canonYm(ymRaw);
-    const collectionId = `daycare-${providerId}`;
+    const kind = 'daycare';
 
     const existing = await this.prisma.adminCollection.findUnique({
-      where: { providerId_month: { providerId: collectionId, month: ym } },
+      where: { providerId_month_kind: { providerId, month: ym, kind } },
     });
 
     if (!existing) {
@@ -653,11 +654,11 @@ export class EarningsService {
 
     if (newAmount === 0) {
       await this.prisma.adminCollection.delete({
-        where: { providerId_month: { providerId: collectionId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
       });
     } else {
       await this.prisma.adminCollection.update({
-        where: { providerId_month: { providerId: collectionId, month: ym } },
+        where: { providerId_month_kind: { providerId, month: ym, kind } },
         data: { amountDa: newAmount, note: note || existing.note },
       });
     }
@@ -670,9 +671,9 @@ export class EarningsService {
    */
   async daycareUncollectMonth(providerId: string, ymRaw: string) {
     const ym = canonYm(ymRaw);
-    const collectionId = `daycare-${providerId}`;
+    const kind = 'daycare';
     await this.prisma.adminCollection.deleteMany({
-      where: { providerId: collectionId, month: ym },
+      where: { providerId, month: ym, kind },
     });
     return this.daycareMonthRow(providerId, ym);
   }

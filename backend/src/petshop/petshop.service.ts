@@ -557,6 +557,7 @@ export class PetshopService {
         pickupEnabled: true,
         deliveryFeeDa: true,
         freeDeliveryAboveDa: true,
+        petshopCommissionPercent: true,
         specialties: true,
         isApproved: true,
       },
@@ -576,6 +577,7 @@ export class PetshopService {
       pickupEnabled: provider.pickupEnabled,
       deliveryFeeDa: provider.deliveryFeeDa,
       freeDeliveryAboveDa: provider.freeDeliveryAboveDa,
+      commissionPercent: provider.petshopCommissionPercent ?? 5,
     };
   }
 
