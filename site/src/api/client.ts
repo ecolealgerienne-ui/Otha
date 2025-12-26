@@ -1222,10 +1222,13 @@ class ApiClient {
     vetCommissionDa: number;
     daycareHourlyCommissionDa: number;
     daycareDailyCommissionDa: number;
+    petshopCommissionPercent: number;
   }[]> {
     const params = new URLSearchParams();
     if (q) params.append('q', q);
     if (isApproved !== undefined) params.append('isApproved', String(isApproved));
+    // Add cache-buster to bypass browser caching after updates
+    params.append('_t', Date.now().toString());
     const { data } = await this._client.get(`/admin/commissions?${params}`);
     return data?.data || data || [];
   }
@@ -1240,8 +1243,10 @@ class ApiClient {
     vetCommissionDa: number;
     daycareHourlyCommissionDa: number;
     daycareDailyCommissionDa: number;
+    petshopCommissionPercent: number;
   }> {
-    const { data } = await this._client.get(`/admin/commissions/${providerId}`);
+    // Add cache-buster to bypass browser caching after updates
+    const { data } = await this._client.get(`/admin/commissions/${providerId}?_t=${Date.now()}`);
     return data?.data || data;
   }
 
