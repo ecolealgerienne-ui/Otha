@@ -130,7 +130,7 @@ class UserOrderDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
 
                 // Action buttons based on status
-                _buildActionButtons(context, ref, order, status, deliveryMode, shopLat, shopLng, shopAddress, shopName, isDark, l10n),
+                _buildActionButtons(context, ref, order, status, isDark, l10n),
                 const SizedBox(height: 16),
 
                 // Return to home
@@ -285,11 +285,6 @@ class UserOrderDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildShopCard(String shopName, String shopAddress, dynamic shopLat, dynamic shopLng, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
-    // Check if we have coordinates or at least an address for directions
-    final hasCoords = shopLat != null && shopLng != null;
-    final hasAddress = shopAddress.isNotEmpty;
-    final canShowDirections = hasCoords || hasAddress;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -308,19 +303,18 @@ class UserOrderDetailScreen extends ConsumerWidget {
               Expanded(
                 child: Text(l10n.petshopSeller, style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
               ),
-              // Itinerary button inline with title
-              if (canShowDirections)
-                TextButton.icon(
-                  onPressed: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
-                  icon: const Icon(Icons.directions, size: 16),
-                  label: Text(l10n.petshopGoToStore),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              // Itinerary button with coral icon - always visible
+              GestureDetector(
+                onTap: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? _coral.withOpacity(0.15) : _coralSoft,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: const Icon(Icons.directions, size: 20, color: _coral),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -552,11 +546,8 @@ class UserOrderDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, Map<String, dynamic> order, String status, String deliveryMode, dynamic shopLat, dynamic shopLng, String shopAddress, String shopName, bool isDark, AppLocalizations l10n) {
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref, Map<String, dynamic> order, String status, bool isDark, AppLocalizations l10n) {
     final id = (order['id'] ?? '').toString();
-    final hasCoords = shopLat != null && shopLng != null;
-    final hasAddress = shopAddress.isNotEmpty;
-    final canShowDirections = hasCoords || hasAddress;
 
     // Different actions based on status
     if (status == 'PENDING') {
@@ -577,23 +568,6 @@ class UserOrderDetailScreen extends ConsumerWidget {
     } else if (status == 'CONFIRMED' || status == 'READY') {
       return Column(
         children: [
-          // Itinerary button for pickup orders - show if we have coords OR address
-          if (deliveryMode == 'pickup' && canShowDirections)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _openMapsItinerary(shopLat, shopLng, shopAddress, shopName),
-                icon: const Icon(Icons.directions),
-                label: Text(l10n.petshopGoToStore),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          if (deliveryMode == 'pickup' && canShowDirections)
-            const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(

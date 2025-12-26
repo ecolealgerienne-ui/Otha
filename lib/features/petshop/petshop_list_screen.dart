@@ -88,36 +88,36 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
-    // Delivery options - check in specialties first (petshop settings), then root level
-    // Backend stores petshop delivery settings in specialties
+    // Delivery options - check root level first (where backend stores them), then specialties as fallback
+    // Backend stores petshop delivery settings directly on provider: p['deliveryEnabled'], p['pickupEnabled']
     final bool deliveryEnabled;
     final bool pickupEnabled;
 
-    if (specialties != null) {
-      // Check in specialties (where petshop-specific settings are stored)
-      deliveryEnabled = specialties['deliveryEnabled'] == true ||
-                        specialties['delivery_enabled'] == true ||
-                        specialties['enableDelivery'] == true;
-      // pickupEnabled: check if explicitly set to false
-      final pickupVal = specialties['pickupEnabled'] ?? specialties['pickup_enabled'] ?? specialties['enablePickup'];
-      pickupEnabled = pickupVal != false; // Only false if explicitly false
-    } else {
-      // Fallback to root level
-      deliveryEnabled = m['deliveryEnabled'] == true ||
-                        m['delivery_enabled'] == true ||
-                        m['enableDelivery'] == true;
-      final pickupVal = m['pickupEnabled'] ?? m['pickup_enabled'];
+    // Check root level first (this is where the backend stores it)
+    final rootDelivery = m['deliveryEnabled'];
+    final rootPickup = m['pickupEnabled'];
+
+    if (rootDelivery != null || rootPickup != null) {
+      // Use root level values
+      deliveryEnabled = rootDelivery == true;
+      pickupEnabled = rootPickup != false; // Default true unless explicitly false
+    } else if (specialties != null) {
+      // Fallback to specialties
+      deliveryEnabled = specialties['deliveryEnabled'] == true;
+      final pickupVal = specialties['pickupEnabled'];
       pickupEnabled = pickupVal != false;
+    } else {
+      // Defaults
+      deliveryEnabled = false;
+      pickupEnabled = true;
     }
 
-    final deliveryFeeDa = (specialties?['deliveryFeeDa'] as num?)?.toInt() ??
-                          (specialties?['delivery_fee_da'] as num?)?.toInt() ??
-                          (m['deliveryFeeDa'] as num?)?.toInt() ??
-                          (m['delivery_fee_da'] as num?)?.toInt();
-    final freeDeliveryAboveDa = (specialties?['freeDeliveryAboveDa'] as num?)?.toInt() ??
-                                 (specialties?['free_delivery_above_da'] as num?)?.toInt() ??
-                                 (m['freeDeliveryAboveDa'] as num?)?.toInt() ??
-                                 (m['free_delivery_above_da'] as num?)?.toInt();
+    final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt() ??
+                          (m['delivery_fee_da'] as num?)?.toInt() ??
+                          (specialties?['deliveryFeeDa'] as num?)?.toInt();
+    final freeDeliveryAboveDa = (m['freeDeliveryAboveDa'] as num?)?.toInt() ??
+                                 (m['free_delivery_above_da'] as num?)?.toInt() ??
+                                 (specialties?['freeDeliveryAboveDa'] as num?)?.toInt();
 
     // Calculate open/close status based on current time and day
     // Simple logic: assume open 9:00-19:00 every day for now
