@@ -199,11 +199,29 @@ export function AdminEarnings() {
     setActionLoading(true);
     try {
       if (collectionMode === 'set') {
-        await api.adminCollectMonth(selectedProvider.id, modalData.month, collectionNote || undefined, amount);
+        if (selectedKind === 'petshop') {
+          await api.adminPetshopCollectMonth(selectedProvider.id, modalData.month, collectionNote || undefined, amount);
+        } else if (selectedKind === 'daycare') {
+          await api.adminDaycareCollectMonth(selectedProvider.id, modalData.month, collectionNote || undefined, amount);
+        } else {
+          await api.adminCollectMonth(selectedProvider.id, modalData.month, collectionNote || undefined, amount);
+        }
       } else if (collectionMode === 'add') {
-        await api.adminAddCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        if (selectedKind === 'petshop') {
+          await api.adminPetshopAddCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        } else if (selectedKind === 'daycare') {
+          await api.adminDaycareAddCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        } else {
+          await api.adminAddCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        }
       } else if (collectionMode === 'subtract') {
-        await api.adminSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        if (selectedKind === 'petshop') {
+          await api.adminPetshopSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        } else if (selectedKind === 'daycare') {
+          await api.adminDaycareSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        } else {
+          await api.adminSubtractCollection(selectedProvider.id, modalData.month, amount, collectionNote || undefined);
+        }
       }
       fetchProviderEarnings(selectedProvider.id);
       fetchGlobalStats(); // Rafraîchir les totaux globaux
@@ -236,7 +254,13 @@ export function AdminEarnings() {
   async function handleUncollect(month: string) {
     if (!selectedProvider) return;
     try {
-      await api.adminUncollectMonth(selectedProvider.id, month);
+      if (selectedKind === 'petshop') {
+        await api.adminPetshopUncollectMonth(selectedProvider.id, month);
+      } else if (selectedKind === 'daycare') {
+        await api.adminDaycareUncollectMonth(selectedProvider.id, month);
+      } else {
+        await api.adminUncollectMonth(selectedProvider.id, month);
+      }
       fetchProviderEarnings(selectedProvider.id);
       fetchGlobalStats(); // Rafraîchir les totaux globaux
     } catch (error) {

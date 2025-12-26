@@ -357,6 +357,73 @@ export class EarningsService {
   }
 
   /**
+   * Add amount to petshop collection
+   */
+  async petshopAddCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+    const row = await this.petshopMonthRow(providerId, ym);
+    const collectionId = `petshop-${providerId}`;
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+    });
+
+    const currentAmount = existing?.amountDa ?? 0;
+    const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
+
+    await this.prisma.adminCollection.upsert({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+      update: { amountDa: newAmount, note: note || existing?.note },
+      create: { providerId: collectionId, month: ym, amountDa: newAmount, note },
+    });
+
+    return this.petshopMonthRow(providerId, ym);
+  }
+
+  /**
+   * Subtract amount from petshop collection
+   */
+  async petshopSubtractCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+    const collectionId = `petshop-${providerId}`;
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+    });
+
+    if (!existing) {
+      return this.petshopMonthRow(providerId, ym);
+    }
+
+    const newAmount = Math.max(0, existing.amountDa - amountDa);
+
+    if (newAmount === 0) {
+      await this.prisma.adminCollection.delete({
+        where: { providerId_month: { providerId: collectionId, month: ym } },
+      });
+    } else {
+      await this.prisma.adminCollection.update({
+        where: { providerId_month: { providerId: collectionId, month: ym } },
+        data: { amountDa: newAmount, note: note || existing.note },
+      });
+    }
+
+    return this.petshopMonthRow(providerId, ym);
+  }
+
+  /**
+   * Uncollect petshop month (remove all collection)
+   */
+  async petshopUncollectMonth(providerId: string, ymRaw: string) {
+    const ym = canonYm(ymRaw);
+    const collectionId = `petshop-${providerId}`;
+    await this.prisma.adminCollection.deleteMany({
+      where: { providerId: collectionId, month: ym },
+    });
+    return this.petshopMonthRow(providerId, ym);
+  }
+
+  /**
    * Global petshop stats across all petshop providers
    */
   async petshopGlobalStats(months = 12) {
@@ -540,6 +607,73 @@ export class EarningsService {
       create: { providerId: collectionId, month: ym, amountDa: amountToCollect, note },
     });
 
+    return this.daycareMonthRow(providerId, ym);
+  }
+
+  /**
+   * Add amount to daycare collection
+   */
+  async daycareAddCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+    const row = await this.daycareMonthRow(providerId, ym);
+    const collectionId = `daycare-${providerId}`;
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+    });
+
+    const currentAmount = existing?.amountDa ?? 0;
+    const newAmount = Math.min(currentAmount + amountDa, row.dueDa);
+
+    await this.prisma.adminCollection.upsert({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+      update: { amountDa: newAmount, note: note || existing?.note },
+      create: { providerId: collectionId, month: ym, amountDa: newAmount, note },
+    });
+
+    return this.daycareMonthRow(providerId, ym);
+  }
+
+  /**
+   * Subtract amount from daycare collection
+   */
+  async daycareSubtractCollection(providerId: string, ymRaw: string, amountDa: number, note?: string) {
+    const ym = canonYm(ymRaw);
+    const collectionId = `daycare-${providerId}`;
+
+    const existing = await this.prisma.adminCollection.findUnique({
+      where: { providerId_month: { providerId: collectionId, month: ym } },
+    });
+
+    if (!existing) {
+      return this.daycareMonthRow(providerId, ym);
+    }
+
+    const newAmount = Math.max(0, existing.amountDa - amountDa);
+
+    if (newAmount === 0) {
+      await this.prisma.adminCollection.delete({
+        where: { providerId_month: { providerId: collectionId, month: ym } },
+      });
+    } else {
+      await this.prisma.adminCollection.update({
+        where: { providerId_month: { providerId: collectionId, month: ym } },
+        data: { amountDa: newAmount, note: note || existing.note },
+      });
+    }
+
+    return this.daycareMonthRow(providerId, ym);
+  }
+
+  /**
+   * Uncollect daycare month (remove all collection)
+   */
+  async daycareUncollectMonth(providerId: string, ymRaw: string) {
+    const ym = canonYm(ymRaw);
+    const collectionId = `daycare-${providerId}`;
+    await this.prisma.adminCollection.deleteMany({
+      where: { providerId: collectionId, month: ym },
+    });
     return this.daycareMonthRow(providerId, ym);
   }
 

@@ -939,6 +939,18 @@ class ApiClient {
     await this._client.post('/earnings/admin/petshop/collect-month', { providerId, month, note, amount });
   }
 
+  async adminPetshopUncollectMonth(providerId: string, month: string): Promise<void> {
+    await this._client.post('/earnings/admin/petshop/uncollect-month', { providerId, month });
+  }
+
+  async adminPetshopAddCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/petshop/add-collection', { providerId, month, amount, note });
+  }
+
+  async adminPetshopSubtractCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/petshop/subtract-collection', { providerId, month, amount, note });
+  }
+
   async adminPetshopGlobalStats(months = 12): Promise<{
     totalProviders: number;
     totalOrders: number;
@@ -963,6 +975,18 @@ class ApiClient {
 
   async adminDaycareCollectMonth(providerId: string, month: string, note?: string, amount?: number): Promise<void> {
     await this._client.post('/earnings/admin/daycare/collect-month', { providerId, month, note, amount });
+  }
+
+  async adminDaycareUncollectMonth(providerId: string, month: string): Promise<void> {
+    await this._client.post('/earnings/admin/daycare/uncollect-month', { providerId, month });
+  }
+
+  async adminDaycareAddCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/daycare/add-collection', { providerId, month, amount, note });
+  }
+
+  async adminDaycareSubtractCollection(providerId: string, month: string, amount: number, note?: string): Promise<void> {
+    await this._client.post('/earnings/admin/daycare/subtract-collection', { providerId, month, amount, note });
   }
 
   async adminDaycareGlobalStats(months = 12): Promise<{
