@@ -273,7 +273,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                      'Informations préremplies depuis votre profil',
+                                      l10n.petshopInfoFromProfile,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: _coral,
@@ -288,7 +288,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       padding: EdgeInsets.zero,
                                       minimumSize: const Size(50, 30),
                                     ),
-                                    child: const Text('Modifier', style: TextStyle(fontSize: 12)),
+                                    child: Text(l10n.petshopModify, style: const TextStyle(fontSize: 12)),
                                   ),
                                 ],
                               ),
@@ -303,6 +303,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               textPrimary,
                               textSecondary,
                               borderColor,
+                              l10n,
                             ),
 
                           if (_providerDeliveryEnabled || _providerPickupEnabled)
@@ -311,7 +312,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           // Phone number
                           _buildSection(
                             icon: Icons.phone_outlined,
-                            title: 'Numero de telephone',
+                            title: l10n.petshopPhoneNumber,
                             required: true,
                             isDark: isDark,
                             cardColor: cardColor,
@@ -332,10 +333,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Le numero de telephone est requis';
+                                  return l10n.petshopPhoneRequired;
                                 }
                                 if (value.trim().length < 9) {
-                                  return 'Numero invalide';
+                                  return l10n.petshopInvalidPhone;
                                 }
                                 return null;
                               },
@@ -348,7 +349,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           if (_deliveryMode == 'delivery')
                             _buildSection(
                               icon: Icons.location_on_outlined,
-                              title: 'Adresse de livraison',
+                              title: l10n.petshopDeliveryAddress,
                               required: true,
                               isDark: isDark,
                               cardColor: cardColor,
@@ -360,16 +361,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 textCapitalization: TextCapitalization.sentences,
                                 style: TextStyle(color: textPrimary),
                                 decoration: _inputDecoration(
-                                  hintText: 'Numero, rue, quartier, wilaya...',
+                                  hintText: l10n.petshopAddressHint,
                                   isDark: isDark,
                                 ),
                                 validator: (value) {
                                   if (_deliveryMode != 'delivery') return null;
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'L\'adresse est requise';
+                                    return l10n.petshopAddressRequired;
                                   }
                                   if (value.trim().length < 10) {
-                                    return 'Adresse trop courte';
+                                    return l10n.petshopAddressTooShort;
                                   }
                                   return null;
                                 },
@@ -383,9 +384,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           _buildSection(
                             icon: Icons.note_outlined,
                             title: _deliveryMode == 'delivery'
-                                ? 'Instructions de livraison'
-                                : 'Notes pour le vendeur',
-                            subtitle: 'Optionnel',
+                                ? l10n.petshopDeliveryInstructions
+                                : l10n.petshopSellerNotes,
+                            subtitle: l10n.petshopOptional,
                             isDark: isDark,
                             cardColor: cardColor,
                             textPrimary: textPrimary,
@@ -397,8 +398,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               style: TextStyle(color: textPrimary),
                               decoration: _inputDecoration(
                                 hintText: _deliveryMode == 'delivery'
-                                    ? 'Ex: Sonner 2 fois, code porte 1234...'
-                                    : 'Ex: Je passerai vers 14h...',
+                                    ? l10n.petshopDeliveryExample
+                                    : l10n.petshopPickupExample,
                                 isDark: isDark,
                               ),
                             ),
@@ -413,7 +414,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
 
                     // Bottom bar with total and submit
-                    _buildBottomBar(cart, isDark, cardColor, textPrimary, textSecondary, borderColor),
+                    _buildBottomBar(cart, isDark, cardColor, textPrimary, textSecondary, borderColor, l10n),
                   ],
                 ),
               ),
@@ -455,6 +456,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     Color textPrimary,
     Color? textSecondary,
     Color borderColor,
+    AppLocalizations l10n,
   ) {
     final deliveryFee = _calculateDeliveryFee(subtotalDa);
     final freeDelivery = _freeDeliveryAboveDa != null && subtotalDa >= _freeDeliveryAboveDa!;
@@ -484,7 +486,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Mode de reception',
+                l10n.petshopReceptionMode,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -499,8 +501,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           if (_providerPickupEnabled)
             _buildDeliveryOption(
               icon: Icons.store_rounded,
-              title: 'Retrait sur place',
-              subtitle: 'Recuperez votre commande en boutique',
+              title: l10n.petshopPickupOption,
+              subtitle: l10n.petshopPickupHint,
               isSelected: _deliveryMode == 'pickup',
               onTap: () => setState(() => _deliveryMode = 'pickup'),
               isDark: isDark,
@@ -515,16 +517,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           if (_providerDeliveryEnabled)
             _buildDeliveryOption(
               icon: Icons.local_shipping_rounded,
-              title: 'Livraison a domicile',
+              title: l10n.petshopDeliveryOption,
               subtitle: freeDelivery
-                  ? 'Livraison gratuite!'
-                  : (deliveryFee > 0 ? '+$deliveryFee DA' : 'Gratuit'),
+                  ? l10n.petshopFreeDelivery
+                  : (deliveryFee > 0 ? '+$deliveryFee DA' : l10n.petshopFree),
               isSelected: _deliveryMode == 'delivery',
               onTap: () => setState(() => _deliveryMode = 'delivery'),
               isDark: isDark,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
-              badge: freeDelivery ? 'GRATUIT' : null,
+              badge: freeDelivery ? l10n.petshopFree.toUpperCase() : null,
             ),
 
           // Free delivery info
@@ -544,7 +546,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Livraison gratuite des ${_freeDeliveryAboveDa} DA d\'achat!',
+                        '${l10n.petshopFreeDeliveryInfo} ${_freeDeliveryAboveDa} DA ${l10n.petshopPurchase}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.green.shade700,
@@ -941,7 +943,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildBottomBar(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor) {
+  Widget _buildBottomBar(CartState cart, bool isDark, Color cardColor, Color textPrimary, Color? textSecondary, Color borderColor, AppLocalizations l10n) {
     final deliveryFee = _calculateDeliveryFee(cart.subtotalDa);
     final totalWithDelivery = cart.subtotalDa + deliveryFee;
 
@@ -968,7 +970,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Total a payer',
+                    l10n.petshopTotalToPay,
                     style: TextStyle(
                       color: textSecondary,
                       fontSize: 12,
@@ -1014,14 +1016,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Row(
+                        : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check, size: 20, color: Colors.white),
-                              SizedBox(width: 8),
+                              const Icon(Icons.check, size: 20, color: Colors.white),
+                              const SizedBox(width: 8),
                               Text(
-                                'Confirmer',
-                                style: TextStyle(
+                                l10n.petshopConfirm,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15,
                                   color: Colors.white,

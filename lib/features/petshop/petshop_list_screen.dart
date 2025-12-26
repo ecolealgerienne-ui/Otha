@@ -88,17 +88,25 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
     final avatarUrl = (m['avatarUrl'] ?? m['photoUrl'] ?? '').toString();
 
-    // Delivery options
-    final deliveryEnabled = m['deliveryEnabled'] == true;
-    final pickupEnabled = m['pickupEnabled'] != false; // Default true
-    final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt();
-    final freeDeliveryAboveDa = (m['freeDeliveryAboveDa'] as num?)?.toInt();
+    // Delivery options - check multiple field names for backend compatibility
+    final deliveryEnabled = m['deliveryEnabled'] == true ||
+                            m['delivery_enabled'] == true ||
+                            m['enableDelivery'] == true ||
+                            (m['deliveryEnabled']?.toString().toLowerCase() == 'true');
+    final pickupEnabled = m['pickupEnabled'] != false &&
+                          m['pickup_enabled'] != false; // Default true
+    final deliveryFeeDa = (m['deliveryFeeDa'] as num?)?.toInt() ??
+                          (m['delivery_fee_da'] as num?)?.toInt();
+    final freeDeliveryAboveDa = (m['freeDeliveryAboveDa'] as num?)?.toInt() ??
+                                 (m['free_delivery_above_da'] as num?)?.toInt();
 
     // Calculate open/close status based on current time and day
     // Simple logic: assume open 9:00-19:00 every day for now
     final now = DateTime.now();
     final hour = now.hour;
-    final isOpen = hour >= 9 && hour < 19;
+    final openingHour = (m['openingHour'] as num?)?.toInt() ?? 9;
+    final closingHour = (m['closingHour'] as num?)?.toInt() ?? 19;
+    final isOpen = hour >= openingHour && hour < closingHour;
 
     return <String, dynamic>{
       'id': id,
@@ -113,6 +121,7 @@ final _petshopsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
       'deliveryFeeDa': deliveryFeeDa,
       'freeDeliveryAboveDa': freeDeliveryAboveDa,
       'isOpen': isOpen,
+      'openingHour': openingHour,
     };
   }).toList();
 
@@ -674,10 +683,10 @@ class _PetshopCard extends StatelessWidget {
                 ),
               ),
 
-              // Bio
+              // Bio - moved up with less spacing
               if (bio.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
                     bio,
                     style: TextStyle(
