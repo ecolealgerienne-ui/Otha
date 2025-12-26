@@ -237,10 +237,11 @@ export function ProPatients() {
 
       const bookings = await api.providerAgenda(fromIso, toIso);
 
-      // Filter only CONFIRMED or COMPLETED bookings with a pet
+      // Filter only COMPLETED bookings with a pet
+      // (patient visible only after QR scan, reference code, or validation - not simple confirmation)
       const validBookings = bookings.filter(
         (b: Booking) =>
-          (b.status === 'CONFIRMED' || b.status === 'COMPLETED') &&
+          b.status === 'COMPLETED' &&
           b.pet &&
           b.pet.id
       );

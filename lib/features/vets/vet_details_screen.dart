@@ -315,7 +315,7 @@ class _VetDetailsScreenState extends ConsumerState<VetDetailsScreen> {
               'title': _selTitle,
               'description': _selDesc,
               'durationMin': _selDurationMin,
-              'price': _selTotalPriceDa, // Total = base + commission
+              'price': _selBasePriceDa, // Prix de base (la commission est ajoutée séparément)
             },
         };
         context.go('/booking/thanks', extra: bookingData);
