@@ -4,35 +4,6 @@ import { useLanguage } from '../i18n';
 import type { Language } from '../i18n';
 import './landing.css';
 
-// Types pour le sélecteur de langue
-interface LanguageData {
-  lang: Language;
-  imgSrc: string;
-  altText: string;
-  dataImg: string;
-}
-
-// Configuration des drapeaux
-const FLAGS: Record<Language, LanguageData> = {
-  fr: {
-    lang: 'fr',
-    imgSrc: '/assets/img/french.png',
-    altText: 'Français',
-    dataImg: 'france'
-  },
-  en: {
-    lang: 'en',
-    imgSrc: '/assets/img/english.png',
-    altText: 'English',
-    dataImg: 'uk'
-  },
-  ar: {
-    lang: 'ar',
-    imgSrc: '/assets/img/algeria.png',
-    altText: 'العربية',
-    dataImg: 'algeria'
-  }
-};
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -50,10 +21,6 @@ export function LandingPage() {
     { icon: 'fa-house', title: t.features.daycare.title, desc: t.features.daycare.desc, screen: '/assets/img/screens/home.jpeg' },
   ];
 
-  // Obtenir les drapeaux disponibles (excluant la langue actuelle)
-  const getOtherFlags = (): LanguageData[] => {
-    return Object.values(FLAGS).filter(flag => flag.lang !== language);
-  };
 
   // État pour l'animation de scroll entre deux images
   const [previousFeature, setPreviousFeature] = useState<number | null>(null);
@@ -233,27 +200,38 @@ export function LandingPage() {
         id="language-selector"
         className={isLanguageSelectorOpen ? 'open' : ''}
       >
-        <div
-          className="flag-circle main-flag"
-          data-lang={language}
-          data-img={FLAGS[language].dataImg}
+        <button
+          className="language-btn"
           onClick={handleMainFlagClick}
         >
-          <img src={FLAGS[language].imgSrc} alt={FLAGS[language].altText} />
-        </div>
+          {language === 'fr' ? 'Français' : language === 'en' ? 'English' : 'العربية'}
+        </button>
 
-        <div className="sub-flags">
-          {getOtherFlags().map((flag) => (
+        <div className="language-dropdown">
+          {language !== 'fr' && (
             <div
-              key={flag.lang}
-              className="flag-circle sub-flag"
-              data-lang={flag.lang}
-              data-img={flag.dataImg}
-              onClick={() => handleLanguageChange(flag.lang)}
+              className="language-option"
+              onClick={() => handleLanguageChange('fr')}
             >
-              <img src={flag.imgSrc} alt={flag.altText} />
+              Français
             </div>
-          ))}
+          )}
+          {language !== 'en' && (
+            <div
+              className="language-option"
+              onClick={() => handleLanguageChange('en')}
+            >
+              English
+            </div>
+          )}
+          {language !== 'ar' && (
+            <div
+              className="language-option"
+              onClick={() => handleLanguageChange('ar')}
+            >
+              العربية
+            </div>
+          )}
         </div>
       </div>
 
