@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # =================================
+  # PostgreSQL Database
+  # =================================
+  postgres_makla:
+    image: postgres:15-alpine
+    container_name: postgres_makla
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: makla
+      POSTGRES_USER: makla
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-makla_secure_password_123}
+    volumes:
+      - postgres_makla_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 5433 pour éviter conflit avec Vegece
+    networks:
+      - makla_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U makla"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =================================
+  # Redis (Cache)
+  # =================================
+  redis_makla:
+    image: redis:7-alpine
+    container_name: redis_makla
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # 6380 pour éviter conflit
+    volumes:
+      - redis_makla_data:/data
+    networks:
+      - makla_network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =================================
+  # MAKLA Backend API
+  # =================================
+  makla_api:
+    image: makla-backend:latest
+    container_name: makla_api
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"  # 3001 pour éviter conflit avec Vegece (3000)
+      - "5556:5555"  # Prisma Studio
+    environment:
+      # Database
+      DATABASE_URL: ${DATABASE_URL}
+
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-30d}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-60d}
+
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+
+      # S3 OVH Object Storage
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET_VIDEOS: ${S3_BUCKET_VIDEOS:-makla-videos}
+      S3_BUCKET_IMAGES: ${S3_BUCKET_IMAGES:-makla-images}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+      AWS_REGION: ${AWS_REGION:-rbx}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_USE_OBJECT_ACL: ${S3_USE_OBJECT_ACL:-true}
+
+      # Application
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://redis_makla:6379}
+    depends_on:
+      postgres_makla:
+        condition: service_healthy
+      redis_makla:
+        condition: service_healthy
+    networks:
+      - makla_network
+    volumes:
+      # Volume pour les uploads temporaires (optionnel)
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  makla_network:
+    driver: bridge
+
+volumes:
+  postgres_makla_data:
+    driver: local
+  redis_makla_data:
+    driver: local
+  uploads_data:
+    driver: local

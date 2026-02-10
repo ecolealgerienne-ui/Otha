@@ -1,0 +1,30 @@
+# Dépendances
+node_modules/
+package-lock.json
+
+# Build
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Uploads
+uploads/
+
+# Prisma
+prisma/migrations/*
+!prisma/migrations/.gitkeep
