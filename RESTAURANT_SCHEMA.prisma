@@ -1,0 +1,550 @@
+// =========================
+// SCHÉMA PRISMA - APP RESTAURANT (TikTok + Uber Eats)
+// =========================
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================
+// ENUMS
+// =========================
+
+enum UserRole {
+  CLIENT       // Client qui commande
+  RESTAURANT   // Propriétaire restaurant
+  LIVREUR      // Livreur
+  ADMIN        // Admin plateforme
+}
+
+enum OrderType {
+  LIVRAISON    // Livraison à domicile
+  EMPORTER     // À emporter
+  RESERVATION  // Réservation de table
+}
+
+enum OrderStatus {
+  PENDING           // En attente de confirmation resto
+  CONFIRMED         // Confirmé par resto
+  PREPARING         // En préparation
+  READY_FOR_PICKUP  // Prêt pour retrait (emporter) ou pour livreur
+  IN_DELIVERY       // En cours de livraison
+  DELIVERED         // Livré
+  COMPLETED         // Terminé (client confirmé réception)
+  CANCELLED         // Annulé
+}
+
+enum ReservationStatus {
+  PENDING    // En attente de confirmation
+  CONFIRMED  // Confirmée
+  CANCELLED  // Annulée
+  COMPLETED  // Honorée
+  NO_SHOW    // Client pas venu
+}
+
+enum PaymentMethod {
+  CASH       // Espèces
+  CIB        // Carte CIB
+  DAHABIA    // Carte Dahabia
+  ONLINE     // Paiement en ligne (Stripe, etc.)
+}
+
+enum PaymentStatus {
+  PENDING    // En attente
+  PAID       // Payé
+  FAILED     // Échoué
+  REFUNDED   // Remboursé
+}
+
+enum VideoStatus {
+  PENDING    // En attente de modération
+  APPROVED   // Approuvée
+  REJECTED   // Rejetée
+  ARCHIVED   // Archivée
+}
+
+enum DeliveryStatus {
+  IDLE            // Disponible
+  ASSIGNED        // Affecté à une commande
+  PICKING_UP      // En route vers resto
+  PICKED_UP       // A récupéré la commande
+  DELIVERING      // En route vers client
+  DELIVERED       // Livré
+}
+
+// =========================
+// USERS & AUTH
+// =========================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String?  // Hash bcrypt
+  phone     String?  @unique
+  role      UserRole @default(CLIENT)
+
+  // Profil
+  firstName String?
+  lastName  String?
+  photoUrl  String?
+
+  // Adresse par défaut (client)
+  address   String?
+  city      String?
+  wilaya    String?  // Wilaya algérienne
+  lat       Float?
+  lng       Float?
+
+  // Dates
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  restaurantProfile RestaurantProfile?
+  livreurProfile    LivreurProfile?
+  orders            Order[]
+  reservations      Reservation[]
+  reviews           Review[]
+  favoriteVideos    FavoriteVideo[]
+  likedVideos       VideoLike[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+}
+
+// =========================
+// RESTAURANTS
+// =========================
+
+model RestaurantProfile {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Informations restaurant
+  name        String
+  description String?  @db.Text
+  phone       String
+  email       String?
+
+  // Adresse
+  address     String
+  city        String
+  wilaya      String
+  lat         Float
+  lng         Float
+
+  // Horaires (JSON: {lundi: {open: "09:00", close: "22:00"}, ...})
+  openingHours Json?
+
+  // Images
+  logoUrl      String?
+  coverUrl     String?
+  photos       String[] // URLs de photos du restaurant
+
+  // Options de service
+  hasDelivery    Boolean @default(true)
+  hasEmporter    Boolean @default(true)
+  hasReservation Boolean @default(true)
+
+  // Frais et limites
+  deliveryFee       Int     @default(200)  // En DA
+  minOrderAmount    Int     @default(500)  // Minimum de commande en DA
+  maxDeliveryRadius Int     @default(5)     // Rayon de livraison en km
+
+  // Commission (personnalisable par admin)
+  commissionRate    Int     @default(10)   // % de commission par commande
+
+  // Statut
+  isActive      Boolean   @default(false)  // Actif (approuvé par admin)
+  isApproved    Boolean   @default(false)
+  appliedAt     DateTime  @default(now())
+  approvedAt    DateTime?
+
+  // Stats
+  totalOrders   Int       @default(0)
+  totalRevenue  Int       @default(0)  // En DA
+  averageRating Float     @default(0)
+  totalReviews  Int       @default(0)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  videos        Video[]
+  menus         Menu[]
+  orders        Order[]
+  reservations  Reservation[]
+  reviews       Review[]
+
+  @@index([city])
+  @@index([lat, lng])
+  @@index([isActive, isApproved])
+}
+
+// =========================
+// VIDÉOS (TikTok-like)
+// =========================
+
+model Video {
+  id           String      @id @default(cuid())
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Contenu
+  title        String?
+  description  String?     @db.Text
+  videoUrl     String      // URL de la vidéo (S3/CDN)
+  thumbnailUrl String?     // Miniature
+  duration     Int         // Durée en secondes (max 20)
+
+  // Metadata vidéo
+  width        Int?
+  height       Int?
+  size         Int?        // Taille fichier en bytes
+
+  // Tags
+  tags         String[]    // Hashtags (#pizza #algérois)
+
+  // Statut
+  status       VideoStatus @default(PENDING)
+
+  // Stats
+  views        Int         @default(0)
+  likes        Int         @default(0)
+  shares       Int         @default(0)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  favorited    FavoriteVideo[]
+  likedBy      VideoLike[]
+
+  @@index([restaurantId, status])
+  @@index([status, createdAt])
+  @@index([views])
+}
+
+model VideoLike {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@index([userId])
+}
+
+model FavoriteVideo {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@index([userId])
+}
+
+// =========================
+// MENUS & PRODUITS
+// =========================
+
+model Menu {
+  id           String  @id @default(cuid())
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Informations
+  name         String
+  description  String? @db.Text
+  category     String  // Entrées, Plats, Desserts, Boissons
+
+  // Prix
+  price        Int     // Prix en DA
+
+  // Options
+  imageUrl     String?
+  isAvailable  Boolean @default(true)
+  isPopular    Boolean @default(false)
+
+  // Personnalisation (JSON: [{name: "Taille", options: ["S", "M", "L"]}, ...])
+  customizations Json?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  orderItems   OrderItem[]
+
+  @@index([restaurantId, isAvailable])
+  @@index([restaurantId, category])
+}
+
+// =========================
+// COMMANDES
+// =========================
+
+model Order {
+  id           String      @id @default(cuid())
+  orderNumber  String      @unique  // Ex: "ORD-2024-001234"
+
+  // Relations
+  clientId     String
+  client       User        @relation(fields: [clientId], references: [id])
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id])
+  livreurId    String?
+  livreur      LivreurProfile? @relation(fields: [livreurId], references: [id])
+
+  // Type et statut
+  type         OrderType
+  status       OrderStatus @default(PENDING)
+
+  // Adresse livraison (si type = LIVRAISON)
+  deliveryAddress String?
+  deliveryLat     Float?
+  deliveryLng     Float?
+  deliveryCity    String?
+  deliveryPhone   String?
+
+  // Horaire (si type = EMPORTER ou RESERVATION)
+  scheduledAt     DateTime?
+
+  // Montants (en DA)
+  subtotal        Int         // Total produits
+  deliveryFee     Int         @default(0)
+  commission      Int         // Commission plateforme
+  total           Int         // Total final
+
+  // Paiement
+  paymentMethod   PaymentMethod @default(CASH)
+  paymentStatus   PaymentStatus @default(PENDING)
+
+  // Notes
+  clientNotes     String?     @db.Text
+
+  // Dates
+  createdAt       DateTime    @default(now())
+  confirmedAt     DateTime?
+  readyAt         DateTime?
+  deliveredAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  items           OrderItem[]
+  review          Review?
+
+  @@index([clientId])
+  @@index([restaurantId, status])
+  @@index([livreurId, status])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuId       String
+  menu         Menu    @relation(fields: [menuId], references: [id])
+
+  // Quantité et prix
+  quantity     Int
+  unitPrice    Int     // Prix unitaire au moment de la commande
+  totalPrice   Int     // quantity * unitPrice
+
+  // Personnalisation (JSON: {Taille: "M", Extra: "Fromage"})
+  customization Json?
+
+  // Notes spéciales
+  notes        String?
+
+  @@index([orderId])
+  @@index([menuId])
+}
+
+// =========================
+// RÉSERVATIONS
+// =========================
+
+model Reservation {
+  id           String            @id @default(cuid())
+
+  // Relations
+  clientId     String
+  client       User              @relation(fields: [clientId], references: [id])
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id])
+
+  // Informations réservation
+  date         DateTime          // Date et heure de la réservation
+  numberOfGuests Int             // Nombre de personnes
+  status       ReservationStatus @default(PENDING)
+
+  // Notes
+  clientNotes  String?           @db.Text
+
+  // Dates
+  createdAt    DateTime          @default(now())
+  confirmedAt  DateTime?
+  cancelledAt  DateTime?
+  completedAt  DateTime?
+  updatedAt    DateTime          @updatedAt
+
+  @@index([clientId])
+  @@index([restaurantId, date])
+  @@index([status])
+}
+
+// =========================
+// LIVREURS
+// =========================
+
+model LivreurProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Informations
+  vehicleType   String?  // Moto, Voiture, Vélo
+  vehicleNumber String?  // Numéro d'immatriculation
+
+  // Localisation actuelle
+  currentLat    Float?
+  currentLng    Float?
+  lastUpdatedAt DateTime?
+
+  // Statut
+  status        DeliveryStatus @default(IDLE)
+  isActive      Boolean        @default(false)  // Disponible pour livraisons
+  isApproved    Boolean        @default(false)  // Approuvé par admin
+
+  // Stats
+  totalDeliveries Int    @default(0)
+  averageRating   Float  @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  orders        Order[]
+
+  @@index([status])
+  @@index([isActive, isApproved])
+  @@index([currentLat, currentLng])
+}
+
+// =========================
+// AVIS & NOTES
+// =========================
+
+model Review {
+  id           String            @id @default(cuid())
+
+  // Relations
+  clientId     String
+  client       User              @relation(fields: [clientId], references: [id])
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id])
+  orderId      String            @unique
+  order        Order             @relation(fields: [orderId], references: [id])
+
+  // Note
+  rating       Int               // 1-5 étoiles
+  comment      String?           @db.Text
+
+  // Photos
+  photos       String[]          // URLs de photos
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([restaurantId])
+  @@index([clientId])
+  @@index([rating])
+}
+
+// =========================
+// VILLES & LOCALISATION
+// =========================
+
+model City {
+  id       String @id @default(cuid())
+  name     String @unique  // Ex: "Alger", "Oran"
+  wilaya   String          // Ex: "Alger", "Oran"
+  lat      Float           // Centre de la ville
+  lng      Float
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+}
+
+// =========================
+// COMMISSIONS & FINANCES
+// =========================
+
+model Commission {
+  id           String            @id @default(cuid())
+  restaurantId String
+  restaurant   RestaurantProfile @relation(fields: [restaurantId], references: [id])
+
+  // Commande concernée
+  orderId      String
+
+  // Montants (en DA)
+  orderTotal   Int               // Total de la commande
+  rate         Int               // Taux de commission (%)
+  amount       Int               // Montant de la commission
+
+  // Statut
+  isPaid       Boolean           @default(false)
+  paidAt       DateTime?
+
+  createdAt    DateTime          @default(now())
+
+  @@index([restaurantId, isPaid])
+  @@index([createdAt])
+}
+
+// =========================
+// NOTIFICATIONS
+// =========================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+
+  // Contenu
+  title     String
+  body      String   @db.Text
+  type      String   // ORDER_UPDATE, RESERVATION_CONFIRMED, etc.
+
+  // Metadata (JSON)
+  metadata  Json?    // {orderId: "...", restaurantId: "..."}
+
+  // Statut
+  read      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
